@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy: #0b1629;
+  --navy-light: #132044;
+  --gold: #c9a84c;
+  --surface: #1a2a4a;
+  --border: #2a3f6f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--navy);
+  color: #e2e8f0;
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
+
+/* 스크롤바 스타일 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--navy);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
+
+/* 입력 필드 다크 스타일 */
+input,
+select,
+textarea {
+  background-color: var(--surface) !important;
+  color: #e2e8f0 !important;
+  border-color: var(--border) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+}
+
+/* 테이블 행 호버 */
+.table-row-hover:hover {
+  background-color: rgba(201, 168, 76, 0.05);
+}
