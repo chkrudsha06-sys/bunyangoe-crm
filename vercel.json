@@ -1,6 +1,3 @@
 {
-  "framework": "nextjs",
-  "buildCommand": "cd 분양회-crm && npm run build",
-  "outputDirectory": "분양회-crm/.next",
-  "installCommand": "cd 분양회-crm && npm install"
+  "framework": "nextjs"
 }
