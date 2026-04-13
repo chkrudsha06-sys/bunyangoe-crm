@@ -113,7 +113,7 @@ export default function LoginPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/company-logo.png" alt="분양의신"
-            style={{ width: "min(480px, 72vw)", height: "auto", display: "block", marginBottom: 14 }}
+            style={{ width: "min(220px, 42vw)", height: "auto", display: "block", marginBottom: 14 }}
             onError={(e) => {
               const el = e.currentTarget as HTMLImageElement;
               el.style.display = "none";
