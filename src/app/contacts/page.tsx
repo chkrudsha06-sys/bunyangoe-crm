@@ -1,253 +1,401 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { supabase, TEAM_MEMBERS, RESULT_COLORS, PROSPECT_COLORS, SENSITIVITY_COLORS } from "@/lib/supabase";
-import { Contact, TeamMember } from "@/types";
-import { Search, Plus, Filter, X, Phone, MapPin, Calendar } from "lucide-react";
-import ContactModal from "@/components/ContactModal";
+import { supabase } from "@/lib/supabase";
+import { Plus, Search, Filter, X, Edit2, Trash2, ChevronDown } from "lucide-react";
 
-const PAGE_SIZE = 50;
-
-function InlineSelect({ value, options, placeholder, colorMap, onSave }: {
-  value: string | null;
-  options: { value: string; label: string }[];
-  placeholder: string;
-  colorMap?: Record<string, string>;
-  onSave: (val: string | null) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  if (!editing) {
-    return (
-      <div onClick={() => setEditing(true)} className="cursor-pointer min-w-[80px]">
-        {value ? (
-          <span className={`text-xs px-1.5 py-0.5 rounded border ${colorMap?.[value] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>{value}</span>
-        ) : (
-          <span className="text-brand-border text-xs hover:text-brand-muted border border-dashed border-brand-border/50 px-1.5 py-0.5 rounded">{placeholder}</span>
-        )}
-      </div>
-    );
-  }
-  return (
-    <select autoFocus value={value || ""} onChange={(e) => { onSave(e.target.value || null); setEditing(false); }} onBlur={() => setEditing(false)} className="text-xs px-1.5 py-0.5 bg-brand-surface border border-brand-gold rounded focus:outline-none">
-      <option value="">없음</option>
-      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
-  );
+// ── 타입 ──
+interface Contact {
+  id: number;
+  name: string;
+  title: string | null;
+  phone: string | null;
+  customer_type: string | null;
+  tm_sensitivity: string | null;
+  prospect_type: string | null;
+  meeting_date: string | null;
+  meeting_date_text: string | null;
+  meeting_address: string | null;
+  meeting_result: string | null;
+  management_stage: string | null;
+  memo: string | null;
+  assigned_to: string | null;
+  created_at: string;
 }
 
-function InlineText({ value, placeholder, icon, onSave }: {
-  value: string | null; placeholder: string; icon?: React.ReactNode; onSave: (val: string | null) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value || "");
-  const handleSave = () => { onSave(draft || null); setEditing(false); };
-  if (!editing) {
-    return (
-      <div onClick={() => { setDraft(value || ""); setEditing(true); }} className="cursor-pointer min-w-[60px]">
-        {value ? (
-          <span className="text-brand-muted text-xs flex items-center gap-1">{icon}{value}</span>
-        ) : (
-          <span className="text-brand-border text-xs hover:text-brand-muted border border-dashed border-brand-border/50 px-1.5 py-0.5 rounded">{placeholder}</span>
-        )}
-      </div>
-    );
-  }
-  return (
-    <input autoFocus type="text" value={draft} onChange={(e) => setDraft(e.target.value)}
-      onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
-      onBlur={handleSave} className="text-xs px-1.5 py-0.5 bg-brand-surface border border-brand-gold rounded focus:outline-none w-28" placeholder={placeholder} />
-  );
-}
+const EMPTY_FORM = {
+  name: "", title: "", phone: "",
+  customer_type: "", tm_sensitivity: "", prospect_type: "",
+  meeting_date: "", meeting_date_text: "", meeting_address: "",
+  meeting_result: "", management_stage: "", memo: "", assigned_to: "",
+};
 
-function InlineMeetingDate({ value, onSave }: { value: string | null; onSave: (val: string | null) => void; }) {
-  const [editing, setEditing] = useState(false);
-  const [mode, setMode] = useState<"date" | "text">("date");
-  const [draft, setDraft] = useState(value || "");
-  const handleSave = () => { onSave(draft || null); setEditing(false); };
-  const isDate = value && /^\d{4}-\d{2}-\d{2}/.test(value);
-  if (!editing) {
-    return (
-      <div onClick={() => { setDraft(value || ""); setEditing(true); }} className="cursor-pointer min-w-[70px]">
-        {value ? (
-          <span className="text-blue-400 text-xs flex items-center gap-1">
-            <Calendar size={10} />{isDate ? new Date(value).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }) : value}
-          </span>
-        ) : (
-          <span className="text-brand-border text-xs hover:text-brand-muted border border-dashed border-brand-border/50 px-1.5 py-0.5 rounded">날짜입력</span>
-        )}
-      </div>
-    );
-  }
+// 옵션 목록
+const OPT = {
+  customer_type: ["신규", "기고객"],
+  prospect_type: ["즉가입가망", "미팅예정가망", "연계매출가망"],
+  meeting_result: ["계약완료", "예약완료", "서류만수취", "미팅후가망관리", "계약거부", "미팅불발"],
+  management_stage: ["리드", "프로스펙팅", "딜크로징"],
+};
+
+const BADGE: Record<string, string> = {
+  계약완료: "bg-emerald-100 text-emerald-700",
+  예약완료: "bg-blue-100 text-blue-700",
+  서류만수취: "bg-purple-100 text-purple-700",
+  미팅후가망관리: "bg-amber-100 text-amber-700",
+  계약거부: "bg-red-100 text-red-700",
+  미팅불발: "bg-slate-100 text-slate-500",
+  즉가입가망: "bg-red-100 text-red-600",
+  미팅예정가망: "bg-amber-100 text-amber-700",
+  연계매출가망: "bg-slate-100 text-slate-600",
+  신규: "bg-sky-100 text-sky-700",
+  기고객: "bg-violet-100 text-violet-700",
+  리드: "bg-blue-50 text-blue-600",
+  프로스펙팅: "bg-indigo-100 text-indigo-700",
+  딜크로징: "bg-emerald-100 text-emerald-700",
+};
+
+const TEAM = ["조계현", "이세호", "기여운", "최연전"];
+
+// ── 팝업 셀 ──
+function CellPopup({ value, onClose }: { value: string; onClose: () => void }) {
   return (
-    <div className="flex flex-col gap-1 bg-brand-surface border border-brand-gold rounded p-2 z-20 shadow-lg absolute">
-      <div className="flex gap-1 mb-1">
-        <button onClick={() => setMode("date")} className={`text-xs px-2 py-0.5 rounded ${mode === "date" ? "bg-brand-gold text-brand-navy" : "text-brand-muted"}`}>날짜선택</button>
-        <button onClick={() => setMode("text")} className={`text-xs px-2 py-0.5 rounded ${mode === "text" ? "bg-brand-gold text-brand-navy" : "text-brand-muted"}`}>텍스트</button>
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="font-bold text-slate-700 text-sm">상세 내용</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+        </div>
+        <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">{value}</p>
       </div>
-      {mode === "date" ? (
-        <input autoFocus type="date" value={draft.split("T")[0] || ""} onChange={(e) => setDraft(e.target.value)} onBlur={handleSave} className="text-xs px-1.5 py-0.5 bg-brand-navy border border-brand-border rounded focus:outline-none" />
-      ) : (
-        <input autoFocus type="text" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }} onBlur={handleSave} placeholder="예: 4월 중, 미정" className="text-xs px-1.5 py-0.5 bg-brand-navy border border-brand-border rounded focus:outline-none w-32" />
-      )}
     </div>
   );
 }
 
+// ── Select 컴포넌트 ──
+function Sel({ val, onChange, opts, placeholder, className="" }: {
+  val: string; onChange: (v: string) => void;
+  opts: string[]; placeholder: string; className?: string;
+}) {
+  return (
+    <div className={`relative ${className}`}>
+      <select value={val} onChange={e=>onChange(e.target.value)}
+        className="w-full appearance-none px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-400 pr-8">
+        <option value="">{placeholder}</option>
+        {opts.map(o=><option key={o} value={o}>{o}</option>)}
+      </select>
+      <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+    </div>
+  );
+}
+
+// ── 메인 ──
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [filterMember, setFilterMember] = useState("");
-  const [filterResult, setFilterResult] = useState("");
-  const [filterProspect, setFilterProspect] = useState("");
-  const [filterSensitivity, setFilterSensitivity] = useState("");
-  const [filterType, setFilterType] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [editContact, setEditContact] = useState<Contact | null>(null);
+  const [form, setForm] = useState<any>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [popup, setPopup] = useState<string | null>(null);
+  const [useDatePicker, setUseDatePicker] = useState(true);
+
+  // 검색/필터
+  const [search, setSearch] = useState("");
+  const [fCustomerType, setFCustomerType] = useState("");
+  const [fProspect, setFProspect] = useState("");
+  const [fResult, setFResult] = useState("");
+  const [fStage, setFStage] = useState("");
+  const [fAssigned, setFAssigned] = useState("");
+  const [showFilter, setShowFilter] = useState(false);
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 30;
 
   const fetchContacts = useCallback(async () => {
     setLoading(true);
-    let query = supabase.from("contacts").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-    if (search) query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,memo.ilike.%${search}%,meeting_address.ilike.%${search}%`);
-    if (filterMember) query = query.eq("assigned_to", filterMember);
-    if (filterResult) { if (filterResult === "없음") query = query.is("meeting_result", null); else query = query.eq("meeting_result", filterResult); }
-    if (filterProspect) { if (filterProspect === "없음") query = query.is("prospect_type", null); else query = query.eq("prospect_type", filterProspect); }
-    if (filterSensitivity) query = query.eq("tm_sensitivity", filterSensitivity);
-    if (filterType) query = query.eq("customer_type", filterType);
-    const { data, count } = await query;
-    setContacts((data as Contact[]) || []);
+    let q = supabase.from("contacts").select("*", { count: "exact" });
+    if (search) q = q.or(`name.ilike.%${search}%,phone.ilike.%${search}%,memo.ilike.%${search}%,meeting_address.ilike.%${search}%`);
+    if (fCustomerType) q = q.eq("customer_type", fCustomerType);
+    if (fProspect) q = q.eq("prospect_type", fProspect);
+    if (fResult) q = q.eq("meeting_result", fResult);
+    if (fStage) q = q.eq("management_stage", fStage);
+    if (fAssigned) q = q.eq("assigned_to", fAssigned);
+    q = q.order("created_at", { ascending: false }).range((page-1)*PER_PAGE, page*PER_PAGE-1);
+    const { data, count } = await q;
+    setContacts((data || []) as Contact[]);
     setTotal(count || 0);
     setLoading(false);
-  }, [page, search, filterMember, filterResult, filterProspect, filterSensitivity, filterType]);
+  }, [search, fCustomerType, fProspect, fResult, fStage, fAssigned, page]);
 
-  useEffect(() => { setPage(0); }, [search, filterMember, filterResult, filterProspect, filterSensitivity, filterType]);
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
-  const updateField = async (id: number, field: string, value: string | null) => {
-    await supabase.from("contacts").update({ [field]: value }).eq("id", id);
-    setContacts((prev) => prev.map((c) => c.id === id ? { ...c, [field]: value } : c));
+  const openAdd = () => { setEditContact(null); setForm(EMPTY_FORM); setUseDatePicker(true); setShowModal(true); };
+  const openEdit = (c: Contact) => {
+    setEditContact(c);
+    setForm({
+      name: c.name || "", title: c.title || "", phone: c.phone || "",
+      customer_type: c.customer_type || "", tm_sensitivity: c.tm_sensitivity || "",
+      prospect_type: c.prospect_type || "", meeting_date: c.meeting_date?.split("T")[0] || "",
+      meeting_date_text: c.meeting_date_text || "", meeting_address: c.meeting_address || "",
+      meeting_result: c.meeting_result || "", management_stage: c.management_stage || "",
+      memo: c.memo || "", assigned_to: c.assigned_to || "",
+    });
+    setUseDatePicker(!c.meeting_date_text);
+    setShowModal(true);
   };
 
-  const handleSave = async (data: Partial<Contact>) => {
-    if (editContact) await supabase.from("contacts").update(data).eq("id", editContact.id);
-    else await supabase.from("contacts").insert(data);
-    fetchContacts(); setModalOpen(false); setEditContact(null);
+  const handleSave = async () => {
+    if (!form.name) return alert("고객명을 입력하세요.");
+    setSaving(true);
+    const payload = {
+      ...form,
+      meeting_date: useDatePicker ? (form.meeting_date || null) : null,
+      meeting_date_text: !useDatePicker ? (form.meeting_date_text || null) : null,
+    };
+    if (editContact) {
+      await supabase.from("contacts").update(payload).eq("id", editContact.id);
+    } else {
+      await supabase.from("contacts").insert(payload);
+    }
+    setSaving(false); setShowModal(false); fetchContacts();
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("이 고객을 삭제하시겠습니까?")) { await supabase.from("contacts").delete().eq("id", id); fetchContacts(); }
+    if (!confirm("삭제하시겠습니까?")) return;
+    await supabase.from("contacts").delete().eq("id", id);
+    fetchContacts();
   };
 
-  const activeFilters = [filterMember, filterResult, filterProspect, filterSensitivity, filterType].filter(Boolean).length;
+  const f = (key: string, val: string) => setForm((p: any) => ({ ...p, [key]: val }));
+  const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
+  const lbl = "block text-xs font-semibold text-slate-500 mb-1";
+
+  const totalPages = Math.ceil(total / PER_PAGE);
+  const activeFilters = [fCustomerType, fProspect, fResult, fStage, fAssigned].filter(Boolean).length;
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-6 py-4 border-b border-brand-border bg-brand-navy sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="flex-1 relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted" />
-            <input type="text" placeholder="이름, 연락처, 메모, 지역 검색..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-8 pr-4 py-2 text-sm bg-brand-surface border border-brand-border rounded-lg focus:outline-none focus:border-brand-gold" />
+    <div className="flex flex-col h-full bg-[#F1F5F9]">
+      {/* 헤더 */}
+      <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h1 className="text-lg font-black text-slate-800">고객 데이터</h1>
+            <p className="text-xs text-slate-400 mt-0.5">전체 <span className="text-blue-600 font-bold">{total.toLocaleString()}</span>명</p>
           </div>
-          <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${showFilters || activeFilters > 0 ? "bg-brand-gold/10 border-brand-gold/30 text-brand-gold" : "border-brand-border text-brand-muted hover:text-brand-text"}`}>
-            <Filter size={14} />필터{activeFilters > 0 && <span className="bg-brand-gold text-brand-navy text-xs font-bold px-1.5 rounded-full">{activeFilters}</span>}
-          </button>
-          <button onClick={() => { setEditContact(null); setModalOpen(true); }} className="flex items-center gap-2 px-3 py-2 text-sm bg-brand-gold text-brand-navy font-semibold rounded-lg hover:bg-brand-gold-light transition-colors">
-            <Plus size={14} />신규 등록
+          <button onClick={openAdd}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#1E3A8A] text-white text-sm font-bold rounded-xl hover:bg-blue-800 shadow-sm transition-colors">
+            <Plus size={15}/> 신규 등록
           </button>
         </div>
-        {showFilters && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <select value={filterMember} onChange={(e) => setFilterMember(e.target.value)} className="text-sm px-3 py-1.5 bg-brand-surface border border-brand-border rounded-lg">
-              <option value="">전체 담당자</option>{TEAM_MEMBERS.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="text-sm px-3 py-1.5 bg-brand-surface border border-brand-border rounded-lg">
-              <option value="">신규/기고객</option><option value="신규">신규</option><option value="기고객">기고객</option>
-            </select>
-            <select value={filterSensitivity} onChange={(e) => setFilterSensitivity(e.target.value)} className="text-sm px-3 py-1.5 bg-brand-surface border border-brand-border rounded-lg">
-              <option value="">TM감도</option><option value="상">상</option><option value="중">중</option><option value="하">하</option>
-            </select>
-            <select value={filterProspect} onChange={(e) => setFilterProspect(e.target.value)} className="text-sm px-3 py-1.5 bg-brand-surface border border-brand-border rounded-lg">
-              <option value="">가망구분</option><option value="즉가입가망">즉가입가망</option><option value="미팅예정가망">미팅예정가망</option><option value="연계매출가망고객">연계매출가망고객</option><option value="없음">미분류</option>
-            </select>
-            <select value={filterResult} onChange={(e) => setFilterResult(e.target.value)} className="text-sm px-3 py-1.5 bg-brand-surface border border-brand-border rounded-lg">
-              <option value="">미팅결과</option><option value="계약완료">계약완료</option><option value="예약완료">예약완료</option><option value="서류만수취">서류만수취</option><option value="미팅후가망관리">미팅후가망관리</option><option value="계약거부">계약거부</option><option value="미팅불발">미팅불발</option><option value="없음">결과없음</option>
-            </select>
-            {activeFilters > 0 && <button onClick={() => { setFilterMember(""); setFilterResult(""); setFilterProspect(""); setFilterSensitivity(""); setFilterType(""); }} className="flex items-center gap-1 text-sm text-red-400 px-2 py-1.5 hover:bg-red-500/10 rounded-lg"><X size={12} /> 초기화</button>}
+
+        {/* 검색 + 필터 */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+            <input type="text" placeholder="이름, 연락처, 메모, 지역 검색..." value={search}
+              onChange={e=>{setSearch(e.target.value);setPage(1);}}
+              className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
+          </div>
+          <button onClick={()=>setShowFilter(!showFilter)}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl border transition-colors ${
+              showFilter || activeFilters > 0 ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+            }`}>
+            <Filter size={14}/> 필터 {activeFilters > 0 && <span className="bg-white/30 text-white text-xs px-1.5 rounded-full">{activeFilters}</span>}
+          </button>
+          {activeFilters > 0 && (
+            <button onClick={()=>{setFCustomerType("");setFProspect("");setFResult("");setFStage("");setFAssigned("");}}
+              className="text-xs text-red-400 hover:text-red-600 px-2">초기화</button>
+          )}
+        </div>
+
+        {/* 필터 패널 */}
+        {showFilter && (
+          <div className="mt-3 grid grid-cols-5 gap-2">
+            <Sel val={fCustomerType} onChange={v=>{setFCustomerType(v);setPage(1);}} opts={OPT.customer_type} placeholder="고객유형"/>
+            <Sel val={fProspect} onChange={v=>{setFProspect(v);setPage(1);}} opts={OPT.prospect_type} placeholder="가망구분"/>
+            <Sel val={fResult} onChange={v=>{setFResult(v);setPage(1);}} opts={OPT.meeting_result} placeholder="미팅결과"/>
+            <Sel val={fStage} onChange={v=>{setFStage(v);setPage(1);}} opts={OPT.management_stage} placeholder="고객관리구간"/>
+            <Sel val={fAssigned} onChange={v=>{setFAssigned(v);setPage(1);}} opts={TEAM} placeholder="담당자"/>
           </div>
         )}
-        <div className="mt-2 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <p className="text-brand-muted text-xs">총 <span className="text-brand-gold font-semibold">{total.toLocaleString()}</span>건</p>
-            <p className="text-brand-muted text-xs">· ✏️ 표시 셀은 클릭하면 바로 수정</p>
-          </div>
-          <div className="flex items-center gap-1 text-xs text-brand-muted">
-            <button disabled={page === 0} onClick={() => setPage((p) => p - 1)} className="px-2 py-1 rounded hover:bg-brand-surface disabled:opacity-30">이전</button>
-            <span>{page + 1} / {Math.max(1, Math.ceil(total / PAGE_SIZE))}</span>
-            <button disabled={(page + 1) * PAGE_SIZE >= total} onClick={() => setPage((p) => p + 1)} className="px-2 py-1 rounded hover:bg-brand-surface disabled:opacity-30">다음</button>
-          </div>
-        </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      {/* 테이블 */}
+      <div className="flex-1 overflow-auto p-4">
         {loading ? (
-          <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-brand-gold border-t-transparent rounded-full animate-spin" /></div>
+          <div className="flex items-center justify-center h-64">
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
+          </div>
+        ) : contacts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+            <p className="text-sm mb-2">등록된 고객이 없습니다</p>
+            <button onClick={openAdd} className="text-xs text-blue-600 underline">첫 번째 고객 등록하기</button>
+          </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-brand-navy-light border-b border-brand-border z-10">
-              <tr>
-                {["고객명", "연락처", "담당", "유형", "TM감도 ✏️", "가망구분 ✏️", "미팅일정 ✏️", "지역 ✏️", "미팅결과 ✏️", "비고 ✏️", ""].map((h) => (
-                  <th key={h} className="text-left px-3 py-2.5 text-brand-muted text-xs font-medium whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {contacts.map((c) => (
-                <tr key={c.id} className="table-row-hover border-b border-brand-border/30">
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-brand-gold/20 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-brand-gold text-xs">{c.name[0]}</span>
-                      </div>
-                      <span className="text-brand-text font-medium truncate max-w-[110px] text-xs">{c.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2"><span className="text-brand-muted text-xs flex items-center gap-1"><Phone size={9} />{c.phone || "-"}</span></td>
-                  <td className="px-3 py-2"><span className="text-brand-text text-xs px-1.5 py-0.5 bg-brand-border rounded-full">{c.assigned_to}</span></td>
-                  <td className="px-3 py-2"><span className={`text-xs px-1.5 py-0.5 rounded ${c.customer_type === "기고객" ? "bg-amber-500/20 text-amber-300" : "bg-gray-500/20 text-gray-400"}`}>{c.customer_type}</span></td>
-                  <td className="px-3 py-2">
-                    <InlineSelect value={c.tm_sensitivity} options={[{value:"상",label:"상"},{value:"중",label:"중"},{value:"하",label:"하"}]} placeholder="감도" colorMap={SENSITIVITY_COLORS} onSave={(val) => updateField(c.id, "tm_sensitivity", val)} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <InlineSelect value={c.prospect_type} options={[{value:"즉가입가망",label:"즉가입가망"},{value:"미팅예정가망",label:"미팅예정가망"},{value:"연계매출가망고객",label:"연계매출가망"}]} placeholder="가망" colorMap={PROSPECT_COLORS} onSave={(val) => updateField(c.id, "prospect_type", val)} />
-                  </td>
-                  <td className="px-3 py-2 relative">
-                    <InlineMeetingDate value={c.meeting_date} onSave={(val) => updateField(c.id, "meeting_date", val)} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <InlineText value={c.meeting_address} placeholder="지역" icon={<MapPin size={9} />} onSave={(val) => updateField(c.id, "meeting_address", val)} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <InlineSelect value={c.meeting_result} options={[{value:"계약완료",label:"계약완료"},{value:"예약완료",label:"예약완료"},{value:"서류만수취",label:"서류만수취"},{value:"미팅후가망관리",label:"미팅후가망관리"},{value:"계약거부",label:"계약거부"},{value:"미팅불발",label:"미팅불발"}]} placeholder="결과" colorMap={RESULT_COLORS} onSave={(val) => updateField(c.id, "meeting_result", val)} />
-                  </td>
-                  <td className="px-3 py-2 max-w-[140px]">
-                    <InlineText value={c.memo ? c.memo.substring(0, 25) + (c.memo.length > 25 ? "..." : "") : null} placeholder="메모" onSave={(val) => updateField(c.id, "memo", val)} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => { setEditContact(c); setModalOpen(true); }} className="text-xs text-brand-muted hover:text-brand-gold px-2 py-1 rounded hover:bg-brand-gold/10">수정</button>
-                      <button onClick={() => handleDelete(c.id)} className="text-xs text-brand-muted hover:text-red-400 px-2 py-1 rounded hover:bg-red-500/10">삭제</button>
-                    </div>
-                  </td>
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <table className="w-full text-sm table-fixed">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  {[
+                    ["#","w-10"], ["고객명","w-24"], ["직급","w-20"], ["연락처","w-32"],
+                    ["고객유형","w-20"], ["TM감도","w-28"], ["가망구분","w-28"],
+                    ["미팅일정","w-24"], ["미팅지역","w-24"], ["미팅결과","w-28"],
+                    ["관리구간","w-24"], ["담당자","w-20"], ["비고","w-32"], ["","w-20"],
+                  ].map(([h,w])=>(
+                    <th key={h} className={`text-left px-3 py-2.5 text-slate-500 text-xs font-semibold ${w} truncate`}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {contacts.map((c, i) => (
+                  <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td className="px-3 py-2.5 text-slate-400 text-xs">{(page-1)*PER_PAGE+i+1}</td>
+                    <td className="px-3 py-2.5 font-bold text-slate-800 truncate">{c.name}</td>
+                    <td className="px-3 py-2.5 text-slate-500 text-xs truncate">{c.title||"-"}</td>
+                    <td className="px-3 py-2.5 text-slate-600 text-xs">{c.phone||"-"}</td>
+                    <td className="px-3 py-2.5">
+                      {c.customer_type ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${BADGE[c.customer_type]||"bg-slate-100 text-slate-600"}`}>{c.customer_type}</span> : <span className="text-slate-300 text-xs">-</span>}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="text-xs text-slate-600 truncate max-w-[100px] cursor-pointer"
+                        onDoubleClick={()=>c.tm_sensitivity&&setPopup(c.tm_sensitivity)}>
+                        {c.tm_sensitivity||"-"}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {c.prospect_type ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.prospect_type]||"bg-slate-100 text-slate-600"}`}>{c.prospect_type}</span> : <span className="text-slate-300 text-xs">-</span>}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-slate-600 truncate">
+                      {c.meeting_date ? new Date(c.meeting_date+"T00:00:00").toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})
+                       : c.meeting_date_text || "-"}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-slate-500 truncate max-w-[90px] cursor-pointer"
+                      onDoubleClick={()=>c.meeting_address&&setPopup(c.meeting_address)}>
+                      {c.meeting_address||"-"}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {c.meeting_result ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.meeting_result]||"bg-slate-100 text-slate-600"}`}>{c.meeting_result}</span> : <span className="text-slate-300 text-xs">-</span>}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {c.management_stage ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.management_stage]||"bg-slate-100 text-slate-600"}`}>{c.management_stage}</span> : <span className="text-slate-300 text-xs">-</span>}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full">{c.assigned_to||"-"}</span>
+                    </td>
+                    <td className="px-3 py-2.5 max-w-[120px] cursor-pointer"
+                      onDoubleClick={()=>c.memo&&setPopup(c.memo)}>
+                      <p className="text-xs text-slate-500 truncate">{c.memo||"-"}</p>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex gap-1">
+                        <button onClick={()=>openEdit(c)}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                          <Edit2 size={13}/>
+                        </button>
+                        <button onClick={()=>handleDelete(c.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                          <Trash2 size={13}/>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* 페이지네이션 */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+                <p className="text-xs text-slate-400">{(page-1)*PER_PAGE+1}~{Math.min(page*PER_PAGE,total)} / 전체 {total.toLocaleString()}명</p>
+                <div className="flex gap-1">
+                  <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}
+                    className="px-3 py-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg disabled:opacity-40">이전</button>
+                  {Array.from({length:Math.min(5,totalPages)},(_,i)=>{
+                    const p = Math.max(1, Math.min(page-2,totalPages-4)) + i;
+                    return (
+                      <button key={p} onClick={()=>setPage(p)}
+                        className={`px-3 py-1.5 text-xs rounded-lg border ${page===p?"bg-blue-600 text-white border-blue-600":"bg-slate-50 text-slate-600 border-slate-200"}`}>
+                        {p}
+                      </button>
+                    );
+                  })}
+                  <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages}
+                    className="px-3 py-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg disabled:opacity-40">다음</button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
-      {modalOpen && <ContactModal contact={editContact} onSave={handleSave} onClose={() => { setModalOpen(false); setEditContact(null); }} />}
+
+      {/* 팝업 (더블클릭) */}
+      {popup && <CellPopup value={popup} onClose={()=>setPopup(null)}/>}
+
+      {/* 등록/수정 모달 */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h2 className="font-black text-slate-800">{editContact ? "고객 정보 수정" : "신규 고객 등록"}</h2>
+              <button onClick={()=>setShowModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18}/></button>
+            </div>
+            <div className="flex-1 overflow-auto px-6 py-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div><label className={lbl}>고객명 *</label><input className={inp} value={form.name} onChange={e=>f("name",e.target.value)} placeholder="홍길동"/></div>
+                <div><label className={lbl}>직급</label><input className={inp} value={form.title} onChange={e=>f("title",e.target.value)} placeholder="본부장"/></div>
+                <div><label className={lbl}>연락처</label><input className={inp} value={form.phone} onChange={e=>f("phone",e.target.value)} placeholder="010-0000-0000"/></div>
+                <div>
+                  <label className={lbl}>고객유형</label>
+                  <Sel val={form.customer_type} onChange={v=>f("customer_type",v)} opts={OPT.customer_type} placeholder="선택"/>
+                </div>
+                <div className="col-span-2"><label className={lbl}>TM감도</label><input className={inp} value={form.tm_sensitivity} onChange={e=>f("tm_sensitivity",e.target.value)} placeholder="TM 반응 메모"/></div>
+                <div>
+                  <label className={lbl}>가망구분</label>
+                  <Sel val={form.prospect_type} onChange={v=>f("prospect_type",v)} opts={OPT.prospect_type} placeholder="선택"/>
+                </div>
+                <div className="col-span-2">
+                  <label className={lbl}>미팅일정</label>
+                  <div className="flex gap-2 mb-1.5">
+                    <button onClick={()=>setUseDatePicker(true)}
+                      className={`text-xs px-3 py-1 rounded-lg font-semibold border transition-colors ${useDatePicker?"bg-blue-600 text-white border-blue-600":"bg-slate-50 text-slate-500 border-slate-200"}`}>날짜 선택</button>
+                    <button onClick={()=>setUseDatePicker(false)}
+                      className={`text-xs px-3 py-1 rounded-lg font-semibold border transition-colors ${!useDatePicker?"bg-blue-600 text-white border-blue-600":"bg-slate-50 text-slate-500 border-slate-200"}`}>텍스트 입력</button>
+                  </div>
+                  {useDatePicker
+                    ? <input type="date" className={inp} value={form.meeting_date} onChange={e=>f("meeting_date",e.target.value)}/>
+                    : <input className={inp} value={form.meeting_date_text} onChange={e=>f("meeting_date_text",e.target.value)} placeholder="예: 4월 셋째주, 조율중"/>
+                  }
+                </div>
+                <div><label className={lbl}>미팅지역</label><input className={inp} value={form.meeting_address} onChange={e=>f("meeting_address",e.target.value)} placeholder="서울 강남"/></div>
+                <div>
+                  <label className={lbl}>미팅결과</label>
+                  <Sel val={form.meeting_result} onChange={v=>f("meeting_result",v)} opts={OPT.meeting_result} placeholder="선택"/>
+                </div>
+                <div>
+                  <label className={lbl}>고객관리구간</label>
+                  <Sel val={form.management_stage} onChange={v=>f("management_stage",v)} opts={OPT.management_stage} placeholder="선택"/>
+                </div>
+                <div>
+                  <label className={lbl}>담당자</label>
+                  <Sel val={form.assigned_to} onChange={v=>f("assigned_to",v)} opts={TEAM} placeholder="선택"/>
+                </div>
+                <div className="col-span-3">
+                  <label className={lbl}>비고</label>
+                  <textarea className={`${inp} resize-none`} rows={3} value={form.memo} onChange={e=>f("memo",e.target.value)} placeholder="메모를 입력하세요"/>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
+              <button onClick={()=>setShowModal(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">취소</button>
+              <button onClick={handleSave} disabled={saving}
+                className="px-6 py-2 text-sm bg-[#1E3A8A] text-white font-bold rounded-xl hover:bg-blue-800 disabled:opacity-50">
+                {saving ? "저장 중..." : editContact ? "수정 완료" : "등록"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
