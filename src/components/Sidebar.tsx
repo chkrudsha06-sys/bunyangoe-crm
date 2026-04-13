@@ -64,7 +64,7 @@ export default function Sidebar({ user }: SidebarProps) {
           {/* 분양의신 로고 */}
           <div className="flex items-center justify-center w-8 h-8 bg-slate-900 rounded-lg flex-shrink-0 overflow-hidden">
             <Image
-              src="/company-logo.png"
+              src="/icon-logo.png"
               alt="분양의신"
               width={24}
               height={20}
@@ -118,7 +118,7 @@ export default function Sidebar({ user }: SidebarProps) {
       <div className="px-3 pb-2">
         <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1.5">
-            <Image src="/company-logo.png" alt="분양의신" width={56} height={14} style={{ objectFit: "contain", opacity: 0.5 }} />
+            <Image src="/icon-logo.png" alt="분양의신" width={56} height={14} style={{ objectFit: "contain", opacity: 0.5 }} />
           </div>
           <p className="text-slate-400 text-xs mb-1">4월 분양회 입회 목표</p>
           <div className="flex items-end justify-between">
