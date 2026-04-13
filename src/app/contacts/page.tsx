@@ -149,16 +149,35 @@ export default function ContactsPage() {
     if (!form.name) return alert("고객명을 입력하세요.");
     setSaving(true);
     const payload = {
-      ...form,
+      name: form.name || null,
+      title: form.title || null,
+      phone: form.phone || null,
+      customer_type: form.customer_type || null,
+      tm_sensitivity: form.tm_sensitivity || null,
+      prospect_type: form.prospect_type || null,
       meeting_date: useDatePicker ? (form.meeting_date || null) : null,
       meeting_date_text: !useDatePicker ? (form.meeting_date_text || null) : null,
+      meeting_address: form.meeting_address || null,
+      meeting_result: form.meeting_result || null,
+      management_stage: form.management_stage || null,
+      memo: form.memo || null,
+      assigned_to: form.assigned_to || null,
     };
+    let error;
     if (editContact) {
-      await supabase.from("contacts").update(payload).eq("id", editContact.id);
+      const res = await supabase.from("contacts").update(payload).eq("id", editContact.id);
+      error = res.error;
     } else {
-      await supabase.from("contacts").insert(payload);
+      const res = await supabase.from("contacts").insert(payload);
+      error = res.error;
     }
-    setSaving(false); setShowModal(false); fetchContacts();
+    setSaving(false);
+    if (error) {
+      alert(`저장 실패: ${error.message}`);
+      return;
+    }
+    setShowModal(false);
+    fetchContacts();
   };
 
   const handleDelete = async (id: number) => {
