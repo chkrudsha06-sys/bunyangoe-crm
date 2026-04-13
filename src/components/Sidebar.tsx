@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { CRMUser, logout, TEAM_MEMBER_ROLES } from "@/lib/auth";
 import {
   LayoutDashboard, Users, Kanban, BarChart3,
   CalendarDays, Truck, Shield, Award,
   CreditCard, LogOut, ChevronRight,
-  Building2,
 } from "lucide-react";
 
 interface SidebarProps { user: CRMUser; }
@@ -58,11 +58,18 @@ export default function Sidebar({ user }: SidebarProps) {
 
   return (
     <aside className="w-56 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm">
-      {/* 로고 */}
+      {/* 로고 영역 */}
       <div className="px-4 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-gradient-to-br from-[#0B1629] to-[#1E3A8A] rounded-lg flex items-center justify-center shadow-sm">
-            <span className="text-[#C9A84C] font-bold text-sm">분</span>
+          {/* 분양의신 로고 */}
+          <div className="flex items-center justify-center w-8 h-8 bg-slate-900 rounded-lg flex-shrink-0 overflow-hidden">
+            <Image
+              src="/company-logo.png"
+              alt="분양의신"
+              width={24}
+              height={20}
+              style={{ objectFit: "contain", filter: "brightness(0) invert(1)" }}
+            />
           </div>
           <div>
             <p className="text-slate-800 font-bold text-sm leading-tight">분양회 CRM</p>
@@ -86,52 +93,40 @@ export default function Sidebar({ user }: SidebarProps) {
             </p>
           </div>
           {isAdmin && (
-            <span className="ml-auto text-xs px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-md border border-amber-100 font-medium">
-              관리
-            </span>
+            <span className="ml-auto text-xs px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-md border border-amber-100 font-medium">관리</span>
           )}
         </div>
       </div>
 
       {/* 네비게이션 */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        {/* 실행파트 */}
-        <div className="section-header px-1 pt-0 pb-1.5 text-slate-400 text-[10px] font-semibold tracking-widest uppercase">
-          ■ 실행파트
-        </div>
+        <div className="px-1 pb-1.5 text-slate-400 text-[10px] font-semibold tracking-widest uppercase">■ 실행파트</div>
         {EXEC_MENUS.map((m) => <NavItem key={m.href} {...m} />)}
-
-        {/* 구분선 */}
         <div className="my-2 border-t border-slate-100" />
-
-        {/* 운영파트 */}
-        <div className="px-1 pb-1.5 text-slate-400 text-[10px] font-semibold tracking-widest uppercase">
-          ■ 운영파트
-        </div>
+        <div className="px-1 pb-1.5 text-slate-400 text-[10px] font-semibold tracking-widest uppercase">■ 운영파트</div>
         {OPS_MENUS.map((m) => <NavItem key={m.href} {...m} />)}
-
-        {/* 관리자 전용 */}
         {isAdmin && (
           <>
             <div className="my-2 border-t border-amber-100" />
-            <div className="px-1 pb-1.5 text-amber-500 text-[10px] font-semibold tracking-widest uppercase">
-              ★ 관리자 전용
-            </div>
+            <div className="px-1 pb-1.5 text-amber-500 text-[10px] font-semibold tracking-widest uppercase">★ 관리자 전용</div>
             {ADMIN_EXTRA.map((m) => <NavItem key={m.href} {...m} />)}
           </>
         )}
       </nav>
 
-      {/* 목표 미니 위젯 */}
+      {/* 목표 위젯 */}
       <div className="px-3 pb-2">
         <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
-          <p className="text-slate-400 text-xs mb-1.5">4월 분양회 입회 목표</p>
+          <div className="flex items-center gap-2 mb-1.5">
+            <Image src="/company-logo.png" alt="분양의신" width={56} height={14} style={{ objectFit: "contain", opacity: 0.5 }} />
+          </div>
+          <p className="text-slate-400 text-xs mb-1">4월 분양회 입회 목표</p>
           <div className="flex items-end justify-between">
-            <span className="text-[#C9A84C] font-bold text-lg">2</span>
-            <span className="text-slate-400 text-xs">/ 16명</span>
+            <span className="text-blue-600 font-bold text-lg">2</span>
+            <span className="text-slate-400 text-xs">/ 100명</span>
           </div>
           <div className="mt-1.5 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-            <div className="h-full bg-[#C9A84C] rounded-full" style={{ width: "12.5%" }} />
+            <div className="h-full bg-blue-500 rounded-full" style={{ width: "2%" }} />
           </div>
         </div>
       </div>
