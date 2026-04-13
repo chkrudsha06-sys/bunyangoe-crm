@@ -1,277 +1,345 @@
-import { supabase, TEAM_MEMBERS, MEMBER_ROLES, formatCurrency } from "@/lib/supabase";
-import { Contact, MonthlyGoal } from "@/types";
+"use client";
+
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { getCurrentUser, CRMUser } from "@/lib/auth";
 import {
-  Users,
-  Phone,
-  CalendarCheck,
-  TrendingUp,
-  CheckCircle,
-  Clock,
-  Target,
+  Users, Award, Calendar, TrendingUp,
+  Target, CreditCard, BarChart3, Zap,
+  Clock, ChevronRight,
 } from "lucide-react";
 
-async function getDashboardData() {
-  const now = new Date();
-  const year = 2026;
-  const month = 4;
-
-  const { data: contacts } = await supabase
-    .from("contacts")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  const { data: goals } = await supabase
-    .from("monthly_goals")
-    .select("*")
-    .eq("year", year)
-    .eq("month", month);
-
-  return { contacts: (contacts as Contact[]) || [], goals: (goals as MonthlyGoal[]) || [] };
+// ── 타입 ──
+interface DashStats {
+  // 분양회 입회
+  contract: number;
+  reservation: number;
+  // 가망고객
+  hotProspect: number;
+  meetingProspect: number;
+  linkedProspect: number;
+  // 미팅예정
+  upcomingMeetings: number;
+  // 매출
+  membershipFeeCount: number;
+  membershipFeeAmount: number;
+  monthlyFeeCount: number;
+  monthlyFeeAmount: number;
+  hightargetWanpan: number;
+  hightargetBunyang: number;
+  totalAdRevenue: number;
 }
 
-export default async function DashboardPage() {
-  const { contacts, goals } = await getDashboardData();
+const EMPTY: DashStats = {
+  contract: 0, reservation: 0,
+  hotProspect: 0, meetingProspect: 0, linkedProspect: 0,
+  upcomingMeetings: 0,
+  membershipFeeCount: 0, membershipFeeAmount: 0,
+  monthlyFeeCount: 0, monthlyFeeAmount: 0,
+  hightargetWanpan: 0, hightargetBunyang: 0,
+  totalAdRevenue: 0,
+};
 
-  const totalContacts = contacts.length;
-  const totalTm = contacts.filter((c) => c.has_tm).length;
-  const prospects = contacts.filter((c) => c.prospect_type).length;
-  const contracts = contacts.filter((c) => c.meeting_result === "계약완료").length;
-  const reservations = contacts.filter((c) => c.meeting_result === "예약완료").length;
-  const upcomingMeetings = contacts.filter(
-    (c) =>
-      c.meeting_date &&
-      new Date(c.meeting_date) >= new Date() &&
-      c.meeting_result !== "계약거부" &&
-      c.meeting_result !== "미팅불발"
-  ).length;
+function formatWon(n: number) {
+  if (!n) return "0원";
+  if (n >= 100000000) return `${(n / 100000000).toFixed(1)}억`;
+  if (n >= 10000) return `${Math.floor(n / 10000)}만원`;
+  return `${n.toLocaleString()}원`;
+}
 
-  // 팀원별 통계
-  const memberStats = TEAM_MEMBERS.map((name) => {
-    const myContacts = contacts.filter((c) => c.assigned_to === name);
-    const goal = goals.find((g) => g.member_name === name);
-    const myContracts = myContacts.filter((c) => c.meeting_result === "계약완료").length;
-    const myReservations = myContacts.filter((c) => c.meeting_result === "예약완료").length;
-    const myProspects = myContacts.filter((c) => c.prospect_type).length;
-    const myTm = myContacts.filter((c) => c.has_tm).length;
+async function fetchStats(user: CRMUser, isMonthly: boolean): Promise<DashStats> {
+  const isExec = user.role === "exec";
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+  const today = now.toISOString().split("T")[0];
 
-    return {
-      name,
-      role: MEMBER_ROLES[name],
-      totalContacts: myContacts.length,
-      tm: myTm,
-      prospects: myProspects,
-      contracts: myContracts,
-      reservations: myReservations,
-      goal,
-      contractRate: myTm > 0 ? ((myContracts / myTm) * 100).toFixed(1) : "0.0",
-    };
-  });
+  // contacts 쿼리
+  let contactQ = supabase.from("contacts").select("meeting_result, tm_sensitivity, meeting_date, contract_date");
+  if (isExec) contactQ = contactQ.eq("assigned_to", user.name);
+  if (isMonthly) {
+    contactQ = contactQ.gte("created_at", monthStart).lte("created_at", monthEnd + "T23:59:59");
+  }
+  const { data: contacts } = await contactQ;
+  const c = contacts || [];
 
-  // 최근 계약/예약
-  const recentDeals = contacts
-    .filter((c) => c.meeting_result === "계약완료" || c.meeting_result === "예약완료")
-    .sort((a, b) =>
-      new Date(b.updated_at || b.created_at).getTime() -
-      new Date(a.updated_at || a.created_at).getTime()
-    )
-    .slice(0, 5);
+  // ad_executions 쿼리
+  let adQ = supabase.from("ad_executions").select("execution_amount, channel, contract_route, payment_date");
+  if (isExec) adQ = adQ.eq("team_member", user.name);
+  if (isMonthly) {
+    adQ = adQ.gte("payment_date", monthStart).lte("payment_date", monthEnd);
+  }
+  const { data: ads } = await adQ;
+  const a = ads || [];
 
-  // 이번 주 미팅 예정
-  const today = new Date();
-  const weekEnd = new Date(today);
-  weekEnd.setDate(weekEnd.getDate() + 7);
+  // rewards 쿼리 (입회비/월회비)
+  let rwQ = supabase.from("rewards").select("accumulated_reward, quarter, is_paid");
+  const { data: rewards } = await rwQ;
+  const rw = rewards || [];
 
-  const thisWeekMeetings = contacts
-    .filter((c) => {
-      if (!c.meeting_date) return false;
-      const d = new Date(c.meeting_date);
-      return d >= today && d <= weekEnd;
-    })
-    .sort((a, b) => new Date(a.meeting_date!).getTime() - new Date(b.meeting_date!).getTime())
-    .slice(0, 8);
+  // 미팅예정 (오늘 이후)
+  let meetQ = supabase.from("contacts").select("id").gte("meeting_date", today);
+  if (isExec) meetQ = meetQ.eq("assigned_to", user.name);
+  const { data: meetings } = await meetQ;
 
-  const kpiCards = [
-    { label: "전체 고객", value: totalContacts.toLocaleString(), icon: Users, color: "text-blue-400", bg: "bg-blue-500/10" },
-    { label: "TM 완료", value: totalTm.toLocaleString(), icon: Phone, color: "text-purple-400", bg: "bg-purple-500/10" },
-    { label: "가망 고객", value: prospects.toLocaleString(), icon: Target, color: "text-amber-400", bg: "bg-amber-500/10" },
-    { label: "미팅 예정", value: upcomingMeetings.toLocaleString(), icon: CalendarCheck, color: "text-cyan-400", bg: "bg-cyan-500/10" },
-    { label: "계약 완료", value: contracts.toLocaleString(), icon: CheckCircle, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-    { label: "예약 완료", value: reservations.toLocaleString(), icon: Clock, color: "text-indigo-400", bg: "bg-indigo-500/10" },
-  ];
+  return {
+    contract: c.filter((x: any) => x.meeting_result === "계약완료").length,
+    reservation: c.filter((x: any) => x.meeting_result === "예약완료").length,
+    hotProspect: c.filter((x: any) => x.tm_sensitivity === "즉가입가망").length,
+    meetingProspect: c.filter((x: any) => x.tm_sensitivity === "미팅예정가망").length,
+    linkedProspect: c.filter((x: any) => x.tm_sensitivity === "연계매출가망").length,
+    upcomingMeetings: (meetings || []).length,
+    membershipFeeCount: c.filter((x: any) => x.meeting_result === "계약완료").length,
+    membershipFeeAmount: c.filter((x: any) => x.meeting_result === "계약완료").length * 500000,
+    monthlyFeeCount: c.filter((x: any) => x.meeting_result === "계약완료").length,
+    monthlyFeeAmount: c.filter((x: any) => x.meeting_result === "계약완료").length * 100000,
+    hightargetWanpan: a.filter((x: any) => x.channel === "하이타겟" && x.contract_route === "완판트럭")
+      .reduce((s: number, x: any) => s + (x.execution_amount || 0), 0),
+    hightargetBunyang: a.filter((x: any) => x.channel === "하이타겟" && x.contract_route === "분양회")
+      .reduce((s: number, x: any) => s + (x.execution_amount || 0), 0),
+    totalAdRevenue: a.reduce((s: number, x: any) => s + (x.execution_amount || 0), 0),
+  };
+}
+
+// ── 카드 컴포넌트 ──
+function StatCard({
+  icon: Icon, label, value, sub, color, children
+}: {
+  icon: React.ElementType; label: string; value: string | number;
+  sub?: string; color: string; children?: React.ReactNode;
+}) {
+  return (
+    <div className={`bg-white rounded-2xl border border-slate-100 p-4 shadow-sm hover:shadow-md transition-shadow`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}>
+          <Icon size={16} className="text-white" />
+        </div>
+        <ChevronRight size={14} className="text-slate-300" />
+      </div>
+      <p className="text-xs text-slate-400 font-medium mb-1">{label}</p>
+      <p className="text-2xl font-black text-slate-800 leading-tight">{value}</p>
+      {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
+      {children}
+    </div>
+  );
+}
+
+function SubRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-50">
+      <span className="text-xs text-slate-400">{label}</span>
+      <span className="text-sm font-bold text-slate-700">{value}</span>
+    </div>
+  );
+}
+
+// ── 대시보드 패널 ──
+function DashPanel({ title, stats, loading }: { title: string; stats: DashStats; loading: boolean }) {
+  if (loading) return (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  const totalJoin = stats.contract + stats.reservation;
+  const totalProspect = stats.hotProspect + stats.meetingProspect + stats.linkedProspect;
 
   return (
-    <div className="p-6 space-y-6">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-brand-text">대협팀 월간 대시보드</h1>
-          <p className="text-brand-muted text-sm mt-0.5">2026년 4월 · 분양회 VIP 100인 모집</p>
-        </div>
-        <div className="text-right">
-          <p className="text-brand-gold font-bold text-2xl">{contracts + reservations}명</p>
-          <p className="text-brand-muted text-xs">계약+예약 합산</p>
-        </div>
+    <div className="flex-1 min-w-0">
+      {/* 패널 헤더 */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-1 h-5 bg-blue-500 rounded-full" />
+        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-widest">{title}</h2>
       </div>
 
-      {/* KPI 카드 */}
-      <div className="grid grid-cols-3 gap-3">
-        {kpiCards.map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="bg-brand-surface border border-brand-border rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-brand-muted text-xs">{label}</p>
-              <div className={`w-7 h-7 ${bg} rounded-lg flex items-center justify-center`}>
-                <Icon size={14} className={color} />
-              </div>
+      <div className="grid grid-cols-2 gap-3">
+        {/* 분양회 입회수 */}
+        <div className="col-span-2 bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+              <Award size={16} className="text-white" />
             </div>
-            <p className={`text-2xl font-bold ${color}`}>{value}</p>
+            <div>
+              <p className="text-xs text-slate-400 font-medium">분양회 입회수</p>
+              <p className="text-2xl font-black text-slate-800 leading-tight">{totalJoin}<span className="text-sm font-normal text-slate-400 ml-1">건</span></p>
+            </div>
           </div>
-        ))}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-emerald-50 rounded-xl px-3 py-2 border border-emerald-100">
+              <p className="text-xs text-emerald-600 font-semibold mb-0.5">계약완료</p>
+              <p className="text-xl font-black text-emerald-700">{stats.contract}<span className="text-xs font-normal ml-0.5">건</span></p>
+            </div>
+            <div className="bg-blue-50 rounded-xl px-3 py-2 border border-blue-100">
+              <p className="text-xs text-blue-600 font-semibold mb-0.5">예약완료</p>
+              <p className="text-xl font-black text-blue-700">{stats.reservation}<span className="text-xs font-normal ml-0.5">건</span></p>
+            </div>
+          </div>
+        </div>
+
+        {/* 가망고객 */}
+        <div className="col-span-2 bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+              <Target size={16} className="text-white" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-medium">가망고객</p>
+              <p className="text-2xl font-black text-slate-800 leading-tight">{totalProspect}<span className="text-sm font-normal text-slate-400 ml-1">명</span></p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-red-50 rounded-xl px-2 py-2 border border-red-100 text-center">
+              <p className="text-[10px] text-red-500 font-semibold mb-0.5">즉가입가망</p>
+              <p className="text-lg font-black text-red-600">{stats.hotProspect}</p>
+            </div>
+            <div className="bg-amber-50 rounded-xl px-2 py-2 border border-amber-100 text-center">
+              <p className="text-[10px] text-amber-600 font-semibold mb-0.5">미팅예정가망</p>
+              <p className="text-lg font-black text-amber-700">{stats.meetingProspect}</p>
+            </div>
+            <div className="bg-slate-50 rounded-xl px-2 py-2 border border-slate-100 text-center">
+              <p className="text-[10px] text-slate-500 font-semibold mb-0.5">연계매출가망</p>
+              <p className="text-lg font-black text-slate-700">{stats.linkedProspect}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 미팅예정 */}
+        <StatCard icon={Calendar} label="미팅예정" value={stats.upcomingMeetings} sub="건" color="bg-gradient-to-br from-cyan-500 to-blue-600">
+        </StatCard>
+
+        {/* 입회비 */}
+        <StatCard icon={CreditCard} label="입회비" value={`${stats.membershipFeeCount}건`} color="bg-gradient-to-br from-emerald-500 to-teal-600">
+          <SubRow label="금액" value={formatWon(stats.membershipFeeAmount)} />
+        </StatCard>
+
+        {/* 월회비 */}
+        <StatCard icon={Users} label="월회비" value={`${stats.monthlyFeeCount}건`} color="bg-gradient-to-br from-blue-500 to-indigo-600">
+          <SubRow label="금액" value={formatWon(stats.monthlyFeeAmount)} />
+        </StatCard>
+
+        {/* 연계매출 하이타겟 */}
+        <div className="col-span-2 bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center">
+              <Zap size={16} className="text-white" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-medium">연계매출 (하이타겟)</p>
+              <p className="text-2xl font-black text-slate-800 leading-tight">{formatWon(stats.hightargetWanpan + stats.hightargetBunyang)}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-blue-50 rounded-xl px-3 py-2 border border-blue-100">
+              <p className="text-xs text-blue-600 font-semibold mb-0.5">완판트럭</p>
+              <p className="text-base font-black text-blue-800">{formatWon(stats.hightargetWanpan)}</p>
+            </div>
+            <div className="bg-indigo-50 rounded-xl px-3 py-2 border border-indigo-100">
+              <p className="text-xs text-indigo-600 font-semibold mb-0.5">분양회</p>
+              <p className="text-base font-black text-indigo-800">{formatWon(stats.hightargetBunyang)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 광고특전매출 총매출 */}
+        <div className="col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 shadow-md">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
+              <TrendingUp size={16} className="text-white" />
+            </div>
+            <p className="text-xs text-white/60 font-medium">광고특전매출 총매출</p>
+          </div>
+          <p className="text-3xl font-black text-white">{formatWon(stats.totalAdRevenue)}</p>
+        </div>
       </div>
+    </div>
+  );
+}
 
-      {/* 팀원별 목표 달성 현황 */}
-      <div>
-        <h2 className="text-sm font-semibold text-brand-muted uppercase tracking-wider mb-3">
-          팀원별 목표 달성 현황
-        </h2>
-        <div className="grid grid-cols-2 gap-3">
-          {memberStats.map((m) => {
-            const targetContracts = m.goal?.target_contracts || 4;
-            const rate = Math.min((m.contracts / targetContracts) * 100, 100);
-            return (
-              <div key={m.name} className="bg-brand-surface border border-brand-border rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-brand-gold/20 rounded-full flex items-center justify-center">
-                      <span className="text-brand-gold font-bold text-xs">{m.name[0]}</span>
-                    </div>
-                    <div>
-                      <p className="text-brand-text font-medium text-sm">{m.name}</p>
-                      <p className="text-brand-muted text-xs">{m.role}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-brand-gold font-bold">
-                      {m.contracts + m.reservations}
-                      <span className="text-brand-muted font-normal text-xs">/{targetContracts}</span>
-                    </p>
-                    <p className="text-brand-muted text-xs">계약+예약</p>
-                  </div>
-                </div>
+// ── 메인 대시보드 ──
+export default function DashboardPage() {
+  const [user, setUser] = useState<CRMUser | null>(null);
+  const [monthly, setMonthly] = useState<DashStats>(EMPTY);
+  const [total, setTotal] = useState<DashStats>(EMPTY);
+  const [loadingM, setLoadingM] = useState(true);
+  const [loadingT, setLoadingT] = useState(true);
+  const [now, setNow] = useState(new Date());
 
-                {/* 진행바 */}
-                <div className="h-1.5 bg-brand-border rounded-full overflow-hidden mb-3">
-                  <div
-                    className="h-full bg-brand-gold rounded-full transition-all"
-                    style={{ width: `${rate}%` }}
-                  />
-                </div>
+  // 실시간 시계
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <p className="text-brand-text font-semibold text-sm">{m.tm}</p>
-                    <p className="text-brand-muted text-xs">TM</p>
-                  </div>
-                  <div>
-                    <p className="text-amber-400 font-semibold text-sm">{m.prospects}</p>
-                    <p className="text-brand-muted text-xs">가망</p>
-                  </div>
-                  <div>
-                    <p className="text-emerald-400 font-semibold text-sm">{m.contractRate}%</p>
-                    <p className="text-brand-muted text-xs">전환율</p>
-                  </div>
-                </div>
+  // 유저 로드
+  useEffect(() => {
+    const u = getCurrentUser();
+    setUser(u);
+  }, []);
+
+  // 데이터 로드
+  useEffect(() => {
+    if (!user) return;
+    setLoadingM(true); setLoadingT(true);
+    fetchStats(user, true).then(d => { setMonthly(d); setLoadingM(false); });
+    fetchStats(user, false).then(d => { setTotal(d); setLoadingT(false); });
+  }, [user]);
+
+  // 날짜/시간 포맷
+  const dateStr = now.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
+  const timeStr = now.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+
+  const isExec = user?.role === "exec";
+  const headerName = isExec ? `${user?.name} ${user?.title}` : "종합";
+
+  return (
+    <div className="flex flex-col h-full bg-[#F1F5F9]">
+      {/* 헤더 */}
+      <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-black text-slate-800 tracking-tight">
+              대외협력팀{" "}
+              <span className="text-blue-600">{headerName}</span>
+              {" "}대시보드
+            </h1>
+            <div className="flex items-center gap-3 mt-1">
+              <div className="flex items-center gap-1.5 text-slate-500">
+                <Clock size={13} className="text-blue-400" />
+                <span className="text-sm font-medium">{dateStr}</span>
               </div>
-            );
-          })}
+              <div className="w-1 h-1 rounded-full bg-slate-300" />
+              <span className="text-sm font-mono font-bold text-blue-600 tabular-nums">{timeStr}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            실시간 데이터
+          </div>
         </div>
       </div>
 
-      {/* 하단 2열 */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* 이번 주 미팅 */}
-        <div className="bg-brand-surface border border-brand-border rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-brand-text mb-3 flex items-center gap-2">
-            <CalendarCheck size={14} className="text-brand-gold" />
-            향후 7일 미팅 예정
-          </h2>
-          {thisWeekMeetings.length === 0 ? (
-            <p className="text-brand-muted text-sm text-center py-4">예정된 미팅이 없습니다</p>
-          ) : (
-            <div className="space-y-2">
-              {thisWeekMeetings.map((c) => (
-                <div key={c.id} className="flex items-center gap-3 py-1.5 border-b border-brand-border/50 last:border-0">
-                  <div className="w-10 text-center">
-                    <p className="text-brand-gold text-xs font-bold">
-                      {new Date(c.meeting_date!).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
-                    </p>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-brand-text text-sm truncate">{c.name}</p>
-                    <p className="text-brand-muted text-xs truncate">
-                      {c.meeting_address || "장소 미정"} · {c.assigned_to}
-                    </p>
-                  </div>
-                  {c.tm_sensitivity && (
-                    <span
-                      className={`text-xs px-1.5 py-0.5 rounded ${
-                        c.tm_sensitivity === "상"
-                          ? "bg-red-500/20 text-red-300"
-                          : c.tm_sensitivity === "중"
-                          ? "bg-yellow-500/20 text-yellow-300"
-                          : "bg-gray-500/20 text-gray-400"
-                      }`}
-                    >
-                      {c.tm_sensitivity}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* 대시보드 본문 */}
+      <div className="flex-1 overflow-auto p-4">
+        <div className="flex gap-4 min-h-full">
+          {/* 왼쪽: 월간 */}
+          <div className="flex-1 min-w-0 bg-blue-50/50 rounded-2xl border border-blue-100 p-4">
+            <DashPanel
+              title={`${now.getMonth() + 1}월 월간 대시보드`}
+              stats={monthly}
+              loading={loadingM}
+            />
+          </div>
 
-        {/* 최근 성과 */}
-        <div className="bg-brand-surface border border-brand-border rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-brand-text mb-3 flex items-center gap-2">
-            <TrendingUp size={14} className="text-brand-gold" />
-            최근 계약 · 예약 현황
-          </h2>
-          {recentDeals.length === 0 ? (
-            <p className="text-brand-muted text-sm text-center py-4">아직 실적이 없습니다</p>
-          ) : (
-            <div className="space-y-2">
-              {recentDeals.map((c) => (
-                <div key={c.id} className="flex items-center gap-3 py-1.5 border-b border-brand-border/50 last:border-0">
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded border ${
-                      c.meeting_result === "계약완료"
-                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                        : "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                    }`}
-                  >
-                    {c.meeting_result}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-brand-text text-sm truncate">{c.name}</p>
-                    <p className="text-brand-muted text-xs">{c.assigned_to} · {c.meeting_address}</p>
-                  </div>
-                  {c.contract_date && (
-                    <p className="text-brand-muted text-xs flex-shrink-0">
-                      {new Date(c.contract_date).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          {/* 구분선 */}
+          <div className="w-px bg-slate-200 self-stretch" />
 
-          {/* 팀 매출 요약 */}
-          <div className="mt-4 pt-3 border-t border-brand-border">
-            <p className="text-brand-muted text-xs mb-2">월 예상 매출 (회비 기준)</p>
-            <p className="text-brand-gold font-bold text-lg">
-              {formatCurrency((contracts + reservations) * 500000)}
-            </p>
-            <p className="text-brand-muted text-xs">목표 대비 {(((contracts + reservations) * 500000) / 80000000 * 100).toFixed(1)}%</p>
+          {/* 오른쪽: 총누적 */}
+          <div className="flex-1 min-w-0 bg-slate-50/50 rounded-2xl border border-slate-200 p-4">
+            <DashPanel
+              title="총 누적 대시보드"
+              stats={total}
+              loading={loadingT}
+            />
           </div>
         </div>
       </div>
