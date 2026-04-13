@@ -4,6 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { loginAdmin, loginMember, getCurrentUser, TEAM_MEMBERS, TEAM_MEMBER_ROLES } from "@/lib/auth";
 
+const BG_IMAGES = [
+  "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1920&q=85",
+  "https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=1920&q=85",
+  "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1920&q=85",
+  "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=1920&q=85",
+  "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1920&q=85",
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const [adminId, setAdminId] = useState("");
@@ -11,23 +19,32 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const [currentBg, setCurrentBg] = useState(0);
+  const [fade, setFade] = useState(true);
 
   useEffect(() => {
     const user = getCurrentUser();
     if (user) router.push("/");
   }, [router]);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFade(false);
+      setTimeout(() => {
+        setCurrentBg((prev) => (prev + 1) % BG_IMAGES.length);
+        setFade(true);
+      }, 800);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   const handleAdminLogin = async () => {
     if (!adminId || !adminPw) { setError("아이디와 비밀번호를 입력해주세요."); return; }
     setLoading(true);
     await new Promise((r) => setTimeout(r, 600));
     const user = loginAdmin(adminId, adminPw);
-    if (user) {
-      router.push("/");
-    } else {
-      setError("아이디 또는 비밀번호가 올바르지 않습니다.");
-      setLoading(false);
-    }
+    if (user) { router.push("/"); }
+    else { setError("아이디 또는 비밀번호가 올바르지 않습니다."); setLoading(false); }
   };
 
   const handleMemberLogin = (name: string) => {
@@ -36,461 +53,129 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="login-page">
-      {/* 애니메이션 그라디언트 배경 */}
-      <div className="gradient-bg" />
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "flex-end", position: "relative", overflow: "hidden", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif", paddingRight: "6vw" }}>
+      
+      {/* 배경 이미지 */}
+      <div style={{
+        position: "absolute", inset: 0,
+        backgroundImage: `url(${BG_IMAGES[currentBg]})`,
+        backgroundSize: "cover", backgroundPosition: "center",
+        opacity: fade ? 1 : 0,
+        transition: "opacity 0.8s ease-in-out",
+      }} />
 
-      {/* 물결 효과 레이어 */}
-      <div className="wave-layer wave-1" />
-      <div className="wave-layer wave-2" />
-      <div className="wave-layer wave-3" />
+      {/* 오버레이 */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "linear-gradient(to right, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.7) 100%)"
+      }} />
 
-      {/* 플로팅 오브 */}
-      <div className="orb orb-1" />
-      <div className="orb orb-2" />
-      <div className="orb orb-3" />
+      {/* 왼쪽 브랜드 */}
+      <div style={{ position: "absolute", left: "8vw", top: "50%", transform: "translateY(-50%)", zIndex: 10, color: "white" }}>
+        <div style={{ display: "inline-block", fontSize: 11, fontWeight: 600, color: "#C9A84C", border: "1px solid rgba(201,168,76,0.5)", padding: "4px 14px", borderRadius: 20, marginBottom: 20, letterSpacing: "0.05em", background: "rgba(201,168,76,0.08)", backdropFilter: "blur(4px)" }}>
+          광고인㈜ 대외협력팀
+        </div>
+        <h2 style={{ fontSize: "clamp(36px,4vw,52px)", fontWeight: 800, lineHeight: 1.2, margin: "0 0 16px 0", textShadow: "0 2px 20px rgba(0,0,0,0.4)" }}>
+          분양 업계의<br />
+          <span style={{ color: "#C9A84C" }}>퍼스트무버</span>
+        </h2>
+        <p style={{ fontSize: 16, color: "rgba(255,255,255,0.75)", lineHeight: 1.8, margin: "0 0 32px 0" }}>
+          분양의신과 함께<br />
+          VIP 100인 네트워크를 구축하세요
+        </p>
+        <div style={{ display: "flex", gap: 8 }}>
+          {BG_IMAGES.map((_, i) => (
+            <button key={i} onClick={() => setCurrentBg(i)} style={{
+              width: i === currentBg ? 24 : 8, height: 8,
+              borderRadius: i === currentBg ? 4 : "50%",
+              background: i === currentBg ? "#C9A84C" : "rgba(255,255,255,0.35)",
+              border: "none", cursor: "pointer", padding: 0,
+              transition: "all 0.3s",
+            }} />
+          ))}
+        </div>
+      </div>
 
-      {/* 메인 카드 */}
-      <div className="login-card">
+      {/* 로그인 카드 */}
+      <div style={{
+        position: "relative", zIndex: 10,
+        background: "rgba(255,255,255,0.97)",
+        backdropFilter: "blur(20px)",
+        borderRadius: 24, padding: "36px 32px",
+        width: 380, flexShrink: 0,
+        boxShadow: "0 30px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.3)",
+      }}>
         {/* 로고 */}
-        <div className="login-logo">
-          <div className="logo-icon">
-            <span>분</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+          <div style={{ width: 48, height: 48, background: "linear-gradient(135deg, #0B1629 0%, #1E3A8A 60%, #C9A84C 100%)", borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(11,22,41,0.35)", flexShrink: 0 }}>
+            <span style={{ color: "white", fontSize: 20, fontWeight: 800 }}>분</span>
           </div>
-          <div className="logo-text">
-            <h1>분양회 CRM</h1>
-            <p>광고인㈜ 대외협력팀</p>
+          <div>
+            <p style={{ fontSize: 18, fontWeight: 800, color: "#0F172A", margin: 0, lineHeight: 1.2 }}>분양회 CRM</p>
+            <p style={{ fontSize: 11, color: "#94A3B8", margin: "2px 0 0 0" }}>광고인㈜ 대외협력팀</p>
           </div>
         </div>
 
-        {/* 구분선 */}
-        <div className="login-divider-top">
-          <div className="divider-line" />
-          <span>관리자 로그인</span>
-          <div className="divider-line" />
+        {/* 관리자 구분선 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "16px 0" }}>
+          <div style={{ flex: 1, height: 1, background: "#E2E8F0" }} />
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#94A3B8", whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: "0.08em" }}>관리자 로그인</span>
+          <div style={{ flex: 1, height: 1, background: "#E2E8F0" }} />
         </div>
 
-        {/* 관리자 로그인 폼 */}
-        <div className="admin-form">
-          <div className="input-group">
-            <label>아이디</label>
-            <input
-              type="text"
-              value={adminId}
-              onChange={(e) => { setAdminId(e.target.value); setError(""); }}
-              placeholder="관리자 아이디 입력"
+        {/* 관리자 폼 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#475569" }}>아이디</label>
+            <input type="text" value={adminId} onChange={(e) => { setAdminId(e.target.value); setError(""); }} placeholder="관리자 아이디"
               onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
-            />
+              style={{ width: "100%", padding: "10px 13px", border: "1.5px solid #E2E8F0", borderRadius: 10, fontSize: 13, color: "#0F172A", background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} />
           </div>
-          <div className="input-group">
-            <label>비밀번호</label>
-            <div className="pw-wrapper">
-              <input
-                type={showPw ? "text" : "password"}
-                value={adminPw}
-                onChange={(e) => { setAdminPw(e.target.value); setError(""); }}
-                placeholder="비밀번호 입력"
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#475569" }}>비밀번호</label>
+            <div style={{ position: "relative" }}>
+              <input type={showPw ? "text" : "password"} value={adminPw} onChange={(e) => { setAdminPw(e.target.value); setError(""); }} placeholder="비밀번호"
                 onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
-              />
-              <button type="button" onClick={() => setShowPw(!showPw)} className="pw-toggle">
+                style={{ width: "100%", padding: "10px 50px 10px 13px", border: "1.5px solid #E2E8F0", borderRadius: 10, fontSize: 13, color: "#0F172A", background: "#F8FAFC", outline: "none", boxSizing: "border-box" as const }} />
+              <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>
                 {showPw ? "숨기기" : "보기"}
               </button>
             </div>
           </div>
-          {error && <p className="error-msg">{error}</p>}
-          <button
-            onClick={handleAdminLogin}
-            disabled={loading}
-            className="admin-btn"
-          >
-            {loading ? (
-              <span className="btn-loading"><span className="spinner" />로그인 중...</span>
-            ) : (
-              "관리자 로그인"
-            )}
+          {error && <p style={{ fontSize: 11, color: "#EF4444", padding: "7px 10px", background: "#FEF2F2", borderRadius: 8, border: "1px solid #FECACA", margin: 0 }}>{error}</p>}
+          <button onClick={handleAdminLogin} disabled={loading} style={{ width: "100%", padding: 12, background: "linear-gradient(135deg, #0B1629 0%, #1E3A8A 100%)", color: "white", fontSize: 13, fontWeight: 700, border: "none", borderRadius: 10, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1, boxShadow: "0 4px 14px rgba(30,58,138,0.4)" }}>
+            {loading ? "로그인 중..." : "관리자 로그인"}
           </button>
-          <p className="admin-hint">
-            관리자: 김정후 본부장 · 김창완 팀장 · 최웅 파트장
-          </p>
+          <p style={{ fontSize: 10, color: "#94A3B8", textAlign: "center", margin: 0 }}>김정후 본부장 · 김창완 팀장 · 최웅 파트장</p>
         </div>
 
-        {/* 구분선 */}
-        <div className="login-divider">
-          <div className="divider-line" />
-          <span>담당자 바로 접속</span>
-          <div className="divider-line" />
+        {/* 담당자 구분선 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "16px 0" }}>
+          <div style={{ flex: 1, height: 1, background: "#E2E8F0" }} />
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#94A3B8", whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: "0.08em" }}>담당자 바로 접속</span>
+          <div style={{ flex: 1, height: 1, background: "#E2E8F0" }} />
         </div>
 
         {/* 담당자 버튼 */}
-        <div className="member-grid">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
           {TEAM_MEMBERS.map((name) => (
-            <button
-              key={name}
-              onClick={() => handleMemberLogin(name)}
-              className="member-btn"
-            >
-              <div className="member-avatar">{name[0]}</div>
-              <div className="member-info">
-                <span className="member-name">{name}</span>
-                <span className="member-role">{TEAM_MEMBER_ROLES[name]}</span>
+            <button key={name} onClick={() => handleMemberLogin(name)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 12px", border: "1.5px solid #E2E8F0", borderRadius: 11, background: "#F8FAFC", cursor: "pointer", textAlign: "left" as const }}>
+              <div style={{ width: 30, height: 30, background: "linear-gradient(135deg, #1E3A8A, #C9A84C)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                {name[0]}
+              </div>
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 700, color: "#0F172A", margin: 0, lineHeight: 1.3 }}>{name}</p>
+                <p style={{ fontSize: 10, color: "#94A3B8", margin: 0 }}>{TEAM_MEMBER_ROLES[name]}</p>
               </div>
             </button>
           ))}
         </div>
       </div>
 
-      {/* 하단 브랜드 */}
-      <div className="login-footer">
-        <span>© 2026 광고인㈜ · 분양의신</span>
+      {/* 푸터 */}
+      <div style={{ position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 10, fontSize: 10, color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>
+        © 2026 광고인㈜ · 분양의신 · All rights reserved.
       </div>
-
-      <style jsx>{`
-        .login-page {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          position: relative;
-          overflow: hidden;
-          font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
-        }
-
-        /* 그라디언트 배경 */
-        .gradient-bg {
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            -45deg,
-            #0B1629,
-            #1E3A8A,
-            #0C4A6E,
-            #1B4332,
-            #1E3A8A,
-            #C9A84C,
-            #0B1629
-          );
-          background-size: 400% 400%;
-          animation: gradientShift 12s ease infinite;
-        }
-
-        @keyframes gradientShift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-
-        /* 물결 레이어 */
-        .wave-layer {
-          position: absolute;
-          width: 200%;
-          height: 200%;
-          border-radius: 43%;
-          animation: waveRotate linear infinite;
-          opacity: 0.08;
-        }
-        .wave-1 {
-          background: rgba(201, 168, 76, 0.3);
-          top: -60%; left: -50%;
-          animation-duration: 20s;
-        }
-        .wave-2 {
-          background: rgba(30, 58, 138, 0.4);
-          top: -70%; left: -30%;
-          animation-duration: 28s;
-          animation-direction: reverse;
-        }
-        .wave-3 {
-          background: rgba(14, 165, 233, 0.2);
-          top: -50%; left: -40%;
-          animation-duration: 35s;
-        }
-
-        @keyframes waveRotate {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        /* 플로팅 오브 */
-        .orb {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(60px);
-          animation: orbFloat ease-in-out infinite;
-        }
-        .orb-1 {
-          width: 400px; height: 400px;
-          background: rgba(201, 168, 76, 0.15);
-          top: -100px; right: -100px;
-          animation-duration: 8s;
-        }
-        .orb-2 {
-          width: 300px; height: 300px;
-          background: rgba(30, 58, 138, 0.2);
-          bottom: -80px; left: -80px;
-          animation-duration: 10s;
-          animation-delay: -3s;
-        }
-        .orb-3 {
-          width: 200px; height: 200px;
-          background: rgba(14, 165, 233, 0.15);
-          top: 40%; left: 10%;
-          animation-duration: 12s;
-          animation-delay: -6s;
-        }
-
-        @keyframes orbFloat {
-          0%, 100% { transform: translateY(0px) scale(1); }
-          50% { transform: translateY(-30px) scale(1.05); }
-        }
-
-        /* 메인 카드 */
-        .login-card {
-          position: relative;
-          z-index: 10;
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(20px);
-          border-radius: 24px;
-          padding: 40px;
-          width: 100%;
-          max-width: 440px;
-          box-shadow: 
-            0 25px 60px rgba(0, 0, 0, 0.3),
-            0 0 0 1px rgba(255, 255, 255, 0.5),
-            inset 0 1px 0 rgba(255, 255, 255, 0.8);
-          animation: cardFloat 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes cardFloat {
-          from { opacity: 0; transform: translateY(30px) scale(0.95); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        /* 로고 */
-        .login-logo {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          margin-bottom: 28px;
-        }
-        .logo-icon {
-          width: 52px; height: 52px;
-          background: linear-gradient(135deg, #0B1629 0%, #1E3A8A 50%, #C9A84C 100%);
-          border-radius: 14px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 8px 24px rgba(11, 22, 41, 0.3);
-        }
-        .logo-icon span {
-          color: white;
-          font-size: 22px;
-          font-weight: 800;
-        }
-        .logo-text h1 {
-          font-size: 20px;
-          font-weight: 800;
-          color: #0F172A;
-          margin: 0;
-          line-height: 1.2;
-        }
-        .logo-text p {
-          font-size: 12px;
-          color: #64748B;
-          margin: 2px 0 0 0;
-        }
-
-        /* 구분선 */
-        .login-divider-top,
-        .login-divider {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin: 20px 0;
-        }
-        .divider-line {
-          flex: 1;
-          height: 1px;
-          background: #E2E8F0;
-        }
-        .login-divider-top span,
-        .login-divider span {
-          font-size: 11px;
-          font-weight: 600;
-          color: #94A3B8;
-          white-space: nowrap;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        /* 어드민 폼 */
-        .admin-form {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .input-group {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .input-group label {
-          font-size: 12px;
-          font-weight: 600;
-          color: #475569;
-        }
-        .input-group input {
-          width: 100%;
-          padding: 11px 14px;
-          border: 1.5px solid #E2E8F0;
-          border-radius: 10px;
-          font-size: 14px;
-          color: #0F172A;
-          background: #F8FAFC;
-          transition: all 0.2s;
-          outline: none;
-          box-sizing: border-box;
-        }
-        .input-group input:focus {
-          border-color: #1E3A8A;
-          background: white;
-          box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.08);
-        }
-        .pw-wrapper {
-          position: relative;
-        }
-        .pw-wrapper input {
-          padding-right: 60px;
-        }
-        .pw-toggle {
-          position: absolute;
-          right: 12px;
-          top: 50%;
-          transform: translateY(-50%);
-          font-size: 11px;
-          color: #64748B;
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 4px;
-        }
-        .error-msg {
-          font-size: 12px;
-          color: #EF4444;
-          margin: 0;
-          padding: 8px 12px;
-          background: #FEF2F2;
-          border-radius: 8px;
-          border: 1px solid #FECACA;
-        }
-        .admin-btn {
-          width: 100%;
-          padding: 13px;
-          background: linear-gradient(135deg, #0B1629 0%, #1E3A8A 100%);
-          color: white;
-          font-size: 14px;
-          font-weight: 700;
-          border: none;
-          border-radius: 10px;
-          cursor: pointer;
-          transition: all 0.2s;
-          box-shadow: 0 4px 14px rgba(30, 58, 138, 0.4);
-        }
-        .admin-btn:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(30, 58, 138, 0.5);
-        }
-        .admin-btn:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-        }
-        .btn-loading {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-        }
-        .spinner {
-          width: 14px;
-          height: 14px;
-          border: 2px solid rgba(255,255,255,0.3);
-          border-top-color: white;
-          border-radius: 50%;
-          display: inline-block;
-          animation: spin 0.6s linear infinite;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        .admin-hint {
-          font-size: 11px;
-          color: #94A3B8;
-          text-align: center;
-          margin: 0;
-        }
-
-        /* 담당자 그리드 */
-        .member-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 8px;
-        }
-        .member-btn {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 12px 14px;
-          border: 1.5px solid #E2E8F0;
-          border-radius: 12px;
-          background: #F8FAFC;
-          cursor: pointer;
-          transition: all 0.2s;
-          text-align: left;
-        }
-        .member-btn:hover {
-          border-color: #C9A84C;
-          background: #FFFBF0;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(201, 168, 76, 0.15);
-        }
-        .member-avatar {
-          width: 32px; height: 32px;
-          background: linear-gradient(135deg, #1E3A8A, #C9A84C);
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-size: 13px;
-          font-weight: 700;
-          flex-shrink: 0;
-        }
-        .member-info {
-          display: flex;
-          flex-direction: column;
-        }
-        .member-name {
-          font-size: 13px;
-          font-weight: 700;
-          color: #0F172A;
-        }
-        .member-role {
-          font-size: 11px;
-          color: #94A3B8;
-        }
-
-        /* 푸터 */
-        .login-footer {
-          position: fixed;
-          bottom: 24px;
-          left: 50%;
-          transform: translateX(-50%);
-          z-index: 10;
-        }
-        .login-footer span {
-          font-size: 11px;
-          color: rgba(255, 255, 255, 0.5);
-        }
-      `}</style>
     </div>
   );
 }
