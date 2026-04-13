@@ -92,22 +92,14 @@ export default function Sidebar({ user }: SidebarProps) {
 
       {/* 네비게이션 */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        {/* 실행파트 - 관리자 or exec */}
-        {(isAdmin || user.role === "exec") && (
-          <>
-            <div className="px-1 pb-1.5 text-slate-400 text-[10px] font-semibold tracking-widest uppercase">■ 실행파트</div>
-            {EXEC_MENUS.map((m) => <NavItem key={m.href} {...m} />)}
-          </>
-        )}
+        {/* 실행파트 - 전체 공개 */}
+        <div className="px-1 pb-1.5 text-slate-400 text-[10px] font-semibold tracking-widest uppercase">■ 실행파트</div>
+        {EXEC_MENUS.map((m) => <NavItem key={m.href} {...m} />)}
 
-        {/* 운영파트 - 관리자 or ops */}
-        {(isAdmin || user.role === "ops") && (
-          <>
-            <div className="my-2 border-t border-slate-100" />
-            <div className="px-1 pb-1.5 text-slate-400 text-[10px] font-semibold tracking-widest uppercase">■ 운영파트</div>
-            {OPS_MENUS.map((m) => <NavItem key={m.href} {...m} />)}
-          </>
-        )}
+        {/* 운영파트 - 전체 공개 */}
+        <div className="my-2 border-t border-slate-100" />
+        <div className="px-1 pb-1.5 text-slate-400 text-[10px] font-semibold tracking-widest uppercase">■ 운영파트</div>
+        {OPS_MENUS.map((m) => <NavItem key={m.href} {...m} />)}
 
         {/* 관리자 전용 */}
         {isAdmin && (
