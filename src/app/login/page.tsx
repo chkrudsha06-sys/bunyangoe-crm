@@ -116,7 +116,7 @@ export default function LoginPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/company-logo.png" alt="분양의신"
-              style={{ height: 38, width: "auto", filter: "brightness(0) invert(1)", display: "block" }}
+              style={{ height: 64, width: "auto", filter: "brightness(0) invert(1)", display: "block" }}
               onError={(e) => {
                 const el = e.currentTarget as HTMLImageElement;
                 el.style.display = "none";
@@ -156,25 +156,17 @@ export default function LoginPage() {
           boxShadow: "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
         }}>
           <p style={{ fontSize: 16, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: "0.06em", margin: "0 0 18px 0" }}>VIP 멤버십 분양회</p>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 6, marginBottom: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
             <span style={{
-              fontSize: "clamp(88px,11vw,136px)", fontWeight: 900, lineHeight: 1,
-              color: "white", textShadow: `0 0 50px ${countColor}55`,
+              fontSize: "clamp(110px,14vw,180px)", fontWeight: 900, lineHeight: 1,
+              color: "white", textShadow: `0 0 60px ${countColor}66, 0 0 120px ${countColor}33`,
               fontFamily: "'SF Pro Display','Helvetica Neue',sans-serif",
-              minWidth: "2.4ch", textAlign: "right" as const, transition: "text-shadow 0.4s",
+              transition: "text-shadow 0.4s",
             }}>{count}</span>
-            <div style={{ paddingBottom: 18 }}>
-              <p style={{ fontSize: 30, color: "rgba(255,255,255,0.2)", fontWeight: 200, margin: 0, lineHeight: 1.2 }}>/</p>
-              <p style={{ fontSize: 30, color: "rgba(255,255,255,0.6)", fontWeight: 700, margin: 0, lineHeight: 1.2 }}>100</p>
-            </div>
-            <span style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", paddingBottom: 22, fontWeight: 600 }}>명</span>
           </div>
-          <div style={{ width: 300, height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 10, overflow: "hidden", marginBottom: 10 }}>
+          <div style={{ width: 300, height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 10, overflow: "hidden" }}>
             <div style={{ height: "100%", width: `${count}%`, background: "linear-gradient(90deg,#1D4ED8,#60A5FA,#A78BFA)", borderRadius: 10, boxShadow: `0 0 14px ${countColor}99`, transition: "width 0.03s linear" }} />
           </div>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", margin: 0, fontWeight: 500 }}>
-            {countDone ? "🎯 목표 100인 달성을 향해 전진 중" : `목표까지 ${100 - count}명 남음`}
-          </p>
         </div>
 
         {/* 접속 버튼 */}
