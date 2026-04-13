@@ -4,15 +4,93 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { loginAdmin, loginMember, getCurrentUser, TEAM_MEMBERS, TEAM_MEMBER_ROLES } from "@/lib/auth";
 
-// 무료 비즈니스 미팅 영상 (Mixkit CDN - 저작권 무료)
-const VIDEOS = [
-  "https://assets.mixkit.co/videos/preview/mixkit-business-team-having-a-meeting-in-the-office-4807-large.mp4",
-  "https://assets.mixkit.co/videos/preview/mixkit-people-having-a-meeting-in-a-conference-room-4805-large.mp4",
-];
+// ── 파티클 캔버스 컴포넌트 ──
+function ParticleCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let w = canvas.width = window.innerWidth;
+    let h = canvas.height = window.innerHeight;
+    let animId: number;
+
+    const resize = () => {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    };
+    window.addEventListener("resize", resize);
+
+    // 파티클 생성
+    const NUM = 90;
+    type P = { x: number; y: number; vx: number; vy: number; r: number; alpha: number };
+    const particles: P[] = Array.from({ length: NUM }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.45,
+      vy: (Math.random() - 0.5) * 0.45,
+      r: Math.random() * 2 + 1,
+      alpha: Math.random() * 0.5 + 0.2,
+    }));
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+
+      // 파티클 업데이트
+      for (const p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0 || p.x > w) p.vx *= -1;
+        if (p.y < 0 || p.y > h) p.vy *= -1;
+
+        // 점 그리기
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(96,165,250,${p.alpha})`;
+        ctx.fill();
+      }
+
+      // 연결선 그리기
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 130) {
+            const alpha = (1 - dist / 130) * 0.25;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(96,165,250,${alpha})`;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+          }
+        }
+      }
+
+      animId = requestAnimationFrame(draw);
+    };
+
+    draw();
+    return () => {
+      window.removeEventListener("resize", resize);
+      cancelAnimationFrame(animId);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+    />
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [adminId, setAdminId] = useState("");
   const [adminPw, setAdminPw] = useState("");
@@ -21,47 +99,21 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [count, setCount] = useState(0);
   const [countDone, setCountDone] = useState(false);
-  const [videoIdx, setVideoIdx] = useState(0);
-  const [videoLoaded, setVideoLoaded] = useState(false);
 
   useEffect(() => {
     const user = getCurrentUser();
     if (user) router.push("/");
   }, [router]);
 
-  // 영상 자동 재생
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.src = VIDEOS[videoIdx];
-    v.muted = true;
-    v.load();
-    const playVideo = () => {
-      v.play().catch(() => setVideoLoaded(false));
-      setVideoLoaded(true);
-    };
-    v.addEventListener("canplay", playVideo, { once: true });
-    // 영상 끝나면 다음 영상으로
-    const onEnd = () => {
-      setVideoIdx((p) => (p + 1) % VIDEOS.length);
-    };
-    v.addEventListener("ended", onEnd);
-    return () => {
-      v.removeEventListener("canplay", playVideo);
-      v.removeEventListener("ended", onEnd);
-    };
-  }, [videoIdx]);
-
   // 카운팅 애니메이션
   useEffect(() => {
     const duration = 3500;
-    const startTime = Date.now();
+    const start = Date.now();
     const tick = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
+      const p = Math.min((Date.now() - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
       setCount(Math.round(eased * 100));
-      if (progress < 1) requestAnimationFrame(tick);
+      if (p < 1) requestAnimationFrame(tick);
       else { setCount(100); setCountDone(true); }
     };
     requestAnimationFrame(tick);
@@ -81,35 +133,23 @@ export default function LoginPage() {
   const countColor = count >= 100 ? "#60A5FA" : count >= 70 ? "#818CF8" : count >= 40 ? "#6366F1" : "#3B82F6";
 
   return (
-    <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", fontFamily: "'Apple SD Gothic Neo','Pretendard','Noto Sans KR',sans-serif", background: "#050A18" }}>
+    <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", fontFamily: "'Apple SD Gothic Neo','Pretendard','Noto Sans KR',sans-serif" }}>
 
-      {/* ── HTML5 영상 배경 ── */}
+      {/* ── 배경 ── */}
       <div style={{ position: "fixed", inset: 0, zIndex: 0 }}>
-        <video
-          ref={videoRef}
-          muted
-          playsInline
-          autoPlay
-          loop={VIDEOS.length === 1}
-          style={{
-            position: "absolute", top: "50%", left: "50%",
-            transform: "translate(-50%, -50%)",
-            minWidth: "100vw", minHeight: "100vh",
-            width: "auto", height: "auto",
-            objectFit: "cover",
-            filter: "brightness(0.7) saturate(1.15)",
-          }}
-        />
-        {/* 다크 오버레이 */}
+        {/* 그라디언트 배경 */}
         <div style={{
           position: "absolute", inset: 0,
-          background: "linear-gradient(160deg,rgba(4,8,22,0.8) 0%,rgba(5,12,32,0.55) 50%,rgba(4,8,22,0.75) 100%)",
+          background: "radial-gradient(ellipse at 20% 50%, #0D1B4B 0%, #050D2E 40%, #030918 100%)",
         }} />
-        {/* 블루 글로우 효과 */}
-        <div style={{
-          position: "absolute", inset: 0,
-          backgroundImage: "radial-gradient(ellipse at 20% 60%,rgba(37,99,235,0.14) 0%,transparent 55%),radial-gradient(ellipse at 80% 25%,rgba(99,102,241,0.09) 0%,transparent 45%)",
-        }} />
+        {/* 그라디언트 오브 */}
+        <div style={{ position: "absolute", top: "-10%", left: "-5%", width: "50vw", height: "60vh", borderRadius: "50%", background: "radial-gradient(circle,rgba(37,99,235,0.18) 0%,transparent 70%)", filter: "blur(40px)", animation: "orb1 12s ease-in-out infinite alternate" }} />
+        <div style={{ position: "absolute", bottom: "-10%", right: "-5%", width: "45vw", height: "55vh", borderRadius: "50%", background: "radial-gradient(circle,rgba(99,102,241,0.14) 0%,transparent 70%)", filter: "blur(50px)", animation: "orb2 15s ease-in-out infinite alternate" }} />
+        <div style={{ position: "absolute", top: "40%", left: "50%", width: "30vw", height: "40vh", borderRadius: "50%", background: "radial-gradient(circle,rgba(59,130,246,0.08) 0%,transparent 70%)", filter: "blur(30px)", animation: "orb3 10s ease-in-out infinite alternate" }} />
+        {/* 파티클 캔버스 */}
+        <ParticleCanvas />
+        {/* 하단 페이드 */}
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "30vh", background: "linear-gradient(to top,rgba(3,9,24,0.8),transparent)" }} />
       </div>
 
       {/* ── 메인 랜딩 ── */}
@@ -126,16 +166,25 @@ export default function LoginPage() {
       }}>
 
         {/* 로고 */}
-        <div style={{ marginBottom: 32, display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div style={{ marginBottom: 28, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{
-            background: "rgba(255,255,255,0.06)", backdropFilter: "blur(16px)",
+            background: "rgba(255,255,255,0.06)", backdropFilter: "blur(20px)",
             border: "1px solid rgba(255,255,255,0.12)", borderRadius: 20,
-            padding: "14px 32px", marginBottom: 14,
+            padding: "12px 28px", marginBottom: 14,
           }}>
-            <span style={{ fontSize: 28, fontWeight: 900, color: "white", letterSpacing: "-0.03em" }}>
-              분양의신
-              <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#3B82F6", boxShadow: "0 0 12px #3B82F6", marginLeft: 4, verticalAlign: "super", fontSize: 8 }} />
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/company-logo.png"
+              alt="분양의신"
+              style={{ height: 36, width: "auto", filter: "brightness(0) invert(1)", display: "block" }}
+              onError={(e) => {
+                const el = e.currentTarget as HTMLImageElement;
+                el.style.display = "none";
+                const text = el.nextElementSibling as HTMLElement;
+                if (text) text.style.display = "block";
+              }}
+            />
+            <span style={{ display: "none", fontSize: 26, fontWeight: 900, color: "white", letterSpacing: "-0.02em" }}>분양의신</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#60A5FA", boxShadow: "0 0 8px #60A5FA" }} />
@@ -147,9 +196,9 @@ export default function LoginPage() {
         </div>
 
         {/* 헤드라인 */}
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
           <h1 style={{ fontSize: "clamp(48px,7.5vw,100px)", fontWeight: 900, lineHeight: 1.05, margin: "0 0 14px 0", letterSpacing: "-0.025em" }}>
-            <span style={{ color: "#FFFFFF", textShadow: "0 2px 40px rgba(255,255,255,0.12)" }}>첫 시작,{" "}</span>
+            <span style={{ color: "#FFFFFF", textShadow: "0 2px 40px rgba(255,255,255,0.15)" }}>첫 시작,{" "}</span>
             <br />
             <span style={{ background: "linear-gradient(90deg,#60A5FA 0%,#A78BFA 50%,#60A5FA 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
               VIP멤버십 분양회
@@ -163,15 +212,15 @@ export default function LoginPage() {
         {/* VIP 카운터 */}
         <div style={{
           display: "flex", flexDirection: "column", alignItems: "center",
-          marginBottom: 48, padding: "28px 52px",
-          background: "rgba(10,18,45,0.72)", backdropFilter: "blur(20px)",
-          border: "1px solid rgba(96,165,250,0.15)", borderRadius: 28, minWidth: 340,
-          boxShadow: "0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)",
+          marginBottom: 44, padding: "28px 52px",
+          background: "rgba(8,16,42,0.75)", backdropFilter: "blur(20px)",
+          border: "1px solid rgba(96,165,250,0.18)", borderRadius: 28, minWidth: 340,
+          boxShadow: "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
         }}>
-          <p style={{ fontSize: 16, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: "0.06em", margin: "0 0 20px 0" }}>
+          <p style={{ fontSize: 16, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: "0.06em", margin: "0 0 18px 0" }}>
             VIP 멤버십 분양회
           </p>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 6, marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 6, marginBottom: 18 }}>
             <span style={{
               fontSize: "clamp(88px,11vw,136px)", fontWeight: 900, lineHeight: 1,
               color: "white", textShadow: `0 0 50px ${countColor}55`,
@@ -184,8 +233,8 @@ export default function LoginPage() {
             </div>
             <span style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", paddingBottom: 22, fontWeight: 600 }}>명</span>
           </div>
-          <div style={{ width: 300, height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
-            <div style={{ height: "100%", width: `${count}%`, background: "linear-gradient(90deg,#1D4ED8,#60A5FA,#A78BFA)", borderRadius: 10, boxShadow: `0 0 12px ${countColor}88`, transition: "width 0.03s linear" }} />
+          <div style={{ width: 300, height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 10, overflow: "hidden", marginBottom: 10 }}>
+            <div style={{ height: "100%", width: `${count}%`, background: "linear-gradient(90deg,#1D4ED8,#60A5FA,#A78BFA)", borderRadius: 10, boxShadow: `0 0 14px ${countColor}99`, transition: "width 0.03s linear" }} />
           </div>
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", margin: 0, fontWeight: 500 }}>
             {countDone ? "🎯 목표 100인 달성을 향해 전진 중" : `목표까지 ${100 - count}명 남음`}
@@ -199,8 +248,8 @@ export default function LoginPage() {
             padding: "20px 80px",
             background: "linear-gradient(135deg,#1D4ED8 0%,#2563EB 50%,#4F46E5 100%)",
             color: "white", fontSize: 17, fontWeight: 800,
-            border: "1px solid rgba(147,197,253,0.3)", borderRadius: 50, cursor: "pointer",
-            letterSpacing: "0.05em", marginBottom: 24,
+            border: "1px solid rgba(147,197,253,0.3)", borderRadius: 50,
+            cursor: "pointer", letterSpacing: "0.05em", marginBottom: 24,
             boxShadow: "0 8px 40px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.2)",
             transition: "all 0.3s",
           }}
@@ -219,10 +268,7 @@ export default function LoginPage() {
             </div>
           ))}
         </div>
-
-        <p style={{ position: "absolute", bottom: 20, fontSize: 10, color: "rgba(255,255,255,0.15)" }}>
-          © 2026 광고인㈜ · 분양의신 · All rights reserved.
-        </p>
+        <p style={{ position: "absolute", bottom: 20, fontSize: 10, color: "rgba(255,255,255,0.15)" }}>© 2026 광고인㈜ · 분양의신 · All rights reserved.</p>
       </div>
 
       {/* ── 로그인 모달 ── */}
@@ -231,8 +277,8 @@ export default function LoginPage() {
         display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
         opacity: showLogin ? 1 : 0, pointerEvents: showLogin ? "auto" : "none",
         transition: "opacity 0.4s",
-        background: showLogin ? "rgba(3,6,18,0.75)" : "transparent",
-        backdropFilter: showLogin ? "blur(10px)" : "none",
+        background: showLogin ? "rgba(3,6,18,0.8)" : "transparent",
+        backdropFilter: showLogin ? "blur(12px)" : "none",
       }}>
         <div style={{
           background: "rgba(7,13,32,0.97)", backdropFilter: "blur(28px)",
@@ -244,7 +290,9 @@ export default function LoginPage() {
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 18, fontWeight: 900, color: "white" }}>분양의신</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/company-logo.png" alt="분양의신" style={{ height: 24, width: "auto", filter: "brightness(0) invert(1)" }}
+                onError={(e) => { const el = e.currentTarget as HTMLImageElement; el.style.display = "none"; }} />
               <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.15)" }} />
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontWeight: 600 }}>광고인㈜ 대외협력팀</span>
             </div>
@@ -278,9 +326,7 @@ export default function LoginPage() {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0 14px" }}>
-            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>또는</span>
-            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
+            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} /><span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>또는</span><div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
           </div>
           <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.15em", textTransform: "uppercase" as const, margin: "0 0 10px 0" }}>▪ 담당자 바로 접속</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
@@ -290,9 +336,7 @@ export default function LoginPage() {
                 onMouseEnter={(e) => { const el = e.currentTarget as HTMLButtonElement; el.style.background = "rgba(37,99,235,0.15)"; el.style.borderColor = "rgba(96,165,250,0.35)"; el.style.transform = "translateY(-1px)"; }}
                 onMouseLeave={(e) => { const el = e.currentTarget as HTMLButtonElement; el.style.background = "rgba(255,255,255,0.04)"; el.style.borderColor = "rgba(255,255,255,0.08)"; el.style.transform = "translateY(0)"; }}
               >
-                <div style={{ width: 30, height: 30, background: "linear-gradient(135deg,#1D4ED8,#4F46E5)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
-                  {name[0]}
-                </div>
+                <div style={{ width: 30, height: 30, background: "linear-gradient(135deg,#1D4ED8,#4F46E5)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{name[0]}</div>
                 <div>
                   <p style={{ fontSize: 13, fontWeight: 700, color: "white", margin: 0, lineHeight: 1.3 }}>{name}</p>
                   <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", margin: 0 }}>{TEAM_MEMBER_ROLES[name]}</p>
@@ -302,6 +346,12 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes orb1 { from{transform:translate(0,0) scale(1)} to{transform:translate(5vw,3vh) scale(1.15)} }
+        @keyframes orb2 { from{transform:translate(0,0) scale(1)} to{transform:translate(-4vw,-4vh) scale(1.1)} }
+        @keyframes orb3 { from{transform:translate(-50%,-50%) scale(1)} to{transform:translate(-50%,-50%) scale(1.2)} }
+      `}</style>
     </div>
   );
 }
