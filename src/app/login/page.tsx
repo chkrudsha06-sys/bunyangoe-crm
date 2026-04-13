@@ -113,7 +113,7 @@ export default function LoginPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/company-logo.png" alt="분양의신"
-            style={{ height: 180, width: "auto", display: "block", marginBottom: 14 }}
+            style={{ width: "min(480px, 72vw)", height: "auto", display: "block", marginBottom: 14 }}
             onError={(e) => {
               const el = e.currentTarget as HTMLImageElement;
               el.style.display = "none";
@@ -212,8 +212,8 @@ export default function LoginPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 36 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/company-logo.png" alt="분양의신"
-                style={{ height: 28, width: "auto" }}
+              <img src="/icon-logo.png" alt="분양의신"
+                style={{ width: 36, height: 36, objectFit: "contain" }}
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
               <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.18)" }} />
               <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>광고인㈜ 대외협력팀</span>
