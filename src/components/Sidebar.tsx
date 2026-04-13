@@ -64,9 +64,7 @@ export default function Sidebar({ user }: SidebarProps) {
       {/* 로고 */}
       <div className="px-4 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-            <Image src="/icon-logo.png" alt="로고" width={22} height={22} style={{ objectFit: "contain" }} />
-          </div>
+          <Image src="/icon-logo.png" alt="로고" width={36} height={36} style={{ objectFit: "contain", flexShrink: 0 }} />
           <div>
             <p className="text-slate-800 font-bold text-sm leading-tight">분양회 CRM</p>
             <p className="text-slate-400 text-xs">광고인㈜ 대외협력팀</p>
