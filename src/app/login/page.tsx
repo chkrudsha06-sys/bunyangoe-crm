@@ -108,26 +108,11 @@ export default function LoginPage() {
         transition: "opacity 0.5s, transform 0.5s", pointerEvents: showLogin ? "none" : "auto",
       }}>
 
-        {/* 로고 - 테두리 없이 이미지만 */}
-        <div style={{ marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/company-logo.png" alt="분양의신"
-            style={{ width: "min(220px, 42vw)", height: "auto", display: "block", marginBottom: 14 }}
-            onError={(e) => {
-              const el = e.currentTarget as HTMLImageElement;
-              el.style.display = "none";
-              const span = document.createElement("span");
-              span.textContent = "분양의신";
-              span.style.cssText = "font-size:24px;font-weight:900;color:white;letter-spacing:-0.02em;display:block;margin-bottom:14px";
-              el.parentElement?.insertBefore(span, el.nextSibling);
-            }}
-          />
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#60A5FA", boxShadow: "0 0 8px #60A5FA" }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(147,197,253,0.85)", letterSpacing: "0.22em", textTransform: "uppercase" as const }}>FIRST MOVER · 분양의신 퍼스트무버</span>
-            <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#60A5FA", boxShadow: "0 0 8px #60A5FA" }} />
-          </div>
+        {/* FIRST MOVER 배지 */}
+        <div style={{ marginBottom: 24, display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#60A5FA", boxShadow: "0 0 10px #60A5FA" }} />
+          <span style={{ fontSize: 16, fontWeight: 700, color: "rgba(147,197,253,0.9)", letterSpacing: "0.2em", textTransform: "uppercase" as const }}>FIRST MOVER · 분양의신 퍼스트무버</span>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#60A5FA", boxShadow: "0 0 10px #60A5FA" }} />
         </div>
 
         {/* 헤드라인 */}
