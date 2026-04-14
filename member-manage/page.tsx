@@ -125,7 +125,7 @@ export default function MemberManagePage() {
     setLoading(true);
     const { data } = await supabase
       .from("contacts")
-      .select("id,name,title,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo")
+      .select("*")
       .in("meeting_result", ["계약완료", "예약완료"])
       .order("created_at", { ascending: false });
     setMembers((data as Member[]) || []);
