@@ -178,35 +178,39 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
   const [selDate, setSelDate] = useState<string | null>(null);
   const [form, setForm] = useState({ event_type: "미팅", content: "" });
   const [saving, setSaving] = useState(false);
-  // 항상 최신 user를 직접 가져옴
-  const user = getCurrentUser() || userProp;
+
+  // localStorage에서 직접 유저명 가져오기
+  const getAuthorName = (): string => {
+    try {
+      const raw = localStorage.getItem("crm_user");
+      if (raw) return JSON.parse(raw).name || "";
+    } catch {}
+    return userProp?.name || "";
+  };
 
   const fetchCalData = useCallback(async () => {
-    if (!user) { setEvents([]); setMeetings([]); return; }
+    const authorName = getAuthorName();
+    if (!authorName) return;
     const start = `${calYear}-${String(calMonth).padStart(2,"0")}-01`;
     const end = `${calYear}-${String(calMonth).padStart(2,"0")}-${new Date(calYear, calMonth, 0).getDate()}`;
-    // 본인 이벤트
+
     const { data: ev, error: evErr } = await supabase.from("calendar_events")
-      .select("*").gte("date", start).lte("date", end).eq("author", user.name);
+      .select("*").gte("date", start).lte("date", end).eq("author", authorName);
     if (evErr) console.error("calendar_events 오류:", evErr.message);
     setEvents((ev || []) as CalEventItem[]);
-    const { data: mt, error: mtErr } = await supabase.from("contacts")
+
+    const { data: mt } = await supabase.from("contacts")
       .select("id,name,meeting_date,assigned_to")
       .not("meeting_date","is",null).gte("meeting_date",start).lte("meeting_date",end)
-      .eq("assigned_to", user.name);
-    if (mtErr) console.error("contacts 미팅 오류:", mtErr.message);
+      .eq("assigned_to", authorName);
     setMeetings(mt || []);
-  }, [calYear, calMonth, user]);
+  }, [calYear, calMonth, userProp]);
 
   useEffect(() => { fetchCalData(); }, [fetchCalData]);
 
   const handleAdd = async () => {
     if (!selDate) { alert("날짜를 선택해주세요."); return; }
-    let authorName = "";
-    try {
-      const raw = localStorage.getItem("crm_user");
-      if (raw) authorName = JSON.parse(raw).name || "";
-    } catch {}
+    const authorName = getAuthorName();
     if (!authorName) { alert("로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요."); return; }
     setSaving(true);
     const { error } = await supabase.from("calendar_events").insert({
@@ -224,7 +228,8 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
   };
 
   const handleDelete = async (id: number) => {
-    await supabase.from("calendar_events").delete().eq("id", id);
+    const authorName = getAuthorName();
+    await supabase.from("calendar_events").delete().eq("id", id).eq("author", authorName);
     fetchCalData();
   };
 
@@ -236,9 +241,10 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
 
   const getItems = (d: number) => {
     const ds = getDs(d);
-    const ev = events.filter(e => e.date === ds);
-    const mt = meetings.filter(m => m.meeting_date?.startsWith(ds));
-    return { ev, mt };
+    return {
+      ev: events.filter(e => e.date === ds),
+      mt: meetings.filter(m => m.meeting_date?.startsWith(ds)),
+    };
   };
 
   const selItems = selDate ? {
@@ -251,11 +257,19 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
       {/* 헤더 */}
       <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <button onClick={()=>{ if(calMonth===1){setCalMonth(12);setCalYear(y=>y-1);}else setCalMonth(m=>m-1);}} className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronLeft size={13}/></button>
+          <button onClick={()=>{ if(calMonth===1){setCalMonth(12);setCalYear(y=>y-1);}else setCalMonth(m=>m-1);}}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronLeft size={13}/></button>
           <span className="text-sm font-bold text-slate-700">{calYear}년 {calMonth}월</span>
-          <button onClick={()=>{ if(calMonth===12){setCalMonth(1);setCalYear(y=>y+1);}else setCalMonth(m=>m+1);}} className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronRight size={13}/></button>
+          <button onClick={()=>{ if(calMonth===12){setCalMonth(1);setCalYear(y=>y+1);}else setCalMonth(m=>m+1);}}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronRight size={13}/></button>
         </div>
-        <button onClick={()=>{setSelDate(today);setShowAdd(true);}} className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        <button
+          onClick={()=>{
+            const ds = today;
+            setSelDate(ds);
+            setShowAdd(true);
+          }}
+          className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">
           <Plus size={11}/> 일정 추가
         </button>
       </div>
@@ -277,7 +291,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
           const isSelected = selDate===ds && !showAdd;
           const total = ev.length+mt.length;
           return (
-            <div key={d} onClick={()=>setSelDate(selDate===ds?null:ds)}
+            <div key={d} onClick={()=>{ setSelDate(ds); setShowAdd(false); }}
               className={`min-h-[72px] border-r border-b border-slate-50 p-1 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}>
               <div className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold mb-0.5 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"}`}>{d}</div>
               <div className="space-y-0.5">
@@ -286,7 +300,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
                   return <div key={e.id} className={`text-[9px] px-1 py-0.5 rounded truncate font-semibold ${c.bg} ${c.text}`}>{e.event_type} - {e.author}</div>;
                 })}
                 {mt.slice(0,1).map(m=>(
-                  <div key={`m${m.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-violet-50 text-violet-600">미팅일정 - {m.assigned_to}</div>
+                  <div key={`m${m.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-violet-50 text-violet-600">미팅 - {m.assigned_to}</div>
                 ))}
                 {total>3&&<p className="text-[9px] text-slate-400 pl-0.5">+{total-3}</p>}
               </div>
@@ -312,9 +326,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
                 <span className={`text-xs font-semibold ${c.text}`}>{e.event_type}</span>
                 <div className="flex items-center gap-2">
                   {e.content&&<span className="text-xs text-slate-500 truncate max-w-[120px]">{e.content}</span>}
-                  {user&&user.name===e.author&&(
-                    <button onClick={(ev)=>{ev.stopPropagation();handleDelete(e.id);}} className="text-slate-300 hover:text-red-400"><X size={11}/></button>
-                  )}
+                  <button onClick={(ev)=>{ev.stopPropagation();handleDelete(e.id);}} className="text-slate-300 hover:text-red-400"><X size={11}/></button>
                 </div>
               </div>
             );
@@ -323,16 +335,18 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
       )}
 
       {/* 일정 추가 패널 */}
-      {showAdd && selDate && (
-        <div className="border-t border-slate-100 p-4">
+      {showAdd && (
+        <div className="border-t border-slate-100 p-4 bg-slate-50/50">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-bold text-slate-600">{new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"short",day:"numeric"})} 일정 추가</p>
+            <p className="text-xs font-bold text-slate-600">
+              {selDate ? new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"short",day:"numeric"}) : ""} 일정 추가
+            </p>
             <button onClick={()=>setShowAdd(false)} className="text-slate-400 hover:text-slate-600"><X size={14}/></button>
           </div>
           <div className="mb-3">
             <p className="text-xs font-semibold text-slate-400 mb-1.5">날짜</p>
-            <input type="date" value={selDate} onChange={e=>setSelDate(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400"/>
+            <input type="date" value={selDate||""} onChange={e=>setSelDate(e.target.value)}
+              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-400"/>
           </div>
           <div className="mb-3">
             <p className="text-xs font-semibold text-slate-400 mb-1.5">유형 선택</p>
@@ -341,7 +355,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
                 const c = EV_COLORS[t];
                 return (
                   <button key={t} onClick={()=>setForm(f=>({...f,event_type:t}))}
-                    className={`py-1.5 text-xs font-bold rounded-lg border transition-colors ${form.event_type===t?`${c.bg} ${c.text} border-current`:"bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}>
+                    className={`py-1.5 text-xs font-bold rounded-lg border transition-colors ${form.event_type===t?`${c.bg} ${c.text} border-current`:"bg-white text-slate-500 border-slate-200 hover:bg-slate-100"}`}>
                     {t}
                   </button>
                 );
@@ -352,10 +366,10 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
             <p className="text-xs font-semibold text-slate-400 mb-1.5">상세내용</p>
             <textarea value={form.content} onChange={e=>setForm(f=>({...f,content:e.target.value}))}
               rows={2} placeholder="상세 내용 입력 (선택)"
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400 resize-none"/>
+              className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-400 resize-none"/>
           </div>
           <div className="flex gap-2">
-            <button onClick={()=>setShowAdd(false)} className="flex-1 py-2 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">취소</button>
+            <button onClick={()=>setShowAdd(false)} className="flex-1 py-2 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-white bg-white">취소</button>
             <button onClick={handleAdd} disabled={saving}
               className="flex-1 py-2 text-xs font-bold bg-[#1E3A8A] text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 flex items-center justify-center gap-1">
               <Save size={11}/>{saving?"저장중...":"저장"}
@@ -366,6 +380,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
     </div>
   );
 }
+
 
 // ── 메인 ──
 // ── 메인 ──
