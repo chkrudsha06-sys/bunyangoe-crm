@@ -169,7 +169,7 @@ interface CalEventItem {
 }
 
 // ── 캘린더 컴포넌트 ──
-function DashCalendar({ user }: { user: CRMUser | null }) {
+function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth() + 1);
   const [events, setEvents] = useState<CalEventItem[]>([]);
@@ -178,9 +178,11 @@ function DashCalendar({ user }: { user: CRMUser | null }) {
   const [selDate, setSelDate] = useState<string | null>(null);
   const [form, setForm] = useState({ event_type: "미팅", content: "" });
   const [saving, setSaving] = useState(false);
+  // 항상 최신 user를 직접 가져옴
+  const user = getCurrentUser() || userProp;
 
   const fetchCalData = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setEvents([]); setMeetings([]); return; }
     const start = `${calYear}-${String(calMonth).padStart(2,"0")}-01`;
     const end = `${calYear}-${String(calMonth).padStart(2,"0")}-${new Date(calYear, calMonth, 0).getDate()}`;
     // 본인 이벤트
@@ -198,12 +200,13 @@ function DashCalendar({ user }: { user: CRMUser | null }) {
   useEffect(() => { fetchCalData(); }, [fetchCalData]);
 
   const handleAdd = async () => {
-    if (!selDate || !user) return;
+    const currentUser = getCurrentUser() || user;
+    if (!selDate || !currentUser) { alert('로그인이 필요합니다.'); return; }
     setSaving(true);
     const title = form.event_type;
     await supabase.from("calendar_events").insert({
       date: selDate, title, content: form.content || null,
-      author: user.name, event_type: form.event_type,
+      author: (getCurrentUser() || user)!.name, event_type: form.event_type,
     });
     setSaving(false); setShowAdd(false); setForm({ event_type: "미팅", content: "" });
     fetchCalData();
