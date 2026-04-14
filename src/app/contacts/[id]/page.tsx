@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Phone, Calendar, MapPin, User, Edit2, Save, X } from "lucide-react";
+import { ArrowLeft, Phone, Calendar, MapPin, User, Edit2, Save, X, ChevronDown, Check } from "lucide-react";
 import ContactNotes from "@/components/ContactNotes";
 
 interface Contact {
@@ -39,6 +39,7 @@ const BADGE: Record<string, string> = {
   리드: "bg-blue-50 text-blue-600 border-blue-100",
   프로스펙팅: "bg-indigo-100 text-indigo-700 border-indigo-200",
   딜크로징: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  리텐션: "bg-teal-100 text-teal-700 border-teal-200",
 };
 
 const OPT = {
@@ -58,6 +59,85 @@ function getAvatarColor(name: string) {
 function Badge({ value }: { value: string }) {
   return <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${BADGE[value] || "bg-slate-100 text-slate-600 border-slate-200"}`}>{value}</span>;
 }
+
+// ─── 인라인 셀렉트 컴포넌트 ───────────────────────────────────────
+// 클릭하면 드롭다운 → 선택 즉시 Supabase 저장
+function InlineSelect({
+  value,
+  options,
+  onSave,
+}: {
+  value: string | null;
+  options: string[];
+  onSave: (val: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // 바깥 클릭 시 닫기
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const handleSelect = async (val: string) => {
+    setSaving(true);
+    await onSave(val);
+    setSaving(false);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      {/* 현재 값 표시 — 클릭하면 드롭다운 열림 */}
+      <button
+        onClick={() => setOpen(!open)}
+        className={`flex items-center gap-1 group transition-all ${saving ? "opacity-50 cursor-wait" : "cursor-pointer"}`}
+        disabled={saving}
+        title="클릭해서 바로 변경"
+      >
+        {value ? (
+          <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${BADGE[value] || "bg-slate-100 text-slate-600 border-slate-200"} group-hover:shadow-sm transition-shadow`}>
+            {value}
+          </span>
+        ) : (
+          <span className="text-xs px-2.5 py-1 rounded-full font-semibold border border-dashed border-slate-300 text-slate-400 group-hover:border-blue-400 group-hover:text-blue-400 transition-colors">
+            선택하기
+          </span>
+        )}
+        <ChevronDown
+          size={11}
+          className={`text-slate-400 transition-transform group-hover:text-blue-500 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {/* 드롭다운 */}
+      {open && (
+        <div className="absolute left-0 top-full mt-1.5 z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 min-w-[140px]">
+          {options.map((opt) => (
+            <button
+              key={opt}
+              onClick={() => handleSelect(opt)}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-slate-50 transition-colors"
+            >
+              <span className={`px-2 py-0.5 rounded-full font-semibold border ${BADGE[opt] || "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                {opt}
+              </span>
+              {value === opt && <Check size={12} className="text-blue-500 ml-2 flex-shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+// ────────────────────────────────────────────────────────────────
 
 function InfoRow({ label, value, children }: { label: string; value?: string | null; children?: React.ReactNode }) {
   return (
@@ -101,6 +181,19 @@ export default function ContactDetailPage() {
     setEditing(false);
     setSaving(false);
   };
+
+  // ─── 인라인 즉시 저장 함수 ──────────────────────────────────────
+  const updateFieldInline = async (field: string, value: string) => {
+    const { error } = await supabase.from("contacts").update({ [field]: value }).eq("id", id);
+    if (error) {
+      alert(`저장 실패: ${error.message}`);
+      return;
+    }
+    // 로컬 상태 즉시 반영
+    setContact((prev) => prev ? { ...prev, [field]: value } : prev);
+    setForm((prev: any) => ({ ...prev, [field]: value }));
+  };
+  // ────────────────────────────────────────────────────────────────
 
   const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
 
@@ -249,7 +342,12 @@ export default function ContactDetailPage() {
 
           {/* 영업 정보 */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <h2 className="text-sm font-bold text-slate-700 mb-3">📊 영업 정보</h2>
+            <h2 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+              📊 영업 정보
+              <span className="text-[10px] font-normal text-blue-400 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                가망구분·관리구간 바로 수정 가능
+              </span>
+            </h2>
             {editing ? (
               <div className="space-y-3">
                 <div><label className="text-xs font-semibold text-slate-400 mb-1 block">TM감도</label>
@@ -270,9 +368,27 @@ export default function ContactDetailPage() {
               </div>
             ) : (
               <div>
-                <InfoRow label="TM감도"><span className="text-sm text-slate-700">{contact.tm_sensitivity||"-"}</span></InfoRow>
-                <InfoRow label="가망구분">{contact.prospect_type ? <Badge value={contact.prospect_type}/> : <span className="text-sm text-slate-300">-</span>}</InfoRow>
-                <InfoRow label="고객관리구간">{contact.management_stage ? <Badge value={contact.management_stage}/> : <span className="text-sm text-slate-300">-</span>}</InfoRow>
+                <InfoRow label="TM감도">
+                  <span className="text-sm text-slate-700">{contact.tm_sensitivity||"-"}</span>
+                </InfoRow>
+
+                {/* ── 가망구분: 인라인 즉시 수정 ── */}
+                <InfoRow label="가망구분">
+                  <InlineSelect
+                    value={contact.prospect_type}
+                    options={OPT.prospect_type}
+                    onSave={(val) => updateFieldInline("prospect_type", val)}
+                  />
+                </InfoRow>
+
+                {/* ── 고객관리구간: 인라인 즉시 수정 ── */}
+                <InfoRow label="고객관리구간">
+                  <InlineSelect
+                    value={contact.management_stage}
+                    options={OPT.management_stage}
+                    onSave={(val) => updateFieldInline("management_stage", val)}
+                  />
+                </InfoRow>
               </div>
             )}
           </div>
