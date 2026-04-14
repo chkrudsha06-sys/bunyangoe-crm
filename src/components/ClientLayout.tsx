@@ -18,7 +18,6 @@ interface Notification {
   created_at: string;
 }
 
-// ─── 토스트 팝업 ─────────────────────────────────────────────
 function NotifToast({ notif, onClose }: { notif: Notification; onClose: () => void }) {
   useEffect(() => {
     const t = setTimeout(onClose, 12000);
@@ -49,52 +48,6 @@ function NotifToast({ notif, onClose }: { notif: Notification; onClose: () => vo
   );
 }
 
-// ─── 알림 패널 ───────────────────────────────────────────────
-function NotifPanel({ notifications, onMarkAll, onClose }: {
-  notifications: Notification[];
-  onMarkAll: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <div className="absolute bottom-full left-0 mb-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-        <span className="text-sm font-bold text-slate-800">알림</span>
-        <div className="flex items-center gap-2">
-          {notifications.length > 0 && (
-            <button onClick={onMarkAll} className="text-[10px] text-blue-600 flex items-center gap-1 hover:text-blue-700">
-              <CheckCheck size={11}/>모두 읽음
-            </button>
-          )}
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={14}/></button>
-        </div>
-      </div>
-      <div className="max-h-72 overflow-y-auto">
-        {notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-            <p className="text-xs">새 알림이 없습니다</p>
-          </div>
-        ) : notifications.map(n => (
-          <div key={n.id} className={`px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors ${!n.is_read ? "bg-blue-50/30" : ""}`}>
-            <div className="flex items-start gap-2.5">
-              <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Truck size={12} className="text-amber-600"/>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-slate-800">{n.title}</p>
-                {n.message && <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{n.message}</p>}
-                <p className="text-[10px] text-slate-400 mt-1">
-                  {new Date(n.created_at).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}
-                </p>
-              </div>
-              {!n.is_read && <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1.5"/>}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -104,7 +57,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toastQueue, setToastQueue] = useState<Notification[]>([]);
   const [showPanel, setShowPanel] = useState(false);
-  const lastFetchedAt = useRef<string | null>(null);
+
+  // 이미 알고 있는 알림 ID 집합 — 중복 토스트 방지
+  const knownIds = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     const u = getCurrentUser();
@@ -112,39 +67,46 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     else { setUser(u); setChecked(true); }
   }, [pathname, router]);
 
-  // 알림 불러오기 (초기 + 폴링 공용)
-  const fetchNotifications = useCallback(async (userName: string, isPolling = false) => {
-    const { data } = await supabase
+  // 새 알림 토스트 추가 (중복 방지)
+  const pushNewToasts = useCallback((data: Notification[]) => {
+    const fresh = data.filter(n => !n.is_read && !knownIds.current.has(n.id));
+    if (fresh.length > 0) {
+      fresh.forEach(n => knownIds.current.add(n.id));
+      setToastQueue(prev => [...prev, ...fresh]);
+    }
+    // 전체 목록 업데이트
+    setNotifications(data);
+    // 기존에 알던 것도 knownIds에 추가 (초기화 시)
+    data.forEach(n => knownIds.current.add(n.id));
+  }, []);
+
+  const fetchNotifications = useCallback(async (userName: string, showToast = false) => {
+    const { data, error } = await supabase
       .from("notifications")
       .select("*")
       .eq("assignee_name", userName)
       .order("created_at", { ascending: false })
       .limit(30);
-    if (!data) return;
+    if (error || !data) return;
 
-    if (isPolling && lastFetchedAt.current) {
-      // 폴링: 마지막 fetch 이후 새로운 알림만 토스트로
-      const newOnes = data.filter(
-        (n: Notification) => n.created_at > lastFetchedAt.current! && !n.is_read
-      );
-      if (newOnes.length > 0) {
-        setToastQueue(prev => [...prev, ...newOnes]);
-      }
+    if (showToast) {
+      pushNewToasts(data as Notification[]);
+    } else {
+      // 초기 로드 — 기존 알림 ID만 등록, 토스트 없음
+      (data as Notification[]).forEach(n => knownIds.current.add(n.id));
+      setNotifications(data as Notification[]);
     }
+  }, [pushNewToasts]);
 
-    lastFetchedAt.current = new Date().toISOString();
-    setNotifications(data as Notification[]);
-  }, []);
-
-  // 초기 로드 + Realtime 구독 + 폴링 백업
   useEffect(() => {
     if (!user || pathname === "/login") return;
 
+    // 초기 로드
     fetchNotifications(user.name, false);
 
-    // Realtime 구독
+    // ── Supabase Realtime 구독 ──
     const channel = supabase
-      .channel(`notif-${user.name}-${Date.now()}`)
+      .channel(`notif-${user.name}`)
       .on("postgres_changes", {
         event: "INSERT",
         schema: "public",
@@ -152,15 +114,20 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         filter: `assignee_name=eq.${user.name}`,
       }, (payload) => {
         const n = payload.new as Notification;
-        setNotifications(prev => [n, ...prev]);
-        setToastQueue(prev => [...prev, n]);
+        if (!knownIds.current.has(n.id)) {
+          knownIds.current.add(n.id);
+          setNotifications(prev => [n, ...prev]);
+          setToastQueue(prev => [...prev, n]);
+        }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[Realtime] status:", status);
+      });
 
-    // 폴링 백업 (15초마다) - Realtime 미설정 환경 대비
+    // ── 폴링 백업 (10초) — Realtime 미설정 환경 보완 ──
     const pollTimer = setInterval(() => {
       fetchNotifications(user.name, true);
-    }, 15000);
+    }, 10000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -216,7 +183,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         ))}
       </div>
 
-      {/* 슬라이드 애니메이션 */}
       <style>{`
         @keyframes slideInRight {
           from { transform: translateX(110%); opacity: 0; }
