@@ -24,7 +24,7 @@ function NotifPanel({ notifications, onMarkAll, onClose }: {
   onClose: () => void;
 }) {
   return (
-    <div className="absolute bottom-full left-0 mb-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+    <div className="absolute left-full top-0 ml-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
         <span className="text-sm font-bold text-slate-800">알림</span>
         <div className="flex items-center gap-2">
