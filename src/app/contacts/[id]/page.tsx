@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Phone, Calendar, MapPin, User, Edit2, Save, X } from "lucide-react";
+import ContactNotes from "@/components/ContactNotes";
 
 interface Contact {
   id: number;
@@ -280,11 +281,11 @@ export default function ContactDetailPage() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
             <h2 className="text-sm font-bold text-slate-700 mb-3">📝 비고</h2>
             {editing ? (
-              <textarea className={`${inp} resize-none`} rows={6}
+              <textarea className={`${inp} resize-none`} rows={4}
                 value={form.memo||""} onChange={e=>setForm({...form,memo:e.target.value})}
                 placeholder="메모를 입력하세요"/>
             ) : (
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 min-h-[120px]">
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 min-h-[80px]">
                 {contact.memo ? (
                   <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{contact.memo}</p>
                 ) : (
@@ -292,6 +293,11 @@ export default function ContactDetailPage() {
                 )}
               </div>
             )}
+          </div>
+
+          {/* 활동 노트 히스토리 */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <ContactNotes contactId={contact.id} />
           </div>
 
         </div>
