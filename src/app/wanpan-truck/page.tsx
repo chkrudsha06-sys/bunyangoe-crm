@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Truck, Plus, Save, X, CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Truck, Plus, Save, X, CheckCircle, XCircle, ChevronDown, ChevronUp, FileText } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
 interface WanpanTruck {
@@ -27,13 +27,18 @@ interface WanpanTruck {
 }
 
 interface TaskAssignee { name: string; done: boolean; }
-interface PreReport { name: string; title: string; current_ad: string; call_reaction: string; opening: string; }
+interface PreReport {
+  name: string;
+  title: string;
+  current_ad: string;
+  opening: string;
+}
 
 // ─── Constants ──────────────────────────────────────────────────
 const DAEHYUP_MEMBERS = ["김정후","김창완","최웅","조계현","이세호","기여운","최연전"];
 const CONSULTANT_MEMBERS = ["박경화","박혜은","조승현","박민경","백선중","강아름","전정훈","박나라"];
 const TASK_MEMBERS = ["김재영","최은정"];
-const EMPTY_REPORT: PreReport = { name:"", title:"", current_ad:"", call_reaction:"", opening:"" };
+const EMPTY_REPORT: PreReport = { name:"", title:"", current_ad:"", opening:"" };
 
 const EMPTY: any = {
   site_name:"",
@@ -115,149 +120,190 @@ function TaskAssigneeSelector({ selected, onChange }: {
   );
 }
 
-// ─── ConsultantPreReportSection ──────────────────────────────────
-function ConsultantPreReportSection({ consultants, reports, onChange }: {
-  consultants: string[];
-  reports: Record<string, PreReport[]>;
-  onChange: (v: Record<string, PreReport[]>) => void;
+// ─── ReportModal (목록에서 컨설턴트 클릭 시 표시) ────────────────
+function ReportModal({ truckId, consultantName, initialReports, onClose, onSaved }: {
+  truckId: number;
+  consultantName: string;
+  initialReports: PreReport[];
+  onClose: () => void;
+  onSaved: (newReports: PreReport[]) => void;
 }) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [addingFor, setAddingFor] = useState<Record<string, boolean>>({});
-  const [newReport, setNewReport] = useState<Record<string, PreReport>>({});
+  const [reports, setReports] = useState<PreReport[]>(initialReports);
+  const [showForm, setShowForm] = useState(initialReports.length === 0);
+  const [form, setForm] = useState<PreReport>({ ...EMPTY_REPORT });
+  const [saving, setSaving] = useState(false);
+  const [viewOpen, setViewOpen] = useState(true);
 
-  if (consultants.length === 0) return null;
+  const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
+  const lbl = "block text-xs font-semibold text-slate-400 mb-1";
 
-  const toggleAdding = (name: string) => {
-    setAddingFor(p => ({ ...p, [name]: !p[name] }));
-    if (!newReport[name]) setNewReport(p => ({ ...p, [name]: { ...EMPTY_REPORT } }));
+  const handleAdd = async () => {
+    if (!form.name.trim()) { alert("이름을 입력해주세요"); return; }
+    setSaving(true);
+
+    // 현재 truck의 consultant_pre_reports 읽기
+    const { data } = await supabase.from("wanpan_trucks")
+      .select("consultant_pre_reports").eq("id", truckId).single();
+    const current = parseJSON<Record<string, PreReport[]>>(data?.consultant_pre_reports, {});
+    const updated = { ...current, [consultantName]: [...(current[consultantName] || []), form] };
+
+    await supabase.from("wanpan_trucks")
+      .update({ consultant_pre_reports: JSON.stringify(updated) }).eq("id", truckId);
+
+    const newList = updated[consultantName];
+    setReports(newList);
+    onSaved(newList);
+    setForm({ ...EMPTY_REPORT });
+    setShowForm(false);
+    setSaving(false);
   };
 
-  const addReport = (name: string) => {
-    const r = newReport[name];
-    if (!r?.name) { alert("이름을 입력해주세요"); return; }
-    const updated = { ...reports, [name]: [...(reports[name] || []), r] };
-    onChange(updated);
-    setNewReport(p => ({ ...p, [name]: { ...EMPTY_REPORT } }));
-    setAddingFor(p => ({ ...p, [name]: false }));
+  const handleRemove = async (idx: number) => {
+    const { data } = await supabase.from("wanpan_trucks")
+      .select("consultant_pre_reports").eq("id", truckId).single();
+    const current = parseJSON<Record<string, PreReport[]>>(data?.consultant_pre_reports, {});
+    const newList = (current[consultantName] || []).filter((_, i) => i !== idx);
+    const updated = { ...current, [consultantName]: newList };
+    await supabase.from("wanpan_trucks")
+      .update({ consultant_pre_reports: JSON.stringify(updated) }).eq("id", truckId);
+    setReports(newList);
+    onSaved(newList);
   };
-
-  const removeReport = (consultant: string, idx: number) => {
-    const updated = { ...reports, [consultant]: (reports[consultant] || []).filter((_, i) => i !== idx) };
-    onChange(updated);
-  };
-
-  const inp2 = "w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
 
   return (
-    <div className="col-span-2 space-y-2">
-      <p className="text-xs font-semibold text-violet-600 flex items-center gap-1.5">
-        컨설턴트 출장전 리포트
-        <span className="text-[10px] font-normal text-slate-400">(이름 클릭 → 입력)</span>
-      </p>
-      {consultants.map(name => {
-        const reps = reports[name] || [];
-        const hasReports = reps.length > 0;
-        const isExp = expanded[name];
-        const isAdding = addingFor[name];
-        return (
-          <div key={name} className="border border-violet-200 rounded-xl overflow-hidden">
-            {/* 헤더 행 */}
-            <div className="flex items-center justify-between px-3 py-2.5 bg-violet-50">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-violet-700">{name}</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${
-                  hasReports
-                    ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                    : "bg-amber-50 text-amber-600 border-amber-200"
-                }`}>
-                  {hasReports ? `확인완료 ${reps.length}건` : "미확인"}
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+
+        {/* 모달 헤더 */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center">
+              <FileText size={14} className="text-violet-600"/>
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-800 text-sm">{consultantName} 출장전 리포트</h3>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                {reports.length > 0 ? `${reports.length}건 입력됨` : "아직 입력된 내용이 없습니다"}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+            <X size={18}/>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto px-5 py-4 space-y-3">
+
+          {/* 기존 리포트 목록 */}
+          {reports.length > 0 && (
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <button
+                onClick={() => setViewOpen(!viewOpen)}
+                className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 hover:bg-slate-100 transition-colors"
+              >
+                <span className="text-xs font-bold text-slate-600">
+                  입력된 리포트 <span className="text-violet-600">{reports.length}건</span>
                 </span>
+                <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                  {viewOpen ? <><ChevronUp size={12}/>접기</> : <><ChevronDown size={12}/>보기</>}
+                </span>
+              </button>
+
+              {viewOpen && (
+                <div className="divide-y divide-slate-100">
+                  {reports.map((r, idx) => (
+                    <div key={idx} className="px-4 py-3 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-sm font-bold text-slate-800">{r.name}</span>
+                          {r.title && (
+                            <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{r.title}</span>
+                          )}
+                        </div>
+                        <button onClick={() => handleRemove(idx)}
+                          className="text-slate-300 hover:text-red-400 transition-colors ml-2 flex-shrink-0">
+                          <X size={13}/>
+                        </button>
+                      </div>
+                      <div className="space-y-1">
+                        {r.current_ad && (
+                          <p className="text-xs text-slate-600">
+                            <span className="text-slate-400 mr-1.5">현재광고</span>{r.current_ad}
+                          </p>
+                        )}
+                        {r.opening && (
+                          <p className="text-xs text-slate-600">
+                            <span className="text-slate-400 mr-1.5">오프닝멘트</span>{r.opening}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 추가 버튼 */}
+          {!showForm && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="w-full py-2.5 text-sm font-semibold text-blue-600 border-2 border-dashed border-blue-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Plus size={14}/> 리포트 추가
+            </button>
+          )}
+
+          {/* 입력 폼 */}
+          {showForm && (
+            <div className="bg-blue-50/50 border border-blue-200 rounded-xl p-4">
+              <p className="text-xs font-bold text-blue-600 mb-3">새 리포트 입력</p>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className={lbl}>이름 *</label>
+                  <input className={inp} placeholder="홍길동"
+                    value={form.name}
+                    onChange={e => setForm({...form, name: e.target.value})}/>
+                </div>
+                <div>
+                  <label className={lbl}>직급</label>
+                  <input className={inp} placeholder="본부장"
+                    value={form.title}
+                    onChange={e => setForm({...form, title: e.target.value})}/>
+                </div>
+                <div className="col-span-2">
+                  <label className={lbl}>현재광고</label>
+                  <input className={inp} placeholder="LMS, 호갱노노..."
+                    value={form.current_ad}
+                    onChange={e => setForm({...form, current_ad: e.target.value})}/>
+                </div>
+                <div className="col-span-2">
+                  <label className={lbl}>오프닝 멘트 (비고)</label>
+                  <textarea className={`${inp} resize-none`} rows={2}
+                    placeholder="오프닝 멘트 또는 특이사항"
+                    value={form.opening}
+                    onChange={e => setForm({...form, opening: e.target.value})}/>
+                </div>
               </div>
-              <div className="flex gap-1.5">
-                <button type="button" onClick={() => toggleAdding(name)}
-                  className="text-[10px] px-2.5 py-1 bg-violet-600 text-white rounded-lg font-semibold hover:bg-violet-700">
-                  + 추가
+              <div className="flex justify-end gap-2 mt-3">
+                <button onClick={() => { setShowForm(false); setForm({...EMPTY_REPORT}); }}
+                  className="px-3 py-1.5 text-xs text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50">취소</button>
+                <button onClick={handleAdd} disabled={saving}
+                  className="px-4 py-1.5 text-xs bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+                  {saving ? "저장 중..." : <><Plus size={11}/>추가</>}
                 </button>
-                {hasReports && (
-                  <button type="button" onClick={() => setExpanded(p => ({ ...p, [name]: !p[name] }))}
-                    className="text-[10px] px-2 py-1 bg-white text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 flex items-center gap-0.5">
-                    {isExp ? <ChevronUp size={10}/> : <ChevronDown size={10}/>}
-                    {isExp ? "접기" : `보기`}
-                  </button>
-                )}
               </div>
             </div>
+          )}
+        </div>
 
-            {/* 기존 리포트 목록 */}
-            {isExp && reps.length > 0 && (
-              <div className="px-3 py-2.5 space-y-2 border-t border-violet-100 bg-white">
-                {reps.map((r, idx) => (
-                  <div key={idx} className="bg-slate-50 border border-slate-100 rounded-lg p-2.5">
-                    <div className="flex justify-between items-start mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-800">{r.name}</span>
-                        {r.title && <span className="text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">{r.title}</span>}
-                      </div>
-                      <button type="button" onClick={() => removeReport(name, idx)}
-                        className="text-slate-300 hover:text-red-400 transition-colors"><X size={12}/></button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-600">
-                      <span><span className="text-slate-400">현재광고 </span>{r.current_ad || "-"}</span>
-                      <span><span className="text-slate-400">통화반응 </span>{r.call_reaction || "-"}</span>
-                      {r.opening && <span className="col-span-2"><span className="text-slate-400">오프닝 </span>{r.opening}</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* 추가 입력 폼 */}
-            {isAdding && (
-              <div className="px-3 py-3 border-t border-violet-100 bg-blue-50/40">
-                <p className="text-[10px] font-bold text-blue-600 mb-2">출장전 리포트 입력</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-semibold mb-0.5 block">이름 *</label>
-                    <input className={inp2} placeholder="홍길동"
-                      value={newReport[name]?.name || ""}
-                      onChange={e => setNewReport(p => ({ ...p, [name]: { ...(p[name] || EMPTY_REPORT), name: e.target.value } }))}/>
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-semibold mb-0.5 block">직급</label>
-                    <input className={inp2} placeholder="본부장"
-                      value={newReport[name]?.title || ""}
-                      onChange={e => setNewReport(p => ({ ...p, [name]: { ...(p[name] || EMPTY_REPORT), title: e.target.value } }))}/>
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-semibold mb-0.5 block">현재광고</label>
-                    <input className={inp2} placeholder="LMS, 호갱노노..."
-                      value={newReport[name]?.current_ad || ""}
-                      onChange={e => setNewReport(p => ({ ...p, [name]: { ...(p[name] || EMPTY_REPORT), current_ad: e.target.value } }))}/>
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-semibold mb-0.5 block">사전통화반응</label>
-                    <input className={inp2} placeholder="긍정 / 보통 / 부정"
-                      value={newReport[name]?.call_reaction || ""}
-                      onChange={e => setNewReport(p => ({ ...p, [name]: { ...(p[name] || EMPTY_REPORT), call_reaction: e.target.value } }))}/>
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-[10px] text-slate-400 font-semibold mb-0.5 block">오프닝 멘트 (비고)</label>
-                    <input className={inp2} placeholder="오프닝 멘트 또는 특이사항"
-                      value={newReport[name]?.opening || ""}
-                      onChange={e => setNewReport(p => ({ ...p, [name]: { ...(p[name] || EMPTY_REPORT), opening: e.target.value } }))}/>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-1.5 mt-2">
-                  <button type="button" onClick={() => toggleAdding(name)}
-                    className="text-[10px] px-3 py-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-white">취소</button>
-                  <button type="button" onClick={() => addReport(name)}
-                    className="text-[10px] px-3 py-1.5 bg-violet-600 text-white rounded-lg font-semibold hover:bg-violet-700">추가 저장</button>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
+        <div className="px-5 py-3 border-t border-slate-100 flex justify-end">
+          <button onClick={onClose}
+            className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
+            닫기
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -271,6 +317,14 @@ export default function WanpanTruckPage() {
   const [form, setForm] = useState<any>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [filterMonth, setFilterMonth] = useState("");
+
+  // 리포트 모달 상태
+  const [reportTarget, setReportTarget] = useState<{
+    truckId: number;
+    truckIdx: number;
+    consultantName: string;
+    reports: PreReport[];
+  } | null>(null);
 
   useEffect(() => { fetchTrucks(); }, [filterMonth]);
 
@@ -348,7 +402,6 @@ export default function WanpanTruckPage() {
     fetchTrucks();
   };
 
-  // 업무담당자 완료 토글 (목록에서 직접)
   const toggleTaskDone = async (truckId: number, assignees: TaskAssignee[], name: string) => {
     const updated = assignees.map(a => a.name === name ? { ...a, done: !a.done } : a);
     await supabase.from("wanpan_trucks").update({ task_assignees: JSON.stringify(updated) }).eq("id", truckId);
@@ -359,16 +412,16 @@ export default function WanpanTruckPage() {
   const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 
   const HEADERS = ["#","발송일","현장명","현장위치","대행사","접점","직급","연락처","조직수",
-    "대협팀","컨설턴트","업무담당자","촬영","발주","비고",""];
+    "대협팀","컨설턴트 출장전 리포트","업무담당자","촬영","발주","비고",""];
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
-      {/* 헤더 */}
+      {/* 상단 헤더 */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Truck size={20} className="text-blue-500" />완판트럭
+              <Truck size={20} className="text-blue-500"/>완판트럭
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">완판트럭 진행 리스트 관리</p>
           </div>
@@ -378,11 +431,10 @@ export default function WanpanTruckPage() {
               <p className="text-xs text-blue-500">전체 회차</p>
             </div>
             <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[#1E3A8A] text-white text-sm font-semibold rounded-lg hover:bg-blue-800 shadow-sm">
-              <Plus size={14} />신규 등록
+              <Plus size={14}/>신규 등록
             </button>
           </div>
         </div>
-        {/* 월별 필터 */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500 font-semibold">월별</span>
           <div className="flex gap-1.5 flex-wrap">
@@ -404,11 +456,11 @@ export default function WanpanTruckPage() {
       <div className="flex-1 overflow-auto p-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
           </div>
         ) : trucks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-            <Truck size={40} className="mb-3 opacity-30" />
+            <Truck size={40} className="mb-3 opacity-30"/>
             <p className="text-sm">완판트럭 데이터가 없습니다</p>
             <button onClick={openAdd} className="mt-3 text-xs text-blue-600 underline">첫 번째 회차 등록하기</button>
           </div>
@@ -427,24 +479,26 @@ export default function WanpanTruckPage() {
                   const staffList = parseMembers(t.staff_members);
                   const consultList = parseMembers(t.consultant_members);
                   const taskList = parseJSON<TaskAssignee[]>(t.task_assignees, []);
+                  const preReports = parseJSON<Record<string, PreReport[]>>(t.consultant_pre_reports, {});
                   const dispDate = t.dispatch_date
                     ? new Date(t.dispatch_date).toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"}).replace(/\.$/, "")
                     : "-";
                   return (
                     <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-400 text-xs">{i+1}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-700 font-medium text-xs">{dispDate}</td>
-                      {/* 현장명 NEW */}
-                      <td className="px-3 py-2.5 text-center align-middle text-xs font-bold text-blue-700">
+                      <td className="px-3 py-3 text-center align-middle text-slate-400 text-xs">{i+1}</td>
+                      <td className="px-3 py-3 text-center align-middle text-slate-700 font-medium text-xs">{dispDate}</td>
+                      <td className="px-3 py-3 text-center align-middle text-xs font-bold text-blue-700">
                         {t.site_name || <span className="text-slate-300">-</span>}
                       </td>
-                      <td className="px-3 py-2.5 text-center align-middle font-semibold text-slate-800 text-xs">{t.location||"-"}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{t.agency||"-"}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{t.contact_point||"-"}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-500 text-xs">{t.contact_point_title||"-"}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{t.contact_phone||"-"}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-xs font-bold text-slate-700">{t.team_size?`${t.team_size}명`:"-"}</td>
-                      <td className="px-3 py-2.5 text-center align-middle">
+                      <td className="px-3 py-3 text-center align-middle font-semibold text-slate-800 text-xs">{t.location||"-"}</td>
+                      <td className="px-3 py-3 text-center align-middle text-slate-600 text-xs">{t.agency||"-"}</td>
+                      <td className="px-3 py-3 text-center align-middle text-slate-600 text-xs">{t.contact_point||"-"}</td>
+                      <td className="px-3 py-3 text-center align-middle text-slate-500 text-xs">{t.contact_point_title||"-"}</td>
+                      <td className="px-3 py-3 text-center align-middle text-slate-600 text-xs">{t.contact_phone||"-"}</td>
+                      <td className="px-3 py-3 text-center align-middle text-xs font-bold text-slate-700">{t.team_size?`${t.team_size}명`:"-"}</td>
+
+                      {/* 대협팀 */}
+                      <td className="px-3 py-3 text-center align-middle">
                         {staffList.length>0 ? (
                           <div className="flex flex-wrap gap-0.5 justify-center">
                             {staffList.map(s=>(
@@ -453,17 +507,43 @@ export default function WanpanTruckPage() {
                           </div>
                         ) : <span className="text-xs text-slate-300">-</span>}
                       </td>
-                      <td className="px-3 py-2.5 text-center align-middle">
-                        {consultList.length>0 ? (
-                          <div className="flex flex-wrap gap-0.5 justify-center">
-                            {consultList.map(s=>(
-                              <span key={s} className="text-[10px] px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded-full border border-violet-100">{s}</span>
-                            ))}
+
+                      {/* 컨설턴트 출장전 리포트 - 각 컨설턴트별 미확인/리포트 버튼 */}
+                      <td className="px-3 py-3 text-center align-middle min-w-[160px]">
+                        {consultList.length > 0 ? (
+                          <div className="flex flex-col gap-1 items-center">
+                            {consultList.map(cName => {
+                              const cReports = preReports[cName] || [];
+                              const hasReport = cReports.length > 0;
+                              return (
+                                <button
+                                  key={cName}
+                                  onClick={() => setReportTarget({
+                                    truckId: t.id,
+                                    truckIdx: i,
+                                    consultantName: cName,
+                                    reports: cReports,
+                                  })}
+                                  className={`flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full border font-semibold transition-all hover:shadow-sm ${
+                                    hasReport
+                                      ? "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100"
+                                      : "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
+                                  }`}
+                                >
+                                  <FileText size={9}/>
+                                  <span>{cName}</span>
+                                  <span className={`font-bold ${hasReport ? "text-violet-500" : "text-amber-500"}`}>
+                                    {hasReport ? `리포트 ${cReports.length}건` : "미확인"}
+                                  </span>
+                                </button>
+                              );
+                            })}
                           </div>
                         ) : <span className="text-xs text-slate-300">-</span>}
                       </td>
-                      {/* 업무담당자 NEW */}
-                      <td className="px-3 py-2.5 text-center align-middle">
+
+                      {/* 업무담당자 */}
+                      <td className="px-3 py-3 text-center align-middle">
                         {taskList.length > 0 ? (
                           <div className="flex flex-col gap-1 items-center">
                             {taskList.map(a => (
@@ -486,20 +566,21 @@ export default function WanpanTruckPage() {
                           </div>
                         ) : <span className="text-xs text-slate-300">-</span>}
                       </td>
-                      <td className="px-3 py-2.5 text-center align-middle">
+
+                      <td className="px-3 py-3 text-center align-middle">
                         <span className={`text-sm font-black ${t.has_photo?"text-emerald-500":"text-slate-300"}`}>{t.has_photo?"O":"X"}</span>
                       </td>
-                      <td className="px-3 py-2.5 text-center align-middle">
+                      <td className="px-3 py-3 text-center align-middle">
                         <button onClick={()=>toggleOrder(t.id,t.is_ordered)}
                           className={`flex items-center justify-center gap-1 mx-auto text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${t.is_ordered?"bg-emerald-100 text-emerald-700":"bg-slate-100 text-slate-500"}`}>
                           {t.is_ordered?<CheckCircle size={11}/>:<XCircle size={11}/>}
                           {t.is_ordered?"완료":"미발주"}
                         </button>
                       </td>
-                      <td className="px-3 py-2.5 text-center align-middle max-w-[100px]">
+                      <td className="px-3 py-3 text-center align-middle max-w-[100px]">
                         <p className="text-xs text-slate-500 truncate">{t.notes||"-"}</p>
                       </td>
-                      <td className="px-3 py-2.5 text-center align-middle">
+                      <td className="px-3 py-3 text-center align-middle">
                         <div className="flex justify-center gap-1">
                           <button onClick={()=>openEdit(t)} className="text-xs text-slate-400 hover:text-blue-600 px-2 py-1 rounded hover:bg-blue-50">수정</button>
                           <button onClick={()=>handleDelete(t.id)} className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50">삭제</button>
@@ -522,15 +603,14 @@ export default function WanpanTruckPage() {
               <h2 className="font-bold text-slate-800">{editItem?"완판트럭 수정":"완판트럭 신규 등록"}</h2>
               <button onClick={()=>setShowModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18}/></button>
             </div>
-
             <div className="flex-1 overflow-auto px-6 py-4">
               <div className="grid grid-cols-2 gap-3">
 
-                {/* ── 기본 정보 ── */}
+                {/* 기본 정보 */}
                 <div className="col-span-2">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">기본 정보</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">기본 정보</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><label className={lbl}>현장명 <span className="text-blue-400">NEW</span></label>
+                    <div><label className={lbl}>현장명</label>
                       <input className={inp} value={form.site_name} onChange={e=>setForm({...form,site_name:e.target.value})} placeholder="예: 힐스테이트 광교"/></div>
                     <div><label className={lbl}>발송일</label>
                       <input type="date" className={inp} value={form.dispatch_date} onChange={e=>setForm({...form,dispatch_date:e.target.value})}/></div>
@@ -541,9 +621,9 @@ export default function WanpanTruckPage() {
                   </div>
                 </div>
 
-                {/* ── 소통자 정보 ── */}
+                {/* 소통자 */}
                 <div className="col-span-2">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">소통자 정보</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">소통자 정보</p>
                   <div className="grid grid-cols-3 gap-3">
                     <div><label className={lbl}>접점 (이름)</label>
                       <input className={inp} value={form.contact_point} onChange={e=>setForm({...form,contact_point:e.target.value})} placeholder="홍길동"/></div>
@@ -554,52 +634,47 @@ export default function WanpanTruckPage() {
                   </div>
                 </div>
 
-                {/* ── 출장 인원 ── */}
+                {/* 출장 인원 */}
                 <div className="col-span-2">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">출장 인원</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">출장 인원</p>
                   <div className="grid grid-cols-3 gap-3 mb-3">
                     <div><label className={lbl}>조직수</label>
                       <input type="number" className={inp} value={form.team_size} onChange={e=>setForm({...form,team_size:e.target.value})} placeholder="명"/></div>
-                    <div><label className={lbl}>대협팀 출장 (명수)</label>
+                    <div><label className={lbl}>대협팀 (명수)</label>
                       <input type="number" className={inp} value={form.staff_count} min={0} max={7}
                         onChange={e=>{const n=Number(e.target.value)||0; setForm({...form,staff_count:e.target.value,staff_members:form.staff_members.slice(0,n)});}}/></div>
-                    <div><label className={lbl}>컨설턴트 출장 (명수)</label>
+                    <div><label className={lbl}>컨설턴트 (명수)</label>
                       <input type="number" className={inp} value={form.consultant_count} min={0} max={8}
                         onChange={e=>{const n=Number(e.target.value)||0; setForm({...form,consultant_count:e.target.value,consultant_members:form.consultant_members.slice(0,n)});}}/></div>
                   </div>
-
                   {Number(form.staff_count)>0 && (
                     <MemberSelector count={Number(form.staff_count)} selected={form.staff_members}
                       options={DAEHYUP_MEMBERS} onChange={v=>setForm({...form,staff_members:v})}
                       label="대협팀 출장인원" color="bg-blue-600"/>
                   )}
                   {Number(form.consultant_count)>0 && (
-                    <div className="col-span-2 mt-2">
+                    <div className="mt-2">
                       <MemberSelector count={Number(form.consultant_count)} selected={form.consultant_members}
                         options={CONSULTANT_MEMBERS} onChange={v=>setForm({...form,consultant_members:v})}
                         label="컨설턴트 출장인원" color="bg-violet-600"/>
                     </div>
                   )}
+                  {form.consultant_members.length > 0 && (
+                    <p className="text-[10px] text-violet-500 mt-2 pl-1">
+                      ※ 컨설턴트 출장전 리포트는 저장 후 목록에서 입력할 수 있습니다
+                    </p>
+                  )}
                 </div>
 
-                {/* ── 업무담당자 NEW ── */}
+                {/* 업무담당자 */}
                 <TaskAssigneeSelector
                   selected={form.task_assignees}
                   onChange={v=>setForm({...form,task_assignees:v})}
                 />
 
-                {/* ── 컨설턴트 출장전 리포트 NEW ── */}
-                {form.consultant_members.length > 0 && (
-                  <ConsultantPreReportSection
-                    consultants={form.consultant_members}
-                    reports={form.consultant_pre_reports}
-                    onChange={v=>setForm({...form,consultant_pre_reports:v})}
-                  />
-                )}
-
-                {/* ── 기타 ── */}
+                {/* 기타 */}
                 <div className="col-span-2">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">기타</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">기타</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className={lbl}>촬영여부</label>
@@ -625,7 +700,6 @@ export default function WanpanTruckPage() {
 
               </div>
             </div>
-
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
               <button onClick={()=>setShowModal(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">취소</button>
               <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm bg-[#1E3A8A] text-white font-semibold rounded-lg hover:bg-blue-800 disabled:opacity-50">
@@ -634,6 +708,26 @@ export default function WanpanTruckPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 컨설턴트 리포트 모달 */}
+      {reportTarget && (
+        <ReportModal
+          truckId={reportTarget.truckId}
+          consultantName={reportTarget.consultantName}
+          initialReports={reportTarget.reports}
+          onClose={() => setReportTarget(null)}
+          onSaved={(newReports) => {
+            // 로컬 상태 즉시 반영
+            setTrucks(prev => prev.map(t => {
+              if (t.id !== reportTarget.truckId) return t;
+              const current = parseJSON<Record<string, PreReport[]>>(t.consultant_pre_reports, {});
+              const updated = { ...current, [reportTarget.consultantName]: newReports };
+              return { ...t, consultant_pre_reports: JSON.stringify(updated) };
+            }));
+            setReportTarget(prev => prev ? { ...prev, reports: newReports } : null);
+          }}
+        />
       )}
     </div>
   );
