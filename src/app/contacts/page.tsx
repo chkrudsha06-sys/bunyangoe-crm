@@ -27,7 +27,7 @@ const EMPTY_FORM = {
   name: "", title: "", phone: "",
   customer_type: "", tm_sensitivity: "", prospect_type: "",
   meeting_date: "", meeting_date_text: "", meeting_address: "",
-  meeting_result: "", management_stage: "", memo: "", assigned_to: "",
+  meeting_result: "", management_stage: "", memo: "", assigned_to: "", consultant: "",
 };
 
 // 옵션 목록
@@ -162,6 +162,7 @@ export default function ContactsPage() {
       management_stage: form.management_stage || null,
       memo: form.memo || null,
       assigned_to: form.assigned_to || null,
+      consultant: form.consultant || null,
     };
     let error;
     if (editContact) {
@@ -398,6 +399,10 @@ export default function ContactsPage() {
                 <div>
                   <label className={lbl}>담당자</label>
                   <Sel val={form.assigned_to} onChange={v=>f("assigned_to",v)} opts={TEAM} placeholder="선택"/>
+                </div>
+                <div>
+                  <label className={lbl}>담당컨설턴트</label>
+                  <input className={inp} value={form.consultant} onChange={e=>f("consultant",e.target.value)} placeholder="담당 컨설턴트명"/>
                 </div>
                 <div className="col-span-3">
                   <label className={lbl}>비고</label>
