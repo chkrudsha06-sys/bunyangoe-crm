@@ -176,6 +176,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
   const [meetings, setMeetings] = useState<any[]>([]);
   const [wanpans, setWanpans] = useState<any[]>([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [showDayPopup, setShowDayPopup] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [selDate, setSelDate] = useState<string | null>(null);
   const [form, setForm] = useState({ event_type: "미팅", content: "" });
