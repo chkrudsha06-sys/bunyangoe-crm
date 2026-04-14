@@ -132,7 +132,21 @@ export default function ContactsPage() {
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
-  const openAdd = () => { setEditContact(null); setForm(EMPTY_FORM); setUseDatePicker(true); setShowModal(true); };
+  const openAdd = () => {
+    setEditContact(null);
+    // 로그인한 실행파트 유저면 본인 자동 셋팅
+    let defaultAssigned = "";
+    try {
+      const raw = localStorage.getItem("crm_user");
+      if (raw) {
+        const u = JSON.parse(raw);
+        if (u.role === "exec") defaultAssigned = u.name;
+      }
+    } catch {}
+    setForm({ ...EMPTY_FORM, assigned_to: defaultAssigned });
+    setUseDatePicker(true);
+    setShowModal(true);
+  };
   const openEdit = (c: Contact) => {
     setEditContact(c);
     setForm({
@@ -382,7 +396,7 @@ export default function ContactsPage() {
                   <label className={lbl}>가망구분</label>
                   <Sel val={form.prospect_type} onChange={v=>f("prospect_type",v)} opts={OPT.prospect_type} placeholder="선택"/>
                 </div>
-                <div className="col-span-2">
+                <div>
                   <label className={lbl}>미팅일정</label>
                   <div className="flex gap-2 mb-1.5">
                     <button onClick={()=>setUseDatePicker(true)}
@@ -395,7 +409,12 @@ export default function ContactsPage() {
                     : <input className={inp} value={form.meeting_date_text} onChange={e=>f("meeting_date_text",e.target.value)} placeholder="예: 4월 셋째주, 조율중"/>
                   }
                 </div>
-                <div><label className={lbl}>미팅지역</label><input className={inp} value={form.meeting_address} onChange={e=>f("meeting_address",e.target.value)} placeholder="서울 강남"/></div>
+                <div>
+                  <label className={lbl}>미팅지역</label>
+                  {/* 미팅일정 토글버튼 높이만큼 여백 맞춤 */}
+                  <div className="mb-1.5 h-[28px]"/>
+                  <input className={inp} value={form.meeting_address} onChange={e=>f("meeting_address",e.target.value)} placeholder="서울 강남"/>
+                </div>
                 <div>
                   <label className={lbl}>미팅결과</label>
                   <Sel val={form.meeting_result} onChange={v=>f("meeting_result",v)} opts={OPT.meeting_result} placeholder="선택"/>
