@@ -4,298 +4,308 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { login, getCurrentUser } from "@/lib/auth";
 
-function ParticleCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    let w = (canvas.width = window.innerWidth);
-    let h = (canvas.height = window.innerHeight);
-    let animId: number;
-    const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
-    window.addEventListener("resize", resize);
-    type P = { x: number; y: number; vx: number; vy: number; r: number; alpha: number };
-    const particles: P[] = Array.from({ length: 90 }, () => ({
-      x: Math.random() * w, y: Math.random() * h,
-      vx: (Math.random() - 0.5) * 0.45, vy: (Math.random() - 0.5) * 0.45,
-      r: Math.random() * 2 + 1, alpha: Math.random() * 0.5 + 0.2,
-    }));
-    const draw = () => {
-      ctx.clearRect(0, 0, w, h);
-      for (const p of particles) {
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0 || p.x > w) p.vx *= -1;
-        if (p.y < 0 || p.y > h) p.vy *= -1;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(96,165,250,${p.alpha})`; ctx.fill();
-      }
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 130) {
-            ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(96,165,250,${(1 - dist / 130) * 0.22})`; ctx.lineWidth = 0.8; ctx.stroke();
-          }
-        }
-      }
-      animId = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => { window.removeEventListener("resize", resize); cancelAnimationFrame(animId); };
-  }, []);
-  return <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />;
-}
+// ── 슬라이드 데이터 ──────────────────────────────────────────
+const SLIDES = [
+  {
+    engBold: "First Mover",
+    engRest: " in Real Estate Sales",
+    kor1: "분양 산업의 판도를 바꾸는 새로운 기준.",
+    kor2: "대한민국 분양 생태계를 선도하는 퍼스트무버, 분양의신.",
+  },
+  {
+    engBold: "Exclusive",
+    engRest: " VIP Membership for the Top 1%",
+    kor1: "광고를 넘어, 성장을 함께하는 프라이빗 파트너십.",
+    kor2: "분양상담사 최상위 100인만을 위한 멤버십, 분양회.",
+  },
+];
 
 export default function LoginPage() {
   const router = useRouter();
-  const [showLogin, setShowLogin] = useState(false);
+  const [slide, setSlide] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const [showModal, setShowModal] = useState(false);
   const [userId, setUserId] = useState("");
   const [userPw, setUserPw] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
-  const [count, setCount] = useState(0);
 
   useEffect(() => {
     const user = getCurrentUser();
     if (user) router.push("/");
   }, [router]);
 
+  // 슬라이드 자동 전환
   useEffect(() => {
-    const duration = 3500;
-    const start = Date.now();
-    const tick = () => {
-      const p = Math.min((Date.now() - start) / duration, 1);
-      setCount(Math.round((1 - Math.pow(1 - p, 3)) * 100));
-      if (p < 1) requestAnimationFrame(tick);
-      else setCount(100);
-    };
-    requestAnimationFrame(tick);
+    const timer = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setSlide(s => (s + 1) % SLIDES.length);
+        setVisible(true);
+      }, 600);
+    }, 5500);
+    return () => clearInterval(timer);
   }, []);
 
   const handleLogin = async () => {
     if (!userId || !userPw) { setError("아이디와 비밀번호를 입력해주세요."); return; }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 400));
     const user = login(userId, userPw);
     if (user) { router.push("/"); }
     else { setError("아이디 또는 비밀번호가 올바르지 않습니다."); setLoading(false); }
   };
 
-  const countColor = count >= 100 ? "#60A5FA" : count >= 70 ? "#818CF8" : count >= 40 ? "#6366F1" : "#3B82F6";
+  const cur = SLIDES[slide];
 
   return (
-    <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", fontFamily: "'Apple SD Gothic Neo','Pretendard','Noto Sans KR',sans-serif" }}>
+    <div style={{ position: "fixed", inset: 0, overflow: "hidden", fontFamily: "'Pretendard','Noto Sans KR',sans-serif" }}>
 
-      {/* 배경 */}
-      <div style={{ position: "fixed", inset: 0, zIndex: 0 }}>
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 20% 50%,#0D1B4B 0%,#050D2E 40%,#030918 100%)" }} />
-        <div style={{ position: "absolute", top: "-10%", left: "-5%", width: "50vw", height: "60vh", borderRadius: "50%", background: "radial-gradient(circle,rgba(37,99,235,0.18) 0%,transparent 70%)", filter: "blur(40px)", animation: "orb1 12s ease-in-out infinite alternate" }} />
-        <div style={{ position: "absolute", bottom: "-10%", right: "-5%", width: "45vw", height: "55vh", borderRadius: "50%", background: "radial-gradient(circle,rgba(99,102,241,0.14) 0%,transparent 70%)", filter: "blur(50px)", animation: "orb2 15s ease-in-out infinite alternate" }} />
-        <ParticleCanvas />
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "30vh", background: "linear-gradient(to top,rgba(3,9,24,0.8),transparent)" }} />
-      </div>
+      {/* ── 배경 영상 ── */}
+      <video
+        autoPlay muted loop playsInline
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }}
+      >
+        <source src="/login-bg.mp4.mp4" type="video/mp4"/>
+      </video>
 
-      {/* 메인 랜딩 */}
+      {/* ── 어두운 오버레이 ── */}
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.58)", zIndex: 1 }}/>
+
+      {/* ── 그리드 라인 (핀텔 스타일) ── */}
       <div style={{
-        position: "relative", zIndex: 10, minHeight: "100vh",
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        padding: "40px 20px",
-        opacity: showLogin ? 0 : 1, transform: showLogin ? "translateY(-20px) scale(0.98)" : "translateY(0) scale(1)",
-        transition: "opacity 0.5s, transform 0.5s", pointerEvents: showLogin ? "none" : "auto",
+        position: "absolute", inset: 0, zIndex: 2,
+        backgroundImage: "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
+        backgroundSize: "80px 80px",
+        pointerEvents: "none",
+      }}/>
+
+      {/* ── 좌하단 그라디언트 ── */}
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, height: "40vh",
+        background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)",
+        zIndex: 3, pointerEvents: "none",
+      }}/>
+
+      {/* ── 상단 네비 (로고 좌측 + 접속버튼 우측) ── */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "28px 52px", zIndex: 10,
+        background: "linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 100%)",
       }}>
-
-        {/* FIRST MOVER 배지 */}
-        <div style={{ marginBottom: 24, display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#60A5FA", boxShadow: "0 0 10px #60A5FA" }} />
-          <span style={{ fontSize: 16, fontWeight: 700, color: "rgba(147,197,253,0.9)", letterSpacing: "0.2em", textTransform: "uppercase" as const }}>FIRST MOVER · 분양의신 퍼스트무버</span>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#60A5FA", boxShadow: "0 0 10px #60A5FA" }} />
-        </div>
-
-        {/* 헤드라인 */}
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <h1 style={{ fontSize: "clamp(48px,7.5vw,100px)", fontWeight: 900, lineHeight: 1.05, margin: "0 0 14px 0", letterSpacing: "-0.025em" }}>
-            <span style={{ color: "#FFFFFF", textShadow: "0 2px 40px rgba(255,255,255,0.15)" }}>첫 시작,{" "}</span>
-            <br />
-            <span className="shine-text">VIP멤버십 분양회</span>
-          </h1>
-          <h2 style={{ fontSize: "clamp(20px,2.6vw,32px)", fontWeight: 600, color: "rgba(255,255,255,0.75)", margin: 0, letterSpacing: "0.04em" }}>
-            고객통합관리 시스템
-          </h2>
-        </div>
-
-        {/* VIP 카운터 */}
-        <div style={{
-          display: "flex", flexDirection: "column", alignItems: "center",
-          marginBottom: 40, padding: "28px 52px",
-          background: "rgba(8,16,42,0.75)", backdropFilter: "blur(20px)",
-          border: "1px solid rgba(96,165,250,0.18)", borderRadius: 28, minWidth: 340,
-          boxShadow: "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
-        }}>
-          <p style={{ fontSize: 16, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: "0.06em", margin: "0 0 18px 0" }}>VIP 멤버십 분양회</p>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-            <span style={{
-              fontSize: "clamp(110px,14vw,180px)", fontWeight: 900, lineHeight: 1,
-              color: "white", textShadow: `0 0 60px ${countColor}66, 0 0 120px ${countColor}33`,
-              fontFamily: "'SF Pro Display','Helvetica Neue',sans-serif",
-              transition: "text-shadow 0.4s",
-            }}>{count}</span>
-          </div>
-          <div style={{ width: 300, height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 10, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${count}%`, background: "linear-gradient(90deg,#1D4ED8,#60A5FA,#A78BFA)", borderRadius: 10, boxShadow: `0 0 14px ${countColor}99`, transition: "width 0.03s linear" }} />
+        {/* 로고 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/company-logo.png" alt="광고인"
+            style={{ height: 38, objectFit: "contain" }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
+          <div style={{ width: 1, height: 22, background: "rgba(255,255,255,0.25)" }}/>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: "0.05em" }}>광고인㈜</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em" }}>대외협력팀</div>
           </div>
         </div>
 
-        {/* 접속 버튼 */}
+        {/* 시스템 접속 버튼 */}
         <button
-          onClick={() => setShowLogin(true)}
+          onClick={() => setShowModal(true)}
           style={{
-            padding: "20px 80px",
-            background: "linear-gradient(135deg,#1D4ED8 0%,#2563EB 50%,#4F46E5 100%)",
-            color: "white", fontSize: 17, fontWeight: 800,
-            border: "1px solid rgba(147,197,253,0.3)", borderRadius: 50,
-            cursor: "pointer", letterSpacing: "0.05em", marginBottom: 20,
-            boxShadow: "0 8px 40px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.2)",
-            transition: "all 0.3s",
+            padding: "12px 32px",
+            background: "rgba(255,255,255,0.1)",
+            backdropFilter: "blur(12px)",
+            border: "1px solid rgba(255,255,255,0.25)",
+            borderRadius: 50, color: "white",
+            fontSize: 13, fontWeight: 700,
+            cursor: "pointer", letterSpacing: "0.06em",
+            transition: "all 0.25s",
           }}
-          onMouseEnter={(e) => { const el = e.currentTarget as HTMLButtonElement; el.style.transform = "translateY(-3px) scale(1.03)"; el.style.boxShadow = "0 16px 56px rgba(37,99,235,0.65)"; }}
-          onMouseLeave={(e) => { const el = e.currentTarget as HTMLButtonElement; el.style.transform = "translateY(0) scale(1)"; el.style.boxShadow = "0 8px 40px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.2)"; }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.2)";
+            (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.5)";
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)";
+            (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.25)";
+          }}
         >
-          시스템 접속하기  →
+          시스템 접속
         </button>
-
-        <div style={{ textAlign: "center" }}>
-          <p style={{ fontSize: 15, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 3px 0" }}>(주)광고인</p>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>대외협력팀</p>
-        </div>
-
-        <p style={{ position: "absolute", bottom: 20, fontSize: 10, color: "rgba(255,255,255,0.15)" }}>© 2026 광고인㈜ · 분양의신 · All rights reserved.</p>
       </div>
 
-      {/* 로그인 모달 */}
+      {/* ── 메인 카피 (핀텔 스타일 — 좌측 하단 배치) ── */}
       <div style={{
-        position: "fixed", inset: 0, zIndex: 20,
+        position: "absolute", bottom: "14vh", left: "52px",
+        zIndex: 10, maxWidth: "680px",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(18px)",
+        transition: "opacity 0.6s ease, transform 0.6s ease",
+      }}>
+        {/* 영문 메인 카피 */}
+        <h1 style={{
+          margin: "0 0 18px 0",
+          fontSize: "clamp(36px, 4.5vw, 64px)",
+          lineHeight: 1.12,
+          fontFamily: "'Montserrat','Pretendard',sans-serif",
+          fontWeight: 300,
+          color: "rgba(255,255,255,0.95)",
+          letterSpacing: "-0.01em",
+        }}>
+          <strong style={{
+            fontWeight: 800,
+            color: "#ffffff",
+          }}>{cur.engBold}</strong>
+          {cur.engRest}
+        </h1>
+
+        {/* 한글 서브 카피 */}
+        <p style={{
+          margin: 0,
+          fontSize: "clamp(13px, 1.3vw, 17px)",
+          color: "rgba(255,255,255,0.6)",
+          lineHeight: 1.8,
+          fontWeight: 400,
+          letterSpacing: "0.01em",
+        }}>
+          {cur.kor1}<br/>
+          {cur.kor2}
+        </p>
+      </div>
+
+      {/* ── 슬라이드 인디케이터 (우측 하단) ── */}
+      <div style={{
+        position: "absolute", bottom: "14vh", right: "52px",
+        display: "flex", gap: "10px", zIndex: 10, alignItems: "center",
+      }}>
+        {SLIDES.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => { setVisible(false); setTimeout(() => { setSlide(i); setVisible(true); }, 300); }}
+            style={{
+              width: i === slide ? "32px" : "8px",
+              height: "3px",
+              borderRadius: "2px",
+              background: i === slide ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.3)",
+              border: "none", cursor: "pointer",
+              transition: "all 0.4s ease",
+              padding: 0,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* ── 하단 카피라이트 ── */}
+      <div style={{
+        position: "absolute", bottom: "28px", left: "52px",
+        zIndex: 10,
+        fontSize: 11, color: "rgba(255,255,255,0.2)",
+        letterSpacing: "0.04em",
+      }}>
+        © 2026 광고인㈜ · 분양의신 · All rights reserved.
+      </div>
+
+      {/* ── 로그인 모달 ── */}
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 50,
         display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-        opacity: showLogin ? 1 : 0, pointerEvents: showLogin ? "auto" : "none",
-        transition: "opacity 0.4s",
-        background: showLogin ? "rgba(3,6,18,0.82)" : "transparent",
-        backdropFilter: showLogin ? "blur(12px)" : "none",
+        opacity: showModal ? 1 : 0, pointerEvents: showModal ? "auto" : "none",
+        transition: "opacity 0.35s ease",
+        background: showModal ? "rgba(0,0,0,0.7)" : "transparent",
+        backdropFilter: showModal ? "blur(10px)" : "none",
       }}>
         <div style={{
-          background: "rgba(7,14,36,0.98)", backdropFilter: "blur(28px)",
-          border: "1px solid rgba(255,255,255,0.12)", borderRadius: 28,
-          padding: "48px 44px 44px", width: "100%", maxWidth: 460,
-          boxShadow: "0 40px 100px rgba(0,0,0,0.7)",
-          transform: showLogin ? "translateY(0) scale(1)" : "translateY(30px) scale(0.96)",
-          transition: "transform 0.45s cubic-bezier(0.16,1,0.3,1)",
+          background: "rgba(8,10,20,0.95)",
+          backdropFilter: "blur(32px)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: 24, padding: "44px 42px 40px",
+          width: "100%", maxWidth: 440,
+          boxShadow: "0 40px 100px rgba(0,0,0,0.8)",
+          transform: showModal ? "translateY(0) scale(1)" : "translateY(24px) scale(0.97)",
+          transition: "transform 0.4s cubic-bezier(0.16,1,0.3,1)",
         }}>
 
           {/* 모달 헤더 */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 36 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icon-logo.png" alt="분양의신"
-                style={{ width: 36, height: 36, objectFit: "contain" }}
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-              <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.18)" }} />
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>광고인㈜ 대외협력팀</span>
+              <img src="/company-logo.png" alt="광고인" style={{ height: 30, objectFit: "contain" }}
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}/>
+              <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.15)" }}/>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 600, letterSpacing: "0.04em" }}>광고인㈜ 대외협력팀</span>
             </div>
-            <button onClick={() => setShowLogin(false)} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.1)", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+            <button
+              onClick={() => setShowModal(false)}
+              style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.08)", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }}
+            >✕</button>
           </div>
 
-          {/* 타이틀 */}
-          <h3 style={{ fontSize: 28, fontWeight: 900, color: "white", margin: "0 0 8px 0", letterSpacing: "-0.01em" }}>시스템 접속</h3>
-          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.45)", margin: "0 0 32px 0" }}>아이디와 비밀번호를 입력하세요</p>
+          <h3 style={{ fontSize: 26, fontWeight: 900, color: "white", margin: "0 0 6px 0", letterSpacing: "-0.01em" }}>시스템 접속</h3>
+          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.35)", margin: "0 0 30px 0" }}>아이디와 비밀번호를 입력하세요</p>
 
-          {/* 로그인 폼 */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 8 }}>로그인</label>
-              <input type="text" value={userId}
-                onChange={(e) => { setUserId(e.target.value); setError(""); }}
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)", marginBottom: 8, letterSpacing: "0.04em" }}>아이디</label>
+              <input
+                type="text" value={userId}
+                onChange={e => { setUserId(e.target.value); setError(""); }}
                 placeholder="아이디 입력"
-                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(96,165,250,0.6)"; e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
-                style={{
-                  width: "100%", padding: "15px 18px",
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1.5px solid rgba(255,255,255,0.15)",
-                  borderRadius: 14, fontSize: 16, color: "white",
-                  outline: "none", boxSizing: "border-box" as const,
-                  transition: "all 0.2s",
-                }}
+                onKeyDown={e => e.key === "Enter" && handleLogin()}
+                onFocus={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                style={{ width: "100%", padding: "14px 16px", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.12)", borderRadius: 12, fontSize: 15, color: "white", outline: "none", boxSizing: "border-box" as const, transition: "all 0.2s" }}
               />
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 8 }}>비밀번호</label>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)", marginBottom: 8, letterSpacing: "0.04em" }}>비밀번호</label>
               <div style={{ position: "relative" }}>
-                <input type={showPw ? "text" : "password"} value={userPw}
-                  onChange={(e) => { setUserPw(e.target.value); setError(""); }}
+                <input
+                  type={showPw ? "text" : "password"} value={userPw}
+                  onChange={e => { setUserPw(e.target.value); setError(""); }}
                   placeholder="비밀번호 입력"
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(96,165,250,0.6)"; e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
-                  style={{
-                    width: "100%", padding: "15px 56px 15px 18px",
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1.5px solid rgba(255,255,255,0.15)",
-                    borderRadius: 14, fontSize: 16, color: "white",
-                    outline: "none", boxSizing: "border-box" as const,
-                    transition: "all 0.2s",
-                  }}
+                  onKeyDown={e => e.key === "Enter" && handleLogin()}
+                  onFocus={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                  style={{ width: "100%", padding: "14px 52px 14px 16px", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.12)", borderRadius: 12, fontSize: 15, color: "white", outline: "none", boxSizing: "border-box" as const, transition: "all 0.2s" }}
                 />
-                <button type="button" onClick={() => setShowPw(!showPw)}
-                  style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "rgba(255,255,255,0.4)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "rgba(255,255,255,0.35)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
                   {showPw ? "숨기기" : "보기"}
                 </button>
               </div>
             </div>
 
             {error && (
-              <div style={{ fontSize: 14, color: "#FCA5A5", padding: "12px 16px", background: "rgba(239,68,68,0.12)", borderRadius: 12, border: "1px solid rgba(239,68,68,0.3)" }}>
+              <div style={{ fontSize: 13, color: "#FCA5A5", padding: "11px 14px", background: "rgba(239,68,68,0.12)", borderRadius: 10, border: "1px solid rgba(239,68,68,0.25)" }}>
                 {error}
               </div>
             )}
 
-            <button onClick={handleLogin} disabled={loading} style={{
-              width: "100%", padding: 16, marginTop: 4,
-              background: "linear-gradient(135deg,#1D4ED8,#4F46E5)",
-              color: "white", fontSize: 17, fontWeight: 800,
-              border: "none", borderRadius: 14,
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.6 : 1,
-              boxShadow: "0 4px 24px rgba(37,99,235,0.45)",
-              letterSpacing: "0.02em",
-              transition: "all 0.2s",
-            }}>
+            <button
+              onClick={handleLogin} disabled={loading}
+              style={{
+                width: "100%", padding: "15px", marginTop: 4,
+                background: "white", color: "#0a0a0a",
+                fontSize: 15, fontWeight: 800,
+                border: "none", borderRadius: 12,
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.6 : 1,
+                letterSpacing: "0.03em",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = "#f0f0f0"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "white"; }}
+            >
               {loading ? "로그인 중..." : "로그인"}
             </button>
           </div>
         </div>
       </div>
 
+      {/* ── 폰트 로드 ── */}
       <style>{`
-        @keyframes orb1 { from{transform:translate(0,0) scale(1)} to{transform:translate(5vw,3vh) scale(1.15)} }
-        @keyframes orb2 { from{transform:translate(0,0) scale(1)} to{transform:translate(-4vw,-4vh) scale(1.1)} }
-        .shine-text {
-          display: inline-block;
-          background: linear-gradient(90deg,#60A5FA 0%,#A78BFA 30%,#ffffff 48%,#f0f9ff 50%,#ffffff 52%,#A78BFA 70%,#60A5FA 100%);
-          background-size: 250% auto;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: shine 3s linear infinite;
-          filter: drop-shadow(0 0 20px rgba(96,165,250,0.6));
-        }
-        @keyframes shine {
-          0%   { background-position: 200% center; filter: drop-shadow(0 0 20px rgba(96,165,250,0.4)); }
-          50%  { filter: drop-shadow(0 0 40px rgba(255,255,255,1)); }
-          100% { background-position: -200% center; filter: drop-shadow(0 0 20px rgba(167,139,250,0.4)); }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700;800;900&display=swap');
       `}</style>
     </div>
   );
