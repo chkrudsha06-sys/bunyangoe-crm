@@ -41,21 +41,22 @@ export default function CalendarPage() {
     // 전체 캘린더 이벤트
     let evQ = supabase.from("calendar_events").select("*").gte("date",start).lte("date",end);
     if (filterAuthor) evQ = evQ.eq("author", filterAuthor);
-    const { data: ev } = await evQ;
+    const { data: ev, error: evErr } = await evQ;
+    if (evErr) console.error("calendar_events:", evErr.message);
     setEvents((ev||[]) as CalEvent[]);
 
-    // 전체 미팅
     let mtQ = supabase.from("contacts").select("id,name,phone,meeting_date,meeting_address,assigned_to")
       .not("meeting_date","is",null).gte("meeting_date",start).lte("meeting_date",end);
     if (filterAuthor) mtQ = mtQ.eq("assigned_to", filterAuthor);
-    const { data: mt } = await mtQ;
+    const { data: mt, error: mtErr } = await mtQ;
+    if (mtErr) console.error("contacts meetings:", mtErr.message);
     setMeetings((mt||[]) as Meeting[]);
 
-    // 완판트럭
     let wpQ = supabase.from("wanpan_trucks").select("id,dispatch_date,location,assigned_to,agency,staff_members,consultant_members,has_photo,contact_point,notes")
       .not("dispatch_date","is",null).gte("dispatch_date",start).lte("dispatch_date",end);
     if (filterAuthor) wpQ = wpQ.eq("assigned_to", filterAuthor);
-    const { data: wp } = await wpQ;
+    const { data: wp, error: wpErr } = await wpQ;
+    if (wpErr) console.error("wanpan_trucks:", wpErr.message);
     setWanpan((wp||[]) as WanpanItem[]);
   }, [year, month, filterAuthor]);
 
