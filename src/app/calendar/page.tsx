@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Phone, MapPin, Truck, X } from "lucide-react
 
 interface CalEvent { id: number; date: string; title: string; content: string | null; author: string; event_type: string; }
 interface Meeting { id: number; name: string; phone: string | null; meeting_date: string; meeting_address: string | null; assigned_to: string; }
-interface WanpanItem { id: number; dispatch_date: string | null; location: string | null; assigned_to: string | null; agency: string | null; }
+interface WanpanItem { id: number; dispatch_date: string | null; location: string | null; assigned_to: string | null; agency: string | null; staff_members: string | null; consultant_members: string | null; has_photo: boolean; contact_point: string | null; notes: string | null; }
 
 const EV_COLORS: Record<string, string> = {
   연차:    "bg-red-100 text-red-700 border-red-200",
@@ -52,7 +52,7 @@ export default function CalendarPage() {
     setMeetings((mt||[]) as Meeting[]);
 
     // 완판트럭
-    let wpQ = supabase.from("wanpan_trucks").select("id,dispatch_date,location,assigned_to,agency")
+    let wpQ = supabase.from("wanpan_trucks").select("id,dispatch_date,location,assigned_to,agency,staff_members,consultant_members,has_photo,contact_point,notes")
       .not("dispatch_date","is",null).gte("dispatch_date",start).lte("dispatch_date",end);
     if (filterAuthor) wpQ = wpQ.eq("assigned_to", filterAuthor);
     const { data: wp } = await wpQ;
