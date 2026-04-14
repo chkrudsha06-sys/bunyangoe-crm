@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Shield, Phone, Calendar, Search } from "lucide-react";
 
@@ -15,6 +15,7 @@ interface Member {
   reservation_date?: string | null;
   consultant?: string | null;
   memo?: string | null;
+  bunyanghoe_number?: string | null;
 }
 
 const AVATAR_COLORS = ["bg-emerald-500","bg-blue-500","bg-violet-500","bg-amber-500","bg-rose-500","bg-cyan-500"];
@@ -23,72 +24,161 @@ function getAvatarColor(name: string) {
   return AVATAR_COLORS[s % AVATAR_COLORS.length];
 }
 
-const HEADERS = ["#","고객명","직급","연락처","담당컨설턴트","대협팀 담당자","상태","완료일","메모"];
+const MIN_ROWS = 10; // 최소 표시 행 수
 
-function MemberTable({ members, emptyText, accentClass }: {
-  members: Member[]; emptyText: string; accentClass: string;
+// ─── 인라인 넘버링 입력 셀 ─────────────────────────────────────
+function NumberingCell({ contactId, value, onSaved }: {
+  contactId: number;
+  value: string | null | undefined;
+  onSaved: (id: number, val: string) => void;
 }) {
-  if (members.length === 0) {
+  const [editing, setEditing] = useState(false);
+  const [input, setInput] = useState(value || "");
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("contacts")
+      .update({ bunyanghoe_number: input || null })
+      .eq("id", contactId);
+    setSaving(false);
+    if (!error) {
+      onSaved(contactId, input);
+      setEditing(false);
+    }
+  };
+
+  if (editing) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex items-center justify-center py-10">
-        <p className="text-sm text-slate-400">{emptyText}</p>
+      <div className="flex items-center justify-center gap-1">
+        <span className="text-xs font-bold text-amber-600">B-</span>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => setInput(e.target.value.replace(/[^0-9]/g, ""))}
+          onBlur={handleSave}
+          onKeyDown={e => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
+          className="w-12 text-xs text-center border border-amber-300 rounded px-1 py-0.5 focus:outline-none focus:border-amber-500"
+          placeholder="숫자"
+          disabled={saving}
+        />
       </div>
     );
   }
+
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className="group flex items-center justify-center gap-0.5 cursor-pointer"
+      title="클릭해서 넘버링 입력"
+    >
+      {input
+        ? <span className="text-xs font-bold px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full border border-amber-200 group-hover:bg-amber-100 transition-colors">B-{input}</span>
+        : <span className="text-[10px] text-slate-300 border border-dashed border-slate-200 px-2 py-0.5 rounded-full group-hover:border-amber-300 group-hover:text-amber-400 transition-colors">입력</span>
+      }
+    </button>
+  );
+}
+
+// ─── 멤버 테이블 ──────────────────────────────────────────────
+function MemberTable({ members, emptyText, accentClass, onNumberSaved }: {
+  members: Member[];
+  emptyText: string;
+  accentClass: string;
+  onNumberSaved: (id: number, val: string) => void;
+}) {
+  // 최소 10행 보장 - 빈 행 채우기
+  const totalRows = Math.max(members.length, MIN_ROWS);
+  const emptyCount = totalRows - members.length;
+
+  const HEADERS = ["#", "넘버링 부여", "고객명", "직급", "연락처", "담당컨설턴트", "대협팀 담당자", "상태", "완료일", "메모"];
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50 border-b border-slate-200">
-          <tr>{HEADERS.map(h => <th key={h} className="text-center px-4 py-3 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>)}</tr>
-        </thead>
-        <tbody>
-          {members.map((c, i) => (
-            <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50">
-              <td className="px-4 py-3 text-center text-slate-400 text-xs">{i + 1}</td>
-              <td className="px-4 py-3 text-center">
-                <div className="flex items-center justify-center gap-2">
-                  <div className={`w-7 h-7 ${getAvatarColor(c.name)} rounded-full flex items-center justify-center`}>
-                    <span className="text-white text-xs font-bold">{c.name[0]}</span>
+      <div className="max-h-[520px] overflow-y-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+            <tr>{HEADERS.map(h => <th key={h} className="text-center px-4 py-3 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {members.map((c, i) => (
+              <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <td className="px-4 py-3 text-center align-middle text-slate-400 text-xs">{i + 1}</td>
+                {/* 넘버링 부여 */}
+                <td className="px-4 py-3 text-center align-middle">
+                  <NumberingCell
+                    contactId={c.id}
+                    value={c.bunyanghoe_number}
+                    onSaved={onNumberSaved}
+                  />
+                </td>
+                {/* 고객명 */}
+                <td className="px-4 py-3 text-center align-middle">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className={`w-7 h-7 ${getAvatarColor(c.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
+                      <span className="text-white text-xs font-bold">{c.name[0]}</span>
+                    </div>
+                    <span className="font-semibold text-slate-800 whitespace-nowrap">{c.name}</span>
                   </div>
-                  <span className="font-semibold text-slate-800">{c.name}</span>
-                </div>
-              </td>
-              <td className="px-4 py-3 text-center">
-                {c.title ? <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">{c.title}</span> : <span className="text-slate-300 text-xs">-</span>}
-              </td>
-              <td className="px-4 py-3 text-center">
-                <span className="flex items-center justify-center gap-1 text-xs text-slate-600">
-                  <Phone size={11}/>{c.phone || "-"}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-center text-slate-600 text-xs">{c.consultant || "-"}</td>
-              <td className="px-4 py-3 text-center">
-                <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100">{c.assigned_to}</span>
-              </td>
-              <td className="px-4 py-3 text-center">
-                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${accentClass}`}>{c.meeting_result}</span>
-              </td>
-              <td className="px-4 py-3 text-center">
-                <span className="flex items-center justify-center gap-1 text-xs text-slate-600">
-                  <Calendar size={11}/>
-                  {c.meeting_result === "계약완료" && c.contract_date
-                    ? new Date(c.contract_date).toLocaleDateString("ko-KR")
-                    : c.meeting_result === "예약완료" && c.reservation_date
-                    ? new Date(c.reservation_date).toLocaleDateString("ko-KR")
-                    : "-"}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-center max-w-[180px]">
-                <p className="text-xs text-slate-500 truncate">{c.memo || "-"}</p>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                </td>
+                {/* 직급 */}
+                <td className="px-4 py-3 text-center align-middle">
+                  {c.title
+                    ? <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">{c.title}</span>
+                    : <span className="text-xs text-slate-300">-</span>}
+                </td>
+                <td className="px-4 py-3 text-center align-middle">
+                  <span className="flex items-center justify-center gap-1 text-xs text-slate-600">
+                    <Phone size={11}/>{c.phone || "-"}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-center align-middle text-slate-600 text-xs">{c.consultant || "-"}</td>
+                <td className="px-4 py-3 text-center align-middle">
+                  <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100">{c.assigned_to}</span>
+                </td>
+                <td className="px-4 py-3 text-center align-middle">
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${accentClass}`}>{c.meeting_result}</span>
+                </td>
+                <td className="px-4 py-3 text-center align-middle">
+                  <span className="flex items-center justify-center gap-1 text-xs text-slate-600">
+                    <Calendar size={11}/>
+                    {c.meeting_result === "계약완료" && c.contract_date
+                      ? new Date(c.contract_date).toLocaleDateString("ko-KR")
+                      : c.meeting_result === "예약완료" && c.reservation_date
+                      ? new Date(c.reservation_date).toLocaleDateString("ko-KR")
+                      : "-"}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-center align-middle max-w-[160px]">
+                  <p className="text-xs text-slate-500 truncate">{c.memo || "-"}</p>
+                </td>
+              </tr>
+            ))}
+            {/* 빈 행 채우기 (최소 10행) */}
+            {Array.from({ length: emptyCount }).map((_, idx) => (
+              <tr key={`empty-${idx}`} className="border-b border-slate-50">
+                <td className="px-4 py-3 text-center align-middle text-slate-200 text-xs">{members.length + idx + 1}</td>
+                {Array.from({ length: HEADERS.length - 1 }).map((_, ci) => (
+                  <td key={ci} className="px-4 py-3">
+                    <div className="h-4 rounded bg-slate-50"/>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
+// ─── 메인 페이지 ──────────────────────────────────────────────
 export default function MemberManagePage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,30 +186,24 @@ export default function MemberManagePage() {
   const [contractSearch, setContractSearch] = useState("");
   const [reserveSearch, setReserveSearch] = useState("");
 
-  useEffect(() => {
-    fetchMembers();
-  }, []);
+  useEffect(() => { fetchMembers(); }, []);
 
   const fetchMembers = async () => {
     setLoading(true);
     setError(null);
-    try {
-      const { data, error: sbError } = await supabase
-        .from("contacts")
-        .select("*")
-        .in("meeting_result", ["계약완료", "예약완료"])
-        .order("created_at", { ascending: false });
-
-      if (sbError) {
-        setError(`Supabase 오류: ${sbError.message}`);
-        setLoading(false);
-        return;
-      }
-      setMembers((data as Member[]) || []);
-    } catch (e: any) {
-      setError(`예외 발생: ${e?.message || String(e)}`);
-    }
+    const { data, error: sbError } = await supabase
+      .from("contacts")
+      .select("*")
+      .in("meeting_result", ["계약완료", "예약완료"])
+      .order("created_at", { ascending: false });
+    if (sbError) { setError(sbError.message); setLoading(false); return; }
+    setMembers((data as Member[]) || []);
     setLoading(false);
+  };
+
+  // 넘버링 저장 시 로컬 상태 즉시 반영
+  const handleNumberSaved = (id: number, val: string) => {
+    setMembers(prev => prev.map(m => m.id === id ? { ...m, bunyanghoe_number: val || null } : m));
   };
 
   const filterList = (list: Member[], q: string) => {
@@ -140,7 +224,6 @@ export default function MemberManagePage() {
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
-
       {/* 헤더 */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
@@ -167,28 +250,17 @@ export default function MemberManagePage() {
         </div>
       </div>
 
-      {/* 본문 */}
       <div className="flex-1 overflow-auto p-5 space-y-6">
-
-        {/* 에러 표시 */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
-            <p className="font-bold mb-1">⚠️ 데이터 로딩 오류</p>
-            <p className="font-mono text-xs">{error}</p>
-            <button onClick={fetchMembers} className="mt-2 text-xs px-3 py-1 bg-red-100 rounded-lg hover:bg-red-200">
-              다시 시도
-            </button>
-          </div>
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-xs text-red-700 font-mono">{error}</div>
         )}
-
         {loading ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-3">
+          <div className="flex items-center justify-center h-64">
             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
-            <p className="text-xs text-slate-400">데이터 불러오는 중...</p>
           </div>
         ) : !error && (
           <>
-            {/* 계약완료 */}
+            {/* ── 계약완료 ── */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -206,8 +278,9 @@ export default function MemberManagePage() {
                 </div>
               </div>
               <MemberTable members={contracts}
-                emptyText={contractSearch ? "검색 결과가 없습니다" : "계약완료 회원이 없습니다"}
-                accentClass="bg-emerald-100 text-emerald-700"/>
+                emptyText="계약완료 회원이 없습니다"
+                accentClass="bg-emerald-100 text-emerald-700"
+                onNumberSaved={handleNumberSaved}/>
             </div>
 
             {/* 구분선 */}
@@ -217,7 +290,7 @@ export default function MemberManagePage() {
               <div className="flex-1 h-px bg-slate-200"/>
             </div>
 
-            {/* 예약완료 */}
+            {/* ── 예약완료 ── */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -235,8 +308,9 @@ export default function MemberManagePage() {
                 </div>
               </div>
               <MemberTable members={reservations}
-                emptyText={reserveSearch ? "검색 결과가 없습니다" : "예약완료 회원이 없습니다"}
-                accentClass="bg-blue-100 text-blue-700"/>
+                emptyText="예약완료 회원이 없습니다"
+                accentClass="bg-blue-100 text-blue-700"
+                onNumberSaved={handleNumberSaved}/>
             </div>
           </>
         )}
