@@ -334,50 +334,60 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
         </div>
       )}
 
-      {/* 일정 추가 패널 */}
-      {showAdd && (
-        <div className="border-t border-slate-100 p-4 bg-slate-50/50">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-bold text-slate-600">
-              {selDate ? new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"short",day:"numeric"}) : ""} 일정 추가
-            </p>
-            <button onClick={()=>setShowAdd(false)} className="text-slate-400 hover:text-slate-600"><X size={14}/></button>
+    </div>
+
+    {/* 일정 추가 모달 - fixed로 항상 화면 중앙에 */}
+    {showAdd && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}
+        onClick={()=>setShowAdd(false)}
+      >
+        <div
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-sm"
+          onClick={e=>e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <h3 className="font-bold text-slate-800 text-sm">일정 추가</h3>
+            <button onClick={()=>setShowAdd(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
           </div>
-          <div className="mb-3">
-            <p className="text-xs font-semibold text-slate-400 mb-1.5">날짜</p>
-            <input type="date" value={selDate||""} onChange={e=>setSelDate(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-400"/>
-          </div>
-          <div className="mb-3">
-            <p className="text-xs font-semibold text-slate-400 mb-1.5">유형 선택</p>
-            <div className="grid grid-cols-4 gap-1.5">
-              {["연차","반차","미팅","기타"].map(t=>{
-                const c = EV_COLORS[t];
-                return (
-                  <button key={t} onClick={()=>setForm(f=>({...f,event_type:t}))}
-                    className={`py-1.5 text-xs font-bold rounded-lg border transition-colors ${form.event_type===t?`${c.bg} ${c.text} border-current`:"bg-white text-slate-500 border-slate-200 hover:bg-slate-100"}`}>
-                    {t}
-                  </button>
-                );
-              })}
+          <div className="p-5 space-y-4">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-1.5">날짜</p>
+              <input type="date" value={selDate||today} onChange={e=>setSelDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-400"/>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-1.5">유형 선택</p>
+              <div className="grid grid-cols-4 gap-2">
+                {["연차","반차","미팅","기타"].map(t=>{
+                  const c = EV_COLORS[t];
+                  return (
+                    <button key={t} onClick={()=>setForm((f: any)=>({...f,event_type:t}))}
+                      className={`py-2 text-xs font-bold rounded-xl border transition-colors ${form.event_type===t?`${c.bg} ${c.text} border-current`:"bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}>
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-1.5">상세내용 <span className="text-slate-300">(선택)</span></p>
+              <textarea value={form.content} onChange={e=>setForm((f: any)=>({...f,content:e.target.value}))}
+                rows={3} placeholder="내용을 입력하세요"
+                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-400 resize-none"/>
             </div>
           </div>
-          <div className="mb-3">
-            <p className="text-xs font-semibold text-slate-400 mb-1.5">상세내용</p>
-            <textarea value={form.content} onChange={e=>setForm(f=>({...f,content:e.target.value}))}
-              rows={2} placeholder="상세 내용 입력 (선택)"
-              className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-400 resize-none"/>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={()=>setShowAdd(false)} className="flex-1 py-2 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-white bg-white">취소</button>
+          <div className="flex gap-2 px-5 pb-5">
+            <button onClick={()=>setShowAdd(false)} className="flex-1 py-2.5 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">취소</button>
             <button onClick={handleAdd} disabled={saving}
-              className="flex-1 py-2 text-xs font-bold bg-[#1E3A8A] text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 flex items-center justify-center gap-1">
-              <Save size={11}/>{saving?"저장중...":"저장"}
+              className="flex-1 py-2.5 text-sm font-bold bg-[#1E3A8A] text-white rounded-xl hover:bg-blue-800 disabled:opacity-50 flex items-center justify-center gap-1.5">
+              <Save size={13}/>{saving?"저장 중...":"저장"}
             </button>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    )}
   );
 }
 
