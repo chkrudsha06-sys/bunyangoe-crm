@@ -253,6 +253,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
   } : { ev: [], mt: [] };
 
   return (
+    <>
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
       {/* 헤더 */}
       <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
@@ -388,11 +389,11 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
         </div>
       </div>
     )}
+    </>
   );
 }
 
 
-// ── 메인 ──
 // ── 메인 ──
 export default function DashboardPage() {
   const [user, setUser] = useState<CRMUser|null>(null);
