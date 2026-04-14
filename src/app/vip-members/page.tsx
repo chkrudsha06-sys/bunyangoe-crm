@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Award, Phone, Calendar, User, Search } from "lucide-react";
+import { Award, Phone, Calendar, Search } from "lucide-react";
 
 interface VipContact {
   id: number;
@@ -11,8 +11,8 @@ interface VipContact {
   assigned_to: string;
   meeting_result: string;
   contract_date: string | null;
+  reservation_date: string | null;
   meeting_date: string | null;
-  customer_type: string;
   consultant: string | null;
   memo: string | null;
 }
@@ -26,21 +26,15 @@ export default function VipMembersPage() {
 
   const TEAM = ["조계현", "이세호", "기여운", "최연전"];
 
-  useEffect(() => {
-    fetchVipMembers();
-  }, [filterMember, filterStatus]);
+  useEffect(() => { fetchVipMembers(); }, [filterMember, filterStatus]);
 
   const fetchVipMembers = async () => {
     setLoading(true);
-    let query = supabase
-      .from("contacts")
-      .select("*")
+    let query = supabase.from("contacts").select("*")
       .in("meeting_result", ["계약완료", "예약완료"])
-      .order("contract_date", { ascending: false, nullsFirst: false });
-
+      .order("created_at", { ascending: false });
     if (filterMember) query = query.eq("assigned_to", filterMember);
     if (filterStatus) query = query.eq("meeting_result", filterStatus);
-
     const { data } = await query;
     setContacts((data as VipContact[]) || []);
     setLoading(false);
@@ -49,19 +43,16 @@ export default function VipMembersPage() {
   const filtered = contacts.filter((c) =>
     !search || c.name.includes(search) || (c.phone && c.phone.includes(search))
   );
-
   const contracts = filtered.filter((c) => c.meeting_result === "계약완료");
   const reservations = filtered.filter((c) => c.meeting_result === "예약완료");
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
-      {/* 헤더 */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Award size={20} className="text-amber-500" />
-              분양회 입회자
+              <Award size={20} className="text-amber-500" />분양회 입회자
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">계약완료 및 예약완료 고객 목록</p>
           </div>
@@ -80,18 +71,12 @@ export default function VipMembersPage() {
             </div>
           </div>
         </div>
-
-        {/* 필터 */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1 max-w-xs">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="이름, 연락처 검색..."
-              value={search}
+            <input type="text" placeholder="이름, 연락처 검색..." value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"
-            />
+              className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
           </div>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700">
             <option value="">전체 상태</option>
@@ -105,7 +90,6 @@ export default function VipMembersPage() {
         </div>
       </div>
 
-      {/* 테이블 */}
       <div className="flex-1 overflow-auto p-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -115,7 +99,6 @@ export default function VipMembersPage() {
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">
             <Award size={40} className="mb-3 opacity-30" />
             <p className="text-sm">입회자 데이터가 없습니다</p>
-            <p className="text-xs mt-1">고객 DB에서 미팅결과를 계약완료/예약완료로 설정하면 자동으로 표시됩니다</p>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
@@ -123,51 +106,47 @@ export default function VipMembersPage() {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   {["#", "고객명", "연락처", "담당컨설턴트", "대협팀담당자", "상태", "계약/예약 완료일", "메모"].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-slate-500 text-xs font-semibold">{h}</th>
+                    <th key={h} className="text-center px-4 py-3 text-slate-500 text-xs font-semibold">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((c, i) => (
                   <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 text-slate-400 text-xs">{i + 1}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                    <td className="px-4 py-3 text-center align-middle text-slate-400 text-xs">{i + 1}</td>
+                    <td className="px-4 py-3 text-center align-middle">
+                      <div className="flex items-center justify-center gap-2">
                         <div className="w-7 h-7 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center flex-shrink-0">
                           <span className="text-white text-xs font-bold">{c.name[0]}</span>
                         </div>
                         <span className="font-semibold text-slate-800">{c.name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="text-slate-600 flex items-center gap-1 text-xs">
+                    <td className="px-4 py-3 text-center align-middle">
+                      <span className="text-slate-600 flex items-center justify-center gap-1 text-xs">
                         <Phone size={11} />{c.phone || "-"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-600 text-xs">{c.consultant || "-"}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-center align-middle text-slate-600 text-xs">{c.consultant || "-"}</td>
+                    <td className="px-4 py-3 text-center align-middle">
                       <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100">{c.assigned_to}</span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        c.meeting_result === "계약완료"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-blue-100 text-blue-700"
-                      }`}>
+                    <td className="px-4 py-3 text-center align-middle">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${c.meeting_result === "계약완료" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"}`}>
                         {c.meeting_result}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="text-slate-600 flex items-center gap-1 text-xs">
+                    <td className="px-4 py-3 text-center align-middle">
+                      <span className="text-slate-600 flex items-center justify-center gap-1 text-xs">
                         <Calendar size={11} />
                         {c.meeting_result === "계약완료" && c.contract_date
                           ? new Date(c.contract_date).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })
-                          : c.meeting_date
-                          ? new Date(c.meeting_date).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })
+                          : c.meeting_result === "예약완료" && c.reservation_date
+                          ? new Date(c.reservation_date).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })
                           : "-"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 max-w-[200px]">
+                    <td className="px-4 py-3 text-center align-middle max-w-[200px]">
                       <p className="text-xs text-slate-500 truncate">{c.memo || "-"}</p>
                     </td>
                   </tr>
