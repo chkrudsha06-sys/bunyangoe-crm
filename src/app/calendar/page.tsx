@@ -119,10 +119,10 @@ export default function CalendarPage() {
       </div>
 
       {/* ── 오늘 일정 + 당월 전체일정 요약 배너 ── */}
-      <div className="px-4 pt-4 flex gap-3">
+      <div className="px-4 pt-4 flex gap-3 items-stretch">
 
         {/* 오늘 일정 */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 w-72 flex-shrink-0">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 w-72 flex-shrink-0 min-h-[180px]">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"/>
             <span className="text-xs font-bold text-slate-700">오늘 일정</span>
@@ -140,7 +140,7 @@ export default function CalendarPage() {
               <p className="text-xs text-slate-300 text-center py-2">오늘 일정이 없습니다</p>
             );
             return (
-              <div className="space-y-1.5 max-h-[80px] overflow-y-auto">
+              <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
                 {todayWp.map(w => (
                   <div key={`tw${w.id}`} className="flex items-center gap-2 px-2 py-1.5 bg-amber-50 rounded-lg border border-amber-100">
                     <Truck size={10} className="text-amber-500 flex-shrink-0"/>
@@ -171,7 +171,7 @@ export default function CalendarPage() {
         </div>
 
         {/* 당월 전체일정 */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex-1 min-w-0">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex-1 min-w-0 min-h-[180px]">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-xs font-bold text-slate-700">{month}월 전체 일정</span>
             <span className="text-xs text-slate-400">
@@ -226,7 +226,7 @@ export default function CalendarPage() {
                   const d = new Date(item.date + "T00:00:00");
                   const isToday = item.date === new Date().toISOString().split("T")[0];
                   return (
-                    <div key={idx} className={`flex-shrink-0 rounded-xl border px-3 py-2 min-w-[120px] max-w-[150px] ${item.color} ${isToday ? "ring-2 ring-blue-400 ring-offset-1" : ""}`}>
+                    <div key={idx} className={`flex-shrink-0 rounded-xl border px-3 py-2 min-w-[130px] max-w-[160px] min-h-[90px] ${item.color} ${isToday ? "border-2 border-blue-400" : ""}`}>
                       <div className="flex items-center gap-1 mb-1">
                         <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.dotColor}`}/>
                         <span className="text-[10px] font-bold text-slate-500">
