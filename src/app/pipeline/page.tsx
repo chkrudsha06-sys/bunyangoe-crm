@@ -58,16 +58,15 @@ function NotesPopup({ contactId, name, onClose }: { contactId: number; name: str
   );
 }
 
-function ContactCard({ contact, col, onNotesClick, onQuickEdit }: {
+function ContactCard({ contact, col, onNotesClick }: {
   contact: Contact;
   col: typeof COLUMNS[0];
   onNotesClick: (contactId: number, name: string) => void;
-  onQuickEdit: (c: Contact) => void;
 }) {
   const router = useRouter();
 
   const handleDoubleClick = () => {
-    onQuickEdit(contact);
+    router.push(`/contacts/${contact.id}`);
   };
 
   const meetingDate = contact.meeting_date
@@ -140,35 +139,10 @@ export default function PipelinePage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [notesPopup, setNotesPopup] = useState<{ contactId: number; name: string } | null>(null);
-  const [quickEdit, setQuickEdit] = useState<Contact | null>(null);
-  const [qForm, setQForm] = useState<{ prospect_type: string; management_stage: string; tm_sensitivity: string; meeting_result: string }>({ prospect_type: "", management_stage: "", tm_sensitivity: "", meeting_result: "" });
-  const [qSaving, setQSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [fProspect, setFProspect] = useState("");
   const [fAssigned, setFAssigned] = useState("");
   const [fResult, setFResult] = useState("");
-
-  const openQuickEdit = (c: Contact) => {
-    setQuickEdit(c);
-    setQForm({
-      prospect_type: c.prospect_type || "",
-      management_stage: c.management_stage || "",
-      tm_sensitivity: c.tm_sensitivity || "",
-      meeting_result: c.meeting_result || "",
-    });
-  };
-
-  const handleQuickSave = async () => {
-    if (!quickEdit) return;
-    setQSaving(true);
-    const { error } = await supabase.from("contacts").update(qForm).eq("id", quickEdit.id);
-    setQSaving(false);
-    if (error) { alert("저장 실패: " + error.message); return; }
-    setQuickEdit(null);
-    // 목록 갱신
-    const { data } = await supabase.from("contacts").select("id,name,title,phone,tm_sensitivity,prospect_type,meeting_date,meeting_date_text,meeting_address,meeting_result,management_stage,assigned_to,memo").order("created_at", { ascending: false });
-    setContacts((data || []) as Contact[]);
-  };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -285,7 +259,6 @@ export default function PipelinePage() {
                           contact={c}
                           col={col}
                           onNotesClick={(id, name) => setNotesPopup({ contactId: id, name })}
-                          onQuickEdit={openQuickEdit}
                         />
                       ))
                     )}
@@ -306,115 +279,7 @@ export default function PipelinePage() {
         />
       )}
 
-      {/* 퀵 편집 팝업 */}
-      {quickEdit && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-          onClick={() => setQuickEdit(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
-            onClick={e => e.stopPropagation()}>
-            {/* 헤더 */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 ${getAvatarColor(quickEdit.name)} rounded-xl flex items-center justify-center text-white font-black`}>
-                  {quickEdit.name[0]}
-                </div>
-                <div>
-                  <p className="font-black text-slate-800">{quickEdit.name}</p>
-                  <p className="text-xs text-slate-400">{quickEdit.title||""} · {quickEdit.assigned_to||""}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <a href={`/contacts/${quickEdit.id}`}
-                  className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 font-semibold">
-                  전체 수정
-                </a>
-                <button onClick={() => setQuickEdit(null)} className="text-slate-400 hover:text-slate-600">
-                  <X size={18}/>
-                </button>
-              </div>
-            </div>
 
-            {/* 영업 정보 빠른 수정 */}
-            <div className="px-6 py-5 space-y-4">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">영업 정보 빠른 수정</p>
-
-              {/* TM감도 */}
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-2 block">TM감도</label>
-                <div className="flex gap-2">
-                  {["상","중","하"].map(v => (
-                    <button key={v} onClick={() => setQForm(f => ({...f, tm_sensitivity: v}))}
-                      className={`flex-1 py-2 text-sm font-bold rounded-xl border transition-colors ${
-                        qForm.tm_sensitivity === v
-                          ? v==="상" ? "bg-red-500 text-white border-red-500"
-                          : v==="중" ? "bg-amber-500 text-white border-amber-500"
-                          : "bg-slate-500 text-white border-slate-500"
-                          : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
-                      }`}>{v}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 가망구분 */}
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-2 block">가망구분</label>
-                <div className="flex gap-2">
-                  {["즉가입가망","미팅예정가망","연계매출가망"].map(v => (
-                    <button key={v} onClick={() => setQForm(f => ({...f, prospect_type: v}))}
-                      className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-colors ${
-                        qForm.prospect_type === v
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
-                      }`}>{v}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 고객관리구간 */}
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-2 block">고객관리구간</label>
-                <div className="flex gap-2">
-                  {["리드","프로스펙팅","딜크로징","리텐션"].map(v => (
-                    <button key={v} onClick={() => setQForm(f => ({...f, management_stage: v}))}
-                      className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-colors ${
-                        qForm.management_stage === v
-                          ? "bg-indigo-600 text-white border-indigo-600"
-                          : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
-                      }`}>{v}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 미팅결과 */}
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-2 block">미팅결과</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {["계약완료","예약완료","서류만수취","미팅후가망관리","계약거부","미팅불발"].map(v => (
-                    <button key={v} onClick={() => setQForm(f => ({...f, meeting_result: v}))}
-                      className={`py-2 text-xs font-bold rounded-xl border transition-colors ${
-                        qForm.meeting_result === v
-                          ? v==="계약완료" ? "bg-emerald-500 text-white border-emerald-500"
-                          : v==="예약완료" ? "bg-blue-500 text-white border-blue-500"
-                          : v==="계약거부"||v==="미팅불발" ? "bg-red-400 text-white border-red-400"
-                          : "bg-amber-500 text-white border-amber-500"
-                          : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
-                      }`}>{v}</button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2 px-6 pb-5">
-              <button onClick={() => setQuickEdit(null)}
-                className="flex-1 py-2.5 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">취소</button>
-              <button onClick={handleQuickSave} disabled={qSaving}
-                className="flex-1 py-2.5 text-sm font-bold bg-[#1E3A8A] text-white rounded-xl hover:bg-blue-800 disabled:opacity-50">
-                {qSaving ? "저장 중..." : "저장"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
