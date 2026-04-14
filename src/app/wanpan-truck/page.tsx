@@ -136,12 +136,17 @@ export default function WanpanTruckPage() {
       notes: form.notes || null,
       assigned_to: form.assigned_to || null,
     };
+    let error;
     if (editItem) {
-      await supabase.from("wanpan_trucks").update(payload).eq("id", editItem.id);
+      const res = await supabase.from("wanpan_trucks").update(payload).eq("id", editItem.id);
+      error = res.error;
     } else {
-      await supabase.from("wanpan_trucks").insert(payload);
+      const res = await supabase.from("wanpan_trucks").insert(payload);
+      error = res.error;
     }
-    setSaving(false); setShowModal(false); fetchTrucks();
+    setSaving(false);
+    if (error) { alert("저장 실패: " + error.message); return; }
+    setShowModal(false); fetchTrucks();
   };
 
   const handleDelete = async (id: number) => {
