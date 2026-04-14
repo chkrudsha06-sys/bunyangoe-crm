@@ -266,7 +266,7 @@ export default function ContactsPage() {
                     ["미팅일정","w-24"], ["미팅지역","w-24"], ["미팅결과","w-28"],
                     ["관리구간","w-24"], ["담당자","w-20"], ["담당컨설턴트","w-24"], ["비고","w-32"], ["","w-20"],
                   ].map(([h,w])=>(
-                    <th key={h} className={`text-left px-3 py-2.5 text-slate-500 text-xs font-semibold ${w} truncate`}>{h}</th>
+                    <th key={h} className={`text-center px-3 py-2.5 text-slate-500 text-xs font-semibold ${w} truncate`}>{h}</th>
                   ))}
                 </tr>
               </thead>
