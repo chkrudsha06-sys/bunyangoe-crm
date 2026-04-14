@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Truck, Plus, Save, X, CheckCircle, XCircle } from "lucide-react";
 
@@ -17,15 +17,10 @@ interface WanpanTruck {
   photo_count: number | null;
   notes: string | null;
   assigned_to: string | null;
-  created_at: string;
 }
 
 const TEAM = ["조계현", "이세호", "기여운", "최연전"];
-const EMPTY = {
-  team_size: "", agency: "", contact_point: "", contact_phone: "",
-  location: "", dispatch_date: "", is_ordered: false,
-  staff_count: "", photo_count: "", notes: "", assigned_to: ""
-};
+const EMPTY = { team_size:"",agency:"",contact_point:"",contact_phone:"",location:"",dispatch_date:"",is_ordered:false,staff_count:"",photo_count:"",notes:"",assigned_to:"" };
 
 export default function WanpanTruckPage() {
   const [trucks, setTrucks] = useState<WanpanTruck[]>([]);
@@ -47,34 +42,16 @@ export default function WanpanTruckPage() {
   const openAdd = () => { setEditItem(null); setForm(EMPTY); setShowModal(true); };
   const openEdit = (t: WanpanTruck) => {
     setEditItem(t);
-    setForm({
-      team_size: t.team_size || "", agency: t.agency || "",
-      contact_point: t.contact_point || "", contact_phone: t.contact_phone || "",
-      location: t.location || "", dispatch_date: t.dispatch_date?.split("T")[0] || "",
-      is_ordered: t.is_ordered, staff_count: t.staff_count || "",
-      photo_count: t.photo_count || "", notes: t.notes || "",
-      assigned_to: t.assigned_to || ""
-    });
+    setForm({ team_size:t.team_size||"",agency:t.agency||"",contact_point:t.contact_point||"",contact_phone:t.contact_phone||"",location:t.location||"",dispatch_date:t.dispatch_date?.split("T")[0]||"",is_ordered:t.is_ordered,staff_count:t.staff_count||"",photo_count:t.photo_count||"",notes:t.notes||"",assigned_to:t.assigned_to||"" });
     setShowModal(true);
   };
 
   const handleSave = async () => {
     setSaving(true);
-    const payload = {
-      ...form,
-      team_size: Number(form.team_size) || null,
-      staff_count: Number(form.staff_count) || null,
-      photo_count: Number(form.photo_count) || null,
-      dispatch_date: form.dispatch_date || null,
-    };
-    if (editItem) {
-      await supabase.from("wanpan_trucks").update(payload).eq("id", editItem.id);
-    } else {
-      await supabase.from("wanpan_trucks").insert(payload);
-    }
-    setSaving(false);
-    setShowModal(false);
-    fetchTrucks();
+    const payload = { ...form, team_size:Number(form.team_size)||null, staff_count:Number(form.staff_count)||null, photo_count:Number(form.photo_count)||null, dispatch_date:form.dispatch_date||null };
+    if (editItem) await supabase.from("wanpan_trucks").update(payload).eq("id", editItem.id);
+    else await supabase.from("wanpan_trucks").insert(payload);
+    setSaving(false); setShowModal(false); fetchTrucks();
   };
 
   const handleDelete = async (id: number) => {
@@ -91,16 +68,14 @@ export default function WanpanTruckPage() {
   const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
   const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 
+  const HEADERS = ["#","발송일","현장위치","대행사","접점","소통자 연락처","조직수","출장인원","촬영인원","발주여부","담당","비고",""];
+
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
-      {/* 헤더 */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Truck size={20} className="text-blue-500" />
-              완판트럭
-            </h1>
+            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Truck size={20} className="text-blue-500" />완판트럭</h1>
             <p className="text-xs text-slate-500 mt-0.5">완판트럭 진행 리스트 관리</p>
           </div>
           <div className="flex items-center gap-3">
@@ -115,12 +90,9 @@ export default function WanpanTruckPage() {
         </div>
       </div>
 
-      {/* 테이블 */}
       <div className="flex-1 overflow-auto p-4">
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>
         ) : trucks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">
             <Truck size={40} className="mb-3 opacity-30" />
@@ -132,44 +104,44 @@ export default function WanpanTruckPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {["#", "발송일", "현장위치", "대행사", "접점", "소통자 연락처", "조직수", "출장인원", "촬영인원", "발주여부", "담당", "비고", ""].map((h) => (
-                    <th key={h} className="text-left px-3 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
+                  {HEADERS.map((h) => (
+                    <th key={h} className="text-center px-3 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {trucks.map((t, i) => (
                   <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                    <td className="px-3 py-2.5 text-slate-400 text-xs">{i + 1}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center align-middle text-slate-400 text-xs">{i + 1}</td>
+                    <td className="px-3 py-2.5 text-center align-middle">
                       <span className="text-slate-700 font-medium text-xs">
                         {t.dispatch_date ? new Date(t.dispatch_date).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }) : "-"}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 font-semibold text-slate-800 text-xs">{t.location || "-"}</td>
-                    <td className="px-3 py-2.5 text-slate-600 text-xs">{t.agency || "-"}</td>
-                    <td className="px-3 py-2.5 text-slate-600 text-xs">{t.contact_point || "-"}</td>
-                    <td className="px-3 py-2.5 text-slate-600 text-xs">{t.contact_phone || "-"}</td>
-                    <td className="px-3 py-2.5 text-center">
+                    <td className="px-3 py-2.5 text-center align-middle font-semibold text-slate-800 text-xs">{t.location || "-"}</td>
+                    <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{t.agency || "-"}</td>
+                    <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{t.contact_point || "-"}</td>
+                    <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{t.contact_phone || "-"}</td>
+                    <td className="px-3 py-2.5 text-center align-middle">
                       <span className="text-xs font-bold text-slate-700">{t.team_size || "-"}</span>
-                      <span className="text-xs text-slate-400">명</span>
+                      {t.team_size && <span className="text-xs text-slate-400">명</span>}
                     </td>
-                    <td className="px-3 py-2.5 text-center text-xs text-slate-700">{t.staff_count || "-"}명</td>
-                    <td className="px-3 py-2.5 text-center text-xs text-slate-700">{t.photo_count || "-"}명</td>
-                    <td className="px-3 py-2.5">
-                      <button onClick={() => toggleOrder(t.id, t.is_ordered)} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${t.is_ordered ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500 hover:bg-emerald-50"}`}>
+                    <td className="px-3 py-2.5 text-center align-middle text-xs text-slate-700">{t.staff_count ? `${t.staff_count}명` : "-"}</td>
+                    <td className="px-3 py-2.5 text-center align-middle text-xs text-slate-700">{t.photo_count ? `${t.photo_count}명` : "-"}</td>
+                    <td className="px-3 py-2.5 text-center align-middle">
+                      <button onClick={() => toggleOrder(t.id, t.is_ordered)} className={`flex items-center justify-center gap-1 mx-auto text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${t.is_ordered ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500 hover:bg-emerald-50"}`}>
                         {t.is_ordered ? <CheckCircle size={11} /> : <XCircle size={11} />}
                         {t.is_ordered ? "완료" : "미발주"}
                       </button>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center align-middle">
                       <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full">{t.assigned_to || "-"}</span>
                     </td>
-                    <td className="px-3 py-2.5 max-w-[120px]">
+                    <td className="px-3 py-2.5 text-center align-middle max-w-[120px]">
                       <p className="text-xs text-slate-500 truncate">{t.notes || "-"}</p>
                     </td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex gap-1">
+                    <td className="px-3 py-2.5 text-center align-middle">
+                      <div className="flex justify-center gap-1">
                         <button onClick={() => openEdit(t)} className="text-xs text-slate-400 hover:text-blue-600 px-2 py-1 rounded hover:bg-blue-50">수정</button>
                         <button onClick={() => handleDelete(t.id)} className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50">삭제</button>
                       </div>
@@ -182,7 +154,6 @@ export default function WanpanTruckPage() {
         )}
       </div>
 
-      {/* 모달 */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
