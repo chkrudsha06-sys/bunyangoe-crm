@@ -27,15 +27,16 @@ const EMPTY_FORM = {
   name: "", title: "", phone: "",
   customer_type: "", tm_sensitivity: "", prospect_type: "",
   meeting_date: "", meeting_date_text: "", meeting_address: "",
-  meeting_result: "", management_stage: "", memo: "", assigned_to: "", consultant: "",
+  meeting_result: "", management_stage: "", memo: "", assigned_to: "", consultant: "", contract_date: "", reservation_date: "",
 };
 
 // 옵션 목록
 const OPT = {
   customer_type: ["신규", "기고객"],
+  tm_sensitivity: ["상", "중", "하"],
   prospect_type: ["즉가입가망", "미팅예정가망", "연계매출가망"],
   meeting_result: ["계약완료", "예약완료", "서류만수취", "미팅후가망관리", "계약거부", "미팅불발"],
-  management_stage: ["리드", "프로스펙팅", "딜크로징"],
+  management_stage: ["리드", "프로스펙팅", "딜크로징", "리텐션"],
 };
 
 const BADGE: Record<string, string> = {
@@ -163,6 +164,8 @@ export default function ContactsPage() {
       memo: form.memo || null,
       assigned_to: form.assigned_to || null,
       consultant: form.consultant || null,
+      contract_date: form.contract_date || null,
+      reservation_date: form.reservation_date || null,
     };
     let error;
     if (editContact) {
@@ -261,7 +264,7 @@ export default function ContactsPage() {
                     ["#","w-10"], ["고객명","w-24"], ["직급","w-20"], ["연락처","w-32"],
                     ["고객유형","w-20"], ["TM감도","w-28"], ["가망구분","w-28"],
                     ["미팅일정","w-24"], ["미팅지역","w-24"], ["미팅결과","w-28"],
-                    ["관리구간","w-24"], ["담당자","w-20"], ["비고","w-32"], ["","w-20"],
+                    ["관리구간","w-24"], ["담당자","w-20"], ["담당컨설턴트","w-24"], ["비고","w-32"], ["","w-20"],
                   ].map(([h,w])=>(
                     <th key={h} className={`text-left px-3 py-2.5 text-slate-500 text-xs font-semibold ${w} truncate`}>{h}</th>
                   ))}
@@ -303,6 +306,7 @@ export default function ContactsPage() {
                     <td className="px-3 py-2.5">
                       <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full">{c.assigned_to||"-"}</span>
                     </td>
+                    <td className="px-3 py-2.5 text-xs text-slate-500 truncate">{(c as any).consultant||"-"}</td>
                     <td className="px-3 py-2.5 max-w-[120px] cursor-pointer"
                       onDoubleClick={()=>c.memo&&setPopup(c.memo)}>
                       <p className="text-xs text-slate-500 truncate">{c.memo||"-"}</p>
@@ -369,7 +373,10 @@ export default function ContactsPage() {
                   <label className={lbl}>고객유형</label>
                   <Sel val={form.customer_type} onChange={v=>f("customer_type",v)} opts={OPT.customer_type} placeholder="선택"/>
                 </div>
-                <div className="col-span-2"><label className={lbl}>TM감도</label><input className={inp} value={form.tm_sensitivity} onChange={e=>f("tm_sensitivity",e.target.value)} placeholder="TM 반응 메모"/></div>
+                <div>
+                  <label className={lbl}>TM감도</label>
+                  <Sel val={form.tm_sensitivity} onChange={v=>f("tm_sensitivity",v)} opts={OPT.tm_sensitivity} placeholder="선택"/>
+                </div>
                 <div>
                   <label className={lbl}>가망구분</label>
                   <Sel val={form.prospect_type} onChange={v=>f("prospect_type",v)} opts={OPT.prospect_type} placeholder="선택"/>
@@ -392,6 +399,18 @@ export default function ContactsPage() {
                   <label className={lbl}>미팅결과</label>
                   <Sel val={form.meeting_result} onChange={v=>f("meeting_result",v)} opts={OPT.meeting_result} placeholder="선택"/>
                 </div>
+                {form.meeting_result === "계약완료" && (
+                  <div>
+                    <label className={lbl}>계약완료일 <span className="text-blue-400">★ 자동반영</span></label>
+                    <input type="date" className={inp} value={form.contract_date} onChange={e=>f("contract_date",e.target.value)}/>
+                  </div>
+                )}
+                {form.meeting_result === "예약완료" && (
+                  <div>
+                    <label className={lbl}>예약완료일 <span className="text-blue-400">★ 자동반영</span></label>
+                    <input type="date" className={inp} value={form.reservation_date} onChange={e=>f("reservation_date",e.target.value)}/>
+                  </div>
+                )}
                 <div>
                   <label className={lbl}>고객관리구간</label>
                   <Sel val={form.management_stage} onChange={v=>f("management_stage",v)} opts={OPT.management_stage} placeholder="선택"/>
