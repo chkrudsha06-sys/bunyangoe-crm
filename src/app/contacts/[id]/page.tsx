@@ -44,7 +44,7 @@ const OPT = {
   customer_type: ["신규", "기고객"],
   prospect_type: ["즉가입가망", "미팅예정가망", "연계매출가망"],
   meeting_result: ["계약완료", "예약완료", "서류만수취", "미팅후가망관리", "계약거부", "미팅불발"],
-  management_stage: ["리드", "프로스펙팅", "딜크로징"],
+  management_stage: ["리드", "프로스펙팅", "딜크로징", "리텐션"],
 };
 
 const TEAM = ["조계현", "이세호", "기여운", "최연전"];
@@ -188,12 +188,15 @@ export default function ContactDetailPage() {
                   <select className={inp} value={form.assigned_to||""} onChange={e=>setForm({...form,assigned_to:e.target.value})}>
                     <option value="">선택</option>{TEAM.map(o=><option key={o}>{o}</option>)}
                   </select></div>
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">담당컨설턴트</label>
+                  <input className={inp} value={form.consultant||""} onChange={e=>setForm({...form,consultant:e.target.value})} placeholder="담당 컨설턴트명"/></div>
               </div>
             ) : (
               <div>
                 <InfoRow label="연락처"><div className="flex items-center gap-1.5"><Phone size={12} className="text-slate-400"/><span className="text-sm text-slate-700">{contact.phone||"-"}</span></div></InfoRow>
                 <InfoRow label="고객유형">{contact.customer_type ? <Badge value={contact.customer_type}/> : <span className="text-sm text-slate-300">-</span>}</InfoRow>
                 <InfoRow label="담당자"><span className="text-sm text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">{contact.assigned_to||"-"}</span></InfoRow>
+                <InfoRow label="담당컨설턴트"><span className="text-sm text-slate-700">{(contact as any).consultant||"-"}</span></InfoRow>
                 <InfoRow label="등록일"><span className="text-sm text-slate-500">{new Date(contact.created_at).toLocaleDateString("ko-KR")}</span></InfoRow>
               </div>
             )}
@@ -216,6 +219,14 @@ export default function ContactDetailPage() {
                   <select className={inp} value={form.meeting_result||""} onChange={e=>setForm({...form,meeting_result:e.target.value})}>
                     <option value="">선택</option>{OPT.meeting_result.map(o=><option key={o}>{o}</option>)}
                   </select></div>
+                {form.meeting_result === "계약완료" && (
+                  <div><label className="text-xs font-semibold text-slate-400 mb-1 block">계약완료일 <span className="text-blue-400">★</span></label>
+                    <input type="date" className={inp} value={form.contract_date?.split("T")[0]||""} onChange={e=>setForm({...form,contract_date:e.target.value})}/></div>
+                )}
+                {form.meeting_result === "예약완료" && (
+                  <div><label className="text-xs font-semibold text-slate-400 mb-1 block">예약완료일 <span className="text-blue-400">★</span></label>
+                    <input type="date" className={inp} value={form.reservation_date?.split("T")[0]||""} onChange={e=>setForm({...form,reservation_date:e.target.value})}/></div>
+                )}
               </div>
             ) : (
               <div>
@@ -229,6 +240,8 @@ export default function ContactDetailPage() {
                 </InfoRow>
                 <InfoRow label="미팅지역"><div className="flex items-center gap-1.5"><MapPin size={12} className="text-slate-400"/><span className="text-sm text-slate-700">{contact.meeting_address||"-"}</span></div></InfoRow>
                 <InfoRow label="미팅결과">{contact.meeting_result ? <Badge value={contact.meeting_result}/> : <span className="text-sm text-slate-300">-</span>}</InfoRow>
+                {contact.meeting_result === "계약완료" && <InfoRow label="계약완료일"><span className="text-sm text-slate-700">{(contact as any).contract_date ? new Date((contact as any).contract_date).toLocaleDateString("ko-KR") : "-"}</span></InfoRow>}
+                {contact.meeting_result === "예약완료" && <InfoRow label="예약완료일"><span className="text-sm text-slate-700">{(contact as any).reservation_date ? new Date((contact as any).reservation_date).toLocaleDateString("ko-KR") : "-"}</span></InfoRow>}
               </div>
             )}
           </div>
@@ -239,7 +252,12 @@ export default function ContactDetailPage() {
             {editing ? (
               <div className="space-y-3">
                 <div><label className="text-xs font-semibold text-slate-400 mb-1 block">TM감도</label>
-                  <input className={inp} value={form.tm_sensitivity||""} onChange={e=>setForm({...form,tm_sensitivity:e.target.value})}/></div>
+                  <select className={inp} value={form.tm_sensitivity||""} onChange={e=>setForm({...form,tm_sensitivity:e.target.value})}>
+                    <option value="">선택</option>
+                    <option value="상">상</option>
+                    <option value="중">중</option>
+                    <option value="하">하</option>
+                  </select></div>
                 <div><label className="text-xs font-semibold text-slate-400 mb-1 block">가망구분</label>
                   <select className={inp} value={form.prospect_type||""} onChange={e=>setForm({...form,prospect_type:e.target.value})}>
                     <option value="">선택</option>{OPT.prospect_type.map(o=><option key={o}>{o}</option>)}
