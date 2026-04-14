@@ -19,165 +19,6 @@ const SLIDES = [
   },
 ];
 
-// ─── 인트로 오버레이 ─────────────────────────────────────────
-type Phase = 'idle'|'count'|'hold'|'suck'|'burst'|'settle'|'done';
-
-function IntroOverlay({ onDone }: { onDone: () => void }) {
-  const [phase, setPhase] = useState<Phase>('idle');
-  const [num, setNum] = useState(0);
-  const rafRef = useRef<number>(0);
-
-  useEffect(() => {
-    // 2초 대기 후 카운팅 시작
-    const t0 = setTimeout(() => {
-      setPhase('count');
-      const start = performance.now();
-      const dur = 2600;
-      const tick = (now: number) => {
-        const p = Math.min((now - start) / dur, 1);
-        const e = 1 - Math.pow(1 - p, 3);
-        setNum(Math.round(e * 100));
-        if (p < 1) rafRef.current = requestAnimationFrame(tick);
-        else { setNum(100); setPhase('hold'); }
-      };
-      rafRef.current = requestAnimationFrame(tick);
-    }, 2000);
-
-    const t1 = setTimeout(() => setPhase('suck'),   5200);
-    const t2 = setTimeout(() => setPhase('burst'),  5900);
-    const t3 = setTimeout(() => setPhase('settle'), 6900);
-    const t4 = setTimeout(() => { setPhase('done'); onDone(); }, 7800);
-
-    return () => {
-      [t0,t1,t2,t3,t4].forEach(clearTimeout);
-      cancelAnimationFrame(rafRef.current);
-    };
-  }, [onDone]);
-
-  if (phase === 'done') return null;
-
-  const overlayOpacity = phase === 'settle' ? 0 : 1;
-
-  // 숫자 스타일
-  const numVisible = phase === 'count' || phase === 'hold';
-  const numSucked  = phase === 'suck';
-  const numStyle: React.CSSProperties = {
-    position: 'absolute',
-    fontSize: 'clamp(120px,20vw,220px)',
-    fontWeight: 900,
-    lineHeight: 1,
-    letterSpacing: '-4px',
-    color: 'transparent',
-    WebkitTextStroke: '2px rgba(255,255,255,0.95)',
-    fontFamily: "'Montserrat','Pretendard',sans-serif",
-    opacity: numSucked ? 0 : numVisible ? 1 : 0,
-    transform: numSucked ? 'scale(0.04)' : 'scale(1)',
-    filter: numSucked ? 'blur(14px)' : 'blur(0px)',
-    transition: numSucked
-      ? 'transform 0.65s cubic-bezier(0.55,0,1,0.45), opacity 0.45s ease 0.2s, filter 0.6s ease'
-      : 'opacity 0.4s ease',
-  };
-
-  // 텍스트 스타일
-  const textIn = phase === 'burst' || phase === 'settle';
-  const textStyle: React.CSSProperties = {
-    position: 'absolute',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
-    opacity: textIn ? 1 : 0,
-    transform: textIn
-      ? 'scale(1) perspective(1000px) translateZ(0)'
-      : 'scale(0.05) perspective(1000px) translateZ(-900px)',
-    transition: textIn
-      ? 'opacity 0.15s ease, transform 1.0s cubic-bezier(0.16,1,0.3,1)'
-      : 'none',
-  };
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 200,
-      background: 'rgba(2,4,8,0.92)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      opacity: overlayOpacity,
-      transition: 'opacity 0.9s ease',
-      pointerEvents: phase === 'settle' ? 'none' : 'auto',
-    }}>
-      {/* 배경 오브 */}
-      <div style={{
-        position: 'absolute', width: '600px', height: '600px', borderRadius: '50%',
-        top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-        background: 'radial-gradient(circle, rgba(30,58,138,0.3) 0%, transparent 70%)',
-        animation: 'introOrb 6s ease-in-out infinite',
-        pointerEvents: 'none',
-      }}/>
-
-      {/* 중앙 콘텐츠 */}
-      <div style={{ position: 'relative', width: '100%', height: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-
-        {/* 숫자 */}
-        <div style={numStyle}>{num}</div>
-
-        {/* 메인 문구 */}
-        <div style={textStyle}>
-          {/* 발광 효과 */}
-          <div style={{
-            position: 'absolute', inset: '-100px',
-            background: 'radial-gradient(circle, rgba(251,191,36,0.35) 0%, transparent 65%)',
-            filter: 'blur(40px)',
-            opacity: phase === 'burst' ? 1 : phase === 'settle' ? 0.5 : 0,
-            transition: 'opacity 1s ease',
-            pointerEvents: 'none',
-          }}/>
-          {/* 흰빛 플래시 */}
-          <div style={{
-            position: 'absolute', inset: '-200px',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 50%)',
-            opacity: phase === 'burst' ? 1 : 0,
-            transition: 'opacity 0.3s ease',
-            pointerEvents: 'none',
-          }}/>
-
-          <span style={{
-            fontSize: '12px', fontWeight: 700, letterSpacing: '10px',
-            color: 'rgba(251,191,36,1)', textTransform: 'uppercase',
-            textShadow: '0 0 30px rgba(251,191,36,0.9), 0 0 60px rgba(251,191,36,0.5)',
-            fontFamily: "'Montserrat','Pretendard',sans-serif",
-          }}>상위 1%</span>
-
-          <span style={{
-            fontSize: 'clamp(38px,6vw,72px)', fontWeight: 900, color: '#fff', lineHeight: 1,
-            textShadow: '0 0 50px rgba(255,255,255,0.8), 0 0 100px rgba(255,255,255,0.4), 0 0 160px rgba(251,191,36,0.25)',
-            letterSpacing: '-1px',
-            fontFamily: "'Montserrat','Pretendard',sans-serif",
-          }}>Premium</span>
-
-          <span style={{
-            fontSize: 'clamp(26px,4vw,50px)', fontWeight: 700,
-            color: 'rgba(255,255,255,0.85)', lineHeight: 1, letterSpacing: '2px',
-            textShadow: '0 0 40px rgba(255,255,255,0.5)',
-            fontFamily: "'Montserrat','Pretendard',sans-serif",
-          }}>Membership</span>
-
-          <div style={{ width: '90px', height: '1px', background: 'linear-gradient(90deg,transparent,rgba(251,191,36,0.9),transparent)', margin: '4px 0' }}/>
-
-          <span style={{
-            fontSize: 'clamp(18px,2.8vw,32px)', fontWeight: 700, letterSpacing: '10px',
-            color: 'rgba(251,191,36,1)',
-            textShadow: '0 0 20px rgba(251,191,36,1), 0 0 40px rgba(251,191,36,0.7), 0 0 80px rgba(251,191,36,0.4)',
-            fontFamily: "'Pretendard','Noto Sans KR',sans-serif",
-          }}>분양회</span>
-        </div>
-      </div>
-
-      <style>{`
-        @keyframes introOrb {
-          0%,100%{opacity:.6;transform:translate(-50%,-50%) scale(1)}
-          50%{opacity:1;transform:translate(-50%,-52%) scale(1.1)}
-        }
-      `}</style>
-    </div>
-  );
-}
-
 // ─── 메인 로그인 페이지 ──────────────────────────────────────
 export default function LoginPage() {
   const router = useRouter();
@@ -189,7 +30,6 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
-  const [introDone, setIntroDone] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -204,7 +44,6 @@ export default function LoginPage() {
 
   // 슬라이드 자동 전환
   useEffect(() => {
-    if (!introDone) return;
     const timer = setInterval(() => {
       setVisible(false);
       setTimeout(() => { setSlide(s => (s + 1) % SLIDES.length); setVisible(true); }, 600);
@@ -233,9 +72,6 @@ export default function LoginPage() {
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", fontFamily: "'Pretendard','Noto Sans KR',sans-serif" }}>
-
-      {/* 인트로 오버레이 */}
-      {!introDone && <IntroOverlay onDone={() => setIntroDone(true)}/>}
 
       {/* 배경 영상 */}
       <video
@@ -292,8 +128,8 @@ export default function LoginPage() {
       <div style={{
         position: "absolute", bottom: "14vh", left: "52px",
         zIndex: 10, maxWidth: "700px",
-        opacity: visible && introDone ? 1 : 0,
-        transform: visible && introDone ? "translateY(0)" : "translateY(18px)",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(18px)",
         transition: "opacity 0.6s ease, transform 0.6s ease",
       }}>
         <h1 style={{
