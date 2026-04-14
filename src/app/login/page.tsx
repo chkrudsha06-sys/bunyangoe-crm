@@ -8,34 +8,33 @@ import { login, getCurrentUser } from "@/lib/auth";
 type IntroPhase = 'idle'|'typing1'|'hold1'|'exit1'|'typing2'|'hold2'|'exit2'|'counting'|'glow'|'exit3'|'done';
 
 function IntroOverlay({ onDone }: { onDone: () => void }) {
-  const [phase, setPhase]         = useState<IntroPhase>('idle');
-  const [chars1, setChars1]       = useState(0);
-  const [chars2, setChars2]       = useState(0);
-  const [count, setCount]         = useState(0);
+  const [phase, setPhase]             = useState<IntroPhase>('idle');
+  const [chars1, setChars1]           = useState(0);
+  const [chars2, setChars2]           = useState(0);
+  const [count, setCount]             = useState(0);
   const [textOpacity, setTextOpacity] = useState(1);
   const [overlayOpacity, setOverlayOpacity] = useState(1);
-  const [glowing, setGlowing]     = useState(false);
+  const [glowing, setGlowing]         = useState(false);
   const rafRef = useRef<number>(0);
 
   const TEXT1 = "F I R S T  M O V E R";
   const TEXT2 = "1 %";
 
-  // 커스텀 이징: 0→50 느리게(70%), 50→100 빠르게(30%)
-  const getCountFromProgress = (p: number) => {
-    if (p < 0.70) {
-      const lp = p / 0.70;
-      return Math.round(lp * lp * 50);          // ease-in → 0~50 느리게
-    } else {
-      const lp = (p - 0.70) / 0.30;
-      return Math.round(50 + lp * 50);           // linear → 50~100 빠르게
-    }
-  };
+  // 0→50 느리게(70% 시간), 50→100 빠르게(30% 시간)
+  const getCount = (p: number) =>
+    p < 0.70
+      ? Math.round((p / 0.70) ** 2 * 50)
+      : Math.round(50 + ((p - 0.70) / 0.30) * 50);
+
+  // 배경 bokeh 웜 앰버 톤 — #C8922A ~ #E8B84B
+  // 기존 페이지 볼드 기준 (Montserrat 800)
+  const AMBER      = '#E2A83A';          // 배경 파티클 주색
+  const AMBER_GLOW = 'rgba(210,155,40,';  // glow rgba prefix
 
   useEffect(() => {
     const T: ReturnType<typeof setTimeout>[] = [];
 
     T.push(setTimeout(() => {
-      // ① FIRST MOVER 타이핑
       setPhase('typing1');
       let i = 0;
       const iv1 = setInterval(() => { i++; setChars1(i); if (i >= TEXT1.length) clearInterval(iv1); }, 60);
@@ -44,42 +43,29 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
         setPhase('hold1');
         T.push(setTimeout(() => {
           setPhase('exit1'); setTextOpacity(0);
-
           T.push(setTimeout(() => {
             setChars1(0); setTextOpacity(1);
-
-            // ② 1 % 타이핑
             setPhase('typing2');
             let j = 0;
             const iv2 = setInterval(() => { j++; setChars2(j); if (j >= TEXT2.length) clearInterval(iv2); }, 100);
-
             T.push(setTimeout(() => {
               setPhase('hold2');
               T.push(setTimeout(() => {
                 setPhase('exit2'); setTextOpacity(0);
-
                 T.push(setTimeout(() => {
                   setChars2(0); setTextOpacity(1);
-
-                  // ③ 카운팅 00→100 (5초)
                   setPhase('counting');
                   const start = performance.now();
-                  const dur = 5000;
                   const tick = (now: number) => {
-                    const p = Math.min((now - start) / dur, 1);
-                    const c = getCountFromProgress(p);
-                    setCount(c);
-                    if (p < 1) {
-                      rafRef.current = requestAnimationFrame(tick);
-                    } else {
-                      setCount(100);
-                      setPhase('glow'); setGlowing(true);
-
-                      // 황금빛 임팩트 후 페이드아웃
+                    const p = Math.min((now - start) / 5000, 1);
+                    setCount(getCount(p));
+                    if (p < 1) { rafRef.current = requestAnimationFrame(tick); }
+                    else {
+                      setCount(100); setPhase('glow'); setGlowing(true);
                       T.push(setTimeout(() => {
                         setPhase('exit3'); setOverlayOpacity(0);
                         T.push(setTimeout(() => { setPhase('done'); onDone(); }, 900));
-                      }, 1200));
+                      }, 1400));
                     }
                   };
                   rafRef.current = requestAnimationFrame(tick);
@@ -96,6 +82,20 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
 
   if (phase === 'done') return null;
 
+  // 카운팅 중 80 이상이면 서서히 amber 전환
+  const countProgress = count > 80 ? (count - 80) / 20 : 0;
+  const countColor = glowing
+    ? AMBER
+    : count > 80
+    ? `rgba(${Math.round(255 * (0.6 + 0.4 * countProgress))}, ${Math.round(180 * (0.5 + 0.5 * countProgress))}, ${Math.round(50 * (1 - countProgress))}, 1)`
+    : '#ffffff';
+
+  const countShadow = glowing
+    ? `0 0 24px rgba(210,155,40,1), 0 0 60px rgba(210,155,40,0.7), 0 0 120px rgba(210,155,40,0.45), 0 0 200px rgba(190,120,10,0.25)`
+    : count > 80
+    ? `0 0 30px rgba(210,155,40,${countProgress * 0.6}), 0 0 70px rgba(210,155,40,${countProgress * 0.3})`
+    : '0 0 30px rgba(255,255,255,0.2)';
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
@@ -111,90 +111,71 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
         textAlign: 'center',
         fontFamily: "'Montserrat','Pretendard',sans-serif",
         userSelect: 'none',
-        width: '100%',
-        padding: '0 40px',
+        width: '100%', padding: '0 5vw',
         boxSizing: 'border-box' as const,
       }}>
 
-        {/* ── FIRST MOVER 타이핑 ── */}
+        {/* FIRST MOVER — 기존 헤딩보다 약 1.5배 크게, 화면 이탈 없이 */}
         {(phase === 'typing1' || phase === 'hold1' || phase === 'exit1') && (
           <div style={{
-            fontSize: 'clamp(52px, 8.5vw, 130px)',
-            fontWeight: 900,
+            fontSize: 'clamp(44px, 6.5vw, 96px)',
+            fontWeight: 800,
             color: '#ffffff',
-            letterSpacing: '0.25em',
-            textShadow: '0 0 50px rgba(255,255,255,0.35)',
+            letterSpacing: '0.22em',
+            textShadow: '0 0 40px rgba(255,255,255,0.25)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             whiteSpace: 'nowrap' as const,
           }}>
             <span>{TEXT1.slice(0, chars1)}</span>
             {phase === 'typing1' && (
-              <span style={{
-                display: 'inline-block', width: '4px',
-                height: '0.75em', background: '#fff',
-                marginLeft: '6px',
-                animation: 'blink 0.55s steps(1) infinite',
-              }}/>
+              <span style={{ display:'inline-block', width:'3px', height:'0.75em', background:'#fff', marginLeft:'5px', animation:'blink 0.55s steps(1) infinite' }}/>
             )}
           </div>
         )}
 
-        {/* ── 1 % 타이핑 ── */}
+        {/* 1 % — 임팩트 있되 화면에 맞게 */}
         {(phase === 'typing2' || phase === 'hold2' || phase === 'exit2') && (
           <div style={{
-            fontSize: 'clamp(100px, 22vw, 320px)',
+            fontSize: 'clamp(80px, 14vw, 200px)',
             fontWeight: 900,
             color: '#ffffff',
-            letterSpacing: '0.15em',
-            textShadow: '0 0 60px rgba(255,255,255,0.45)',
+            letterSpacing: '0.1em',
+            textShadow: '0 0 50px rgba(255,255,255,0.3)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             lineHeight: 1,
           }}>
             <span>{TEXT2.slice(0, chars2)}</span>
             {phase === 'typing2' && (
-              <span style={{
-                display: 'inline-block', width: '5px',
-                height: '0.7em', background: '#fff',
-                marginLeft: '8px',
-                animation: 'blink 0.55s steps(1) infinite',
-              }}/>
+              <span style={{ display:'inline-block', width:'4px', height:'0.7em', background:'#fff', marginLeft:'6px', animation:'blink 0.55s steps(1) infinite' }}/>
             )}
           </div>
         )}
 
-        {/* ── 카운팅 + 황금빛 글로우 ── */}
+        {/* 카운팅 — 배경 bokeh 앰버 톤으로 전환 */}
         {(phase === 'counting' || phase === 'glow' || phase === 'exit3') && (
           <div style={{
-            fontSize: 'clamp(100px, 22vw, 320px)',
+            fontSize: 'clamp(80px, 14vw, 200px)',
             fontWeight: 900,
             lineHeight: 1,
-            letterSpacing: '0.02em',
+            letterSpacing: '0.04em',
             fontVariantNumeric: 'tabular-nums' as const,
-            color: glowing ? '#FFD700' : '#ffffff',
-            textShadow: glowing
-              ? '0 0 30px rgba(255,215,0,1), 0 0 60px rgba(255,180,0,0.9), 0 0 120px rgba(255,150,0,0.7), 0 0 220px rgba(255,120,0,0.5)'
-              : count > 80
-              ? `0 0 40px rgba(255,200,80,${(count - 80) / 20 * 0.6}), 0 0 80px rgba(255,160,0,${(count - 80) / 20 * 0.3})`
-              : '0 0 40px rgba(255,255,255,0.3)',
-            transition: glowing ? 'color 0.3s ease, text-shadow 0.3s ease' : 'text-shadow 0.1s ease',
-            animation: glowing ? 'goldPulse 0.5s ease-in-out infinite alternate' : 'none',
+            color: countColor,
+            textShadow: countShadow,
+            transition: glowing ? 'color 0.25s ease, text-shadow 0.25s ease' : 'color 0.15s ease, text-shadow 0.15s ease',
+            animation: glowing ? `amberPulse 0.8s ease-in-out infinite alternate` : 'none',
           }}>
             {String(count).padStart(2, '0')}
           </div>
         )}
 
-        {/* 황금빛 폭발 링 */}
+        {/* 100 달성 — 배경 파티클과 어우러지는 앰버 링 */}
         {glowing && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            pointerEvents: 'none',
-          }}>
+          <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
             <div style={{
-              width: '600px', height: '600px', borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(255,200,50,0.25) 0%, rgba(255,150,0,0.1) 40%, transparent 70%)',
-              filter: 'blur(30px)',
-              animation: 'glowExpand 1.2s ease-out forwards',
+              width:'500px', height:'500px', borderRadius:'50%',
+              background:`radial-gradient(circle, rgba(210,155,40,0.18) 0%, rgba(210,155,40,0.08) 45%, transparent 70%)`,
+              filter:'blur(28px)',
+              animation:'ringExpand 1.4s ease-out forwards',
             }}/>
           </div>
         )}
@@ -202,13 +183,13 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
 
       <style>{`
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-        @keyframes goldPulse {
-          from { text-shadow: 0 0 30px rgba(255,215,0,1), 0 0 60px rgba(255,180,0,0.9), 0 0 120px rgba(255,150,0,0.7), 0 0 220px rgba(255,120,0,0.5); }
-          to   { text-shadow: 0 0 50px rgba(255,215,0,1), 0 0 100px rgba(255,200,0,1),  0 0 180px rgba(255,170,0,0.8), 0 0 300px rgba(255,140,0,0.6); }
+        @keyframes amberPulse {
+          from { text-shadow: 0 0 24px rgba(210,155,40,1), 0 0 60px rgba(210,155,40,0.7), 0 0 120px rgba(210,155,40,0.45); }
+          to   { text-shadow: 0 0 36px rgba(210,155,40,1), 0 0 90px rgba(210,155,40,0.8), 0 0 160px rgba(210,155,40,0.55); }
         }
-        @keyframes glowExpand {
-          from { transform: scale(0.3); opacity: 0.8; }
-          to   { transform: scale(2.5); opacity: 0; }
+        @keyframes ringExpand {
+          from { transform:scale(0.4); opacity:0.7; }
+          to   { transform:scale(3.0); opacity:0; }
         }
       `}</style>
     </div>
