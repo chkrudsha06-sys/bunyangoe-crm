@@ -186,14 +186,15 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
     const start = `${calYear}-${String(calMonth).padStart(2,"0")}-01`;
     const end = `${calYear}-${String(calMonth).padStart(2,"0")}-${new Date(calYear, calMonth, 0).getDate()}`;
     // 본인 이벤트
-    const { data: ev } = await supabase.from("calendar_events")
+    const { data: ev, error: evErr } = await supabase.from("calendar_events")
       .select("*").gte("date", start).lte("date", end).eq("author", user.name);
+    if (evErr) console.error("calendar_events 오류:", evErr.message);
     setEvents((ev || []) as CalEventItem[]);
-    // 본인 미팅
-    const { data: mt } = await supabase.from("contacts")
+    const { data: mt, error: mtErr } = await supabase.from("contacts")
       .select("id,name,meeting_date,assigned_to")
       .not("meeting_date","is",null).gte("meeting_date",start).lte("meeting_date",end)
       .eq("assigned_to", user.name);
+    if (mtErr) console.error("contacts 미팅 오류:", mtErr.message);
     setMeetings(mt || []);
   }, [calYear, calMonth, user]);
 
