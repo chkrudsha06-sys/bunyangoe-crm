@@ -24,7 +24,7 @@ function getAvatarColor(name: string) {
   return AVATAR_COLORS[s % AVATAR_COLORS.length];
 }
 
-const MIN_ROWS = 10; // 최소 표시 행 수
+// MIN_ROWS 제거 // 최소 표시 행 수
 
 // ─── 인라인 넘버링 입력 셀 ─────────────────────────────────────
 function NumberingCell({ contactId, value, onSaved }: {
@@ -93,15 +93,11 @@ function MemberTable({ members, emptyText, accentClass, onNumberSaved }: {
   accentClass: string;
   onNumberSaved: (id: number, val: string) => void;
 }) {
-  // 최소 10행 보장 - 빈 행 채우기
-  const totalRows = Math.max(members.length, MIN_ROWS);
-  const emptyCount = totalRows - members.length;
-
   const HEADERS = ["#", "넘버링 부여", "고객명", "직급", "연락처", "담당컨설턴트", "대협팀 담당자", "상태", "완료일", "메모"];
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-      <div className="max-h-[520px] overflow-y-auto">
+      <div className="max-h-[460px] overflow-y-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
             <tr>{HEADERS.map(h => <th key={h} className="text-center px-4 py-3 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>)}</tr>
@@ -160,17 +156,7 @@ function MemberTable({ members, emptyText, accentClass, onNumberSaved }: {
                 </td>
               </tr>
             ))}
-            {/* 빈 행 채우기 (최소 10행) */}
-            {Array.from({ length: emptyCount }).map((_, idx) => (
-              <tr key={`empty-${idx}`} className="border-b border-slate-50">
-                <td className="px-4 py-3 text-center align-middle text-slate-200 text-xs">{members.length + idx + 1}</td>
-                {Array.from({ length: HEADERS.length - 1 }).map((_, ci) => (
-                  <td key={ci} className="px-4 py-3">
-                    <div className="h-4 rounded bg-slate-50"/>
-                  </td>
-                ))}
-              </tr>
-            ))}
+
           </tbody>
         </table>
       </div>
