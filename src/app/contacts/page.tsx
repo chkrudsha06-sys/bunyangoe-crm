@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { Plus, Search, Filter, X, Edit2, Trash2, ChevronDown } from "lucide-react";
+import ContactNotes from "@/components/ContactNotes";
 
 // ── 타입 ──
 interface Contact {
@@ -428,6 +429,12 @@ export default function ContactsPage() {
                   <textarea className={`${inp} resize-none`} rows={3} value={form.memo} onChange={e=>f("memo",e.target.value)} placeholder="메모를 입력하세요"/>
                 </div>
               </div>
+              {/* 활동 노트 히스토리 - 수정 모드에서만 */}
+              {editContact && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <ContactNotes contactId={editContact.id} />
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
               <button onClick={()=>setShowModal(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 text-center align-middle">취소</button>
