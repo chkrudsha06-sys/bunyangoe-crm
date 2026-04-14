@@ -384,7 +384,7 @@ export default function DashboardPage() {
     Promise.all([
       fetchStats(user, startDate, endDate, false),
       fetchStats(user, startDate, endDate, true),
-      fetchMonthlyRevenue(user, calYear, calMonth),
+      fetchMonthlyRevenue(user, new Date().getFullYear(), new Date().getMonth()+1),
       fetchTodayEvents(user, eventDate),
     ]).then(([c,cum,rev,ev])=>{
       setCurrent(c); setCumulative(cum); setMonthlyRev(rev); setTodayEvents(ev); setLoading(false);
