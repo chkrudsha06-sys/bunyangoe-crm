@@ -411,12 +411,12 @@ export default function ContactsPage() {
                 </div>
                 <div>
                   <label className={lbl}>미팅지역</label>
-                  {/* 미팅일정 토글버튼 높이만큼 여백 맞춤 */}
                   <div className="mb-1.5 h-[28px]"/>
                   <input className={inp} value={form.meeting_address} onChange={e=>f("meeting_address",e.target.value)} placeholder="서울 강남"/>
                 </div>
                 <div>
                   <label className={lbl}>미팅결과</label>
+                  <div className="mb-1.5 h-[28px]"/>
                   <Sel val={form.meeting_result} onChange={v=>f("meeting_result",v)} opts={OPT.meeting_result} placeholder="선택"/>
                 </div>
                 {form.meeting_result === "계약완료" && (
