@@ -49,7 +49,7 @@ export default function LoginPage() {
       setTimeout(() => { setSlide(s => (s + 1) % SLIDES.length); setVisible(true); }, 600);
     }, 5500);
     return () => clearInterval(timer);
-  }, [introDone]);
+  }, []);
 
   const handleLogin = async () => {
     if (!userId || !userPw) { setError("아이디와 비밀번호를 입력해주세요."); return; }
