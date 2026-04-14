@@ -377,7 +377,7 @@ export default function DashboardPage() {
         {/* 캘린더 */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-700">운영 캘린더</h3>
+            <h3 className="text-sm font-bold text-slate-700">캘린더</h3>
             <div className="flex items-center gap-2">
               <button onClick={()=>{ if(calMonth===1){setCalMonth(12);setCalYear(y=>y-1);}else setCalMonth(m=>m-1);}}
                 className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
