@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Phone, MapPin, Truck, X } from "lucide-react
 
 interface CalEvent { id: number; date: string; title: string; content: string | null; author: string; event_type: string; }
 interface Meeting { id: number; name: string; phone: string | null; meeting_date: string; meeting_address: string | null; assigned_to: string; }
-interface WanpanItem { id: number; dispatch_date: string | null; location: string | null; assigned_to: string | null; agency: string | null; staff_members: string | null; consultant_members: string | null; has_photo: boolean; contact_point: string | null; contact_point_title: string | null; notes: string | null; }
+interface WanpanItem { id: number; dispatch_date: string | null; site_name: string | null; location: string | null; assigned_to: string | null; agency: string | null; staff_members: string | null; consultant_members: string | null; has_photo: boolean; contact_point: string | null; contact_point_title: string | null; notes: string | null; }
 
 const EV_COLORS: Record<string, string> = {
   연차:    "bg-red-100 text-red-700 border-red-200",
@@ -52,7 +52,7 @@ export default function CalendarPage() {
     if (mtErr) console.error("contacts meetings:", mtErr.message);
     setMeetings((mt||[]) as Meeting[]);
 
-    let wpQ = supabase.from("wanpan_trucks").select("id,dispatch_date,location,assigned_to,agency,staff_members,consultant_members,has_photo,contact_point,contact_point_title,notes")
+    let wpQ = supabase.from("wanpan_trucks").select("id,dispatch_date,site_name,location,assigned_to,agency,staff_members,consultant_members,has_photo,contact_point,contact_point_title,notes")
       .not("dispatch_date","is",null).gte("dispatch_date",start).lte("dispatch_date",end);
     if (filterAuthor) wpQ = wpQ.eq("assigned_to", filterAuthor);
     const { data: wp, error: wpErr } = await wpQ;
@@ -146,7 +146,7 @@ export default function CalendarPage() {
                     {wp.map(w=>(
                       <div key={`w${w.id}`} className="text-[10px] px-1.5 py-0.5 rounded truncate font-semibold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
                         <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(w.assigned_to||"")}`}/>
-                        완판트럭 - {w.assigned_to||"-"}
+                        완판트럭 - {w.site_name || w.location || "-"}
                       </div>
                     ))}
                     {/* 미팅 */}
@@ -185,9 +185,49 @@ export default function CalendarPage() {
               <div className="space-y-2">
                 {selAll.wp.map(w=>(
                   <div key={`w${w.id}`} className="rounded-xl p-3 bg-amber-50 border border-amber-100">
-                    <div className="flex items-center gap-1.5 mb-1"><Truck size={11} className="text-amber-500"/><span className="text-xs font-bold text-amber-700">완판트럭</span></div>
-                    <p className="text-sm font-bold text-slate-800">{w.location||"-"}</p>
-                    <p className="text-xs text-slate-500">{w.agency} · {w.assigned_to}</p>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Truck size={11} className="text-amber-500"/>
+                      <span className="text-xs font-bold text-amber-700">완판트럭</span>
+                    </div>
+                    {/* 현장명 */}
+                    <p className="text-sm font-bold text-slate-800 mb-0.5">
+                      {w.site_name || w.location || "-"}
+                    </p>
+                    {w.site_name && w.location && (
+                      <p className="text-[11px] text-slate-400 mb-2">{w.location}</p>
+                    )}
+                    {/* 대협팀 출장인원 */}
+                    {w.staff_members && (() => {
+                      try {
+                        const list: string[] = JSON.parse(w.staff_members);
+                        if (list.length > 0) return (
+                          <div className="mb-1.5">
+                            <p className="text-[10px] font-bold text-slate-400 mb-1">대협팀 출장인원</p>
+                            <div className="flex flex-wrap gap-1">
+                              {list.map(s => (
+                                <span key={s} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100 font-semibold">{s}</span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      } catch { return null; }
+                    })()}
+                    {/* 컨설턴트 출장인원 */}
+                    {w.consultant_members && (() => {
+                      try {
+                        const list: string[] = JSON.parse(w.consultant_members);
+                        if (list.length > 0) return (
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 mb-1">컨설턴트 출장인원</p>
+                            <div className="flex flex-wrap gap-1">
+                              {list.map(s => (
+                                <span key={s} className="text-[10px] px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded-full border border-violet-100 font-semibold">{s}</span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      } catch { return null; }
+                    })()}
                   </div>
                 ))}
                 {selAll.mt.map(m=>(
