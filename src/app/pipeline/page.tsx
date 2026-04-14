@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { Phone, Calendar, MapPin, X, ChevronRight } from "lucide-react";
+import ContactNotes from "@/components/ContactNotes";
 
 interface Contact {
   id: number;
@@ -118,21 +119,14 @@ function ContactCard({ contact, col, onMemoClick }: {
         </div>
       )}
 
-      {/* 비고 */}
-      {contact.memo && (
-        <div
-          className="mt-2 pt-2 border-t border-slate-50"
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            onMemoClick(contact.memo!, contact.name);
-          }}
-        >
-          <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 bg-slate-50 rounded-lg px-2.5 py-1.5 border border-slate-100 cursor-text"
-            title="더블클릭하면 전체 내용 확인">
-            {contact.memo}
-          </p>
-        </div>
-      )}
+      {/* 활동 노트 */}
+      <div
+        className="mt-2 pt-2 border-t border-slate-50"
+        onDoubleClick={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
+      >
+        <ContactNotes contactId={contact.id} compact />
+      </div>
     </div>
   );
 }
