@@ -174,7 +174,9 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
   const [calMonth, setCalMonth] = useState(new Date().getMonth() + 1);
   const [events, setEvents] = useState<CalEventItem[]>([]);
   const [meetings, setMeetings] = useState<any[]>([]);
+  const [wanpans, setWanpans] = useState<any[]>([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [selDate, setSelDate] = useState<string | null>(null);
   const [form, setForm] = useState({ event_type: "미팅", content: "" });
   const [saving, setSaving] = useState(false);
@@ -204,7 +206,17 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
       .not("meeting_date","is",null).gte("meeting_date",start).lte("meeting_date",end)
       .eq("assigned_to", authorName);
     setMeetings(mt || []);
-  }, [calYear, calMonth, userProp]);
+
+    // 완판트럭 (본인이 포함된 것)
+    const { data: wp } = await supabase.from("wanpan_trucks")
+      .select("id,dispatch_date,location,staff_members")
+      .not("dispatch_date","is",null).gte("dispatch_date",start).lte("dispatch_date",end);
+    // staff_members에 본인 이름이 포함된 것만 필터
+    const wpFiltered = (wp || []).filter((w: any) => {
+      try { return JSON.parse(w.staff_members || "[]").includes(authorName); } catch { return false; }
+    });
+    setWanpans(wpFiltered);
+  }, [calYear, calMonth, userProp, refreshKey]);
 
   useEffect(() => { fetchCalData(); }, [fetchCalData]);
 
@@ -224,13 +236,13 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
     if (error) { alert("저장 실패: " + error.message); return; }
     setShowAdd(false);
     setForm({ event_type: "미팅", content: "" });
-    fetchCalData();
+    setRefreshKey(k => k + 1);
   };
 
   const handleDelete = async (id: number) => {
     const authorName = getAuthorName();
     await supabase.from("calendar_events").delete().eq("id", id).eq("author", authorName);
-    fetchCalData();
+    setRefreshKey(k => k + 1);
   };
 
   const firstDay = new Date(calYear, calMonth - 1, 1).getDay();
@@ -244,13 +256,15 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
     return {
       ev: events.filter(e => e.date === ds),
       mt: meetings.filter(m => m.meeting_date?.startsWith(ds)),
+      wp: wanpans.filter(w => w.dispatch_date?.startsWith(ds)),
     };
   };
 
   const selItems = selDate ? {
     ev: events.filter(e => e.date === selDate),
     mt: meetings.filter(m => m.meeting_date?.startsWith(selDate || "")),
-  } : { ev: [], mt: [] };
+    wp: wanpans.filter(w => w.dispatch_date?.startsWith(selDate || "")),
+  } : { ev: [], mt: [], wp: [] };
 
   return (
     <>
@@ -287,22 +301,28 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
         {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`} className="min-h-[72px] border-r border-b border-slate-50 bg-slate-50/20"/>)}
         {Array.from({length:daysInMonth}).map((_,i)=>{
           const d = i+1; const ds = getDs(d);
-          const {ev,mt} = getItems(d);
+          const {ev,mt,wp} = getItems(d);
           const isToday = ds===today; const dow=(firstDay+i)%7;
           const isSelected = selDate===ds && !showAdd;
-          const total = ev.length+mt.length;
+          const total = ev.length+mt.length+wp.length;
           return (
-            <div key={d} onClick={()=>{ setSelDate(ds); setShowAdd(false); }}
-              className={`min-h-[72px] border-r border-b border-slate-50 p-1 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}>
+            <div key={d}
+              onClick={()=>{ setSelDate(ds); setShowAdd(false); }}
+              onDoubleClick={()=>{ setSelDate(ds); setShowAdd(true); }}
+              className={`min-h-[72px] border-r border-b border-slate-50 p-1 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}
+              title="더블클릭: 일정 추가">
               <div className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold mb-0.5 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"}`}>{d}</div>
               <div className="space-y-0.5">
-                {ev.slice(0,2).map(e=>{
-                  const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
-                  return <div key={e.id} className={`text-[9px] px-1 py-0.5 rounded truncate font-semibold ${c.bg} ${c.text}`}>{e.event_type} - {e.author}</div>;
-                })}
+                {wp.map(w=>(
+                  <div key={`w${w.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-amber-100 text-amber-700">🚚 완판트럭</div>
+                ))}
                 {mt.slice(0,1).map(m=>(
                   <div key={`m${m.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-violet-50 text-violet-600">미팅 - {m.assigned_to}</div>
                 ))}
+                {ev.slice(0,2).map(e=>{
+                  const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
+                  return <div key={e.id} className={`text-[9px] px-1 py-0.5 rounded truncate font-semibold ${c.bg} ${c.text}`}>{e.event_type}</div>;
+                })}
                 {total>3&&<p className="text-[9px] text-slate-400 pl-0.5">+{total-3}</p>}
               </div>
             </div>
@@ -311,9 +331,15 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
       </div>
 
       {/* 선택 날짜 상세 */}
-      {selDate && !showAdd && (selItems.ev.length>0||selItems.mt.length>0) && (
+      {selDate && !showAdd && (selItems.ev.length>0||selItems.mt.length>0||selItems.wp.length>0) && (
         <div className="border-t border-slate-100 p-3 space-y-1.5 max-h-32 overflow-y-auto">
           <p className="text-xs font-bold text-slate-400 mb-1">{new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"short",day:"numeric"})}</p>
+          {selItems.wp.map(w=>(
+            <div key={`w${w.id}`} className="flex items-center justify-between bg-amber-50 rounded-lg px-2.5 py-1.5 border border-amber-100">
+              <span className="text-xs font-semibold text-amber-700">🚚 완판트럭</span>
+              <span className="text-xs text-amber-600">{w.location||"-"}</span>
+            </div>
+          ))}
           {selItems.mt.map(m=>(
             <div key={`m${m.id}`} className="flex items-center justify-between bg-violet-50 rounded-lg px-2.5 py-1.5 border border-violet-100">
               <span className="text-xs font-semibold text-violet-700">미팅일정</span>
