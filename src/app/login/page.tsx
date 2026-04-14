@@ -4,6 +4,155 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { login, getCurrentUser } from "@/lib/auth";
 
+// ─── 인트로 오버레이 ─────────────────────────────────────────
+type IntroPhase = 'idle'|'typing1'|'hold1'|'exit1'|'typing2'|'hold2'|'exit2'|'counting'|'hold3'|'exit3'|'done';
+
+function IntroOverlay({ onDone }: { onDone: () => void }) {
+  const [phase, setPhase] = useState<IntroPhase>('idle');
+  const [chars1, setChars1] = useState(0);   // FIRST MOVER 타이핑
+  const [chars2, setChars2] = useState(0);   // 1 % 타이핑
+  const [count, setCount] = useState(0);     // 00→100 카운팅
+  const [textOpacity, setTextOpacity] = useState(1);
+  const [overlayOpacity, setOverlayOpacity] = useState(1);
+  const rafRef = useRef<number>(0);
+
+  const TEXT1 = "F I R S T  M O V E R";
+  const TEXT2 = "1 %";
+
+  useEffect(() => {
+    let timers: ReturnType<typeof setTimeout>[] = [];
+
+    // 2초 대기 후 타이핑 시작
+    timers.push(setTimeout(() => {
+      setPhase('typing1');
+      let i = 0;
+      const iv = setInterval(() => {
+        i++;
+        setChars1(i);
+        if (i >= TEXT1.length) clearInterval(iv);
+      }, 65);
+      timers.push(setTimeout(() => {
+        setPhase('hold1');
+        timers.push(setTimeout(() => {
+          setPhase('exit1');
+          setTextOpacity(0);
+          timers.push(setTimeout(() => {
+            setChars1(0); setTextOpacity(1);
+            setPhase('typing2');
+            let j = 0;
+            const iv2 = setInterval(() => {
+              j++;
+              setChars2(j);
+              if (j >= TEXT2.length) clearInterval(iv2);
+            }, 110);
+            timers.push(setTimeout(() => {
+              setPhase('hold2');
+              timers.push(setTimeout(() => {
+                setPhase('exit2');
+                setTextOpacity(0);
+                timers.push(setTimeout(() => {
+                  setChars2(0); setTextOpacity(1);
+                  setPhase('counting');
+                  const start = performance.now();
+                  const dur = 1600;
+                  const tick = (now: number) => {
+                    const p = Math.min((now - start) / dur, 1);
+                    const e = 1 - Math.pow(1 - p, 3);
+                    setCount(Math.round(e * 100));
+                    if (p < 1) rafRef.current = requestAnimationFrame(tick);
+                    else {
+                      setPhase('hold3');
+                      timers.push(setTimeout(() => {
+                        setPhase('exit3');
+                        setOverlayOpacity(0);
+                        timers.push(setTimeout(() => { setPhase('done'); onDone(); }, 750));
+                      }, 500));
+                    }
+                  };
+                  rafRef.current = requestAnimationFrame(tick);
+                }, 350));
+              }, 400));
+            }, TEXT2.length * 110 + 100));
+          }, 350));
+        }, 400));
+      }, TEXT1.length * 65 + 100));
+    }, 2000));
+
+    return () => { timers.forEach(clearTimeout); cancelAnimationFrame(rafRef.current); };
+  }, [onDone]);
+
+  if (phase === 'done') return null;
+
+  // 폰트 사이즈 — 기존 볼드 헤딩과 동일
+  const fontSize = 'clamp(36px, 4.5vw, 64px)';
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      opacity: overlayOpacity,
+      transition: 'opacity 0.75s ease',
+      pointerEvents: phase === 'exit3' ? 'none' : 'auto',
+    }}>
+      {/* 텍스트 컨테이너 */}
+      <div style={{
+        opacity: textOpacity,
+        transition: 'opacity 0.35s ease',
+        textAlign: 'center',
+        fontFamily: "'Montserrat','Pretendard',sans-serif",
+        userSelect: 'none',
+      }}>
+
+        {/* FIRST MOVER 타이핑 */}
+        {(phase === 'typing1' || phase === 'hold1' || phase === 'exit1') && (
+          <div style={{
+            fontSize, fontWeight: 800, color: '#ffffff',
+            letterSpacing: '0.05em',
+            textShadow: '0 0 40px rgba(255,255,255,0.4)',
+            display: 'flex', alignItems: 'center', gap: 0,
+          }}>
+            <span>{TEXT1.slice(0, chars1)}</span>
+            {phase === 'typing1' && (
+              <span style={{ display: 'inline-block', width: '3px', height: '0.8em', background: '#fff', marginLeft: '4px', animation: 'blink 0.6s steps(1) infinite' }}/>
+            )}
+          </div>
+        )}
+
+        {/* 1 % 타이핑 */}
+        {(phase === 'typing2' || phase === 'hold2' || phase === 'exit2') && (
+          <div style={{
+            fontSize, fontWeight: 800, color: '#ffffff',
+            letterSpacing: '0.12em',
+            textShadow: '0 0 40px rgba(255,255,255,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0,
+          }}>
+            <span>{TEXT2.slice(0, chars2)}</span>
+            {phase === 'typing2' && (
+              <span style={{ display: 'inline-block', width: '3px', height: '0.8em', background: '#fff', marginLeft: '4px', animation: 'blink 0.6s steps(1) infinite' }}/>
+            )}
+          </div>
+        )}
+
+        {/* 카운팅 00→100 */}
+        {(phase === 'counting' || phase === 'hold3' || phase === 'exit3') && (
+          <div style={{
+            fontSize, fontWeight: 800, color: '#ffffff',
+            letterSpacing: '0.05em',
+            textShadow: '0 0 40px rgba(255,255,255,0.5), 0 0 80px rgba(255,220,100,0.2)',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {String(count).padStart(2, '0')}
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+      `}</style>
+    </div>
+  );
+}
+
 const SLIDES = [
   {
     engBold: "First Mover",
@@ -31,6 +180,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
     const user = getCurrentUser();
@@ -44,12 +194,13 @@ export default function LoginPage() {
 
   // 슬라이드 자동 전환
   useEffect(() => {
+    if (!introDone) return;
     const timer = setInterval(() => {
       setVisible(false);
       setTimeout(() => { setSlide(s => (s + 1) % SLIDES.length); setVisible(true); }, 600);
     }, 5500);
     return () => clearInterval(timer);
-  }, []);
+  }, [introDone]);
 
   const handleLogin = async () => {
     if (!userId || !userPw) { setError("아이디와 비밀번호를 입력해주세요."); return; }
@@ -72,6 +223,9 @@ export default function LoginPage() {
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", fontFamily: "'Pretendard','Noto Sans KR',sans-serif" }}>
+
+      {/* 인트로 오버레이 */}
+      {!introDone && <IntroOverlay onDone={() => setIntroDone(true)}/>}
 
       {/* 배경 영상 */}
       <video
@@ -128,8 +282,8 @@ export default function LoginPage() {
       <div style={{
         position: "absolute", bottom: "14vh", left: "52px",
         zIndex: 10, maxWidth: "700px",
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(18px)",
+        opacity: visible && introDone ? 1 : 0,
+        transform: visible && introDone ? "translateY(0)" : "translateY(18px)",
         transition: "opacity 0.6s ease, transform 0.6s ease",
       }}>
         <h1 style={{
