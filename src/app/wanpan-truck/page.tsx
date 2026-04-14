@@ -379,15 +379,35 @@ export default function WanpanTruckPage() {
         ? JSON.stringify(form.consultant_pre_reports) : null,
     };
     let error;
+    let insertedId: number | null = null;
     if (editItem) {
       const res = await supabase.from("wanpan_trucks").update(payload).eq("id", editItem.id);
       error = res.error;
     } else {
-      const res = await supabase.from("wanpan_trucks").insert(payload);
+      const res = await supabase.from("wanpan_trucks").insert(payload).select("id").single();
       error = res.error;
+      insertedId = res.data?.id ?? null;
     }
     setSaving(false);
     if (error) { alert("저장 실패: " + error.message); return; }
+
+    // 신규등록 시 업무담당자에게 알림 생성
+    if (!editItem && insertedId && form.task_assignees.length > 0) {
+      const dateStr = form.dispatch_date
+        ? new Date(form.dispatch_date).toLocaleDateString("ko-KR", { month:"numeric", day:"numeric" })
+        : "";
+      const siteName = form.site_name || form.location || "-";
+      const notifRows = (form.task_assignees as TaskAssignee[]).map((a: TaskAssignee) => ({
+        assignee_name: a.name,
+        title: `완판트럭 업무 배정 — ${siteName}`,
+        message: `${dateStr} ${siteName} 완판트럭 업무가 배정되었습니다. 목록에서 완료 체크를 해주세요.`,
+        source_type: "완판트럭",
+        source_id: insertedId,
+        is_read: false,
+      }));
+      await supabase.from("notifications").insert(notifRows);
+    }
+
     setShowModal(false); fetchTrucks();
   };
 
