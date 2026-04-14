@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { Phone, Calendar, MapPin, X, ChevronRight } from "lucide-react";
+import { Phone, Calendar, MapPin, X, ChevronRight, Search } from "lucide-react";
 import ContactNotes from "@/components/ContactNotes";
 
 interface Contact {
@@ -123,12 +123,13 @@ function ContactCard({ contact, col, onNotesClick }: {
 
       {/* 활동 노트 */}
       <div
-        className="mt-2 pt-2 border-t border-slate-50 cursor-pointer"
-        onClick={e => { e.stopPropagation(); onNotesClick(contact.id, contact.name); }}
-        onDoubleClick={e => e.stopPropagation()}
-        title="클릭하면 전체 활동노트 확인"
+        className="mt-2 pt-2 border-t border-slate-50"
+        onDoubleClick={e => { e.stopPropagation(); onNotesClick(contact.id, contact.name); }}
+        onClick={e => e.stopPropagation()}
+        title="더블클릭: 전체 활동노트 확인"
       >
         <ContactNotes contactId={contact.id} compact />
+        <p className="text-[9px] text-slate-300 mt-1 text-right">더블클릭으로 전체보기</p>
       </div>
     </div>
   );
@@ -138,6 +139,10 @@ export default function PipelinePage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [notesPopup, setNotesPopup] = useState<{ contactId: number; name: string } | null>(null);
+  const [search, setSearch] = useState("");
+  const [fProspect, setFProspect] = useState("");
+  const [fAssigned, setFAssigned] = useState("");
+  const [fResult, setFResult] = useState("");
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -152,33 +157,71 @@ export default function PipelinePage() {
     fetchAll();
   }, []);
 
+  const filtered = contacts.filter(c => {
+    const matchSearch = !search || 
+      c.name.includes(search) || 
+      (c.phone && c.phone.includes(search)) ||
+      (c.meeting_address && c.meeting_address.includes(search));
+    const matchProspect = !fProspect || c.prospect_type === fProspect;
+    const matchAssigned = !fAssigned || c.assigned_to === fAssigned;
+    const matchResult = !fResult || c.meeting_result === fResult;
+    return matchSearch && matchProspect && matchAssigned && matchResult;
+  });
+
   const getColumnContacts = (colKey: string) => {
-    return contacts.filter(c =>
+    return filtered.filter(c =>
       c.prospect_type === colKey ||
       c.tm_sensitivity === colKey ||
       c.meeting_result === colKey
     );
   };
 
-  const totalCount = contacts.length;
-
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
       {/* 헤더 */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-lg font-black text-slate-800">파이프라인</h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              전체 <span className="text-blue-600 font-bold">{totalCount}</span>명 · 더블클릭으로 고객 상세 확인
+              전체 <span className="text-blue-600 font-bold">{contacts.length}</span>명 중 <span className="text-blue-600 font-bold">{filtered.length}</span>명 표시
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/>
-              실시간
-            </div>
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/>실시간
           </div>
+        </div>
+        {/* 검색 + 필터 */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-xs">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+            <input type="text" placeholder="이름, 연락처, 지역 검색..." value={search}
+              onChange={e=>setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
+          </div>
+          <select value={fProspect} onChange={e=>setFProspect(e.target.value)}
+            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 outline-none">
+            <option value="">전체 가망구분</option>
+            <option value="즉가입가망">즉가입가망</option>
+            <option value="미팅예정가망">미팅예정가망</option>
+            <option value="연계매출가망">연계매출가망</option>
+          </select>
+          <select value={fResult} onChange={e=>setFResult(e.target.value)}
+            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 outline-none">
+            <option value="">전체 미팅결과</option>
+            <option value="계약완료">계약완료</option>
+            <option value="예약완료">예약완료</option>
+            <option value="미팅후가망관리">미팅후가망관리</option>
+          </select>
+          <select value={fAssigned} onChange={e=>setFAssigned(e.target.value)}
+            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 outline-none">
+            <option value="">전체 담당자</option>
+            {["조계현","이세호","기여운","최연전"].map(m=><option key={m} value={m}>{m}</option>)}
+          </select>
+          {(search||fProspect||fResult||fAssigned) && (
+            <button onClick={()=>{setSearch("");setFProspect("");setFResult("");setFAssigned("");}}
+              className="text-xs text-red-400 hover:text-red-600 px-2 py-1">초기화</button>
+          )}
         </div>
       </div>
 
