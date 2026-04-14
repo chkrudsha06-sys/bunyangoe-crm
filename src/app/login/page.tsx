@@ -65,10 +65,9 @@ export default function LoginPage() {
       {/* ── 배경 영상 ── */}
       <video
         autoPlay muted loop playsInline
+        src="/login-bg.mp4.mp4"
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }}
-      >
-        <source src="/login-bg.mp4.mp4" type="video/mp4"/>
-      </video>
+      />
 
       {/* ── 어두운 오버레이 ── */}
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.58)", zIndex: 1 }}/>
@@ -100,7 +99,7 @@ export default function LoginPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/company-logo.png" alt="광고인"
-            style={{ height: 38, objectFit: "contain" }}
+            style={{ height: 38, objectFit: "contain", mixBlendMode: "screen" as const }}
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
           />
           <div style={{ width: 1, height: 22, background: "rgba(255,255,255,0.25)" }}/>
@@ -231,7 +230,7 @@ export default function LoginPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/company-logo.png" alt="광고인" style={{ height: 30, objectFit: "contain" }}
+              <img src="/company-logo.png" alt="광고인" style={{ height: 30, objectFit: "contain", mixBlendMode: "screen" as const }}
                 onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}/>
               <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.15)" }}/>
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 600, letterSpacing: "0.04em" }}>광고인㈜ 대외협력팀</span>
