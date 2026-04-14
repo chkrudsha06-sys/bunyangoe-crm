@@ -1,219 +1,206 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
-import { CRMUser, logout } from "@/lib/auth";
-import {
-  LayoutDashboard, Users, Kanban, BarChart3,
-  CalendarDays, Truck, Shield, Award,
-  CreditCard, LogOut, ChevronRight, Bell,
-} from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { getCurrentUser, CRMUser } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import Sidebar from "@/components/Sidebar";
+import { Truck, X, CheckCheck } from "lucide-react";
 
 interface Notification {
-  id: number; assignee_name: string; title: string;
-  message: string | null; source_type: string;
-  source_id: number | null; is_read: boolean; created_at: string;
+  id: number;
+  assignee_name: string;
+  title: string;
+  message: string | null;
+  source_type: string;
+  source_id: number | null;
+  is_read: boolean;
+  created_at: string;
 }
 
+function NotifToast({ notif, onClose }: { notif: Notification; onClose: () => void }) {
+  const router = useRouter();
 
-// ─── 알림 패널 (Sidebar 내장) ──────────────────────────────
-function NotifPanel({ notifications, onMarkAll, onClose }: {
-  notifications: Notification[];
-  onMarkAll: () => void;
-  onClose: () => void;
-}) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 12000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+
+  const handleClick = () => {
+    onClose();
+    if (notif.source_type === "완판트럭") {
+      router.push("/wanpan-truck");
+    }
+  };
+
   return (
-    <div className="absolute left-full top-0 ml-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-        <span className="text-sm font-bold text-slate-800">알림</span>
-        <div className="flex items-center gap-2">
-          {notifications.length > 0 && (
-            <button onClick={onMarkAll} className="text-[10px] text-blue-600 flex items-center gap-1 hover:text-blue-700">
-              모두 읽음
-            </button>
-          )}
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
-        </div>
+    <div
+      onClick={handleClick}
+      className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 w-80 flex gap-3 relative overflow-hidden cursor-pointer hover:bg-slate-50 transition-colors"
+      style={{ animation: "slideInRight 0.35s cubic-bezier(0.16,1,0.3,1)" }}
+      title="클릭하면 완판트럭 페이지로 이동">
+      <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-l-2xl"/>
+      <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Truck size={16} className="text-amber-600"/>
       </div>
-      <div className="max-h-72 overflow-y-auto">
-        {notifications.length === 0 ? (
-          <div className="flex items-center justify-center py-8 text-slate-400">
-            <p className="text-xs">새 알림이 없습니다</p>
-          </div>
-        ) : notifications.map(n => (
-          <div key={n.id} className={`px-4 py-3 border-b border-slate-50 hover:bg-slate-50 ${!n.is_read ? "bg-blue-50/30" : ""}`}>
-            <div className="flex items-start gap-2.5">
-              <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-amber-600 text-xs">🚛</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-slate-800">{n.title}</p>
-                {n.message && <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{n.message}</p>}
-                <p className="text-[10px] text-slate-400 mt-1">
-                  {new Date(n.created_at).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}
-                </p>
-              </div>
-              {!n.is_read && <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1.5"/>}
-            </div>
-          </div>
-        ))}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-xs font-bold text-slate-800 leading-snug">{notif.title}</p>
+          <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="text-slate-300 hover:text-slate-500 flex-shrink-0"><X size={13}/></button>
+        </div>
+        {notif.message && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{notif.message}</p>}
+        <div className="flex items-center justify-between mt-2">
+          <span className="text-[10px] text-slate-400">
+            {new Date(notif.created_at).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}
+          </span>
+          <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-semibold">{notif.source_type}</span>
+        </div>
       </div>
     </div>
   );
 }
 
-interface SidebarProps {
-  user: CRMUser;
-  unreadCount?: number;
-  notifications?: Notification[];
-  showPanel?: boolean;
-  onBellClick?: () => void;
-  onPanelClose?: () => void;
-  onMarkAll?: () => void;
-}
-
-const EXEC_MENUS = [
-  { href: "/",            label: "대시보드",    icon: LayoutDashboard },
-  { href: "/contacts",    label: "고객 DB",     icon: Users },
-  { href: "/pipeline",    label: "파이프라인",   icon: Kanban },
-  { href: "/vip-members", label: "분양회 입회자", icon: Award },
-  { href: "/wanpan-truck",label: "완판트럭",     icon: Truck },
-  { href: "/calendar",    label: "운영캘린더",   icon: CalendarDays },
-];
-
-const OPS_MENUS = [
-  { href: "/member-manage", label: "분양회 회원관리", icon: Shield },
-  { href: "/sales",         label: "통합매출관리",    icon: CreditCard },
-  { href: "/rewards",       label: "리워드 관리",     icon: BarChart3 },
-];
-
-const ADMIN_EXTRA = [
-  { href: "/reports", label: "팀 성과 분석", icon: BarChart3 },
-];
-
-const ROLE_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  admin: { bg: "bg-amber-100",   text: "text-amber-700",   label: "관리자" },
-  exec:  { bg: "bg-blue-100",    text: "text-blue-700",    label: "실행파트" },
-  ops:   { bg: "bg-emerald-100", text: "text-emerald-700", label: "운영파트" },
-};
-
-export default function Sidebar({
-  user,
-  unreadCount = 0,
-  notifications = [],
-  showPanel = false,
-  onBellClick,
-  onPanelClose,
-  onMarkAll,
-}: SidebarProps) {
-  const pathname = usePathname();
+export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const isAdmin = user.role === "admin";
-  const roleStyle = ROLE_STYLE[user.role] || ROLE_STYLE.exec;
+  const pathname = usePathname();
+  const [user, setUser] = useState<CRMUser | null>(null);
+  const [checked, setChecked] = useState(false);
 
-  const handleLogout = () => { logout(); router.push("/login"); };
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [toastQueue, setToastQueue] = useState<Notification[]>([]);
+  const [showPanel, setShowPanel] = useState(false);
 
-  const NavItem = ({ href, label, icon: Icon }: { href: string; label: string; icon: React.ElementType }) => {
-    const active = pathname === href;
-    return (
-      <Link href={href} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all group ${
-        active ? "bg-blue-50 text-blue-700 font-semibold border border-blue-100"
-               : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-      }`}>
-        <Icon size={15} className={active ? "text-blue-600" : "text-slate-400 group-hover:text-slate-600"}/>
-        <span className="flex-1">{label}</span>
-        {active && <ChevronRight size={12} className="text-blue-400"/>}
-      </Link>
-    );
+  // 이미 알고 있는 알림 ID 집합 — 중복 토스트 방지
+  const knownIds = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    const u = getCurrentUser();
+    if (!u && pathname !== "/login") router.push("/login");
+    else { setUser(u); setChecked(true); }
+  }, [pathname, router]);
+
+  // 새 알림 토스트 추가 (중복 방지)
+  const pushNewToasts = useCallback((data: Notification[]) => {
+    const fresh = data.filter(n => !n.is_read && !knownIds.current.has(n.id));
+    if (fresh.length > 0) {
+      fresh.forEach(n => knownIds.current.add(n.id));
+      setToastQueue(prev => [...prev, ...fresh]);
+    }
+    // 전체 목록 업데이트
+    setNotifications(data);
+    // 기존에 알던 것도 knownIds에 추가 (초기화 시)
+    data.forEach(n => knownIds.current.add(n.id));
+  }, []);
+
+  const fetchNotifications = useCallback(async (userName: string, showToast = false) => {
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("assignee_name", userName)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (error || !data) return;
+
+    if (showToast) {
+      pushNewToasts(data as Notification[]);
+    } else {
+      // 초기 로드 — 기존 알림 ID만 등록, 토스트 없음
+      (data as Notification[]).forEach(n => knownIds.current.add(n.id));
+      setNotifications(data as Notification[]);
+    }
+  }, [pushNewToasts]);
+
+  useEffect(() => {
+    if (!user || pathname === "/login") return;
+
+    // 초기 로드
+    fetchNotifications(user.name, false);
+
+    // ── Supabase Realtime 구독 ──
+    const channel = supabase
+      .channel(`notif-${user.name}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "notifications",
+        filter: `assignee_name=eq.${user.name}`,
+      }, (payload) => {
+        const n = payload.new as Notification;
+        if (!knownIds.current.has(n.id)) {
+          knownIds.current.add(n.id);
+          setNotifications(prev => [n, ...prev]);
+          setToastQueue(prev => [...prev, n]);
+        }
+      })
+      .subscribe((status) => {
+        console.log("[Realtime] status:", status);
+      });
+
+    // ── 폴링 백업 (10초) — Realtime 미설정 환경 보완 ──
+    const pollTimer = setInterval(() => {
+      fetchNotifications(user.name, true);
+    }, 10000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(pollTimer);
+    };
+  }, [user, pathname, fetchNotifications]);
+
+  const markAllRead = async () => {
+    if (!user) return;
+    await supabase.from("notifications").update({ is_read: true })
+      .eq("assignee_name", user.name).eq("is_read", false);
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
   };
 
+  const closeToast = async (notifId: number) => {
+    setToastQueue(prev => prev.filter(n => n.id !== notifId));
+    await supabase.from("notifications").update({ is_read: true }).eq("id", notifId);
+    setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, is_read: true } : n));
+  };
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  if (pathname === "/login") return <>{children}</>;
+  if (!checked || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-brand-bg">
+        <div className="w-8 h-8 border-2 border-brand-navy-2 border-t-transparent rounded-full animate-spin"/>
+      </div>
+    );
+  }
+
   return (
-    <aside className="w-56 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm">
-      {/* 로고 */}
-      <div className="px-4 py-4 border-b border-slate-100">
-        <div className="flex items-center gap-2.5">
-          <Image src="/icon-logo.png" alt="로고" width={36} height={36} style={{ objectFit:"contain", flexShrink:0 }}/>
-          <div>
-            <p className="text-slate-800 font-bold text-sm leading-tight">분양회 CRM</p>
-            <p className="text-slate-400 text-xs">광고인㈜ 대외협력팀</p>
+    <div className="flex h-screen overflow-hidden bg-brand-bg">
+      <Sidebar
+        user={user!}
+        unreadCount={unreadCount}
+        notifications={notifications}
+        showPanel={showPanel}
+        onBellClick={() => setShowPanel(v => !v)}
+        onPanelClose={() => setShowPanel(false)}
+        onMarkAll={markAllRead}
+      />
+      <main className="flex-1 overflow-auto">
+        {children}
+      </main>
+
+      {/* 토스트 팝업 (우측 하단) */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none">
+        {toastQueue.slice(0, 3).map(n => (
+          <div key={n.id} className="pointer-events-auto">
+            <NotifToast notif={n} onClose={() => closeToast(n.id)}/>
           </div>
-        </div>
+        ))}
       </div>
 
-      {/* 유저 정보 + 알림 벨 */}
-      <div className="px-4 py-3 border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${roleStyle.bg} ${roleStyle.text}`}>
-            {user.name[0]}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="text-slate-800 text-sm font-bold leading-tight">{user.name}</p>
-              <span className="text-xs text-slate-500 font-medium">{user.title}</span>
-            </div>
-            <span className={`text-xs px-1.5 py-0.5 rounded-md font-semibold ${roleStyle.bg} ${roleStyle.text}`}>
-              {roleStyle.label}
-            </span>
-          </div>
-
-          {/* 알림 벨 — 사이드바 유저 영역 우측 */}
-          <div className="relative flex-shrink-0">
-            <button
-              onClick={onBellClick}
-              className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors ${
-                showPanel
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
-              }`}
-              title="알림"
-            >
-              <Bell size={14}/>
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </button>
-
-            {/* 알림 패널 — 사이드바 위쪽으로 열림 */}
-            {showPanel && onPanelClose && onMarkAll && (
-              <NotifPanel
-                notifications={notifications}
-                onMarkAll={onMarkAll}
-                onClose={onPanelClose}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 네비게이션 */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        <div className="px-1 pb-1.5 text-slate-400 text-[10px] font-semibold tracking-widest uppercase">■ 실행파트</div>
-        {EXEC_MENUS.map(m => <NavItem key={m.href} {...m}/>)}
-
-        <div className="my-2 border-t border-slate-100"/>
-        <div className="px-1 pb-1.5 text-slate-400 text-[10px] font-semibold tracking-widest uppercase">■ 운영파트</div>
-        {OPS_MENUS.map(m => <NavItem key={m.href} {...m}/>)}
-
-        {isAdmin && (
-          <>
-            <div className="my-2 border-t border-amber-100"/>
-            <div className="px-1 pb-1.5 text-amber-500 text-[10px] font-semibold tracking-widest uppercase">★ 관리자 전용</div>
-            {ADMIN_EXTRA.map(m => <NavItem key={m.href} {...m}/>)}
-          </>
-        )}
-      </nav>
-
-      {/* 로그아웃 */}
-      <div className="px-3 pb-4">
-        <button onClick={handleLogout}
-          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-          <LogOut size={13}/>
-          <span>로그아웃</span>
-        </button>
-      </div>
-    </aside>
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(110%); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
+        }
+      `}</style>
+    </div>
   );
 }
