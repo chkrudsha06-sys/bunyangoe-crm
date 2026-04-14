@@ -201,15 +201,25 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
   useEffect(() => { fetchCalData(); }, [fetchCalData]);
 
   const handleAdd = async () => {
-    const currentUser = getCurrentUser() || user;
-    if (!selDate || !currentUser) { alert('로그인이 필요합니다.'); return; }
+    if (!selDate) { alert("날짜를 선택해주세요."); return; }
+    let authorName = "";
+    try {
+      const raw = localStorage.getItem("crm_user");
+      if (raw) authorName = JSON.parse(raw).name || "";
+    } catch {}
+    if (!authorName) { alert("로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요."); return; }
     setSaving(true);
-    const title = form.event_type;
-    await supabase.from("calendar_events").insert({
-      date: selDate, title, content: form.content || null,
-      author: (getCurrentUser() || user)!.name, event_type: form.event_type,
+    const { error } = await supabase.from("calendar_events").insert({
+      date: selDate,
+      title: form.event_type,
+      content: form.content || null,
+      author: authorName,
+      event_type: form.event_type,
     });
-    setSaving(false); setShowAdd(false); setForm({ event_type: "미팅", content: "" });
+    setSaving(false);
+    if (error) { alert("저장 실패: " + error.message); return; }
+    setShowAdd(false);
+    setForm({ event_type: "미팅", content: "" });
     fetchCalData();
   };
 
