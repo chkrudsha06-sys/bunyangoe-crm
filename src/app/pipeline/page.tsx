@@ -39,27 +39,29 @@ function getAvatarColor(name: string) {
   return AVATAR_COLORS[sum % AVATAR_COLORS.length];
 }
 
-function MemoPopup({ value, name, onClose }: { value: string; name: string; onClose: () => void }) {
+function NotesPopup({ contactId, name, onClose }: { contactId: number; name: string; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[80vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className={`w-7 h-7 ${getAvatarColor(name)} rounded-full flex items-center justify-center text-white text-xs font-bold`}>{name[0]}</div>
-            <span className="font-bold text-slate-800 text-sm">{name} — 비고</span>
+            <span className="font-bold text-slate-800 text-sm">{name} — 활동 노트</span>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1"><X size={16}/></button>
         </div>
-        <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap bg-slate-50 rounded-xl p-4 border border-slate-100">{value}</p>
+        <div className="flex-1 overflow-y-auto">
+          <ContactNotes contactId={contactId} />
+        </div>
       </div>
     </div>
   );
 }
 
-function ContactCard({ contact, col, onMemoClick }: {
+function ContactCard({ contact, col, onNotesClick }: {
   contact: Contact;
   col: typeof COLUMNS[0];
-  onMemoClick: (memo: string, name: string) => void;
+  onNotesClick: (contactId: number, name: string) => void;
 }) {
   const router = useRouter();
 
@@ -121,9 +123,10 @@ function ContactCard({ contact, col, onMemoClick }: {
 
       {/* 활동 노트 */}
       <div
-        className="mt-2 pt-2 border-t border-slate-50"
+        className="mt-2 pt-2 border-t border-slate-50 cursor-pointer"
+        onClick={e => { e.stopPropagation(); onNotesClick(contact.id, contact.name); }}
         onDoubleClick={e => e.stopPropagation()}
-        onClick={e => e.stopPropagation()}
+        title="클릭하면 전체 활동노트 확인"
       >
         <ContactNotes contactId={contact.id} compact />
       </div>
@@ -134,7 +137,7 @@ function ContactCard({ contact, col, onMemoClick }: {
 export default function PipelinePage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
-  const [memoPopup, setMemoPopup] = useState<{ memo: string; name: string } | null>(null);
+  const [notesPopup, setNotesPopup] = useState<{ contactId: number; name: string } | null>(null);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -212,7 +215,7 @@ export default function PipelinePage() {
                           key={c.id}
                           contact={c}
                           col={col}
-                          onMemoClick={(memo, name) => setMemoPopup({ memo, name })}
+                          onNotesClick={(id, name) => setNotesPopup({ contactId: id, name })}
                         />
                       ))
                     )}
@@ -224,12 +227,12 @@ export default function PipelinePage() {
         </div>
       )}
 
-      {/* 비고 팝업 */}
-      {memoPopup && (
-        <MemoPopup
-          value={memoPopup.memo}
-          name={memoPopup.name}
-          onClose={() => setMemoPopup(null)}
+      {/* 활동노트 팝업 */}
+      {notesPopup && (
+        <NotesPopup
+          contactId={notesPopup.contactId}
+          name={notesPopup.name}
+          onClose={() => setNotesPopup(null)}
         />
       )}
     </div>
