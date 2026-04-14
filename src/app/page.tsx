@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, CRMUser } from "@/lib/auth";
-import { Clock, ChevronLeft, ChevronRight, Plus, X, Save } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, Plus, X, Save, Trash2 } from "lucide-react";
 
 // ── 타입 ──
 interface Stats {
@@ -241,7 +241,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
 
   const handleDelete = async (id: number) => {
     const authorName = getAuthorName();
-    await supabase.from("calendar_events").delete().eq("id", id).eq("author", authorName);
+    await supabase.from("calendar_events").delete().eq("id", id);
     setRefreshKey(k => k + 1);
   };
 
@@ -307,8 +307,8 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
           const total = ev.length+mt.length+wp.length;
           return (
             <div key={d}
-              onClick={()=>{ setSelDate(ds); setShowAdd(false); }}
-              onDoubleClick={()=>{ setSelDate(ds); setShowAdd(true); }}
+              onClick={()=>{ setSelDate(ds); setShowDayPopup(true); setShowAdd(false); }}
+              onDoubleClick={()=>{ setSelDate(ds); setShowAdd(true); setShowDayPopup(false); }}
               className={`min-h-[72px] border-r border-b border-slate-50 p-1 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}
               title="더블클릭: 일정 추가">
               <div className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold mb-0.5 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"}`}>{d}</div>
@@ -330,38 +330,64 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
         })}
       </div>
 
-      {/* 선택 날짜 상세 */}
-      {selDate && !showAdd && (selItems.ev.length>0||selItems.mt.length>0||selItems.wp.length>0) && (
-        <div className="border-t border-slate-100 p-3 space-y-1.5 max-h-32 overflow-y-auto">
-          <p className="text-xs font-bold text-slate-400 mb-1">{new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"short",day:"numeric"})}</p>
-          {selItems.wp.map(w=>(
-            <div key={`w${w.id}`} className="flex items-center justify-between bg-amber-50 rounded-lg px-2.5 py-1.5 border border-amber-100">
-              <span className="text-xs font-semibold text-amber-700">🚚 완판트럭</span>
-              <span className="text-xs text-amber-600">{w.location||"-"}</span>
-            </div>
-          ))}
-          {selItems.mt.map(m=>(
-            <div key={`m${m.id}`} className="flex items-center justify-between bg-violet-50 rounded-lg px-2.5 py-1.5 border border-violet-100">
-              <span className="text-xs font-semibold text-violet-700">미팅일정</span>
-              <span className="text-xs text-violet-600">{m.name}</span>
-            </div>
-          ))}
-          {selItems.ev.map(e=>{
-            const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
-            return (
-              <div key={e.id} className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 border ${c.bg} border-slate-100`}>
-                <span className={`text-xs font-semibold ${c.text}`}>{e.event_type}</span>
-                <div className="flex items-center gap-2">
-                  {e.content&&<span className="text-xs text-slate-500 truncate max-w-[120px]">{e.content}</span>}
-                  <button onClick={(ev)=>{ev.stopPropagation();handleDelete(e.id);}} className="text-slate-300 hover:text-red-400"><X size={11}/></button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+
 
     </div>
+
+    {/* 날짜 일정 팝업 */}
+    {showDayPopup && selDate && !showAdd && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{background:"rgba(0,0,0,0.35)"}}
+        onClick={()=>setShowDayPopup(false)}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[70vh] flex flex-col"
+          onClick={e=>e.stopPropagation()}>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <h3 className="font-bold text-slate-800 text-sm">
+              {new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"})}
+            </h3>
+            <div className="flex items-center gap-2">
+              <button onClick={()=>{setShowDayPopup(false);setShowAdd(true);}}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <Plus size={12}/> 추가
+              </button>
+              <button onClick={()=>setShowDayPopup(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {selItems.wp.length===0 && selItems.mt.length===0 && selItems.ev.length===0 && (
+              <p className="text-center py-6 text-slate-300 text-sm">일정이 없습니다</p>
+            )}
+            {selItems.wp.map(w=>(
+              <div key={`w${w.id}`} className="rounded-xl p-3 bg-amber-50 border border-amber-100">
+                <p className="text-xs font-bold text-amber-700 mb-1">🚚 완판트럭</p>
+                <p className="text-sm font-bold text-slate-800">{w.location||"-"}</p>
+              </div>
+            ))}
+            {selItems.mt.map(m=>(
+              <div key={`m${m.id}`} className="rounded-xl p-3 bg-violet-50 border border-violet-100">
+                <p className="text-xs font-bold text-violet-700 mb-1">미팅일정</p>
+                <p className="text-sm font-bold text-slate-800">{m.name}</p>
+              </div>
+            ))}
+            {selItems.ev.map(e=>{
+              const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
+              return (
+                <div key={e.id} className={`rounded-xl p-3 border ${c.bg} border-slate-100`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xs font-bold ${c.text}`}>{e.event_type}</span>
+                    <button onClick={()=>{handleDelete(e.id);}}
+                      className="text-slate-300 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-50">
+                      <Trash2 size={13}/>
+                    </button>
+                  </div>
+                  {e.content&&<p className="text-sm text-slate-600 leading-relaxed">{e.content}</p>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* 일정 추가 모달 - fixed로 항상 화면 중앙에 */}
     {showAdd && (
