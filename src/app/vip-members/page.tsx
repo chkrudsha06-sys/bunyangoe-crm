@@ -7,6 +7,7 @@ import { Award, Phone, Calendar, Search } from "lucide-react";
 interface VipContact {
   id: number;
   name: string;
+  title: string | null;
   phone: string | null;
   assigned_to: string;
   meeting_result: string;
@@ -119,7 +120,7 @@ export default function VipMembersPage() {
                         <div className="w-7 h-7 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center flex-shrink-0">
                           <span className="text-white text-xs font-bold">{c.name[0]}</span>
                         </div>
-                        <span className="font-semibold text-slate-800">{c.name}</span>
+                        <span className="font-semibold text-slate-800">{c.name}</span>{c.title && <span className="text-xs text-slate-400 ml-1">{c.title}</span>}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center align-middle">
