@@ -5,149 +5,211 @@ import { useRouter } from "next/navigation";
 import { login, getCurrentUser } from "@/lib/auth";
 
 // ─── 인트로 오버레이 ─────────────────────────────────────────
-type IntroPhase = 'idle'|'typing1'|'hold1'|'exit1'|'typing2'|'hold2'|'exit2'|'counting'|'hold3'|'exit3'|'done';
+type IntroPhase = 'idle'|'typing1'|'hold1'|'exit1'|'typing2'|'hold2'|'exit2'|'counting'|'glow'|'exit3'|'done';
 
 function IntroOverlay({ onDone }: { onDone: () => void }) {
-  const [phase, setPhase] = useState<IntroPhase>('idle');
-  const [chars1, setChars1] = useState(0);   // FIRST MOVER 타이핑
-  const [chars2, setChars2] = useState(0);   // 1 % 타이핑
-  const [count, setCount] = useState(0);     // 00→100 카운팅
+  const [phase, setPhase]         = useState<IntroPhase>('idle');
+  const [chars1, setChars1]       = useState(0);
+  const [chars2, setChars2]       = useState(0);
+  const [count, setCount]         = useState(0);
   const [textOpacity, setTextOpacity] = useState(1);
   const [overlayOpacity, setOverlayOpacity] = useState(1);
+  const [glowing, setGlowing]     = useState(false);
   const rafRef = useRef<number>(0);
 
   const TEXT1 = "F I R S T  M O V E R";
   const TEXT2 = "1 %";
 
-  useEffect(() => {
-    let timers: ReturnType<typeof setTimeout>[] = [];
+  // 커스텀 이징: 0→50 느리게(70%), 50→100 빠르게(30%)
+  const getCountFromProgress = (p: number) => {
+    if (p < 0.70) {
+      const lp = p / 0.70;
+      return Math.round(lp * lp * 50);          // ease-in → 0~50 느리게
+    } else {
+      const lp = (p - 0.70) / 0.30;
+      return Math.round(50 + lp * 50);           // linear → 50~100 빠르게
+    }
+  };
 
-    // 2초 대기 후 타이핑 시작
-    timers.push(setTimeout(() => {
+  useEffect(() => {
+    const T: ReturnType<typeof setTimeout>[] = [];
+
+    T.push(setTimeout(() => {
+      // ① FIRST MOVER 타이핑
       setPhase('typing1');
       let i = 0;
-      const iv = setInterval(() => {
-        i++;
-        setChars1(i);
-        if (i >= TEXT1.length) clearInterval(iv);
-      }, 65);
-      timers.push(setTimeout(() => {
+      const iv1 = setInterval(() => { i++; setChars1(i); if (i >= TEXT1.length) clearInterval(iv1); }, 60);
+
+      T.push(setTimeout(() => {
         setPhase('hold1');
-        timers.push(setTimeout(() => {
-          setPhase('exit1');
-          setTextOpacity(0);
-          timers.push(setTimeout(() => {
+        T.push(setTimeout(() => {
+          setPhase('exit1'); setTextOpacity(0);
+
+          T.push(setTimeout(() => {
             setChars1(0); setTextOpacity(1);
+
+            // ② 1 % 타이핑
             setPhase('typing2');
             let j = 0;
-            const iv2 = setInterval(() => {
-              j++;
-              setChars2(j);
-              if (j >= TEXT2.length) clearInterval(iv2);
-            }, 110);
-            timers.push(setTimeout(() => {
+            const iv2 = setInterval(() => { j++; setChars2(j); if (j >= TEXT2.length) clearInterval(iv2); }, 100);
+
+            T.push(setTimeout(() => {
               setPhase('hold2');
-              timers.push(setTimeout(() => {
-                setPhase('exit2');
-                setTextOpacity(0);
-                timers.push(setTimeout(() => {
+              T.push(setTimeout(() => {
+                setPhase('exit2'); setTextOpacity(0);
+
+                T.push(setTimeout(() => {
                   setChars2(0); setTextOpacity(1);
+
+                  // ③ 카운팅 00→100 (5초)
                   setPhase('counting');
                   const start = performance.now();
-                  const dur = 1600;
+                  const dur = 5000;
                   const tick = (now: number) => {
                     const p = Math.min((now - start) / dur, 1);
-                    const e = 1 - Math.pow(1 - p, 3);
-                    setCount(Math.round(e * 100));
-                    if (p < 1) rafRef.current = requestAnimationFrame(tick);
-                    else {
-                      setPhase('hold3');
-                      timers.push(setTimeout(() => {
-                        setPhase('exit3');
-                        setOverlayOpacity(0);
-                        timers.push(setTimeout(() => { setPhase('done'); onDone(); }, 750));
-                      }, 500));
+                    const c = getCountFromProgress(p);
+                    setCount(c);
+                    if (p < 1) {
+                      rafRef.current = requestAnimationFrame(tick);
+                    } else {
+                      setCount(100);
+                      setPhase('glow'); setGlowing(true);
+
+                      // 황금빛 임팩트 후 페이드아웃
+                      T.push(setTimeout(() => {
+                        setPhase('exit3'); setOverlayOpacity(0);
+                        T.push(setTimeout(() => { setPhase('done'); onDone(); }, 900));
+                      }, 1200));
                     }
                   };
                   rafRef.current = requestAnimationFrame(tick);
                 }, 350));
-              }, 400));
-            }, TEXT2.length * 110 + 100));
+              }, 380));
+            }, TEXT2.length * 100 + 80));
           }, 350));
-        }, 400));
-      }, TEXT1.length * 65 + 100));
+        }, 380));
+      }, TEXT1.length * 60 + 80));
     }, 2000));
 
-    return () => { timers.forEach(clearTimeout); cancelAnimationFrame(rafRef.current); };
+    return () => { T.forEach(clearTimeout); cancelAnimationFrame(rafRef.current); };
   }, [onDone]);
 
   if (phase === 'done') return null;
-
-  // 폰트 사이즈 — 기존 볼드 헤딩과 동일
-  const fontSize = 'clamp(36px, 4.5vw, 64px)';
 
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       opacity: overlayOpacity,
-      transition: 'opacity 0.75s ease',
+      transition: 'opacity 0.9s ease',
       pointerEvents: phase === 'exit3' ? 'none' : 'auto',
     }}>
-      {/* 텍스트 컨테이너 */}
+
       <div style={{
         opacity: textOpacity,
         transition: 'opacity 0.35s ease',
         textAlign: 'center',
         fontFamily: "'Montserrat','Pretendard',sans-serif",
         userSelect: 'none',
+        width: '100%',
+        padding: '0 40px',
+        boxSizing: 'border-box' as const,
       }}>
 
-        {/* FIRST MOVER 타이핑 */}
+        {/* ── FIRST MOVER 타이핑 ── */}
         {(phase === 'typing1' || phase === 'hold1' || phase === 'exit1') && (
           <div style={{
-            fontSize, fontWeight: 800, color: '#ffffff',
-            letterSpacing: '0.05em',
-            textShadow: '0 0 40px rgba(255,255,255,0.4)',
-            display: 'flex', alignItems: 'center', gap: 0,
+            fontSize: 'clamp(52px, 8.5vw, 130px)',
+            fontWeight: 900,
+            color: '#ffffff',
+            letterSpacing: '0.25em',
+            textShadow: '0 0 50px rgba(255,255,255,0.35)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            whiteSpace: 'nowrap' as const,
           }}>
             <span>{TEXT1.slice(0, chars1)}</span>
             {phase === 'typing1' && (
-              <span style={{ display: 'inline-block', width: '3px', height: '0.8em', background: '#fff', marginLeft: '4px', animation: 'blink 0.6s steps(1) infinite' }}/>
+              <span style={{
+                display: 'inline-block', width: '4px',
+                height: '0.75em', background: '#fff',
+                marginLeft: '6px',
+                animation: 'blink 0.55s steps(1) infinite',
+              }}/>
             )}
           </div>
         )}
 
-        {/* 1 % 타이핑 */}
+        {/* ── 1 % 타이핑 ── */}
         {(phase === 'typing2' || phase === 'hold2' || phase === 'exit2') && (
           <div style={{
-            fontSize, fontWeight: 800, color: '#ffffff',
-            letterSpacing: '0.12em',
-            textShadow: '0 0 40px rgba(255,255,255,0.4)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0,
+            fontSize: 'clamp(100px, 22vw, 320px)',
+            fontWeight: 900,
+            color: '#ffffff',
+            letterSpacing: '0.15em',
+            textShadow: '0 0 60px rgba(255,255,255,0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            lineHeight: 1,
           }}>
             <span>{TEXT2.slice(0, chars2)}</span>
             {phase === 'typing2' && (
-              <span style={{ display: 'inline-block', width: '3px', height: '0.8em', background: '#fff', marginLeft: '4px', animation: 'blink 0.6s steps(1) infinite' }}/>
+              <span style={{
+                display: 'inline-block', width: '5px',
+                height: '0.7em', background: '#fff',
+                marginLeft: '8px',
+                animation: 'blink 0.55s steps(1) infinite',
+              }}/>
             )}
           </div>
         )}
 
-        {/* 카운팅 00→100 */}
-        {(phase === 'counting' || phase === 'hold3' || phase === 'exit3') && (
+        {/* ── 카운팅 + 황금빛 글로우 ── */}
+        {(phase === 'counting' || phase === 'glow' || phase === 'exit3') && (
           <div style={{
-            fontSize, fontWeight: 800, color: '#ffffff',
-            letterSpacing: '0.05em',
-            textShadow: '0 0 40px rgba(255,255,255,0.5), 0 0 80px rgba(255,220,100,0.2)',
-            fontVariantNumeric: 'tabular-nums',
+            fontSize: 'clamp(100px, 22vw, 320px)',
+            fontWeight: 900,
+            lineHeight: 1,
+            letterSpacing: '0.02em',
+            fontVariantNumeric: 'tabular-nums' as const,
+            color: glowing ? '#FFD700' : '#ffffff',
+            textShadow: glowing
+              ? '0 0 30px rgba(255,215,0,1), 0 0 60px rgba(255,180,0,0.9), 0 0 120px rgba(255,150,0,0.7), 0 0 220px rgba(255,120,0,0.5)'
+              : count > 80
+              ? `0 0 40px rgba(255,200,80,${(count - 80) / 20 * 0.6}), 0 0 80px rgba(255,160,0,${(count - 80) / 20 * 0.3})`
+              : '0 0 40px rgba(255,255,255,0.3)',
+            transition: glowing ? 'color 0.3s ease, text-shadow 0.3s ease' : 'text-shadow 0.1s ease',
+            animation: glowing ? 'goldPulse 0.5s ease-in-out infinite alternate' : 'none',
           }}>
             {String(count).padStart(2, '0')}
+          </div>
+        )}
+
+        {/* 황금빛 폭발 링 */}
+        {glowing && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            pointerEvents: 'none',
+          }}>
+            <div style={{
+              width: '600px', height: '600px', borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255,200,50,0.25) 0%, rgba(255,150,0,0.1) 40%, transparent 70%)',
+              filter: 'blur(30px)',
+              animation: 'glowExpand 1.2s ease-out forwards',
+            }}/>
           </div>
         )}
       </div>
 
       <style>{`
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        @keyframes goldPulse {
+          from { text-shadow: 0 0 30px rgba(255,215,0,1), 0 0 60px rgba(255,180,0,0.9), 0 0 120px rgba(255,150,0,0.7), 0 0 220px rgba(255,120,0,0.5); }
+          to   { text-shadow: 0 0 50px rgba(255,215,0,1), 0 0 100px rgba(255,200,0,1),  0 0 180px rgba(255,170,0,0.8), 0 0 300px rgba(255,140,0,0.6); }
+        }
+        @keyframes glowExpand {
+          from { transform: scale(0.3); opacity: 0.8; }
+          to   { transform: scale(2.5); opacity: 0; }
+        }
       `}</style>
     </div>
   );
