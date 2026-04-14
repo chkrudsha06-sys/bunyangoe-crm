@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, CRMUser } from "@/lib/auth";
-import { Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, Plus, X, Save } from "lucide-react";
 
 // ── 타입 ──
 interface Stats {
@@ -149,38 +149,211 @@ function BarChart({ data }: { data: MonthlyRevenue[] }) {
   );
 }
 
-// ── 캘린더 ──
-function Calendar({ year, month }: { year: number; month: number }) {
-  const firstDay = new Date(year, month - 1, 1).getDay();
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const today = new Date();
-  const isToday = (d: number) => d === today.getDate() && month === today.getMonth()+1 && year === today.getFullYear();
+// ── 이벤트 타입 ──
+const EV_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
+  연차:   { bg: "bg-red-50",    text: "text-red-600",    dot: "bg-red-400" },
+  반차:   { bg: "bg-orange-50", text: "text-orange-600", dot: "bg-orange-400" },
+  미팅:   { bg: "bg-blue-50",   text: "text-blue-600",   dot: "bg-blue-400" },
+  기타:   { bg: "bg-slate-50",  text: "text-slate-500",  dot: "bg-slate-400" },
+  // 자동 표시용
+  미팅일정:   { bg: "bg-violet-50", text: "text-violet-600", dot: "bg-violet-400" },
+};
+
+interface CalEventItem {
+  id: number;
+  date: string;
+  title: string;
+  content: string | null;
+  author: string;
+  event_type: string;
+}
+
+// ── 캘린더 컴포넌트 ──
+function DashCalendar({ user }: { user: CRMUser | null }) {
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(new Date().getMonth() + 1);
+  const [events, setEvents] = useState<CalEventItem[]>([]);
+  const [meetings, setMeetings] = useState<any[]>([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [selDate, setSelDate] = useState<string | null>(null);
+  const [form, setForm] = useState({ event_type: "미팅", content: "" });
+  const [saving, setSaving] = useState(false);
+
+  const fetchCalData = useCallback(async () => {
+    if (!user) return;
+    const start = `${calYear}-${String(calMonth).padStart(2,"0")}-01`;
+    const end = `${calYear}-${String(calMonth).padStart(2,"0")}-${new Date(calYear, calMonth, 0).getDate()}`;
+    // 본인 이벤트
+    const { data: ev } = await supabase.from("calendar_events")
+      .select("*").gte("date", start).lte("date", end).eq("author", user.name);
+    setEvents((ev || []) as CalEventItem[]);
+    // 본인 미팅
+    const { data: mt } = await supabase.from("contacts")
+      .select("id,name,meeting_date,assigned_to")
+      .not("meeting_date","is",null).gte("meeting_date",start).lte("meeting_date",end)
+      .eq("assigned_to", user.name);
+    setMeetings(mt || []);
+  }, [calYear, calMonth, user]);
+
+  useEffect(() => { fetchCalData(); }, [fetchCalData]);
+
+  const handleAdd = async () => {
+    if (!selDate || !user) return;
+    setSaving(true);
+    const title = form.event_type;
+    await supabase.from("calendar_events").insert({
+      date: selDate, title, content: form.content || null,
+      author: user.name, event_type: form.event_type,
+    });
+    setSaving(false); setShowAdd(false); setForm({ event_type: "미팅", content: "" });
+    fetchCalData();
+  };
+
+  const handleDelete = async (id: number) => {
+    await supabase.from("calendar_events").delete().eq("id", id);
+    fetchCalData();
+  };
+
+  const firstDay = new Date(calYear, calMonth - 1, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth, 0).getDate();
+  const today = new Date().toISOString().split("T")[0];
+  const getDs = (d: number) => `${calYear}-${String(calMonth).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
   const days = ["일","월","화","수","목","금","토"];
+
+  const getItems = (d: number) => {
+    const ds = getDs(d);
+    const ev = events.filter(e => e.date === ds);
+    const mt = meetings.filter(m => m.meeting_date?.startsWith(ds));
+    return { ev, mt };
+  };
+
+  const selItems = selDate ? {
+    ev: events.filter(e => e.date === selDate),
+    mt: meetings.filter(m => m.meeting_date?.startsWith(selDate || "")),
+  } : { ev: [], mt: [] };
+
   return (
-    <div>
-      <div className="grid grid-cols-7 mb-1">
-        {days.map((d,i) => (
-          <div key={d} className={`text-center py-2 text-xs font-semibold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      {/* 헤더 */}
+      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button onClick={()=>{ if(calMonth===1){setCalMonth(12);setCalYear(y=>y-1);}else setCalMonth(m=>m-1);}} className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronLeft size={13}/></button>
+          <span className="text-sm font-bold text-slate-700">{calYear}년 {calMonth}월</span>
+          <button onClick={()=>{ if(calMonth===12){setCalMonth(1);setCalYear(y=>y+1);}else setCalMonth(m=>m+1);}} className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronRight size={13}/></button>
+        </div>
+        <button onClick={()=>{setSelDate(today);setShowAdd(true);}} className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <Plus size={11}/> 일정 추가
+        </button>
+      </div>
+
+      {/* 요일 */}
+      <div className="grid grid-cols-7 border-b border-slate-50">
+        {days.map((d,i)=>(
+          <div key={d} className={`text-center py-1.5 text-[10px] font-semibold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
         ))}
       </div>
+
+      {/* 날짜 */}
       <div className="grid grid-cols-7">
-        {Array.from({length: firstDay}).map((_,i)=><div key={`e${i}`} className="h-14 border-r border-b border-slate-50"/>)}
-        {Array.from({length: daysInMonth}).map((_,i)=>{
-          const d = i+1;
-          const dow = (firstDay+i)%7;
+        {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`} className="min-h-[72px] border-r border-b border-slate-50 bg-slate-50/20"/>)}
+        {Array.from({length:daysInMonth}).map((_,i)=>{
+          const d = i+1; const ds = getDs(d);
+          const {ev,mt} = getItems(d);
+          const isToday = ds===today; const dow=(firstDay+i)%7;
+          const isSelected = selDate===ds && !showAdd;
+          const total = ev.length+mt.length;
           return (
-            <div key={d} className={`h-14 border-r border-b border-slate-50 p-1 ${isToday(d)?"bg-blue-50":""}`}>
-              <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium ${
-                isToday(d)?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"
-              }`}>{d}</span>
+            <div key={d} onClick={()=>setSelDate(selDate===ds?null:ds)}
+              className={`min-h-[72px] border-r border-b border-slate-50 p-1 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}>
+              <div className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold mb-0.5 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"}`}>{d}</div>
+              <div className="space-y-0.5">
+                {ev.slice(0,2).map(e=>{
+                  const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
+                  return <div key={e.id} className={`text-[9px] px-1 py-0.5 rounded truncate font-semibold ${c.bg} ${c.text}`}>{e.event_type} - {e.author}</div>;
+                })}
+                {mt.slice(0,1).map(m=>(
+                  <div key={`m${m.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-violet-50 text-violet-600">미팅일정 - {m.assigned_to}</div>
+                ))}
+                {total>3&&<p className="text-[9px] text-slate-400 pl-0.5">+{total-3}</p>}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {/* 선택 날짜 상세 */}
+      {selDate && !showAdd && (selItems.ev.length>0||selItems.mt.length>0) && (
+        <div className="border-t border-slate-100 p-3 space-y-1.5 max-h-32 overflow-y-auto">
+          <p className="text-xs font-bold text-slate-400 mb-1">{new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"short",day:"numeric"})}</p>
+          {selItems.mt.map(m=>(
+            <div key={`m${m.id}`} className="flex items-center justify-between bg-violet-50 rounded-lg px-2.5 py-1.5 border border-violet-100">
+              <span className="text-xs font-semibold text-violet-700">미팅일정</span>
+              <span className="text-xs text-violet-600">{m.name}</span>
+            </div>
+          ))}
+          {selItems.ev.map(e=>{
+            const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
+            return (
+              <div key={e.id} className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 border ${c.bg} border-slate-100`}>
+                <span className={`text-xs font-semibold ${c.text}`}>{e.event_type}</span>
+                <div className="flex items-center gap-2">
+                  {e.content&&<span className="text-xs text-slate-500 truncate max-w-[120px]">{e.content}</span>}
+                  {user&&user.name===e.author&&(
+                    <button onClick={(ev)=>{ev.stopPropagation();handleDelete(e.id);}} className="text-slate-300 hover:text-red-400"><X size={11}/></button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 일정 추가 패널 */}
+      {showAdd && selDate && (
+        <div className="border-t border-slate-100 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold text-slate-600">{new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"short",day:"numeric"})} 일정 추가</p>
+            <button onClick={()=>setShowAdd(false)} className="text-slate-400 hover:text-slate-600"><X size={14}/></button>
+          </div>
+          <div className="mb-3">
+            <p className="text-xs font-semibold text-slate-400 mb-1.5">날짜</p>
+            <input type="date" value={selDate} onChange={e=>setSelDate(e.target.value)}
+              className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400"/>
+          </div>
+          <div className="mb-3">
+            <p className="text-xs font-semibold text-slate-400 mb-1.5">유형 선택</p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {["연차","반차","미팅","기타"].map(t=>{
+                const c = EV_COLORS[t];
+                return (
+                  <button key={t} onClick={()=>setForm(f=>({...f,event_type:t}))}
+                    className={`py-1.5 text-xs font-bold rounded-lg border transition-colors ${form.event_type===t?`${c.bg} ${c.text} border-current`:"bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}>
+                    {t}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="mb-3">
+            <p className="text-xs font-semibold text-slate-400 mb-1.5">상세내용</p>
+            <textarea value={form.content} onChange={e=>setForm(f=>({...f,content:e.target.value}))}
+              rows={2} placeholder="상세 내용 입력 (선택)"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400 resize-none"/>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={()=>setShowAdd(false)} className="flex-1 py-2 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">취소</button>
+            <button onClick={handleAdd} disabled={saving}
+              className="flex-1 py-2 text-xs font-bold bg-[#1E3A8A] text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 flex items-center justify-center gap-1">
+              <Save size={11}/>{saving?"저장중...":"저장"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
+// ── 메인 ──
 // ── 메인 ──
 export default function DashboardPage() {
   const [user, setUser] = useState<CRMUser|null>(null);
@@ -190,8 +363,6 @@ export default function DashboardPage() {
   const [todayEvents, setTodayEvents] = useState<TodayEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
-  const [calYear, setCalYear] = useState(new Date().getFullYear());
-  const [calMonth, setCalMonth] = useState(new Date().getMonth()+1);
   const [eventDate, setEventDate] = useState(new Date().toISOString().split("T")[0]);
 
   // 기간 필터
@@ -375,25 +546,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 캘린더 */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-700">캘린더</h3>
-            <div className="flex items-center gap-2">
-              <button onClick={()=>{ if(calMonth===1){setCalMonth(12);setCalYear(y=>y-1);}else setCalMonth(m=>m-1);}}
-                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
-                <ChevronLeft size={14}/>
-              </button>
-              <span className="text-sm font-bold text-slate-700 w-24 text-center">{calYear}년 {calMonth}월</span>
-              <button onClick={()=>{ if(calMonth===12){setCalMonth(1);setCalYear(y=>y+1);}else setCalMonth(m=>m+1);}}
-                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
-                <ChevronRight size={14}/>
-              </button>
-            </div>
-          </div>
-          <div className="p-4">
-            <Calendar year={calYear} month={calMonth}/>
-          </div>
-        </div>
+        <DashCalendar user={user} />
 
       </div>
     </div>
