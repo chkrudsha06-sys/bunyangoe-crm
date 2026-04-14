@@ -273,45 +273,45 @@ export default function ContactsPage() {
               <tbody>
                 {contacts.map((c, i) => (
                   <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                    <td className="px-3 py-2.5 text-slate-400 text-xs">{(page-1)*PER_PAGE+i+1}</td>
-                    <td className="px-3 py-2.5 font-bold text-slate-800 truncate">{c.name}</td>
-                    <td className="px-3 py-2.5 text-slate-500 text-xs truncate">{c.title||"-"}</td>
-                    <td className="px-3 py-2.5 text-slate-600 text-xs">{c.phone||"-"}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center align-middle text-slate-400 text-xs">{(page-1)*PER_PAGE+i+1}</td>
+                    <td className="px-3 py-2.5 text-center align-middle font-bold text-slate-800 truncate">{c.name}</td>
+                    <td className="px-3 py-2.5 text-center align-middle text-slate-500 text-xs truncate">{c.title||"-"}</td>
+                    <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{c.phone||"-"}</td>
+                    <td className="px-3 py-2.5 text-center align-middle">
                       {c.customer_type ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${BADGE[c.customer_type]||"bg-slate-100 text-slate-600"}`}>{c.customer_type}</span> : <span className="text-slate-300 text-xs">-</span>}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center align-middle">
                       <div className="text-xs text-slate-600 truncate max-w-[100px] cursor-pointer"
                         onDoubleClick={()=>c.tm_sensitivity&&setPopup(c.tm_sensitivity)}>
                         {c.tm_sensitivity||"-"}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center align-middle">
                       {c.prospect_type ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.prospect_type]||"bg-slate-100 text-slate-600"}`}>{c.prospect_type}</span> : <span className="text-slate-300 text-xs">-</span>}
                     </td>
-                    <td className="px-3 py-2.5 text-xs text-slate-600 truncate">
+                    <td className="px-3 py-2.5 text-center align-middle text-xs text-slate-600 truncate">
                       {c.meeting_date ? new Date(c.meeting_date+"T00:00:00").toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})
                        : c.meeting_date_text || "-"}
                     </td>
-                    <td className="px-3 py-2.5 text-xs text-slate-500 truncate max-w-[90px] cursor-pointer"
+                    <td className="px-3 py-2.5 text-center align-middle text-xs text-slate-500 truncate max-w-[90px] cursor-pointer"
                       onDoubleClick={()=>c.meeting_address&&setPopup(c.meeting_address)}>
                       {c.meeting_address||"-"}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center align-middle">
                       {c.meeting_result ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.meeting_result]||"bg-slate-100 text-slate-600"}`}>{c.meeting_result}</span> : <span className="text-slate-300 text-xs">-</span>}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center align-middle">
                       {c.management_stage ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.management_stage]||"bg-slate-100 text-slate-600"}`}>{c.management_stage}</span> : <span className="text-slate-300 text-xs">-</span>}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center align-middle">
                       <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full">{c.assigned_to||"-"}</span>
                     </td>
-                    <td className="px-3 py-2.5 text-xs text-slate-500 truncate">{(c as any).consultant||"-"}</td>
-                    <td className="px-3 py-2.5 max-w-[120px] cursor-pointer"
+                    <td className="px-3 py-2.5 text-center align-middle text-xs text-slate-500 truncate">{(c as any).consultant||"-"}</td>
+                    <td className="px-3 py-2.5 text-center align-middle max-w-[120px] cursor-pointer"
                       onDoubleClick={()=>c.memo&&setPopup(c.memo)}>
                       <p className="text-xs text-slate-500 truncate">{c.memo||"-"}</p>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center align-middle">
                       <div className="flex gap-1">
                         <button onClick={()=>openEdit(c)}
                           className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
@@ -430,7 +430,7 @@ export default function ContactsPage() {
               </div>
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
-              <button onClick={()=>setShowModal(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">취소</button>
+              <button onClick={()=>setShowModal(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 text-center align-middle">취소</button>
               <button onClick={handleSave} disabled={saving}
                 className="px-6 py-2 text-sm bg-[#1E3A8A] text-white font-bold rounded-xl hover:bg-blue-800 disabled:opacity-50">
                 {saving ? "저장 중..." : editContact ? "수정 완료" : "등록"}
