@@ -85,13 +85,14 @@ export default function SalesPage() {
   const [editId, setEditId]           = useState<number|null>(null);
   const [form, setForm]               = useState<any>(EMPTY_FORM);
   const [saving, setSaving]           = useState(false);
+  const [filterRoute, setFilterRoute]     = useState("");
   const [filterChannel, setFilterChannel] = useState("");
   const [filterMember, setFilterMember]   = useState("");
   const [filterStart, setFilterStart]     = useState("");
   const [filterEnd, setFilterEnd]         = useState("");
   const [vipSearch, setVipSearch]         = useState("");
 
-  useEffect(() => { fetchExecutions(); }, [filterChannel, filterMember, filterStart, filterEnd]);
+  useEffect(() => { fetchExecutions(); }, [filterRoute, filterChannel, filterMember, filterStart, filterEnd]);
   useEffect(() => { fetchVipMembers(); }, []);
 
   const fetchExecutions = async () => {
@@ -102,6 +103,7 @@ export default function SalesPage() {
     } else if (filterChannel) {
       q = q.eq("channel", filterChannel);
     }
+    if (filterRoute)   q = q.eq("contract_route", filterRoute);
     if (filterMember)  q = q.eq("team_member", filterMember);
     if (filterStart)   q = q.gte("payment_date", filterStart);
     if (filterEnd)     q = q.lte("payment_date", filterEnd);
@@ -335,6 +337,12 @@ export default function SalesPage() {
 
         {/* 필터 */}
         <div className="flex gap-2 flex-wrap items-center">
+          <select value={filterRoute} onChange={e=>setFilterRoute(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+            <option value="">전체 매출구분</option>
+            <option value="분양회">분양회</option>
+            <option value="완판트럭">완판트럭</option>
+            <option value="대협팀활동">대협팀활동</option>
+          </select>
           <select value={filterChannel} onChange={e=>setFilterChannel(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
             <option value="">전체 채널</option>
             <option value="호갱노노(전체)">호갱노노(전체)</option>
