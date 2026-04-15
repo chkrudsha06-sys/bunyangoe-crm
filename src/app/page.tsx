@@ -1,120 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, CRMUser } from "@/lib/auth";
 import { Clock, ChevronLeft, ChevronRight, Plus, X, Save, Trash2 } from "lucide-react";
-
-// ── 마우스 파티클 캔버스 ──────────────────────────────────
-function ParticleCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let w = canvas.width  = window.innerWidth;
-    let h = canvas.height = window.innerHeight;
-    let animId: number;
-    const mouse = { x: w / 2, y: h / 2 };
-
-    const onResize = () => {
-      w = canvas.width  = window.innerWidth;
-      h = canvas.height = window.innerHeight;
-    };
-    const onMouse = (e: MouseEvent) => { mouse.x = e.clientX; mouse.y = e.clientY; };
-
-    window.addEventListener("resize", onResize);
-    window.addEventListener("mousemove", onMouse);
-
-    // 파티클 생성
-    type P = { x:number; y:number; vx:number; vy:number; r:number; alpha:number };
-    const particles: P[] = Array.from({ length: 80 }, () => ({
-      x: Math.random() * w,
-      y: Math.random() * h,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: (Math.random() - 0.5) * 0.4,
-      r: Math.random() * 2 + 1,
-      alpha: Math.random() * 0.4 + 0.1,
-    }));
-
-    const draw = () => {
-      ctx.clearRect(0, 0, w, h);
-
-      // 파티클 이동 + 그리기
-      for (const p of particles) {
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0 || p.x > w) p.vx *= -1;
-        if (p.y < 0 || p.y > h) p.vy *= -1;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(96,165,250,${p.alpha})`;
-        ctx.fill();
-      }
-
-      // 파티클 간 연결선
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(96,165,250,${(1 - dist/120) * 0.15})`;
-            ctx.lineWidth = 0.8;
-            ctx.stroke();
-          }
-        }
-      }
-
-      // 마우스 주변 연결
-      for (const p of particles) {
-        const dx = p.x - mouse.x;
-        const dy = p.y - mouse.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < 160) {
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(mouse.x, mouse.y);
-          ctx.strokeStyle = `rgba(147,197,253,${(1 - dist/160) * 0.35})`;
-          ctx.lineWidth = 1;
-          ctx.stroke();
-        }
-      }
-
-      // 마우스 포인트
-      ctx.beginPath();
-      ctx.arc(mouse.x, mouse.y, 3, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(147,197,253,0.6)";
-      ctx.fill();
-
-      animId = requestAnimationFrame(draw);
-    };
-
-    draw();
-    return () => {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("mousemove", onMouse);
-      cancelAnimationFrame(animId);
-    };
-  }, []);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: "fixed", top: 0, left: 0,
-        width: "100%", height: "100%",
-        pointerEvents: "none", zIndex: 0,
-        opacity: 0.5,
-      }}
-    />
-  );
-}
 
 // ── 타입 ──
 interface Stats {
@@ -654,8 +543,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-[#F1F5F9]" style={{ position:"relative" }}>
-      <ParticleCanvas/>
+    <div className="flex flex-col h-full bg-[#F1F5F9]">
       {/* 헤더 */}
       <div className="bg-white border-b border-slate-200 px-6 py-3 sticky top-0 z-10">
         <div className="flex items-center justify-between">
