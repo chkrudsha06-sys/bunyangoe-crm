@@ -138,7 +138,7 @@ export default function RewardsPage() {
       const ex = getExecByQuarter(contact, q);
       cumMileage += ex.mileage; cumHt += ex.htReward;
       cumHog += ex.hogReward;   cumLms += ex.lmsReward;
-      totalPaid += payments.filter(p=>p.contact_id===contact.id && p.quarter===q).reduce((s,p)=>s+(p.paid_amount||0),0);
+      totalPaid += payments.filter(p=>(p.contact_id===contact.id || (p as any).member_name===contact.name) && p.quarter===q).reduce((s,p)=>s+(p.paid_amount||0),0);
     }
     const myMileUsages = mileageUsages.filter(m=>m.contact_id===contact.id);
     const mileUsed  = myMileUsages.reduce((s,m)=>s+(m.usage_amount||0),0);
