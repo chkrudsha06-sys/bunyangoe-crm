@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { login, getCurrentUser } from "@/lib/auth";
 
 // ─── 인트로 오버레이 ─────────────────────────────────────────
-type IntroPhase = 'idle'|'typing1'|'hold1'|'exit1'|'typing2'|'hold2'|'exit2'|'crm'|'holdcrm'|'done';
+type IntroPhase = 'idle'|'typing1'|'hold1'|'exit1'|'typing2'|'hold2'|'exit2'|'netflix'|'spread'|'done';
 
 function IntroOverlay({ onDone }: { onDone: () => void }) {
   const [phase, setPhase]             = useState<IntroPhase>('idle');
@@ -13,8 +13,9 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
   const [chars2, setChars2]           = useState(0);
   const [textOpacity, setTextOpacity] = useState(1);
   const [overlayOpacity, setOverlayOpacity] = useState(1);
-  const [crmScale, setCrmScale]       = useState(3);
-  const [crmOpacity, setCrmOpacity]   = useState(0);
+  // 넷플릭스 효과용
+  const [netflixW, setNetflixW]       = useState(0);   // 가로 퍼짐 0→100vw
+  const [netflixOpacity, setNetflixOpacity] = useState(1);
 
   const TEXT1 = "FIRST MOVER";
   const TEXT2 = "1%";
@@ -38,7 +39,6 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
 
           T.push(setTimeout(() => {
             setChars1(0); setTextOpacity(1);
-
             // ② 1% 타이핑 (150ms/글자)
             setPhase('typing2');
             let j = 0;
@@ -50,28 +50,27 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
             T.push(setTimeout(() => {
               setPhase('hold2');
               T.push(setTimeout(() => {
-                // ③ 분양회 CRM — 뒤에서 앞으로 등장
+                // ③ 1% 페이드 후 넷플릭스 등장
                 setPhase('exit2'); setTextOpacity(0);
                 T.push(setTimeout(() => {
-                  setChars2(0); setTextOpacity(1);
-                  setPhase('crm');
-                  setCrmScale(3); setCrmOpacity(0);
-                  requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                      setCrmScale(1); setCrmOpacity(1);
-                    });
-                  });
+                  setTextOpacity(1);
+                  setPhase('netflix');
+                  // 가운데서 옆으로 퍼지기 시작
+                  setNetflixW(0); setNetflixOpacity(1);
+                  requestAnimationFrame(() => requestAnimationFrame(() => {
+                    setNetflixW(100);
+                  }));
+
+                  // 퍼진 후 페이드아웃
                   T.push(setTimeout(() => {
-                    setPhase('holdcrm');
+                    setPhase('spread');
+                    setNetflixOpacity(0);
                     T.push(setTimeout(() => {
-                      setTextOpacity(0);
-                      T.push(setTimeout(() => {
-                        setOverlayOpacity(0);
-                        T.push(setTimeout(() => { setPhase('done'); onDone(); }, 800));
-                      }, 350));
-                    }, 900));
-                  }, 300));
-                }, 350));
+                      setOverlayOpacity(0);
+                      T.push(setTimeout(() => { setPhase('done'); onDone(); }, 700));
+                    }, 600));
+                  }, 1400));
+                }, 300));
               }, 500));
             }, TEXT2.length * 150 + 80));
           }, 350));
@@ -89,7 +88,7 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
       position: 'fixed', inset: 0, zIndex: 30,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       opacity: overlayOpacity,
-      transition: 'opacity 0.8s ease',
+      transition: 'opacity 0.7s ease',
       pointerEvents: 'none',
     }}>
       <div style={{
@@ -101,11 +100,11 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
         boxSizing: 'border-box' as const,
       }}>
 
-        {/* FIRST MOVER — 명조체, 자간 축소 */}
+        {/* ① FIRST MOVER */}
         {(phase === 'typing1' || phase === 'hold1' || phase === 'exit1') && (
           <div style={{
             fontSize: 'clamp(44px, 6.5vw, 96px)',
-            fontWeight: 700,
+            fontWeight: 800,
             color: '#ffffff',
             letterSpacing: '0.08em',
             fontFamily: "'Montserrat','Pretendard',sans-serif",
@@ -124,11 +123,11 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
           </div>
         )}
 
-        {/* 1% — 명조체 */}
+        {/* ② 1% */}
         {(phase === 'typing2' || phase === 'hold2' || phase === 'exit2') && (
           <div style={{
             fontSize: 'clamp(80px, 14vw, 200px)',
-            fontWeight: 700,
+            fontWeight: 800,
             color: '#ffffff',
             letterSpacing: '0.04em',
             fontFamily: "'Montserrat','Pretendard',sans-serif",
@@ -147,22 +146,63 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
           </div>
         )}
 
-        {/* 분양회 CRM — 뒤에서 앞으로 튀어나오는 애니메이션 */}
-        {(phase === 'crm' || phase === 'holdcrm') && (
+        {/* ③ 넷플릭스 스타일 — Bunyangoe Circle + CRM System */}
+        {(phase === 'netflix' || phase === 'spread') && (
           <div style={{
-            fontSize: 'clamp(36px, 5.5vw, 80px)',
-            fontWeight: 700,
-            color: '#ffffff',
-            letterSpacing: '0.06em',
-            fontFamily: "'Montserrat','Pretendard',sans-serif",
-            textShadow: '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(200,168,80,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            whiteSpace: 'nowrap' as const,
-            transform: `scale(${crmScale})`,
-            opacity: crmOpacity,
-            transition: 'transform 0.65s cubic-bezier(0.16,1,0.3,1), opacity 0.5s ease',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            opacity: netflixOpacity,
+            transition: 'opacity 0.6s ease',
+            overflow: 'hidden',
           }}>
-            분양회 CRM
+            {/* 가로 퍼짐 컨테이너 */}
+            <div style={{
+              width: `${netflixW}vw`,
+              maxWidth: '900px',
+              transition: 'width 1.1s cubic-bezier(0.22,1,0.36,1)',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap' as const,
+              textAlign: 'center',
+            }}>
+              {/* Bunyangoe Circle */}
+              <div style={{
+                fontSize: 'clamp(32px, 5vw, 76px)',
+                fontWeight: 900,
+                fontFamily: "'Montserrat','Pretendard',sans-serif",
+                letterSpacing: '0.05em',
+                background: 'linear-gradient(135deg, #ffffff 0%, #D4A843 40%, #ffffff 70%, #C9A030 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                textShadow: 'none',
+                lineHeight: 1.15,
+                display: 'block',
+              }}>
+                Bunyangoe Circle
+              </div>
+              {/* CRM System */}
+              <div style={{
+                fontSize: 'clamp(13px, 1.6vw, 26px)',
+                fontWeight: 400,
+                fontFamily: "'Montserrat','Pretendard',sans-serif",
+                letterSpacing: '0.35em',
+                color: 'rgba(255,255,255,0.65)',
+                marginTop: '6px',
+                textTransform: 'uppercase' as const,
+                display: 'block',
+              }}>
+                CRM SYSTEM
+              </div>
+            </div>
+            {/* 하단 골드 라인 — 함께 퍼짐 */}
+            <div style={{
+              width: `${netflixW * 0.6}vw`,
+              maxWidth: '540px',
+              height: '1.5px',
+              marginTop: '14px',
+              background: 'linear-gradient(90deg, transparent, #D4A843, transparent)',
+              transition: 'width 1.2s cubic-bezier(0.22,1,0.36,1)',
+            }}/>
           </div>
         )}
       </div>
