@@ -37,12 +37,12 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
         T.push(setTimeout(() => {
           raf(() => { setCenterOp(1); setCenterY(0); });
 
-          // ④ 완전히 열린 후 done
+          // ④ 3초 유지 후 done
           T.push(setTimeout(() => {
             setDone(true);
             onDone();
-          }, 600));
-        }, 400));
+          }, 3000));
+        }, 200));
       }, 1400));
     }, 500));
 
