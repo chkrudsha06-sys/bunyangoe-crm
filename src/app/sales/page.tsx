@@ -157,13 +157,15 @@ export default function SalesPage() {
     Array.isArray(ch) ? list.filter(e=>ch.includes(e.channel)) : list.filter(e=>e.channel===ch);
 
   const calc = (list: AdExecution[]) => {
-    const adBunyan = filterCh(list.filter(e=>e.contract_route==="분양회"), ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"]);
+    const bunyanList  = list.filter(e=>e.contract_route==="분양회");
+    const adBunyan    = filterCh(bunyanList, ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"]);
     const refundTotal = list.reduce((s,e)=>s+(e.refund_amount||0),0);
+    const refundBunyan = bunyanList.reduce((s,e)=>s+(e.refund_amount||0),0);
     return {
       total:     sumEff(list) - refundTotal,
       inBunyan:  sumEff(filterCh(list,"분양회 입회비")),
       monBunyan: sumEff(filterCh(list,"분양회 월회비")),
-      adSpecial: sumEff(adBunyan) - refundTotal,
+      adSpecial: sumEff(adBunyan) - refundBunyan,
       hightarget:sumEff(filterCh(list,"하이타겟")),
       hogaengCh: sumEff(filterCh(list,"호갱노노_채널톡")),
       hogaengDan:sumEff(filterCh(list,"호갱노노_단지마커")),
