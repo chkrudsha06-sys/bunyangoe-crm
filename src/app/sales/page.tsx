@@ -157,18 +157,19 @@ export default function SalesPage() {
     Array.isArray(ch) ? list.filter(e=>ch.includes(e.channel)) : list.filter(e=>e.channel===ch);
 
   const calc = (list: AdExecution[]) => {
-    const adList = filterCh(list, ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"]);
+    const adBunyan = filterCh(list.filter(e=>e.contract_route==="분양회"), ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"]);
+    const refundTotal = list.reduce((s,e)=>s+(e.refund_amount||0),0);
     return {
-      total:       { amt: sumAmt(list),                          vat: sumVat(list) },
-      inBunyan:    { amt: sumAmt(filterCh(list,"분양회 입회비")), vat: sumVat(filterCh(list,"분양회 입회비")) },
-      monBunyan:   { amt: sumAmt(filterCh(list,"분양회 월회비")), vat: sumVat(filterCh(list,"분양회 월회비")) },
-      adSpecial:   { amt: sumAmt(filterCh(list.filter(e=>e.contract_route==="분양회"), ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"])), vat: sumVat(filterCh(list.filter(e=>e.contract_route==="분양회"), ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"])) },
-      hightarget:  { amt: sumAmt(filterCh(list,"하이타겟")),      vat: sumVat(filterCh(list,"하이타겟")) },
-      hogaengCh:   { amt: sumAmt(filterCh(list,"호갱노노_채널톡")),  vat: sumVat(filterCh(list,"호갱노노_채널톡")) },
-      hogaengDan:  { amt: sumAmt(filterCh(list,"호갱노노_단지마커")), vat: sumVat(filterCh(list,"호갱노노_단지마커")) },
-      hogaengEtc:  { amt: sumAmt(filterCh(list,"호갱노노_기타")),     vat: sumVat(filterCh(list,"호갱노노_기타")) },
-      lms:         { amt: sumAmt(filterCh(list,"LMS")),           vat: sumVat(filterCh(list,"LMS")) },
-      refund:      list.reduce((s,e)=>s+(e.refund_amount||0),0),
+      total:     sumEff(list) - refundTotal,
+      inBunyan:  sumEff(filterCh(list,"분양회 입회비")),
+      monBunyan: sumEff(filterCh(list,"분양회 월회비")),
+      adSpecial: sumEff(adBunyan) - refundTotal,
+      hightarget:sumEff(filterCh(list,"하이타겟")),
+      hogaengCh: sumEff(filterCh(list,"호갱노노_채널톡")),
+      hogaengDan:sumEff(filterCh(list,"호갱노노_단지마커")),
+      hogaengEtc:sumEff(filterCh(list,"호갱노노_기타")),
+      lms:       sumEff(filterCh(list,"LMS")),
+      refund:    refundTotal,
     };
   };
 
