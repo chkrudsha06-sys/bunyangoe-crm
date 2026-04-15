@@ -9,6 +9,9 @@ interface VipContact {
   bunyanghoe_number: string | null;
   assigned_to: string; consultant: string | null;
   meeting_result: string;
+  bank_holder: string | null;
+  bank_name: string | null;
+  bank_account: string | null;
 }
 interface AdExecution {
   id: number; member_name: string; bunyanghoe_number: string | null;
@@ -97,7 +100,7 @@ export default function RewardsPage() {
     setLoading(true);
     const [{ data:c },{ data:e },{ data:p },{ data:m }] = await Promise.all([
       supabase.from("contacts")
-        .select("id,name,title,bunyanghoe_number,assigned_to,consultant,meeting_result")
+        .select("id,name,title,bunyanghoe_number,assigned_to,consultant,meeting_result,bank_holder,bank_name,bank_account")
         .in("meeting_result",["계약완료","예약완료"]),
       supabase.from("ad_executions")
         .select("id,member_name,bunyanghoe_number,hightarget_mileage,hightarget_reward,hogaengnono_reward,lms_reward,payment_date,contract_route")
@@ -403,13 +406,20 @@ export default function RewardsPage() {
                       <td className="px-2 py-2.5 text-center">
                         {d.netPay > 0 ? (
                           pInline ? (
-                            <div className="flex flex-col gap-1 min-w-[120px]">
+                            <div className="flex flex-col gap-1 min-w-[140px]">
                               <input type="date" value={pInline.date}
                                 onChange={e=>setPayInline(p=>({...p,[contact.id]:{...p[contact.id],date:e.target.value}}))}
                                 className={inp}/>
                               <input value={pInline.amt} placeholder="지급금액"
                                 onChange={e=>setPayInline(p=>({...p,[contact.id]:{...p[contact.id],amt:e.target.value.replace(/[^0-9]/g,"").replace(/\B(?=(\d{3})+(?!\d))/g,",")}}))}
                                 className={inp}/>
+                              {(contact.bank_holder||contact.bank_name||contact.bank_account) && (
+                                <div className="bg-slate-50 rounded px-2 py-1 border border-slate-200 text-[10px] text-slate-500 space-y-0.5">
+                                  {contact.bank_holder && <p>예금주: <span className="font-semibold text-slate-700">{contact.bank_holder}</span></p>}
+                                  {contact.bank_name && <p>은행: <span className="font-semibold text-slate-700">{contact.bank_name}</span></p>}
+                                  {contact.bank_account && <p>계좌: <span className="font-semibold text-slate-700">{contact.bank_account}</span></p>}
+                                </div>
+                              )}
                               <div className="flex gap-1">
                                 <button onClick={()=>handlePaySave(contact, d.netPay)}
                                   className="flex-1 py-1 text-xs bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700">지급확정</button>
