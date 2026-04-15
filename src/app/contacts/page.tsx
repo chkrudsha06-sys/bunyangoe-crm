@@ -157,6 +157,8 @@ export default function ContactsPage() {
       prospect_type: c.prospect_type || "", meeting_date: c.meeting_date?.split("T")[0] || "",
       meeting_date_text: c.meeting_date_text || "", meeting_address: c.meeting_address || "",
       meeting_result: c.meeting_result || "", management_stage: c.management_stage || "", regular_payment_date: (c as any).regular_payment_date || "",
+      contract_date: (c as any).contract_date || "", reservation_date: (c as any).reservation_date || "",
+      consultant: (c as any).consultant || "",
       memo: c.memo || "", assigned_to: c.assigned_to || "",
     });
     setUseDatePicker(!c.meeting_date_text);
@@ -195,10 +197,12 @@ export default function ContactsPage() {
     }
     setSaving(false);
     if (error) {
-      alert(`저장 실패: ${error.message}`);
+      console.error("저장 에러:", error);
+      alert(`저장 실패: ${error.message}\n\n코드: ${error.code || "-"}\n상세: ${error.details || "-"}`);
       return;
     }
     setShowModal(false);
+    setPage(1);
     fetchContacts();
   };
 
