@@ -101,7 +101,7 @@ export default function SalesPage() {
 
   const fetchExecutions = async () => {
     setLoading(true);
-    let q = supabase.from("ad_executions").select("*").order("payment_date",{ascending:false,nullsFirst:false});
+    let q = supabase.from("ad_executions").select("*").order("payment_date",{ascending:false,nullsFirst:true});
     if (filterChannel === "호갱노노(전체)") {
       q = q.in("channel", ["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타"]);
     } else if (filterChannel) {
@@ -361,10 +361,15 @@ export default function SalesPage() {
             <option value="">전체 담당자</option>
             {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
           </select>
-          <select value={filterRefund} onChange={e=>setFilterRefund(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-            <option value="">전체</option>
-            <option value="refund">환불 건만</option>
-          </select>
+          <button
+            onClick={()=>setFilterRefund(filterRefund==="refund" ? "" : "refund")}
+            className={`text-sm px-3 py-1.5 rounded-lg border font-semibold transition-all ${
+              filterRefund==="refund"
+                ? "bg-red-50 text-red-600 border-red-300"
+                : "bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300"
+            }`}>
+            환불건
+          </button>
           {/* 월별 빠른 탐색 */}
           <select value={filterMonth} onChange={e=>{ setFilterMonth(e.target.value); setFilterStart(""); setFilterEnd(""); }}
             className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
@@ -386,6 +391,15 @@ export default function SalesPage() {
                 className="text-slate-400 hover:text-red-400 text-xs ml-1">✕</button>
             )}
           </div>
+          {/* 전체 초기화 */}
+          <button
+            onClick={()=>{
+              setFilterRoute(""); setFilterChannel(""); setFilterMember("");
+              setFilterStart(""); setFilterEnd(""); setFilterRefund(""); setFilterMonth("");
+            }}
+            className="text-sm px-3 py-1.5 bg-white text-slate-400 border border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all font-medium whitespace-nowrap">
+            ↺ 초기화
+          </button>
         </div>
       </div>
 
@@ -405,46 +419,46 @@ export default function SalesPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {["매출구분","분양회 넘버링","고객명","직급","집행금액","VAT포함금액","환불금액","광고채널","결제일/환불일","대협팀담당","담당컨설턴트","하이타겟마일리지","하이타겟리워드","호갱노노리워드","LMS리워드",""].map(h=>(
-                    <th key={h} className="text-left px-3 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
+                  {["매출구분","넘버링","고객명","직급","집행금액","VAT포함","환불금액","광고채널","결제일/환불일","대협팀","컨설턴트","하이타겟마일리지","하이타겟리워드","호갱노노리워드","LMS리워드",""].map(h=>(
+                    <th key={h} className="text-center px-3 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {executions.map(e=>(
                   <tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center">
                       <span className={`text-xs px-1.5 py-0.5 rounded border ${e.contract_route==="분양회"?"bg-amber-50 text-amber-700 border-amber-100":e.contract_route==="완판트럭"?"bg-emerald-50 text-emerald-700 border-emerald-100":e.contract_route==="대협팀활동"?"bg-blue-50 text-blue-700 border-blue-100":"bg-slate-50 text-slate-500 border-slate-100"}`}>
                         {e.contract_route||"-"}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-xs font-bold text-amber-600">{(e as any).bunyanghoe_number||"-"}</td>
-                    <td className="px-3 py-2.5 font-semibold text-slate-800 text-xs">{e.member_name}</td>
-                    <td className="px-3 py-2.5 text-slate-500 text-xs">{e.position||"-"}</td>
-                    <td className="px-3 py-2.5 font-bold text-slate-800 text-xs">{fwFull(e.execution_amount)}</td>
-                    <td className="px-3 py-2.5 text-xs">
+                    <td className="px-3 py-2.5 text-xs font-bold text-amber-600 text-center">{(e as any).bunyanghoe_number||"-"}</td>
+                    <td className="px-3 py-2.5 font-semibold text-slate-800 text-xs text-center">{e.member_name}</td>
+                    <td className="px-3 py-2.5 text-slate-500 text-xs text-center">{e.position||"-"}</td>
+                    <td className="px-3 py-2.5 font-bold text-slate-800 text-xs text-center">{fwFull(e.execution_amount)}</td>
+                    <td className="px-3 py-2.5 text-xs text-center">
                       {e.vat_amount && e.vat_amount !== e.execution_amount
                         ? <span className="font-bold text-blue-600">{fwFull(e.vat_amount)}</span>
                         : <span className="text-slate-400">-</span>}
                     </td>
-                    <td className="px-3 py-2.5 text-xs">
+                    <td className="px-3 py-2.5 text-xs text-center">
                       {(e as any).refund_amount
                         ? <span className="font-bold text-red-500">-{((e as any).refund_amount).toLocaleString()}원</span>
                         : <span className="text-slate-300">-</span>}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center">
                       <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100">{e.channel}</span>
                     </td>
-                    <td className="px-3 py-2.5 text-slate-500 text-xs">
+                    <td className="px-3 py-2.5 text-slate-500 text-xs text-center">
                       {e.payment_date ? new Date(e.payment_date).toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"}) : "-"}
                     </td>
-                    <td className="px-3 py-2.5 text-xs"><span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full">{e.team_member||"-"}</span></td>
-                    <td className="px-3 py-2.5 text-slate-500 text-xs">{e.consultant||"-"}</td>
-                    <td className="px-3 py-2.5 text-blue-600 font-medium text-xs">{e.hightarget_mileage ? fw(e.hightarget_mileage) : "-"}</td>
-                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs">{e.hightarget_reward ? fw(e.hightarget_reward) : "-"}</td>
-                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs">{e.hogaengnono_reward ? fw(e.hogaengnono_reward) : "-"}</td>
-                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs">{e.lms_reward ? fw(e.lms_reward) : "-"}</td>
-                    <td className="px-3 py-2.5 flex items-center gap-1">
+                    <td className="px-3 py-2.5 text-xs text-center"><span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full">{e.team_member||"-"}</span></td>
+                    <td className="px-3 py-2.5 text-slate-500 text-xs text-center">{e.consultant||"-"}</td>
+                    <td className="px-3 py-2.5 text-blue-600 font-medium text-xs text-center">{e.hightarget_mileage ? fw(e.hightarget_mileage) : "-"}</td>
+                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs text-center">{e.hightarget_reward ? fw(e.hightarget_reward) : "-"}</td>
+                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs text-center">{e.hogaengnono_reward ? fw(e.hogaengnono_reward) : "-"}</td>
+                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs text-center">{e.lms_reward ? fw(e.lms_reward) : "-"}</td>
+                    <td className="px-3 py-2.5 flex items-center gap-1 text-center">
                       <button onClick={()=>handleEdit(e)} className="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50 flex items-center gap-1">
                         <Edit2 size={11}/>수정
                       </button>
