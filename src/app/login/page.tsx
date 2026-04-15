@@ -4,190 +4,141 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { login, getCurrentUser } from "@/lib/auth";
 
-// ─── 인트로 오버레이 (luminaire 스타일) ───────────────────────
-type IntroPhase =
-  | 'black'        // 검정 화면 대기
-  | 'line1_in'     // "First Mover" 올라오며 등장
-  | 'line1_hold'
-  | 'line1_out'    // 올라가며 퇴장
-  | 'line2_in'     // "1%" 등장
-  | 'line2_hold'
-  | 'line2_out'
-  | 'line3_in'     // "Bunyangoe" 등장
-  | 'line3_hold'
-  | 'fade_out'     // 검정 오버레이 사라지며 로그인 페이지 전환
-  | 'done';
-
+// ─── 인트로 오버레이 (luminaire 정확 재현) ───────────────────
 function IntroOverlay({ onDone }: { onDone: () => void }) {
-  const [phase, setPhase] = useState<IntroPhase>('black');
-
-  // 각 줄 translateY 애니메이션용
-  const [y1, setY1] = useState(60);   const [op1, setOp1] = useState(0);
-  const [y2, setY2] = useState(60);   const [op2, setOp2] = useState(0);
-  const [y3, setY3] = useState(60);   const [op3, setOp3] = useState(0);
-  const [overlayOp, setOverlayOp] = useState(1);
+  // FIRST MOVER 텍스트 Y
+  const [textY, setTextY]         = useState(0);
+  const [textOp, setTextOp]       = useState(0);
+  // 검정 화면 위/아래 패널 열림
+  const [topH, setTopH]           = useState(50);   // 위 패널 높이% (50→0)
+  const [botH, setBotH]           = useState(50);   // 아래 패널 높이% (50→0)
+  const [panelOpen, setPanelOpen] = useState(false);
+  // 가운데 메인 텍스트 등장
+  const [centerOp, setCenterOp]   = useState(0);
+  const [centerY, setCenterY]     = useState(20);
+  const [done, setDone]           = useState(false);
 
   useEffect(() => {
     const T: ReturnType<typeof setTimeout>[] = [];
-    const raf = (fn: () => void) => requestAnimationFrame(() => requestAnimationFrame(fn));
+    const raf = (fn: ()=>void) => requestAnimationFrame(()=>requestAnimationFrame(fn));
 
-    // ① 검정 대기 0.6s 후 시작
+    // ① 0.5s 후 FIRST MOVER 페이드인 + 약간 위로
     T.push(setTimeout(() => {
-      // Line1: First Mover 등장
-      setPhase('line1_in');
-      raf(() => { setY1(0); setOp1(1); });
+      raf(() => { setTextOp(1); setTextY(0); });
 
+      // ② 1.2s 홀드 후 텍스트 위로 올라가며 + 패널 열리기 시작
       T.push(setTimeout(() => {
-        setPhase('line1_hold');
+        setTextY(-30);
+        setTextOp(0);
+        setPanelOpen(true);
+        raf(() => { setTopH(0); setBotH(0); });
+
+        // ③ 패널 열리면서 가운데 텍스트 등장
         T.push(setTimeout(() => {
-          // Line1 퇴장 (위로)
-          setPhase('line1_out');
-          setY1(-50); setOp1(0);
+          raf(() => { setCenterOp(1); setCenterY(0); });
 
+          // ④ 완전히 열린 후 done
           T.push(setTimeout(() => {
-            // Line2: 1% 등장
-            setY2(60);
-            setPhase('line2_in');
-            raf(() => { setY2(0); setOp2(1); });
-
-            T.push(setTimeout(() => {
-              setPhase('line2_hold');
-              T.push(setTimeout(() => {
-                // Line2 퇴장
-                setPhase('line2_out');
-                setY2(-50); setOp2(0);
-
-                T.push(setTimeout(() => {
-                  // Line3: Bunyangoe 등장
-                  setY3(60);
-                  setPhase('line3_in');
-                  raf(() => { setY3(0); setOp3(1); });
-
-                  T.push(setTimeout(() => {
-                    setPhase('line3_hold');
-                    T.push(setTimeout(() => {
-                      // 전체 페이드아웃 → 로그인 페이지 전환
-                      setPhase('fade_out');
-                      setOverlayOp(0);
-                      T.push(setTimeout(() => {
-                        setPhase('done');
-                        onDone();
-                      }, 1000));
-                    }, 900));
-                  }, 1200));
-                }, 400));
-              }, 700));
-            }, 1000));
-          }, 400));
-        }, 700));
-      }, 1100));
-    }, 600));
+            setDone(true);
+            onDone();
+          }, 600));
+        }, 400));
+      }, 1400));
+    }, 500));
 
     return () => T.forEach(clearTimeout);
   }, [onDone]);
 
-  if (phase === 'done') return null;
-
-  const trans = 'transform 0.75s cubic-bezier(0.16,1,0.3,1), opacity 0.75s cubic-bezier(0.16,1,0.3,1)';
-  const transOut = 'transform 0.55s cubic-bezier(0.4,0,1,1), opacity 0.55s ease';
-
-  // 그림자 — 1%와 Bunyangoe에만 골드
-  const shadowGold = '0 0 60px rgba(184,142,30,0.55), 0 4px 32px rgba(184,142,30,0.3)';
+  if (done) return null;
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 40,
-      background: '#000',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      opacity: overlayOp,
-      transition: 'opacity 0.9s ease',
-      pointerEvents: 'none',
-      overflow: 'hidden',
-    }}>
+    <>
+      {/* 위 검정 패널 */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 35,
+        height: `${topH}vh`,
+        background: '#000',
+        transition: panelOpen ? 'height 1.0s cubic-bezier(0.76,0,0.24,1)' : 'none',
+        pointerEvents: 'none',
+      }}/>
 
-      {/* ── Line 1: First Mover ── */}
-      {(phase==='line1_in'||phase==='line1_hold'||phase==='line1_out') && (
-        <div style={{ overflow:'hidden', textAlign:'center' }}>
+      {/* 아래 검정 패널 */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 35,
+        height: `${botH}vh`,
+        background: '#000',
+        transition: panelOpen ? 'height 1.0s cubic-bezier(0.76,0,0.24,1)' : 'none',
+        pointerEvents: 'none',
+      }}/>
+
+      {/* FIRST MOVER — 패널 열리기 전에만 표시 */}
+      {!panelOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 36,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+          background: '#000',
+        }}>
           <div style={{
             fontFamily: "'Montserrat','Pretendard',sans-serif",
-            fontSize: 'clamp(52px, 7.5vw, 112px)',
-            fontWeight: 300,
-            letterSpacing: '0.18em',
+            fontSize: 'clamp(40px, 6vw, 88px)',
+            fontWeight: 500,
+            letterSpacing: '0.25em',
             color: '#ffffff',
             textTransform: 'uppercase' as const,
-            transform: `translateY(${y1}px)`,
-            opacity: op1,
-            transition: phase==='line1_out' ? transOut : trans,
+            transform: `translateY(${textY}px)`,
+            opacity: textOp,
+            transition: textOp === 0
+              ? 'transform 0.6s ease, opacity 0.5s ease'
+              : 'transform 0.0s, opacity 0.7s ease',
             whiteSpace: 'nowrap' as const,
-            lineHeight: 1,
           }}>
-            <span style={{ fontWeight:300 }}>First </span>
-            <span style={{ fontWeight:800 }}>Mover</span>
+            FIRST MOVER
           </div>
         </div>
       )}
 
-      {/* ── Line 2: 1% ── */}
-      {(phase==='line2_in'||phase==='line2_hold'||phase==='line2_out') && (
-        <div style={{ overflow:'hidden', textAlign:'center' }}>
+      {/* 가운데 고정 텍스트 — 패널 열리면서 등장 */}
+      {panelOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 36,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+        }}>
           <div style={{
-            fontFamily: "'Montserrat','Pretendard',sans-serif",
-            fontSize: 'clamp(100px, 18vw, 260px)',
-            fontWeight: 800,
-            letterSpacing: '-0.02em',
-            color: '#ffffff',
-            textShadow: shadowGold,
-            transform: `translateY(${y2}px)`,
-            opacity: op2,
-            transition: phase==='line2_out' ? transOut : trans,
-            lineHeight: 1,
+            opacity: centerOp,
+            transform: `translateY(${centerY}px)`,
+            transition: 'opacity 0.7s ease, transform 0.7s cubic-bezier(0.16,1,0.3,1)',
+            textAlign: 'center',
           }}>
-            1%
+            {/* 1% */}
+            <div style={{
+              fontFamily: "'Montserrat','Pretendard',sans-serif",
+              fontSize: 'clamp(80px, 15vw, 220px)',
+              fontWeight: 800,
+              letterSpacing: '-0.01em',
+              color: '#ffffff',
+              lineHeight: 1,
+            }}>
+              1%
+            </div>
+            {/* Bunyangoe CRM System */}
+            <div style={{
+              fontFamily: "'Montserrat','Pretendard',sans-serif",
+              fontSize: 'clamp(13px, 1.5vw, 22px)',
+              fontWeight: 400,
+              letterSpacing: '0.42em',
+              color: 'rgba(255,255,255,0.7)',
+              marginTop: '16px',
+              textTransform: 'uppercase' as const,
+            }}>
+              Bunyangoe CRM System
+            </div>
           </div>
         </div>
       )}
-
-      {/* ── Line 3: Bunyangoe ── */}
-      {(phase==='line3_in'||phase==='line3_hold'||phase==='fade_out') && (
-        <div style={{ overflow:'hidden', textAlign:'center' }}>
-          <div style={{
-            fontFamily: "'Montserrat','Pretendard',sans-serif",
-            fontSize: 'clamp(48px, 7vw, 104px)',
-            fontWeight: 700,
-            letterSpacing: '0.12em',
-            color: '#ffffff',
-            textShadow: shadowGold,
-            transform: `translateY(${y3}px)`,
-            opacity: op3,
-            transition: phase==='fade_out' ? 'none' : trans,
-            whiteSpace: 'nowrap' as const,
-            lineHeight: 1,
-          }}>
-            Bunyangoe
-          </div>
-          {/* Shining Your 스타일 서브텍스트 */}
-          <div style={{
-            fontFamily: "'Montserrat','Pretendard',sans-serif",
-            fontSize: 'clamp(13px, 1.4vw, 20px)',
-            fontWeight: 400,
-            letterSpacing: '0.45em',
-            color: 'rgba(255,255,255,0.45)',
-            marginTop: '18px',
-            textTransform: 'uppercase' as const,
-            transform: `translateY(${y3}px)`,
-            opacity: op3 * 0.7,
-            transition: trans,
-          }}>
-            Bunyangoe CRM System
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700;800&display=swap');
-      `}</style>
-    </div>
+    </>
   );
 }
 
