@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Search, Filter, X, Edit2, Trash2, ChevronDown } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Phone, Calendar, MapPin, User, Edit2, Save, X, ChevronDown, Check } from "lucide-react";
 import ContactNotes from "@/components/ContactNotes";
 
-// ── 타입 ──
 interface Contact {
   id: number;
   name: string;
@@ -19,464 +19,405 @@ interface Contact {
   meeting_address: string | null;
   meeting_result: string | null;
   management_stage: string | null;
-  memo: string | null;
   assigned_to: string | null;
+  memo: string | null;
   created_at: string;
 }
 
-const EMPTY_FORM = {
-  name: "", title: "", phone: "",
-  customer_type: "", tm_sensitivity: "", prospect_type: "",
-  meeting_date: "", meeting_date_text: "", meeting_address: "",
-  meeting_result: "", management_stage: "", memo: "", assigned_to: "", consultant: "", contract_date: "", reservation_date: "", regular_payment_date: "",
+const BADGE: Record<string, string> = {
+  계약완료: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  예약완료: "bg-blue-100 text-blue-700 border-blue-200",
+  서류만수취: "bg-purple-100 text-purple-700 border-purple-200",
+  미팅후가망관리: "bg-amber-100 text-amber-700 border-amber-200",
+  계약거부: "bg-red-100 text-red-700 border-red-200",
+  미팅불발: "bg-slate-100 text-slate-500 border-slate-200",
+  즉가입가망: "bg-red-100 text-red-600 border-red-200",
+  미팅예정가망: "bg-amber-100 text-amber-700 border-amber-200",
+  연계매출가망: "bg-slate-100 text-slate-600 border-slate-200",
+  신규: "bg-sky-100 text-sky-700 border-sky-200",
+  기고객: "bg-violet-100 text-violet-700 border-violet-200",
+  리드: "bg-blue-50 text-blue-600 border-blue-100",
+  프로스펙팅: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  딜크로징: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  리텐션: "bg-teal-100 text-teal-700 border-teal-200",
 };
 
-// 옵션 목록
 const OPT = {
   customer_type: ["신규", "기고객"],
-  tm_sensitivity: ["상", "중", "하"],
   prospect_type: ["즉가입가망", "미팅예정가망", "연계매출가망"],
   meeting_result: ["계약완료", "예약완료", "서류만수취", "미팅후가망관리", "계약거부", "미팅불발"],
   management_stage: ["리드", "프로스펙팅", "딜크로징", "리텐션"],
 };
 
-const BADGE: Record<string, string> = {
-  계약완료: "bg-emerald-100 text-emerald-700",
-  예약완료: "bg-blue-100 text-blue-700",
-  서류만수취: "bg-purple-100 text-purple-700",
-  미팅후가망관리: "bg-amber-100 text-amber-700",
-  계약거부: "bg-red-100 text-red-700",
-  미팅불발: "bg-slate-100 text-slate-500",
-  즉가입가망: "bg-red-100 text-red-600",
-  미팅예정가망: "bg-amber-100 text-amber-700",
-  연계매출가망: "bg-slate-100 text-slate-600",
-  신규: "bg-sky-100 text-sky-700",
-  기고객: "bg-violet-100 text-violet-700",
-  리드: "bg-blue-50 text-blue-600",
-  프로스펙팅: "bg-indigo-100 text-indigo-700",
-  딜크로징: "bg-emerald-100 text-emerald-700",
-};
-
 const TEAM = ["조계현", "이세호", "기여운", "최연전"];
+const AVATAR_COLORS = ["bg-blue-500","bg-violet-500","bg-amber-500","bg-emerald-500","bg-rose-500","bg-cyan-500"];
+function getAvatarColor(name: string) {
+  let s = 0; for (const c of name) s += c.charCodeAt(0);
+  return AVATAR_COLORS[s % AVATAR_COLORS.length];
+}
 
-// ── 팝업 셀 ──
-function CellPopup({ value, onClose }: { value: string; onClose: () => void }) {
+function Badge({ value }: { value: string }) {
+  return <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${BADGE[value] || "bg-slate-100 text-slate-600 border-slate-200"}`}>{value}</span>;
+}
+
+// ─── 인라인 셀렉트 컴포넌트 ───────────────────────────────────────
+// 클릭하면 드롭다운 → 선택 즉시 Supabase 저장
+function InlineSelect({
+  value,
+  options,
+  onSave,
+}: {
+  value: string | null;
+  options: string[];
+  onSave: (val: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // 바깥 클릭 시 닫기
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const handleSelect = async (val: string) => {
+    setSaving(true);
+    await onSave(val);
+    setSaving(false);
+    setOpen(false);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-start mb-3">
-          <h3 className="font-bold text-slate-700 text-sm">상세 내용</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+    <div ref={ref} className="relative inline-block">
+      {/* 현재 값 표시 — 클릭하면 드롭다운 열림 */}
+      <button
+        onClick={() => setOpen(!open)}
+        className={`flex items-center gap-1 group transition-all ${saving ? "opacity-50 cursor-wait" : "cursor-pointer"}`}
+        disabled={saving}
+        title="클릭해서 바로 변경"
+      >
+        {value ? (
+          <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${BADGE[value] || "bg-slate-100 text-slate-600 border-slate-200"} group-hover:shadow-sm transition-shadow`}>
+            {value}
+          </span>
+        ) : (
+          <span className="text-xs px-2.5 py-1 rounded-full font-semibold border border-dashed border-slate-300 text-slate-400 group-hover:border-blue-400 group-hover:text-blue-400 transition-colors">
+            선택하기
+          </span>
+        )}
+        <ChevronDown
+          size={11}
+          className={`text-slate-400 transition-transform group-hover:text-blue-500 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {/* 드롭다운 */}
+      {open && (
+        <div className="absolute left-0 top-full mt-1.5 z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 min-w-[140px]">
+          {options.map((opt) => (
+            <button
+              key={opt}
+              onClick={() => handleSelect(opt)}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-slate-50 transition-colors"
+            >
+              <span className={`px-2 py-0.5 rounded-full font-semibold border ${BADGE[opt] || "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                {opt}
+              </span>
+              {value === opt && <Check size={12} className="text-blue-500 ml-2 flex-shrink-0" />}
+            </button>
+          ))}
         </div>
-        <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">{value}</p>
+      )}
+    </div>
+  );
+}
+// ────────────────────────────────────────────────────────────────
+
+function InfoRow({ label, value, children }: { label: string; value?: string | null; children?: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-4 py-3 border-b border-slate-50 last:border-0">
+      <span className="text-xs font-semibold text-slate-400 w-28 flex-shrink-0 mt-0.5">{label}</span>
+      <div className="flex-1">
+        {children || (value ? <span className="text-sm text-slate-700">{value}</span> : <span className="text-sm text-slate-300">-</span>)}
       </div>
     </div>
   );
 }
 
-// ── Select 컴포넌트 ──
-function Sel({ val, onChange, opts, placeholder, className="" }: {
-  val: string; onChange: (v: string) => void;
-  opts: string[]; placeholder: string; className?: string;
-}) {
-  return (
-    <div className={`relative ${className}`}>
-      <select value={val} onChange={e=>onChange(e.target.value)}
-        className="w-full appearance-none px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-400 pr-8">
-        <option value="">{placeholder}</option>
-        {opts.map(o=><option key={o} value={o}>{o}</option>)}
-      </select>
-      <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
-    </div>
-  );
-}
-
-// ── 메인 ──
-export default function ContactsPage() {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [total, setTotal] = useState(0);
+export default function ContactDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const [contact, setContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editContact, setEditContact] = useState<Contact | null>(null);
-  const [form, setForm] = useState<any>(EMPTY_FORM);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
-  const [popup, setPopup] = useState<string | null>(null);
-  const [useDatePicker, setUseDatePicker] = useState(true);
 
-  // 검색/필터
-  const [search, setSearch] = useState("");
-  const [fCustomerType, setFCustomerType] = useState("");
-  const [fProspect, setFProspect] = useState("");
-  const [fResult, setFResult] = useState("");
-  const [fStage, setFStage] = useState("");
-  const [fAssigned, setFAssigned] = useState("");
-  const [showFilter, setShowFilter] = useState(false);
-  const [page, setPage] = useState(1);
-  const PER_PAGE = 30;
+  const id = params?.id as string;
 
-  const fetchContacts = useCallback(async () => {
-    setLoading(true);
-    let q = supabase.from("contacts").select("*", { count: "exact" });
-    if (search) q = q.or(`name.ilike.%${search}%,phone.ilike.%${search}%,memo.ilike.%${search}%,meeting_address.ilike.%${search}%`);
-    if (fCustomerType) q = q.eq("customer_type", fCustomerType);
-    if (fProspect) q = q.eq("prospect_type", fProspect);
-    if (fResult) q = q.eq("meeting_result", fResult);
-    if (fStage) q = q.eq("management_stage", fStage);
-    if (fAssigned) q = q.eq("assigned_to", fAssigned);
-    q = q.order("created_at", { ascending: false }).range((page-1)*PER_PAGE, page*PER_PAGE-1);
-    const { data, count } = await q;
-    setContacts((data || []) as Contact[]);
-    setTotal(count || 0);
-    setLoading(false);
-  }, [search, fCustomerType, fProspect, fResult, fStage, fAssigned, page]);
-
-  useEffect(() => { fetchContacts(); }, [fetchContacts]);
-
-  const openAdd = () => {
-    setEditContact(null);
-    // 로그인한 실행파트 유저면 본인 자동 셋팅
-    let defaultAssigned = "";
-    try {
-      const raw = localStorage.getItem("crm_user");
-      if (raw) {
-        const u = JSON.parse(raw);
-        if (u.role === "exec") defaultAssigned = u.name;
-      }
-    } catch {}
-    setForm({ ...EMPTY_FORM, assigned_to: defaultAssigned });
-    setUseDatePicker(true);
-    setShowModal(true);
-  };
-  const openEdit = (c: Contact) => {
-    setEditContact(c);
-    setForm({
-      name: c.name || "", title: c.title || "", phone: c.phone || "",
-      customer_type: c.customer_type || "", tm_sensitivity: c.tm_sensitivity || "",
-      prospect_type: c.prospect_type || "", meeting_date: c.meeting_date?.split("T")[0] || "",
-      meeting_date_text: c.meeting_date_text || "", meeting_address: c.meeting_address || "",
-      meeting_result: c.meeting_result || "", management_stage: c.management_stage || "", regular_payment_date: (c as any).regular_payment_date || "",
-      memo: c.memo || "", assigned_to: c.assigned_to || "",
-    });
-    setUseDatePicker(!c.meeting_date_text);
-    setShowModal(true);
-  };
+  useEffect(() => {
+    if (!id) return;
+    const fetch = async () => {
+      setLoading(true);
+      const { data } = await supabase.from("contacts").select("*").eq("id", id).single();
+      setContact(data as Contact);
+      setForm(data || {});
+      setLoading(false);
+    };
+    fetch();
+  }, [id]);
 
   const handleSave = async () => {
-    if (!form.name) return alert("고객명을 입력하세요.");
     setSaving(true);
-    const payload = {
-      name: form.name || null,
-      title: form.title || null,
-      phone: form.phone || null,
-      customer_type: form.customer_type || null,
-      tm_sensitivity: form.tm_sensitivity || null,
-      prospect_type: form.prospect_type || null,
-      meeting_date: useDatePicker ? (form.meeting_date || null) : null,
-      meeting_date_text: !useDatePicker ? (form.meeting_date_text || null) : null,
-      meeting_address: form.meeting_address || null,
-      meeting_result: form.meeting_result || null,
-      management_stage: form.management_stage || null,
-      memo: form.memo || null,
-      assigned_to: form.assigned_to || null,
-      consultant: form.consultant || null,
-      contract_date: form.contract_date || null,
-      reservation_date: form.reservation_date || null,
-      regular_payment_date: form.regular_payment_date || null,
-    };
-    let error;
-    if (editContact) {
-      const res = await supabase.from("contacts").update(payload).eq("id", editContact.id);
-      error = res.error;
-    } else {
-      const res = await supabase.from("contacts").insert(payload);
-      error = res.error;
-    }
+    const { error } = await supabase.from("contacts").update(form).eq("id", id);
+    if (error) { alert(`저장 실패: ${error.message}`); setSaving(false); return; }
+    setContact({ ...contact!, ...form });
+    setEditing(false);
     setSaving(false);
+  };
+
+  // ─── 인라인 즉시 저장 함수 ──────────────────────────────────────
+  const updateFieldInline = async (field: string, value: string) => {
+    const { error } = await supabase.from("contacts").update({ [field]: value }).eq("id", id);
     if (error) {
       alert(`저장 실패: ${error.message}`);
       return;
     }
-    setShowModal(false);
-    fetchContacts();
+    // 로컬 상태 즉시 반영
+    setContact((prev) => prev ? { ...prev, [field]: value } : prev);
+    setForm((prev: any) => ({ ...prev, [field]: value }));
   };
+  // ────────────────────────────────────────────────────────────────
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("삭제하시겠습니까?")) return;
-    await supabase.from("contacts").delete().eq("id", id);
-    fetchContacts();
-  };
-
-  const f = (key: string, val: string) => setForm((p: any) => ({ ...p, [key]: val }));
   const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
-  const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 
-  const totalPages = Math.ceil(total / PER_PAGE);
-  const activeFilters = [fCustomerType, fProspect, fResult, fStage, fAssigned].filter(Boolean).length;
+  if (loading) return (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
+    </div>
+  );
+
+  if (!contact) return (
+    <div className="flex flex-col items-center justify-center h-full text-slate-400">
+      <p>고객 정보를 찾을 수 없습니다</p>
+      <button onClick={() => router.back()} className="mt-3 text-sm text-blue-600 underline">돌아가기</button>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
       {/* 헤더 */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="text-lg font-black text-slate-800">고객 데이터</h1>
-            <p className="text-xs text-slate-400 mt-0.5">전체 <span className="text-blue-600 font-bold">{total.toLocaleString()}</span>명</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.back()}
+              className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
+              <ArrowLeft size={16}/>
+            </button>
+            <div className={`w-10 h-10 ${getAvatarColor(contact.name)} rounded-xl flex items-center justify-center text-white font-black text-lg`}>
+              {contact.name[0]}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-black text-slate-800">{contact.name}</h1>
+                {contact.title && <span className="text-sm text-slate-400">{contact.title}</span>}
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                {contact.customer_type && <Badge value={contact.customer_type}/>}
+                {contact.management_stage && <Badge value={contact.management_stage}/>}
+                {contact.meeting_result && <Badge value={contact.meeting_result}/>}
+              </div>
+            </div>
           </div>
-          <button onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#1E3A8A] text-white text-sm font-bold rounded-xl hover:bg-blue-800 shadow-sm transition-colors">
-            <Plus size={15}/> 신규 등록
-          </button>
+          <div className="flex gap-2">
+            {editing ? (
+              <>
+                <button onClick={() => setEditing(false)}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">
+                  <X size={14}/> 취소
+                </button>
+                <button onClick={handleSave} disabled={saving}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm bg-[#1E3A8A] text-white font-bold rounded-xl hover:bg-blue-800 disabled:opacity-50">
+                  <Save size={14}/> {saving ? "저장 중..." : "저장"}
+                </button>
+              </>
+            ) : (
+              <button onClick={() => setEditing(true)}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200">
+                <Edit2 size={14}/> 수정
+              </button>
+            )}
+          </div>
         </div>
-
-        {/* 검색 + 필터 */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-            <input type="text" placeholder="이름, 연락처, 메모, 지역 검색..." value={search}
-              onChange={e=>{setSearch(e.target.value);setPage(1);}}
-              className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
-          </div>
-          <button onClick={()=>setShowFilter(!showFilter)}
-            className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl border transition-colors ${
-              showFilter || activeFilters > 0 ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-            }`}>
-            <Filter size={14}/> 필터 {activeFilters > 0 && <span className="bg-white/30 text-white text-xs px-1.5 rounded-full">{activeFilters}</span>}
-          </button>
-          {activeFilters > 0 && (
-            <button onClick={()=>{setFCustomerType("");setFProspect("");setFResult("");setFStage("");setFAssigned("");}}
-              className="text-xs text-red-400 hover:text-red-600 px-2">초기화</button>
-          )}
-        </div>
-
-        {/* 필터 패널 */}
-        {showFilter && (
-          <div className="mt-3 grid grid-cols-5 gap-2">
-            <Sel val={fCustomerType} onChange={v=>{setFCustomerType(v);setPage(1);}} opts={OPT.customer_type} placeholder="고객유형"/>
-            <Sel val={fProspect} onChange={v=>{setFProspect(v);setPage(1);}} opts={OPT.prospect_type} placeholder="가망구분"/>
-            <Sel val={fResult} onChange={v=>{setFResult(v);setPage(1);}} opts={OPT.meeting_result} placeholder="미팅결과"/>
-            <Sel val={fStage} onChange={v=>{setFStage(v);setPage(1);}} opts={OPT.management_stage} placeholder="고객관리구간"/>
-            <Sel val={fAssigned} onChange={v=>{setFAssigned(v);setPage(1);}} opts={TEAM} placeholder="담당자"/>
-          </div>
-        )}
       </div>
 
-      {/* 테이블 */}
-      <div className="flex-1 overflow-auto p-4">
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
-          </div>
-        ) : contacts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-            <p className="text-sm mb-2">등록된 고객이 없습니다</p>
-            <button onClick={openAdd} className="text-xs text-blue-600 underline">첫 번째 고객 등록하기</button>
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-            <table className="w-full text-sm table-fixed">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  {[
-                    ["#","w-10"], ["고객명","w-24"], ["직급","w-20"], ["연락처","w-32"],
-                    ["고객유형","w-20"], ["TM감도","w-28"], ["가망구분","w-28"],
-                    ["미팅일정","w-24"], ["미팅지역","w-24"], ["미팅결과","w-28"], ["정기출금일","w-24"],
-                    ["관리구간","w-24"], ["담당자","w-20"], ["담당컨설턴트","w-24"], ["비고","w-32"], ["","w-20"],
-                  ].map(([h,w])=>(
-                    <th key={h} className={`text-center px-3 py-2.5 text-slate-500 text-xs font-semibold ${w} truncate`}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {contacts.map((c, i) => (
-                  <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                    <td className="px-3 py-2.5 text-center align-middle text-slate-400 text-xs">{(page-1)*PER_PAGE+i+1}</td>
-                    <td className="px-3 py-2.5 text-center align-middle font-bold text-slate-800 truncate">{c.name}</td>
-                    <td className="px-3 py-2.5 text-center align-middle text-slate-500 text-xs truncate">{c.title||"-"}</td>
-                    <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{c.phone||"-"}</td>
-                    <td className="px-3 py-2.5 text-center align-middle">
-                      {c.customer_type ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${BADGE[c.customer_type]||"bg-slate-100 text-slate-600"}`}>{c.customer_type}</span> : <span className="text-slate-300 text-xs">-</span>}
-                    </td>
-                    <td className="px-3 py-2.5 text-center align-middle">
-                      <div className="text-xs text-slate-600 truncate max-w-[100px] cursor-pointer"
-                        onDoubleClick={()=>c.tm_sensitivity&&setPopup(c.tm_sensitivity)}>
-                        {c.tm_sensitivity||"-"}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-center align-middle">
-                      {c.prospect_type ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.prospect_type]||"bg-slate-100 text-slate-600"}`}>{c.prospect_type}</span> : <span className="text-slate-300 text-xs">-</span>}
-                    </td>
-                    <td className="px-3 py-2.5 text-center align-middle text-xs text-slate-600 truncate">
-                      {c.meeting_date ? new Date(c.meeting_date+"T00:00:00").toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})
-                       : c.meeting_date_text || "-"}
-                    </td>
-                    <td className="px-3 py-2.5 text-center align-middle text-xs text-slate-500 truncate max-w-[90px] cursor-pointer"
-                      onDoubleClick={()=>c.meeting_address&&setPopup(c.meeting_address)}>
-                      {c.meeting_address||"-"}
-                    </td>
-                    <td className="px-3 py-2.5 text-center align-middle">
-                      {c.meeting_result ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.meeting_result]||"bg-slate-100 text-slate-600"}`}>{c.meeting_result}</span> : <span className="text-slate-300 text-xs">-</span>}
-                    </td>
-                    <td className="px-3 py-2.5 text-center align-middle text-xs">
-                      {(c as any).regular_payment_date
-                        ? <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-medium border border-emerald-100">{`매월 ${(c as any).regular_payment_date}일`}</span>
-                        : <span className="text-slate-300">-</span>}
-                    </td>
-                    <td className="px-3 py-2.5 text-center align-middle">
-                      {c.management_stage ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.management_stage]||"bg-slate-100 text-slate-600"}`}>{c.management_stage}</span> : <span className="text-slate-300 text-xs">-</span>}
-                    </td>
-                    <td className="px-3 py-2.5 text-center align-middle">
-                      <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full">{c.assigned_to||"-"}</span>
-                    </td>
-                    <td className="px-3 py-2.5 text-center align-middle text-xs text-slate-500 truncate">{(c as any).consultant||"-"}</td>
-                    <td className="px-3 py-2.5 text-center align-middle max-w-[120px] cursor-pointer"
-                      onDoubleClick={()=>c.memo&&setPopup(c.memo)}>
-                      <p className="text-xs text-slate-500 truncate">{c.memo||"-"}</p>
-                    </td>
-                    <td className="px-3 py-2.5 text-center align-middle">
-                      <div className="flex gap-1">
-                        <button onClick={()=>openEdit(c)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                          <Edit2 size={13}/>
-                        </button>
-                        <button onClick={()=>handleDelete(c.id)}
-                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                          <Trash2 size={13}/>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* 본문 */}
+      <div className="flex-1 overflow-auto p-5">
+        <div className="grid grid-cols-2 gap-4 max-w-4xl mx-auto">
 
-            {/* 페이지네이션 */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
-                <p className="text-xs text-slate-400">{(page-1)*PER_PAGE+1}~{Math.min(page*PER_PAGE,total)} / 전체 {total.toLocaleString()}명</p>
-                <div className="flex gap-1">
-                  <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}
-                    className="px-3 py-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg disabled:opacity-40">이전</button>
-                  {Array.from({length:Math.min(5,totalPages)},(_,i)=>{
-                    const p = Math.max(1, Math.min(page-2,totalPages-4)) + i;
-                    return (
-                      <button key={p} onClick={()=>setPage(p)}
-                        className={`px-3 py-1.5 text-xs rounded-lg border ${page===p?"bg-blue-600 text-white border-blue-600":"bg-slate-50 text-slate-600 border-slate-200"}`}>
-                        {p}
-                      </button>
-                    );
-                  })}
-                  <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages}
-                    className="px-3 py-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg disabled:opacity-40">다음</button>
-                </div>
+          {/* 기본 정보 */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <h2 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+              <User size={14} className="text-blue-500"/> 기본 정보
+            </h2>
+            {editing ? (
+              <div className="space-y-3">
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">고객명</label>
+                  <input className={inp} value={form.name||""} onChange={e=>setForm({...form,name:e.target.value})}/></div>
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">직급</label>
+                  <input className={inp} value={form.title||""} onChange={e=>setForm({...form,title:e.target.value})}/></div>
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">연락처</label>
+                  <input className={inp} value={form.phone||""} onChange={e=>setForm({...form,phone:e.target.value})}/></div>
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">고객유형</label>
+                  <select className={inp} value={form.customer_type||""} onChange={e=>setForm({...form,customer_type:e.target.value})}>
+                    <option value="">선택</option>{OPT.customer_type.map(o=><option key={o}>{o}</option>)}
+                  </select></div>
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">담당자</label>
+                  <select className={inp} value={form.assigned_to||""} onChange={e=>setForm({...form,assigned_to:e.target.value})}>
+                    <option value="">선택</option>{TEAM.map(o=><option key={o}>{o}</option>)}
+                  </select></div>
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">담당컨설턴트</label>
+                  <input className={inp} value={form.consultant||""} onChange={e=>setForm({...form,consultant:e.target.value})} placeholder="담당 컨설턴트명"/></div>
+              </div>
+            ) : (
+              <div>
+                <InfoRow label="연락처"><div className="flex items-center gap-1.5"><Phone size={12} className="text-slate-400"/><span className="text-sm text-slate-700">{contact.phone||"-"}</span></div></InfoRow>
+                <InfoRow label="고객유형">{contact.customer_type ? <Badge value={contact.customer_type}/> : <span className="text-sm text-slate-300">-</span>}</InfoRow>
+                <InfoRow label="담당자"><span className="text-sm text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">{contact.assigned_to||"-"}</span></InfoRow>
+                <InfoRow label="담당컨설턴트"><span className="text-sm text-slate-700">{(contact as any).consultant||"-"}</span></InfoRow>
+                <InfoRow label="등록일"><span className="text-sm text-slate-500">{new Date(contact.created_at).toLocaleDateString("ko-KR")}</span></InfoRow>
               </div>
             )}
           </div>
-        )}
-      </div>
 
-      {/* 팝업 (더블클릭) */}
-      {popup && <CellPopup value={popup} onClose={()=>setPopup(null)}/>}
-
-      {/* 등록/수정 모달 */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h2 className="font-black text-slate-800">{editContact ? "고객 정보 수정" : "신규 고객 등록"}</h2>
-              <button onClick={()=>setShowModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18}/></button>
-            </div>
-            <div className="flex-1 overflow-auto px-6 py-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div><label className={lbl}>고객명 *</label><input className={inp} value={form.name} onChange={e=>f("name",e.target.value)} placeholder="홍길동"/></div>
-                <div><label className={lbl}>직급</label><input className={inp} value={form.title} onChange={e=>f("title",e.target.value)} placeholder="본부장"/></div>
-                <div><label className={lbl}>연락처</label><input className={inp} value={form.phone} onChange={e=>f("phone",e.target.value)} placeholder="010-0000-0000"/></div>
-                <div>
-                  <label className={lbl}>고객유형</label>
-                  <Sel val={form.customer_type} onChange={v=>f("customer_type",v)} opts={OPT.customer_type} placeholder="선택"/>
-                </div>
-                <div>
-                  <label className={lbl}>TM감도</label>
-                  <Sel val={form.tm_sensitivity} onChange={v=>f("tm_sensitivity",v)} opts={OPT.tm_sensitivity} placeholder="선택"/>
-                </div>
-                <div>
-                  <label className={lbl}>가망구분</label>
-                  <Sel val={form.prospect_type} onChange={v=>f("prospect_type",v)} opts={OPT.prospect_type} placeholder="선택"/>
-                </div>
-                <div className="col-span-3">
-                  <label className={lbl}>미팅일정</label>
-                  <div className="flex gap-2 mb-1.5">
-                    <button onClick={()=>setUseDatePicker(true)}
-                      className={`text-xs px-3 py-1 rounded-lg font-semibold border transition-colors ${useDatePicker?"bg-blue-600 text-white border-blue-600":"bg-slate-50 text-slate-500 border-slate-200"}`}>날짜 선택</button>
-                    <button onClick={()=>setUseDatePicker(false)}
-                      className={`text-xs px-3 py-1 rounded-lg font-semibold border transition-colors ${!useDatePicker?"bg-blue-600 text-white border-blue-600":"bg-slate-50 text-slate-500 border-slate-200"}`}>텍스트 입력</button>
-                  </div>
-                  {useDatePicker
-                    ? <input type="date" className={inp} value={form.meeting_date} onChange={e=>f("meeting_date",e.target.value)}/>
-                    : <input className={inp} value={form.meeting_date_text} onChange={e=>f("meeting_date_text",e.target.value)} placeholder="예: 4월 셋째주, 조율중"/>
-                  }
-                </div>
-                <div><label className={lbl}>미팅지역</label><input className={inp} value={form.meeting_address} onChange={e=>f("meeting_address",e.target.value)} placeholder="서울 강남"/></div>
-                <div>
-                  <label className={lbl}>미팅결과</label>
-                  <Sel val={form.meeting_result} onChange={v=>f("meeting_result",v)} opts={OPT.meeting_result} placeholder="선택"/>
-                </div>
+          {/* 미팅 정보 */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <h2 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+              <Calendar size={14} className="text-blue-500"/> 미팅 정보
+            </h2>
+            {editing ? (
+              <div className="space-y-3">
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">미팅일정 (날짜)</label>
+                  <input type="date" className={inp} value={form.meeting_date?.split("T")[0]||""} onChange={e=>setForm({...form,meeting_date:e.target.value})}/></div>
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">미팅일정 (텍스트)</label>
+                  <input className={inp} value={form.meeting_date_text||""} onChange={e=>setForm({...form,meeting_date_text:e.target.value})} placeholder="예: 4월 셋째주"/></div>
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">미팅지역</label>
+                  <input className={inp} value={form.meeting_address||""} onChange={e=>setForm({...form,meeting_address:e.target.value})}/></div>
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">미팅결과</label>
+                  <select className={inp} value={form.meeting_result||""} onChange={e=>setForm({...form,meeting_result:e.target.value})}>
+                    <option value="">선택</option>{OPT.meeting_result.map(o=><option key={o}>{o}</option>)}
+                  </select></div>
                 {form.meeting_result === "계약완료" && (
-                  <div>
-                    <label className={lbl}>계약완료일 <span className="text-blue-400">★ 자동반영</span></label>
-                    <input type="date" className={inp} value={form.contract_date} onChange={e=>f("contract_date",e.target.value)}/>
-                  </div>
-                )}
-                {form.meeting_result === "계약완료" && (
-                  <div>
-                    <label className={lbl}>정기출금일 <span className="text-emerald-500">계약완료 전용</span></label>
-                    <select className={inp} value={form.regular_payment_date} onChange={e=>f("regular_payment_date",e.target.value)}>
-                      <option value="">선택</option>
-                      {Array.from({length:31},(_,i)=>i+1).map(d=>(
-                        <option key={d} value={String(d)}>{`매월 ${d}일`}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <div><label className="text-xs font-semibold text-slate-400 mb-1 block">계약완료일 <span className="text-blue-400">★</span></label>
+                    <input type="date" className={inp} value={form.contract_date?.split("T")[0]||""} onChange={e=>setForm({...form,contract_date:e.target.value})}/></div>
                 )}
                 {form.meeting_result === "예약완료" && (
-                  <div>
-                    <label className={lbl}>예약완료일 <span className="text-blue-400">★ 자동반영</span></label>
-                    <input type="date" className={inp} value={form.reservation_date} onChange={e=>f("reservation_date",e.target.value)}/>
-                  </div>
+                  <div><label className="text-xs font-semibold text-slate-400 mb-1 block">예약완료일 <span className="text-blue-400">★</span></label>
+                    <input type="date" className={inp} value={form.reservation_date?.split("T")[0]||""} onChange={e=>setForm({...form,reservation_date:e.target.value})}/></div>
                 )}
-                <div>
-                  <label className={lbl}>고객관리구간</label>
-                  <Sel val={form.management_stage} onChange={v=>f("management_stage",v)} opts={OPT.management_stage} placeholder="선택"/>
-                </div>
-                <div>
-                  <label className={lbl}>담당자</label>
-                  <Sel val={form.assigned_to} onChange={v=>f("assigned_to",v)} opts={TEAM} placeholder="선택"/>
-                </div>
-                <div>
-                  <label className={lbl}>담당컨설턴트</label>
-                  <input className={inp} value={form.consultant} onChange={e=>f("consultant",e.target.value)} placeholder="담당 컨설턴트명"/>
-                </div>
-                <div className="col-span-3">
-                  <label className={lbl}>비고</label>
-                  <textarea className={`${inp} resize-none`} rows={3} value={form.memo} onChange={e=>f("memo",e.target.value)} placeholder="메모를 입력하세요"/>
-                </div>
               </div>
-              {/* 활동 노트 히스토리 - 수정 모드에서만 */}
-              {editContact && (
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  <ContactNotes contactId={editContact.id} />
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
-              <button onClick={()=>setShowModal(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 text-center align-middle">취소</button>
-              <button onClick={handleSave} disabled={saving}
-                className="px-6 py-2 text-sm bg-[#1E3A8A] text-white font-bold rounded-xl hover:bg-blue-800 disabled:opacity-50">
-                {saving ? "저장 중..." : editContact ? "수정 완료" : "등록"}
-              </button>
-            </div>
+            ) : (
+              <div>
+                <InfoRow label="미팅일정">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar size={12} className="text-blue-400"/>
+                    <span className="text-sm text-slate-700">
+                      {contact.meeting_date ? new Date(contact.meeting_date+"T00:00:00").toLocaleDateString("ko-KR") : contact.meeting_date_text || "-"}
+                    </span>
+                  </div>
+                </InfoRow>
+                <InfoRow label="미팅지역"><div className="flex items-center gap-1.5"><MapPin size={12} className="text-slate-400"/><span className="text-sm text-slate-700">{contact.meeting_address||"-"}</span></div></InfoRow>
+                <InfoRow label="미팅결과">{contact.meeting_result ? <Badge value={contact.meeting_result}/> : <span className="text-sm text-slate-300">-</span>}</InfoRow>
+                {contact.meeting_result === "계약완료" && <InfoRow label="계약완료일"><span className="text-sm text-slate-700">{(contact as any).contract_date ? new Date((contact as any).contract_date).toLocaleDateString("ko-KR") : "-"}</span></InfoRow>}
+                {contact.meeting_result === "예약완료" && <InfoRow label="예약완료일"><span className="text-sm text-slate-700">{(contact as any).reservation_date ? new Date((contact as any).reservation_date).toLocaleDateString("ko-KR") : "-"}</span></InfoRow>}
+              </div>
+            )}
           </div>
+
+          {/* 영업 정보 */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <h2 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+              📊 영업 정보
+              <span className="text-[10px] font-normal text-blue-400 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                가망구분·관리구간 바로 수정 가능
+              </span>
+            </h2>
+            {editing ? (
+              <div className="space-y-3">
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">TM감도</label>
+                  <select className={inp} value={form.tm_sensitivity||""} onChange={e=>setForm({...form,tm_sensitivity:e.target.value})}>
+                    <option value="">선택</option>
+                    <option value="상">상</option>
+                    <option value="중">중</option>
+                    <option value="하">하</option>
+                  </select></div>
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">가망구분</label>
+                  <select className={inp} value={form.prospect_type||""} onChange={e=>setForm({...form,prospect_type:e.target.value})}>
+                    <option value="">선택</option>{OPT.prospect_type.map(o=><option key={o}>{o}</option>)}
+                  </select></div>
+                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">고객관리구간</label>
+                  <select className={inp} value={form.management_stage||""} onChange={e=>setForm({...form,management_stage:e.target.value})}>
+                    <option value="">선택</option>{OPT.management_stage.map(o=><option key={o}>{o}</option>)}
+                  </select></div>
+              </div>
+            ) : (
+              <div>
+                <InfoRow label="TM감도">
+                  <span className="text-sm text-slate-700">{contact.tm_sensitivity||"-"}</span>
+                </InfoRow>
+
+                {/* ── 가망구분: 인라인 즉시 수정 ── */}
+                <InfoRow label="가망구분">
+                  <InlineSelect
+                    value={contact.prospect_type}
+                    options={OPT.prospect_type}
+                    onSave={(val) => updateFieldInline("prospect_type", val)}
+                  />
+                </InfoRow>
+
+                {/* ── 고객관리구간: 인라인 즉시 수정 ── */}
+                <InfoRow label="고객관리구간">
+                  <InlineSelect
+                    value={contact.management_stage}
+                    options={OPT.management_stage}
+                    onSave={(val) => updateFieldInline("management_stage", val)}
+                  />
+                </InfoRow>
+              </div>
+            )}
+          </div>
+
+          {/* 비고 */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <h2 className="text-sm font-bold text-slate-700 mb-3">📝 비고</h2>
+            {editing ? (
+              <textarea className={`${inp} resize-none`} rows={4}
+                value={form.memo||""} onChange={e=>setForm({...form,memo:e.target.value})}
+                placeholder="메모를 입력하세요"/>
+            ) : (
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 min-h-[80px]">
+                {contact.memo ? (
+                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{contact.memo}</p>
+                ) : (
+                  <p className="text-sm text-slate-300">비고 내용 없음</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 활동 노트 히스토리 */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <ContactNotes contactId={contact.id} />
+          </div>
+
         </div>
-      )}
+      </div>
     </div>
   );
 }
