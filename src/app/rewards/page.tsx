@@ -160,6 +160,8 @@ export default function RewardsPage() {
     const q = filterQuarter || currentQ;
     const { error } = await supabase.from("rewards").insert({
       contact_id: contact.id, quarter: q,
+      member_name: contact.name,
+      member_number: contact.bunyanghoe_number||"",
       paid_amount: amt, paid_date: date, is_paid: true,
     });
     if (error) { alert(`저장 실패: ${error.message}`); return; }
@@ -510,6 +512,11 @@ export default function RewardsPage() {
                         <p className="text-xs text-slate-400">{p.quarter}</p>
                       </div>
                       <span className="text-sm font-bold text-emerald-600">{(p.paid_amount||0).toLocaleString()}원</span>
+                      <button onClick={async()=>{
+                        if(!confirm("이 지급 기록을 삭제하시겠습니까?")) return;
+                        await supabase.from("rewards").delete().eq("id",p.id);
+                        fetchAll();
+                      }} className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50 ml-1">삭제</button>
                     </div>
                   ))}
               </div>
