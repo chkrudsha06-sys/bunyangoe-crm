@@ -87,16 +87,24 @@ export default function SalesPage() {
   const [saving, setSaving]           = useState(false);
   const [filterChannel, setFilterChannel] = useState("");
   const [filterMember, setFilterMember]   = useState("");
+  const [filterStart, setFilterStart]     = useState("");
+  const [filterEnd, setFilterEnd]         = useState("");
   const [vipSearch, setVipSearch]         = useState("");
 
-  useEffect(() => { fetchExecutions(); }, [filterChannel, filterMember]);
+  useEffect(() => { fetchExecutions(); }, [filterChannel, filterMember, filterStart, filterEnd]);
   useEffect(() => { fetchVipMembers(); }, []);
 
   const fetchExecutions = async () => {
     setLoading(true);
     let q = supabase.from("ad_executions").select("*").order("payment_date",{ascending:false,nullsFirst:false});
-    if (filterChannel) q = q.eq("channel", filterChannel);
+    if (filterChannel === "호갱노노(전체)") {
+      q = q.in("channel", ["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타"]);
+    } else if (filterChannel) {
+      q = q.eq("channel", filterChannel);
+    }
     if (filterMember)  q = q.eq("team_member", filterMember);
+    if (filterStart)   q = q.gte("payment_date", filterStart);
+    if (filterEnd)     q = q.lte("payment_date", filterEnd);
     const { data } = await q;
     setExecutions((data as AdExecution[]) || []);
     setLoading(false);
@@ -130,11 +138,15 @@ export default function SalesPage() {
   const all     = executions;
 
   const calc = (list: AdExecution[]) => ({
-    total:     list.reduce((s,e)=>s+(e.execution_amount||0), 0),
-    inBunyan:  list.filter(e=>e.channel==="분양회 입회비").reduce((s,e)=>s+(e.execution_amount||0),0),
-    monBunyan: list.filter(e=>e.channel==="분양회 월회비").reduce((s,e)=>s+(e.execution_amount||0),0),
-    adSpecial: list.filter(e=>["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"].includes(e.channel)).reduce((s,e)=>s+(e.execution_amount||0),0),
-    hightarget:list.filter(e=>e.channel==="하이타겟").reduce((s,e)=>s+(e.execution_amount||0),0),
+    total:        list.reduce((s,e)=>s+(e.execution_amount||0), 0),
+    inBunyan:     list.filter(e=>e.channel==="분양회 입회비").reduce((s,e)=>s+(e.execution_amount||0),0),
+    monBunyan:    list.filter(e=>e.channel==="분양회 월회비").reduce((s,e)=>s+(e.execution_amount||0),0),
+    adSpecial:    list.filter(e=>["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"].includes(e.channel)).reduce((s,e)=>s+(e.execution_amount||0),0),
+    hightarget:   list.filter(e=>e.channel==="하이타겟").reduce((s,e)=>s+(e.execution_amount||0),0),
+    hogaengCh:    list.filter(e=>e.channel==="호갱노노_채널톡").reduce((s,e)=>s+(e.execution_amount||0),0),
+    hogaengDan:   list.filter(e=>e.channel==="호갱노노_단지마커").reduce((s,e)=>s+(e.execution_amount||0),0),
+    hogaengEtc:   list.filter(e=>e.channel==="호갱노노_기타").reduce((s,e)=>s+(e.execution_amount||0),0),
+    lms:          list.filter(e=>e.channel==="LMS").reduce((s,e)=>s+(e.execution_amount||0),0),
   });
 
   const mon = calc(monthly);
@@ -229,11 +241,18 @@ export default function SalesPage() {
 
   // 대시보드 카드 데이터
   const dashCols = [
-    { label:"총 집행금액",    mVal:mon.total,     cVal:cum.total },
-    { label:"분양회 입회비",  mVal:mon.inBunyan,  cVal:cum.inBunyan },
-    { label:"분양회 월회비",  mVal:mon.monBunyan, cVal:cum.monBunyan },
-    { label:"광고특전 집행매출", mVal:mon.adSpecial,cVal:cum.adSpecial },
-    { label:"연계매출(하이타겟)",mVal:mon.hightarget,cVal:cum.hightarget },
+    { label:"총 집행금액",       mVal:mon.total,      cVal:cum.total },
+    { label:"분양회 입회비",     mVal:mon.inBunyan,   cVal:cum.inBunyan },
+    { label:"분양회 월회비",     mVal:mon.monBunyan,  cVal:cum.monBunyan },
+    { label:"광고특전 집행매출", mVal:mon.adSpecial,  cVal:cum.adSpecial },
+    { label:"연계매출(하이타겟)",mVal:mon.hightarget, cVal:cum.hightarget },
+  ];
+  const channelCols = [
+    { label:"하이타겟",          mVal:mon.hightarget, cVal:cum.hightarget },
+    { label:"호갱노노_채널톡",   mVal:mon.hogaengCh,  cVal:cum.hogaengCh },
+    { label:"호갱노노_단지마커", mVal:mon.hogaengDan, cVal:cum.hogaengDan },
+    { label:"호갱노노_기타",     mVal:mon.hogaengEtc, cVal:cum.hogaengEtc },
+    { label:"LMS",               mVal:mon.lms,        cVal:cum.lms },
   ];
 
   return (
@@ -279,15 +298,29 @@ export default function SalesPage() {
         </div>
 
         {/* 필터 */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap items-center">
           <select value={filterChannel} onChange={e=>setFilterChannel(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
             <option value="">전체 채널</option>
+            <option value="호갱노노(전체)">호갱노노(전체)</option>
             {CHANNELS_BUNYANGHOE.map(c=><option key={c} value={c}>{c}</option>)}
           </select>
           <select value={filterMember} onChange={e=>setFilterMember(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
             <option value="">전체 담당자</option>
             {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
           </select>
+          {/* 기간 설정 */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+            <span className="text-xs text-slate-400 font-medium whitespace-nowrap">기간</span>
+            <input type="date" value={filterStart} onChange={e=>setFilterStart(e.target.value)}
+              className="text-xs text-slate-600 bg-transparent outline-none"/>
+            <span className="text-slate-300 text-xs">—</span>
+            <input type="date" value={filterEnd} onChange={e=>setFilterEnd(e.target.value)}
+              className="text-xs text-slate-600 bg-transparent outline-none"/>
+            {(filterStart||filterEnd) && (
+              <button onClick={()=>{setFilterStart("");setFilterEnd("");}}
+                className="text-slate-400 hover:text-red-400 text-xs ml-1">✕</button>
+            )}
+          </div>
         </div>
       </div>
 
