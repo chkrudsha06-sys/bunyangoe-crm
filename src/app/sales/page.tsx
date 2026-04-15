@@ -38,7 +38,7 @@ const TEAM = ["조계현","이세호","기여운","최연전"];
 const EMPTY_FORM = {
   sales_type:"", vip_member_id:"",
   member_name:"", position:"", bunyanghoe_number:"",
-  execution_amount:"", vat_yn:"부",  // 부가세 여/부
+  execution_amount:"", vat_yn:"여",  // 부가세 여/부
   channel:"", payment_date:"",
   team_member:"", consultant:"",
   hightarget_reward_type:"",
@@ -110,8 +110,14 @@ export default function SalesPage() {
   };
 
   const filteredVip = useMemo(() => {
-    if (!vipSearch.trim()) return vipMembers;
-    return vipMembers.filter(v => v.name.includes(vipSearch.trim()));
+    const list = !vipSearch.trim()
+      ? [...vipMembers]
+      : vipMembers.filter(v => v.name.includes(vipSearch.trim()));
+    return list.sort((a, b) => {
+      const na = parseInt(a.bunyanghoe_number?.replace(/[^0-9]/g, "") || "9999");
+      const nb = parseInt(b.bunyanghoe_number?.replace(/[^0-9]/g, "") || "9999");
+      return na - nb;
+    });
   }, [vipMembers, vipSearch]);
 
   // ── 대시보드 집계 ─────────────────────────────────────────
@@ -247,30 +253,24 @@ export default function SalesPage() {
 
         {/* ── 대시보드 ── */}
         <div className="mb-3">
-          {/* 당월 */}
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-blue-500"/>
             <span className="text-xs font-bold text-slate-600">당월 매출</span>
             <span className="text-xs text-slate-400">{now.getFullYear()}.{String(now.getMonth()+1).padStart(2,"0")}</span>
           </div>
-          <div className="grid grid-cols-5 gap-2 mb-1">
-            {dashCols.map(({ label, mVal }) => (
-              <div key={label} className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                <p className="text-[10px] text-slate-400 mb-1 truncate">{label}</p>
-                <p className={`text-sm font-bold ${label.includes("총") ? "text-slate-800" : label.includes("하이타겟") ? "text-blue-600" : "text-amber-600"}`}>{fw(mVal)}</p>
-              </div>
-            ))}
-          </div>
-          {/* 구분선 */}
-          <div className="border-t border-dashed border-slate-200 my-2"/>
-          {/* 누적 */}
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">누적</span>
-          </div>
           <div className="grid grid-cols-5 gap-2">
-            {dashCols.map(({ label, cVal }) => (
-              <div key={label} className="bg-white rounded-xl px-3 py-2 border border-slate-100">
-                <p className={`text-sm font-bold ${label.includes("총") ? "text-slate-700" : label.includes("하이타겟") ? "text-blue-500" : "text-amber-500"}`}>{fw(cVal)}</p>
+            {dashCols.map(({ label, mVal, cVal }) => (
+              <div key={label} className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 flex flex-col">
+                <p className="text-[10px] text-slate-400 mb-1.5 truncate font-medium">{label}</p>
+                {/* 당월 */}
+                <p className={`text-sm font-bold ${label.includes("총") ? "text-slate-800" : label.includes("하이타겟") ? "text-blue-600" : "text-amber-600"}`}>{fw(mVal)}</p>
+                {/* 구분선 */}
+                <div className="border-t border-dashed border-slate-200 my-2"/>
+                {/* 누적 */}
+                <div className="flex items-center gap-1 mb-0.5">
+                  <span className="text-[9px] text-slate-400 font-semibold tracking-wider">누적</span>
+                </div>
+                <p className={`text-xs font-bold ${label.includes("총") ? "text-slate-500" : label.includes("하이타겟") ? "text-blue-400" : "text-amber-400"}`}>{fw(cVal)}</p>
               </div>
             ))}
           </div>
@@ -369,7 +369,7 @@ export default function SalesPage() {
                 <label className={lbl}>매출구분 *</label>
                 <div className="flex gap-2">
                   {["분양회","완판트럭"].map(t=>(
-                    <button key={t} onClick={()=>setForm({...EMPTY_FORM, sales_type:t})}
+                    <button key={t} onClick={()=>setForm({...EMPTY_FORM, sales_type:t, vat_yn:"여"})}
                       className={`flex-1 py-2.5 text-sm font-bold rounded-xl border-2 transition-all ${
                         form.sales_type===t
                           ? t==="분양회" ? "bg-amber-50 border-amber-400 text-amber-700"
