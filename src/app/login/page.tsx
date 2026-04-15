@@ -286,7 +286,7 @@ export default function LoginPage() {
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", fontFamily: "'Pretendard','Noto Sans KR',sans-serif" }}>
 
       {/* 인트로 오버레이 */}
-      {!introDone && <IntroOverlay onDone={() => setIntroDone(true)}/>}
+      <IntroOverlay onDone={() => setIntroDone(true)}/>
 
       {/* 배경 영상 */}
       <video
