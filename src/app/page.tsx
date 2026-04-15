@@ -554,7 +554,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-1.5 mt-0.5">
               <Clock size={11} className="text-blue-400"/>
               <span className="text-xs text-slate-400">{dateStr}</span>
-              <span style={{ fontSize:"11px", fontFamily:"monospace", fontWeight:700, color:"#E2A83A", fontVariantNumeric:"tabular-nums" }}>{timeStr}</span>
+              <span style={{ fontSize:"11px", fontFamily:"monospace", fontWeight:700, color: isExec ? "#2563EB" : "#64748B", fontVariantNumeric:"tabular-nums" }}>{timeStr}</span>
             </div>
           </div>
           {/* 기간 필터 */}
