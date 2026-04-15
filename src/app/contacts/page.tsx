@@ -424,7 +424,12 @@ export default function ContactsPage() {
                 {form.meeting_result === "계약완료" && (
                   <div>
                     <label className={lbl}>정기출금일 <span className="text-emerald-500">계약완료 전용</span></label>
-                    <input type="date" className={inp} value={form.regular_payment_date} onChange={e=>f("regular_payment_date",e.target.value)}/>
+                    <select className={inp} value={form.regular_payment_date} onChange={e=>f("regular_payment_date",e.target.value)}>
+                      <option value="">선택</option>
+                      {Array.from({length:31},(_,i)=>i+1).map(d=>(
+                        <option key={d} value={String(d)}>{`매월 ${d}일`}</option>
+                      ))}
+                    </select>
                   </div>
                 )}
                 {form.meeting_result === "예약완료" && (
