@@ -150,9 +150,9 @@ export default function SalesPage() {
   const monthly = executions.filter(e => e.payment_date && e.payment_date >= monthStart && e.payment_date <= monthEnd);
   const all     = executions;
 
-  // 공급가액 / VAT포함 집계
-  const sumAmt  = (list: AdExecution[]) => list.reduce((s,e)=>s+(e.execution_amount||0),0);
-  const sumVat  = (list: AdExecution[]) => list.reduce((s,e)=>s+(e.vat_amount && e.vat_amount !== e.execution_amount ? (e.vat_amount||0) : (e.execution_amount||0)),0);
+  // 실효금액: VAT 여이면 vat_amount, 부이면 execution_amount
+  const effAmt  = (e: AdExecution) => (e.vat_amount && e.vat_amount !== e.execution_amount) ? (e.vat_amount||0) : (e.execution_amount||0);
+  const sumEff  = (list: AdExecution[]) => list.reduce((s,e)=>s+effAmt(e),0);
   const filterCh = (list: AdExecution[], ch: string|string[]) =>
     Array.isArray(ch) ? list.filter(e=>ch.includes(e.channel)) : list.filter(e=>e.channel===ch);
 
@@ -284,18 +284,18 @@ export default function SalesPage() {
 
   // 대시보드 카드 데이터
   const dashCols = [
-    { label:"총 집행금액",       m:mon.total,      c:cum.total },
-    { label:"분양회 입회비",     m:mon.inBunyan,   c:cum.inBunyan },
-    { label:"분양회 월회비",     m:mon.monBunyan,  c:cum.monBunyan },
-    { label:"광고특전 집행매출", m:mon.adSpecial,  c:cum.adSpecial },
-    { label:"연계매출(하이타겟)",m:mon.hightarget, c:cum.hightarget },
+    { label:"총 집행금액",       mVal:mon.total,      cVal:cum.total,     color:"text-slate-800" },
+    { label:"분양회 입회비",     mVal:mon.inBunyan,   cVal:cum.inBunyan,  color:"text-amber-600" },
+    { label:"분양회 월회비",     mVal:mon.monBunyan,  cVal:cum.monBunyan, color:"text-amber-600" },
+    { label:"광고특전 집행매출", mVal:mon.adSpecial,  cVal:cum.adSpecial, color:"text-amber-600" },
+    { label:"연계매출(하이타겟)",mVal:mon.hightarget, cVal:cum.hightarget,color:"text-blue-600" },
   ];
   const channelCols = [
-    { label:"하이타겟",          m:mon.hightarget, c:cum.hightarget },
-    { label:"호갱노노_채널톡",   m:mon.hogaengCh,  c:cum.hogaengCh },
-    { label:"호갱노노_단지마커", m:mon.hogaengDan, c:cum.hogaengDan },
-    { label:"호갱노노_기타",     m:mon.hogaengEtc, c:cum.hogaengEtc },
-    { label:"LMS",               m:mon.lms,        c:cum.lms },
+    { label:"하이타겟",          mVal:mon.hightarget, cVal:cum.hightarget, color:"text-blue-600" },
+    { label:"호갱노노_채널톡",   mVal:mon.hogaengCh,  cVal:cum.hogaengCh,  color:"text-amber-600" },
+    { label:"호갱노노_단지마커", mVal:mon.hogaengDan, cVal:cum.hogaengDan, color:"text-amber-600" },
+    { label:"호갱노노_기타",     mVal:mon.hogaengEtc, cVal:cum.hogaengEtc, color:"text-amber-600" },
+    { label:"LMS",               mVal:mon.lms,        cVal:cum.lms,        color:"text-purple-600" },
   ];
 
   return (
@@ -323,39 +323,17 @@ export default function SalesPage() {
             <span className="text-xs text-slate-400">{now.getFullYear()}.{String(now.getMonth()+1).padStart(2,"0")}</span>
           </div>
           <div className="grid grid-cols-5 gap-2">
-            {dashCols.map(({ label, m, c }) => {
-              const tc = label.includes("총") ? "text-slate-800" : label.includes("하이타겟") ? "text-blue-600" : "text-amber-600";
-              const tc2 = label.includes("총") ? "text-slate-500" : label.includes("하이타겟") ? "text-blue-400" : "text-amber-400";
-              return (
-                <div key={label} className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 flex flex-col">
-                  <p className="text-[10px] text-slate-400 mb-1.5 truncate font-medium">{label}</p>
-                  <div className="space-y-0.5 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[9px] text-slate-400">공급가액</span>
-                      <span className={`text-xs font-bold ${tc}`}>{fw(m.amt)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[9px] text-blue-400">부가세포함</span>
-                      <span className="text-xs font-bold text-blue-500">{fw(m.vat)}</span>
-                    </div>
-                  </div>
-                  <div className="border-t border-dashed border-slate-200 my-2"/>
-                  <div className="flex items-center gap-1 mb-1">
-                    <span className="text-[9px] text-slate-400 font-semibold tracking-wider">누적</span>
-                  </div>
-                  <div className="space-y-0.5">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[9px] text-slate-400">공급가액</span>
-                      <span className={`text-xs font-bold ${tc2}`}>{fw(c.amt)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[9px] text-blue-300">부가세포함</span>
-                      <span className="text-xs font-bold text-blue-400">{fw(c.vat)}</span>
-                    </div>
-                  </div>
+            {dashCols.map(({ label, mVal, cVal, color }) => (
+              <div key={label} className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 flex flex-col">
+                <p className="text-[10px] text-slate-400 mb-2 truncate font-medium">{label}</p>
+                <p className={`text-sm font-bold flex-1 ${color}`}>{fw(mVal)}</p>
+                <div className="border-t border-dashed border-slate-200 my-2"/>
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-[9px] text-slate-400 font-semibold tracking-wider">누적</span>
                 </div>
-              );
-            })}
+                <p className={`text-xs font-bold ${color} opacity-70`}>{fw(cVal)}</p>
+              </div>
+            ))}
           </div>
         </div>
 
