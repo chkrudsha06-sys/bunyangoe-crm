@@ -49,8 +49,6 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
     return () => T.forEach(clearTimeout);
   }, [onDone]);
 
-  if (done) return null;
-
   return (
     <>
       {/* 위 검정 패널 */}
@@ -82,8 +80,8 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
           <div style={{
             fontFamily: "'Montserrat','Pretendard',sans-serif",
             fontSize: 'clamp(40px, 6vw, 88px)',
-            fontWeight: 500,
-            letterSpacing: '0.25em',
+            fontWeight: 900,
+            letterSpacing: '0.2em',
             color: '#ffffff',
             textTransform: 'uppercase' as const,
             transform: `translateY(${textY}px)`,
@@ -99,11 +97,12 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
       )}
 
       {/* 가운데 고정 텍스트 — 패널 열리면서 등장 */}
-      {panelOpen && (
+      {(panelOpen || centerOp > 0) && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 36,
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
+          paddingBottom: '18vh',
           pointerEvents: 'none',
         }}>
           <div style={{
@@ -187,7 +186,7 @@ export default function LoginPage() {
     const timer = setInterval(() => {
       setVisible(false);
       setTimeout(() => { setSlide(s => (s + 1) % SLIDES.length); setVisible(true); }, 600);
-    }, 2500);
+    }, 4500);
     return () => clearInterval(timer);
   }, [introDone]);
 
@@ -215,6 +214,32 @@ export default function LoginPage() {
 
       {/* 인트로 오버레이 */}
       <IntroOverlay onDone={() => setIntroDone(true)}/>
+      {/* 인트로 완료 후에도 가운데 텍스트 고정 유지 */}
+      {introDone && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 5,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          paddingBottom: '18vh',
+          pointerEvents: 'none',
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontFamily: "'Montserrat','Pretendard',sans-serif",
+              fontSize: 'clamp(80px, 15vw, 220px)',
+              fontWeight: 800, letterSpacing: '-0.01em',
+              color: '#ffffff', lineHeight: 1,
+            }}>1%</div>
+            <div style={{
+              fontFamily: "'Montserrat','Pretendard',sans-serif",
+              fontSize: 'clamp(13px, 1.5vw, 22px)',
+              fontWeight: 400, letterSpacing: '0.42em',
+              color: 'rgba(255,255,255,0.75)', marginTop: '16px',
+              textTransform: 'uppercase' as const,
+            }}>Bunyangoe CRM System</div>
+          </div>
+        </div>
+      )}
 
       {/* 배경 영상 */}
       <video
