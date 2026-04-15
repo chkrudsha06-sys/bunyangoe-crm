@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { login, getCurrentUser } from "@/lib/auth";
 
 // ─── 인트로 오버레이 ─────────────────────────────────────────
-type IntroPhase = 'idle'|'typing1'|'hold1'|'exit1'|'typing2'|'hold2'|'exit2'|'done';
+type IntroPhase = 'idle'|'typing1'|'hold1'|'exit1'|'typing2'|'hold2'|'exit2'|'crm'|'holdcrm'|'done';
 
 function IntroOverlay({ onDone }: { onDone: () => void }) {
   const [phase, setPhase]             = useState<IntroPhase>('idle');
@@ -13,21 +13,23 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
   const [chars2, setChars2]           = useState(0);
   const [textOpacity, setTextOpacity] = useState(1);
   const [overlayOpacity, setOverlayOpacity] = useState(1);
+  const [crmScale, setCrmScale]       = useState(3);
+  const [crmOpacity, setCrmOpacity]   = useState(0);
 
-  const TEXT1 = "F I R S T  M O V E R";
-  const TEXT2 = "1 %";
+  const TEXT1 = "FIRST MOVER";
+  const TEXT2 = "1%";
 
   useEffect(() => {
     const T: ReturnType<typeof setTimeout>[] = [];
 
     T.push(setTimeout(() => {
-      // ① FIRST MOVER 타이핑 (75ms/글자)
+      // ① FIRST MOVER 타이핑 (70ms/글자)
       setPhase('typing1');
       let i = 0;
       const iv1 = setInterval(() => {
         i++; setChars1(i);
         if (i >= TEXT1.length) clearInterval(iv1);
-      }, 75);
+      }, 70);
 
       T.push(setTimeout(() => {
         setPhase('hold1');
@@ -37,28 +39,45 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
           T.push(setTimeout(() => {
             setChars1(0); setTextOpacity(1);
 
-            // ② 1 % 타이핑 (120ms/글자)
+            // ② 1% 타이핑 (150ms/글자)
             setPhase('typing2');
             let j = 0;
             const iv2 = setInterval(() => {
               j++; setChars2(j);
               if (j >= TEXT2.length) clearInterval(iv2);
-            }, 120);
+            }, 150);
 
             T.push(setTimeout(() => {
               setPhase('hold2');
               T.push(setTimeout(() => {
+                // ③ 분양회 CRM — 뒤에서 앞으로 등장
                 setPhase('exit2'); setTextOpacity(0);
                 T.push(setTimeout(() => {
-                  setOverlayOpacity(0);
-                  T.push(setTimeout(() => { setPhase('done'); onDone(); }, 800));
+                  setChars2(0); setTextOpacity(1);
+                  setPhase('crm');
+                  setCrmScale(3); setCrmOpacity(0);
+                  requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                      setCrmScale(1); setCrmOpacity(1);
+                    });
+                  });
+                  T.push(setTimeout(() => {
+                    setPhase('holdcrm');
+                    T.push(setTimeout(() => {
+                      setTextOpacity(0);
+                      T.push(setTimeout(() => {
+                        setOverlayOpacity(0);
+                        T.push(setTimeout(() => { setPhase('done'); onDone(); }, 800));
+                      }, 350));
+                    }, 900));
+                  }, 300));
                 }, 350));
               }, 500));
-            }, TEXT2.length * 120 + 80));
+            }, TEXT2.length * 150 + 80));
           }, 350));
         }, 450));
-      }, TEXT1.length * 75 + 80));
-    }, 2000));
+      }, TEXT1.length * 70 + 80));
+    }, 1800));
 
     return () => T.forEach(clearTimeout);
   }, [onDone]);
@@ -71,25 +90,25 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       opacity: overlayOpacity,
       transition: 'opacity 0.8s ease',
-      pointerEvents: 'none',  // 버튼 클릭 항상 통과
+      pointerEvents: 'none',
     }}>
       <div style={{
         opacity: textOpacity,
         transition: 'opacity 0.35s ease',
         textAlign: 'center',
-        fontFamily: "'Montserrat','Pretendard',sans-serif",
         userSelect: 'none',
         width: '100%', padding: '0 5vw',
         boxSizing: 'border-box' as const,
       }}>
 
-        {/* FIRST MOVER */}
+        {/* FIRST MOVER — 명조체, 자간 축소 */}
         {(phase === 'typing1' || phase === 'hold1' || phase === 'exit1') && (
           <div style={{
             fontSize: 'clamp(44px, 6.5vw, 96px)',
-            fontWeight: 800,
+            fontWeight: 700,
             color: '#ffffff',
-            letterSpacing: '0.22em',
+            letterSpacing: '0.08em',
+            fontFamily: "'Georgia','Noto Serif KR','Batang',serif",
             textShadow: '0 0 40px rgba(255,255,255,0.25)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             whiteSpace: 'nowrap' as const,
@@ -105,13 +124,14 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
           </div>
         )}
 
-        {/* 1 % */}
+        {/* 1% — 명조체 */}
         {(phase === 'typing2' || phase === 'hold2' || phase === 'exit2') && (
           <div style={{
             fontSize: 'clamp(80px, 14vw, 200px)',
-            fontWeight: 900,
+            fontWeight: 700,
             color: '#ffffff',
-            letterSpacing: '0.1em',
+            letterSpacing: '0.04em',
+            fontFamily: "'Georgia','Noto Serif KR','Batang',serif",
             textShadow: '0 0 50px rgba(255,255,255,0.3)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             lineHeight: 1,
@@ -124,6 +144,25 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
                 animation: 'blink 0.55s steps(1) infinite',
               }}/>
             )}
+          </div>
+        )}
+
+        {/* 분양회 CRM — 뒤에서 앞으로 튀어나오는 애니메이션 */}
+        {(phase === 'crm' || phase === 'holdcrm') && (
+          <div style={{
+            fontSize: 'clamp(36px, 5.5vw, 80px)',
+            fontWeight: 700,
+            color: '#ffffff',
+            letterSpacing: '0.06em',
+            fontFamily: "'Georgia','Noto Serif KR','Batang',serif",
+            textShadow: '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(200,168,80,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            whiteSpace: 'nowrap' as const,
+            transform: `scale(${crmScale})`,
+            opacity: crmOpacity,
+            transition: 'transform 0.65s cubic-bezier(0.16,1,0.3,1), opacity 0.5s ease',
+          }}>
+            분양회 CRM
           </div>
         )}
       </div>
