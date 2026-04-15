@@ -4,211 +4,188 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { login, getCurrentUser } from "@/lib/auth";
 
-// ─── 인트로 오버레이 ─────────────────────────────────────────
-type IntroPhase = 'idle'|'typing1'|'hold1'|'exit1'|'typing2'|'hold2'|'exit2'|'netflix'|'spread'|'done';
+// ─── 인트로 오버레이 (luminaire 스타일) ───────────────────────
+type IntroPhase =
+  | 'black'        // 검정 화면 대기
+  | 'line1_in'     // "First Mover" 올라오며 등장
+  | 'line1_hold'
+  | 'line1_out'    // 올라가며 퇴장
+  | 'line2_in'     // "1%" 등장
+  | 'line2_hold'
+  | 'line2_out'
+  | 'line3_in'     // "Bunyangoe" 등장
+  | 'line3_hold'
+  | 'fade_out'     // 검정 오버레이 사라지며 로그인 페이지 전환
+  | 'done';
 
 function IntroOverlay({ onDone }: { onDone: () => void }) {
-  const [phase, setPhase]             = useState<IntroPhase>('idle');
-  const [chars1, setChars1]           = useState(0);
-  const [chars2, setChars2]           = useState(0);
-  const [textOpacity, setTextOpacity] = useState(1);
-  const [overlayOpacity, setOverlayOpacity] = useState(1);
-  // 넷플릭스 효과용
-  const [netflixW, setNetflixW]       = useState(0);   // 가로 퍼짐 0→100vw
-  const [netflixOpacity, setNetflixOpacity] = useState(1);
+  const [phase, setPhase] = useState<IntroPhase>('black');
 
-  const TEXT1 = "FIRST MOVER";
-  const TEXT2 = "1%";
+  // 각 줄 translateY 애니메이션용
+  const [y1, setY1] = useState(60);   const [op1, setOp1] = useState(0);
+  const [y2, setY2] = useState(60);   const [op2, setOp2] = useState(0);
+  const [y3, setY3] = useState(60);   const [op3, setOp3] = useState(0);
+  const [overlayOp, setOverlayOp] = useState(1);
 
   useEffect(() => {
     const T: ReturnType<typeof setTimeout>[] = [];
+    const raf = (fn: () => void) => requestAnimationFrame(() => requestAnimationFrame(fn));
 
+    // ① 검정 대기 0.6s 후 시작
     T.push(setTimeout(() => {
-      // ① FIRST MOVER 타이핑 (70ms/글자)
-      setPhase('typing1');
-      let i = 0;
-      const iv1 = setInterval(() => {
-        i++; setChars1(i);
-        if (i >= TEXT1.length) clearInterval(iv1);
-      }, 70);
+      // Line1: First Mover 등장
+      setPhase('line1_in');
+      raf(() => { setY1(0); setOp1(1); });
 
       T.push(setTimeout(() => {
-        setPhase('hold1');
+        setPhase('line1_hold');
         T.push(setTimeout(() => {
-          setPhase('exit1'); setTextOpacity(0);
+          // Line1 퇴장 (위로)
+          setPhase('line1_out');
+          setY1(-50); setOp1(0);
 
           T.push(setTimeout(() => {
-            setChars1(0); setTextOpacity(1);
-            // ② 1% 타이핑 (150ms/글자)
-            setPhase('typing2');
-            let j = 0;
-            const iv2 = setInterval(() => {
-              j++; setChars2(j);
-              if (j >= TEXT2.length) clearInterval(iv2);
-            }, 150);
+            // Line2: 1% 등장
+            setY2(60);
+            setPhase('line2_in');
+            raf(() => { setY2(0); setOp2(1); });
 
             T.push(setTimeout(() => {
-              setPhase('hold2');
+              setPhase('line2_hold');
               T.push(setTimeout(() => {
-                // ③ 1% 페이드 후 넷플릭스 등장
-                setPhase('exit2'); setTextOpacity(0);
-                T.push(setTimeout(() => {
-                  setTextOpacity(1);
-                  setPhase('netflix');
-                  // 가운데서 옆으로 퍼지기 시작
-                  setNetflixW(0); setNetflixOpacity(1);
-                  requestAnimationFrame(() => requestAnimationFrame(() => {
-                    setNetflixW(100);
-                  }));
+                // Line2 퇴장
+                setPhase('line2_out');
+                setY2(-50); setOp2(0);
 
-                  // 퍼진 후 페이드아웃
+                T.push(setTimeout(() => {
+                  // Line3: Bunyangoe 등장
+                  setY3(60);
+                  setPhase('line3_in');
+                  raf(() => { setY3(0); setOp3(1); });
+
                   T.push(setTimeout(() => {
-                    setPhase('spread');
-                    setNetflixOpacity(0);
+                    setPhase('line3_hold');
                     T.push(setTimeout(() => {
-                      setOverlayOpacity(0);
-                      T.push(setTimeout(() => { setPhase('done'); onDone(); }, 700));
-                    }, 600));
-                  }, 1400));
-                }, 300));
-              }, 500));
-            }, TEXT2.length * 150 + 80));
-          }, 350));
-        }, 450));
-      }, TEXT1.length * 70 + 80));
-    }, 1800));
+                      // 전체 페이드아웃 → 로그인 페이지 전환
+                      setPhase('fade_out');
+                      setOverlayOp(0);
+                      T.push(setTimeout(() => {
+                        setPhase('done');
+                        onDone();
+                      }, 1000));
+                    }, 900));
+                  }, 1200));
+                }, 400));
+              }, 700));
+            }, 1000));
+          }, 400));
+        }, 700));
+      }, 1100));
+    }, 600));
 
     return () => T.forEach(clearTimeout);
   }, [onDone]);
 
   if (phase === 'done') return null;
 
+  const trans = 'transform 0.75s cubic-bezier(0.16,1,0.3,1), opacity 0.75s cubic-bezier(0.16,1,0.3,1)';
+  const transOut = 'transform 0.55s cubic-bezier(0.4,0,1,1), opacity 0.55s ease';
+
+  // 그림자 — 1%와 Bunyangoe에만 골드
+  const shadowGold = '0 0 60px rgba(184,142,30,0.55), 0 4px 32px rgba(184,142,30,0.3)';
+
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 30,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      opacity: overlayOpacity,
-      transition: 'opacity 0.7s ease',
+      position: 'fixed', inset: 0, zIndex: 40,
+      background: '#000',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      opacity: overlayOp,
+      transition: 'opacity 0.9s ease',
       pointerEvents: 'none',
+      overflow: 'hidden',
     }}>
-      <div style={{
-        opacity: textOpacity,
-        transition: 'opacity 0.35s ease',
-        textAlign: 'center',
-        userSelect: 'none',
-        width: '100%', padding: '0 5vw',
-        boxSizing: 'border-box' as const,
-      }}>
 
-        {/* ① FIRST MOVER */}
-        {(phase === 'typing1' || phase === 'hold1' || phase === 'exit1') && (
+      {/* ── Line 1: First Mover ── */}
+      {(phase==='line1_in'||phase==='line1_hold'||phase==='line1_out') && (
+        <div style={{ overflow:'hidden', textAlign:'center' }}>
           <div style={{
-            fontSize: 'clamp(44px, 6.5vw, 96px)',
-            fontWeight: 800,
-            color: '#ffffff',
-            letterSpacing: '0.08em',
             fontFamily: "'Montserrat','Pretendard',sans-serif",
-            textShadow: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 'clamp(52px, 7.5vw, 112px)',
+            fontWeight: 300,
+            letterSpacing: '0.18em',
+            color: '#ffffff',
+            textTransform: 'uppercase' as const,
+            transform: `translateY(${y1}px)`,
+            opacity: op1,
+            transition: phase==='line1_out' ? transOut : trans,
             whiteSpace: 'nowrap' as const,
-          }}>
-            <span>{TEXT1.slice(0, chars1)}</span>
-            {phase === 'typing1' && (
-              <span style={{
-                display: 'inline-block', width: '3px', height: '0.75em',
-                background: '#fff', marginLeft: '5px',
-                animation: 'blink 0.55s steps(1) infinite',
-              }}/>
-            )}
-          </div>
-        )}
-
-        {/* ② 1% */}
-        {(phase === 'typing2' || phase === 'hold2' || phase === 'exit2') && (
-          <div style={{
-            fontSize: 'clamp(80px, 14vw, 200px)',
-            fontWeight: 800,
-            color: '#ffffff',
-            letterSpacing: '0.04em',
-            fontFamily: "'Montserrat','Pretendard',sans-serif",
-            textShadow: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
             lineHeight: 1,
           }}>
-            <span>{TEXT2.slice(0, chars2)}</span>
-            {phase === 'typing2' && (
-              <span style={{
-                display: 'inline-block', width: '4px', height: '0.7em',
-                background: '#fff', marginLeft: '6px',
-                animation: 'blink 0.55s steps(1) infinite',
-              }}/>
-            )}
+            <span style={{ fontWeight:300 }}>First </span>
+            <span style={{ fontWeight:800 }}>Mover</span>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* ③ 넷플릭스 스타일 — Bunyangoe Circle + CRM System */}
-        {(phase === 'netflix' || phase === 'spread') && (
+      {/* ── Line 2: 1% ── */}
+      {(phase==='line2_in'||phase==='line2_hold'||phase==='line2_out') && (
+        <div style={{ overflow:'hidden', textAlign:'center' }}>
           <div style={{
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            opacity: netflixOpacity,
-            transition: 'opacity 0.6s ease',
-            overflow: 'hidden',
+            fontFamily: "'Montserrat','Pretendard',sans-serif",
+            fontSize: 'clamp(100px, 18vw, 260px)',
+            fontWeight: 800,
+            letterSpacing: '-0.02em',
+            color: '#ffffff',
+            textShadow: shadowGold,
+            transform: `translateY(${y2}px)`,
+            opacity: op2,
+            transition: phase==='line2_out' ? transOut : trans,
+            lineHeight: 1,
           }}>
-            {/* 가로 퍼짐 컨테이너 */}
-            <div style={{
-              width: `${netflixW}vw`,
-              maxWidth: '900px',
-              transition: 'width 1.1s cubic-bezier(0.22,1,0.36,1)',
-              overflow: 'hidden',
-              whiteSpace: 'nowrap' as const,
-              textAlign: 'center',
-            }}>
-              {/* Bunyangoe Circle */}
-              <div style={{
-                fontSize: 'clamp(32px, 5vw, 76px)',
-                fontWeight: 900,
-                fontFamily: "'Montserrat','Pretendard',sans-serif",
-                letterSpacing: '0.05em',
-                background: 'linear-gradient(135deg, #ffffff 0%, #D4A843 40%, #ffffff 70%, #C9A030 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                textShadow: 'none',
-                lineHeight: 1.15,
-                display: 'block',
-              }}>
-                Bunyangoe Circle
-              </div>
-              {/* CRM System */}
-              <div style={{
-                fontSize: 'clamp(13px, 1.6vw, 26px)',
-                fontWeight: 400,
-                fontFamily: "'Montserrat','Pretendard',sans-serif",
-                letterSpacing: '0.35em',
-                color: 'rgba(255,255,255,0.65)',
-                marginTop: '6px',
-                textTransform: 'uppercase' as const,
-                display: 'block',
-              }}>
-                CRM SYSTEM
-              </div>
-            </div>
-            {/* 하단 골드 라인 — 함께 퍼짐 */}
-            <div style={{
-              width: `${netflixW * 0.6}vw`,
-              maxWidth: '540px',
-              height: '1.5px',
-              marginTop: '14px',
-              background: 'linear-gradient(90deg, transparent, #D4A843, transparent)',
-              transition: 'width 1.2s cubic-bezier(0.22,1,0.36,1)',
-            }}/>
+            1%
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* ── Line 3: Bunyangoe ── */}
+      {(phase==='line3_in'||phase==='line3_hold'||phase==='fade_out') && (
+        <div style={{ overflow:'hidden', textAlign:'center' }}>
+          <div style={{
+            fontFamily: "'Montserrat','Pretendard',sans-serif",
+            fontSize: 'clamp(48px, 7vw, 104px)',
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            color: '#ffffff',
+            textShadow: shadowGold,
+            transform: `translateY(${y3}px)`,
+            opacity: op3,
+            transition: phase==='fade_out' ? 'none' : trans,
+            whiteSpace: 'nowrap' as const,
+            lineHeight: 1,
+          }}>
+            Bunyangoe
+          </div>
+          {/* Shining Your 스타일 서브텍스트 */}
+          <div style={{
+            fontFamily: "'Montserrat','Pretendard',sans-serif",
+            fontSize: 'clamp(13px, 1.4vw, 20px)',
+            fontWeight: 400,
+            letterSpacing: '0.45em',
+            color: 'rgba(255,255,255,0.45)',
+            marginTop: '18px',
+            textTransform: 'uppercase' as const,
+            transform: `translateY(${y3}px)`,
+            opacity: op3 * 0.7,
+            transition: trans,
+          }}>
+            Bunyangoe CRM System
+          </div>
+        </div>
+      )}
 
       <style>{`
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700;800&display=swap');
       `}</style>
     </div>
   );
