@@ -108,7 +108,7 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
             color: '#ffffff',
             letterSpacing: '0.08em',
             fontFamily: "'Montserrat','Pretendard',sans-serif",
-            textShadow: '0 0 30px rgba(185,145,30,0.7), 0 0 60px rgba(185,145,30,0.35)',
+            textShadow: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             whiteSpace: 'nowrap' as const,
           }}>
@@ -131,7 +131,7 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
             color: '#ffffff',
             letterSpacing: '0.04em',
             fontFamily: "'Montserrat','Pretendard',sans-serif",
-            textShadow: '0 0 40px rgba(185,145,30,0.8), 0 0 80px rgba(185,145,30,0.4)',
+            textShadow: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             lineHeight: 1,
           }}>
@@ -259,7 +259,7 @@ export default function LoginPage() {
     const timer = setInterval(() => {
       setVisible(false);
       setTimeout(() => { setSlide(s => (s + 1) % SLIDES.length); setVisible(true); }, 600);
-    }, 5500);
+    }, 2500);
     return () => clearInterval(timer);
   }, [introDone]);
 
