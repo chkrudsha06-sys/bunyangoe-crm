@@ -196,12 +196,20 @@ export default function SalesPage() {
       hightarget_reward_type: form.hightarget_reward_type||null,
       ...rewards,
     };
+    let error;
     if (editId) {
-      await supabase.from("ad_executions").update(payload).eq("id", editId);
+      const res = await supabase.from("ad_executions").update(payload).eq("id", editId);
+      error = res.error;
     } else {
-      await supabase.from("ad_executions").insert(payload);
+      const res = await supabase.from("ad_executions").insert(payload);
+      error = res.error;
     }
     setSaving(false);
+    if (error) {
+      alert(`저장 실패: ${error.message}\n\n코드: ${error.code||"-"}\n상세: ${error.details||"-"}`);
+      console.error("저장 에러:", error);
+      return;
+    }
     setShowModal(false); setEditId(null);
     setForm(EMPTY_FORM); setVipSearch("");
     fetchExecutions();
