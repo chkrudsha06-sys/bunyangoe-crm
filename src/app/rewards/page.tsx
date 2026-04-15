@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { X, Search } from "lucide-react";
+import { X, Search, Copy, Check } from "lucide-react";
 
 interface VipContact {
   id: number; name: string; title: string | null;
@@ -92,6 +92,7 @@ export default function RewardsPage() {
   const [mileEditModal, setMileEditModal] = useState<{usage:MileageUsage;contact:VipContact}|null>(null);
   const [mileEditDate, setMileEditDate] = useState("");
   const [mileEditAmt, setMileEditAmt]   = useState("");
+  const [copiedId, setCopiedId]         = useState<number|null>(null);
 
   const quarters = getQuarters();
   const currentQ = getCurrentQuarter();
@@ -417,7 +418,18 @@ export default function RewardsPage() {
                                 <div className="bg-slate-50 rounded px-2 py-1 border border-slate-200 text-[10px] text-slate-500 space-y-0.5">
                                   {contact.bank_holder && <p>예금주: <span className="font-semibold text-slate-700">{contact.bank_holder}</span></p>}
                                   {contact.bank_name && <p>은행: <span className="font-semibold text-slate-700">{contact.bank_name}</span></p>}
-                                  {contact.bank_account && <p>계좌: <span className="font-semibold text-slate-700">{contact.bank_account}</span></p>}
+                                  {contact.bank_account && (
+                                    <div className="flex items-center gap-1">
+                                      <p>계좌: <span className="font-semibold text-slate-700">{contact.bank_account}</span></p>
+                                      <button onClick={()=>{
+                                        navigator.clipboard.writeText(contact.bank_account||"");
+                                        setCopiedId(contact.id);
+                                        setTimeout(()=>setCopiedId(null),1500);
+                                      }} className={`p-0.5 rounded ${copiedId===contact.id?"text-emerald-500":"text-slate-400 hover:text-blue-500"}`}>
+                                        {copiedId===contact.id ? <Check size={10}/> : <Copy size={10}/>}
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                               <div className="flex gap-1">
