@@ -202,9 +202,19 @@ export default function SalesPage() {
     if (!form.sales_type)       return alert("매출구분을 선택해주세요.");
     if (!form.member_name)      return alert("고객명을 입력해주세요.");
     if (!form.channel)          return alert("광고채널을 선택해주세요.");
-    if (!rawAmount)             return alert("집행금액을 입력해주세요.");
+    const refundAmt = form.refund_amount ? Number(form.refund_amount.replace(/,/g,"")) : 0;
+    if (!rawAmount && !refundAmt) return alert("집행금액 또는 환불금액을 입력해주세요.");
     setSaving(true);
-    const rewards = calcRewards(form.channel, rawAmount, form.hightarget_reward_type);
+    const isRefundOnly = !rawAmount && refundAmt > 0;
+    const calcBase = isRefundOnly ? refundAmt : rawAmount;
+    const rawRewards = calcRewards(form.channel, calcBase, form.hightarget_reward_type);
+    // 환불이면 모든 리워드/마일리지 음수
+    const rewards = isRefundOnly || refundAmt > 0 ? {
+      hightarget_mileage: -Math.abs(rawRewards.hightarget_mileage),
+      hightarget_reward:  -Math.abs(rawRewards.hightarget_reward),
+      hogaengnono_reward: -Math.abs(rawRewards.hogaengnono_reward),
+      lms_reward:         -Math.abs(rawRewards.lms_reward),
+    } : rawRewards;
     const payload = {
       member_name: form.member_name,
       position: form.position||null,
@@ -416,7 +426,7 @@ export default function SalesPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {["매출구분","분양회 넘버링","고객명","직급","집행금액","VAT포함금액","환불금액","광고채널","결제일","대협팀담당","담당컨설턴트","하이타겟마일리지","하이타겟리워드","호갱노노리워드","LMS리워드",""].map(h=>(
+                  {["매출구분","분양회 넘버링","고객명","직급","집행금액","VAT포함금액","환불금액","광고채널","결제일/환불일","대협팀담당","담당컨설턴트","하이타겟마일리지","하이타겟리워드","호갱노노리워드","LMS리워드",""].map(h=>(
                     <th key={h} className="text-left px-3 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -562,7 +572,7 @@ export default function SalesPage() {
 
                   {/* 환불금액 */}
                   <div>
-                    <label className={lbl}>환불금액 <span className="text-slate-400">(선택)</span></label>
+                    <label className={lbl}>환불금액</label>
                     <input className={inp} value={form.refund_amount}
                       onChange={e=>setForm({...form,refund_amount:formatAmt(e.target.value)})}
                       placeholder="환불 시 입력"/>
@@ -588,7 +598,7 @@ export default function SalesPage() {
                       </div>
                     )}
                     <div>
-                      <label className={lbl}>결제일</label>
+                      <label className={lbl}>{form.refund_amount ? "환불일" : "결제일"}</label>
                       <input type="date" className={inp} value={form.payment_date} onChange={e=>setForm({...form,payment_date:e.target.value})}/>
                     </div>
                   </div>
@@ -624,12 +634,12 @@ export default function SalesPage() {
                     </select>
                   </div>
                   <div className="col-span-2">
-                    <label className={lbl}>환불금액 <span className="text-slate-400">(선택)</span></label>
+                    <label className={lbl}>환불금액</label>
                     <input className={inp} value={form.refund_amount}
                       onChange={e=>setForm({...form,refund_amount:formatAmt(e.target.value)})}
                       placeholder="환불 시 입력"/>
                   </div>
-                  <div><label className={lbl}>결제일</label><input type="date" className={inp} value={form.payment_date} onChange={e=>setForm({...form,payment_date:e.target.value})}/></div>
+                  <div><label className={lbl}>{form.refund_amount ? "환불일" : "결제일"}</label><input type="date" className={inp} value={form.payment_date} onChange={e=>setForm({...form,payment_date:e.target.value})}/></div>
                   <div>
                     <label className={lbl}>대협팀 담당자</label>
                     <select className={inp} value={form.team_member} onChange={e=>setForm({...form,team_member:e.target.value})}>
@@ -669,12 +679,12 @@ export default function SalesPage() {
                     </select>
                   </div>
                   <div className="col-span-2">
-                    <label className={lbl}>환불금액 <span className="text-slate-400">(선택)</span></label>
+                    <label className={lbl}>환불금액</label>
                     <input className={inp} value={form.refund_amount}
                       onChange={e=>setForm({...form,refund_amount:formatAmt(e.target.value)})}
                       placeholder="환불 시 입력"/>
                   </div>
-                  <div><label className={lbl}>결제일</label><input type="date" className={inp} value={form.payment_date} onChange={e=>setForm({...form,payment_date:e.target.value})}/></div>
+                  <div><label className={lbl}>{form.refund_amount ? "환불일" : "결제일"}</label><input type="date" className={inp} value={form.payment_date} onChange={e=>setForm({...form,payment_date:e.target.value})}/></div>
                   <div>
                     <label className={lbl}>대협팀 담당자</label>
                     <select className={inp} value={form.team_member} onChange={e=>setForm({...form,team_member:e.target.value})}>
@@ -683,7 +693,7 @@ export default function SalesPage() {
                   </div>
                   <div><label className={lbl}>담당 컨설턴트</label><input className={inp} value={form.consultant} onChange={e=>setForm({...form,consultant:e.target.value})} placeholder="컨설턴트명"/></div>
                   <div className="col-span-2">
-                    <label className={lbl}>환불금액 <span className="text-slate-400">(선택)</span></label>
+                    <label className={lbl}>환불금액</label>
                     <input className={inp} value={form.refund_amount}
                       onChange={e=>setForm({...form,refund_amount:formatAmt(e.target.value)})}
                       placeholder="환불 시 입력"/>
