@@ -78,9 +78,9 @@ export default function RewardsPage() {
   const [filterPaid, setFilterPaid] = useState("");
 
   // 모달 상태
-  const [payModal, setPayModal]   = useState<{contact:VipContact;amount:number}|null>(null);
+  const [payModal, setPayModal]   = useState<{contact:VipContact;amount:number;editId?:number}|null>(null);
   const [payInput, setPayInput]   = useState("");
-  const [mileModal, setMileModal] = useState<{contact:VipContact}|null>(null);
+  const [mileModal, setMileModal] = useState<{contact:VipContact;editId?:number}|null>(null);
   const [mileDate, setMileDate]   = useState("");
   const [mileAmt, setMileAmt]     = useState("");
   const [modalSaving, setModalSaving] = useState(false);
@@ -178,11 +178,25 @@ export default function RewardsPage() {
     setModalSaving(true);
     const q = filterQuarter || currentQ;
     const today = new Date().toISOString().split("T")[0];
-    await supabase.from("rewards").insert({
-      contact_id: payModal.contact.id, quarter: q,
-      paid_amount: amt, paid_date: today, is_paid: true,
-    });
+    if (payModal.editId) {
+      await supabase.from("rewards").update({
+        paid_amount: amt, paid_date: today, is_paid: true,
+      }).eq("id", payModal.editId);
+    } else {
+      await supabase.from("rewards").insert({
+        contact_id: payModal.contact.id, quarter: q,
+        paid_amount: amt, paid_date: today, is_paid: true,
+      });
+    }
     setModalSaving(false);
+    setPayModal(null); setPayInput("");
+    fetchAll();
+  };
+
+  const handlePayDelete = async () => {
+    if (!payModal?.editId) return;
+    if (!confirm("지급 기록을 삭제하시겠습니까?")) return;
+    await supabase.from("rewards").delete().eq("id", payModal.editId);
     setPayModal(null); setPayInput("");
     fetchAll();
   };
@@ -193,12 +207,25 @@ export default function RewardsPage() {
     const amt = Number(mileAmt.replace(/,/g,"")) || 0;
     if (!amt || !mileDate) return alert("사용일과 사용금액을 입력해주세요.");
     setModalSaving(true);
-    await supabase.from("mileage_usages").insert({
-      contact_id: mileModal.contact.id,
-      usage_date: mileDate,
-      usage_amount: amt,
-    });
+    if (mileModal.editId) {
+      await supabase.from("mileage_usages").update({
+        usage_date: mileDate, usage_amount: amt,
+      }).eq("id", mileModal.editId);
+    } else {
+      await supabase.from("mileage_usages").insert({
+        contact_id: mileModal.contact.id,
+        usage_date: mileDate, usage_amount: amt,
+      });
+    }
     setModalSaving(false);
+    setMileModal(null); setMileDate(""); setMileAmt("");
+    fetchAll();
+  };
+
+  const handleMileDelete = async () => {
+    if (!mileModal?.editId) return;
+    if (!confirm("마일리지 사용 기록을 삭제하시겠습니까?")) return;
+    await supabase.from("mileage_usages").delete().eq("id", mileModal.editId);
     setMileModal(null); setMileDate(""); setMileAmt("");
     fetchAll();
   };
@@ -339,17 +366,37 @@ export default function RewardsPage() {
                           <div className="flex flex-col items-center gap-0.5">
                             <span className="text-blue-500 font-medium">{fw(d.mileUsed)}</span>
                             <span className="text-slate-400 text-[10px]">{d.latestMileUsage.usage_date}</span>
+                            <button onClick={()=>{
+                              setMileModal({contact, editId: d.latestMileUsage!.id});
+                              setMileDate(d.latestMileUsage!.usage_date);
+                              setMileAmt(d.latestMileUsage!.usage_amount.toLocaleString());
+                            }} className="text-[10px] text-blue-400 hover:text-blue-600 underline mt-0.5">수정</button>
                           </div>
                         ) : <span className="text-slate-300">-</span>}
                       </td>
 
                       {/* 마일리지지급여부 */}
                       <td className="px-2 py-2.5 text-center">
-                        {d.isPaid
-                          ? <div className="flex items-center justify-center gap-1">
-                              <CheckCircle size={13} className="text-emerald-500"/>
-                              <span className="text-xs text-emerald-600 font-medium">완료</span>
+                        {d.isPaid ? (() => {
+                          const q = filterQuarter || currentQ;
+                          const latestPay = payments
+                            .filter(p=>p.contact_id===contact.id && p.quarter===q)
+                            .sort((a,b)=>((b.paid_date||"").localeCompare(a.paid_date||"")))[0];
+                          return (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <div className="flex items-center gap-1">
+                                <CheckCircle size={13} className="text-emerald-500"/>
+                                <span className="text-xs text-emerald-600 font-medium">완료</span>
+                              </div>
+                              {latestPay && (
+                                <button onClick={()=>{
+                                  setPayModal({contact, amount:d.netPay, editId:latestPay.id});
+                                  setPayInput((latestPay.paid_amount||0).toLocaleString());
+                                }} className="text-[10px] text-emerald-400 hover:text-emerald-600 underline">수정</button>
+                              )}
                             </div>
+                          );
+                        })()
                           : d.cumReward>0
                           ? <div className="flex items-center justify-center gap-1">
                               <AlertCircle size={13} className="text-amber-400"/>
@@ -405,10 +452,13 @@ export default function RewardsPage() {
               </div>
             </div>
             <div className="flex gap-2 px-6 pb-5">
+              {payModal?.editId && (
+                <button onClick={handlePayDelete} className="px-4 py-2.5 text-sm text-red-500 border border-red-200 rounded-xl hover:bg-red-50">삭제</button>
+              )}
               <button onClick={()=>setPayModal(null)} className="flex-1 py-2.5 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">취소</button>
               <button onClick={handlePaySave} disabled={modalSaving}
                 className="flex-1 py-2.5 text-sm font-bold bg-[#1E3A8A] text-white rounded-xl hover:bg-blue-800 disabled:opacity-50 flex items-center justify-center gap-1.5">
-                <Save size={13}/>{modalSaving?"저장 중...":"지급 확정"}
+                <Save size={13}/>{modalSaving?"저장 중...":payModal?.editId?"수정 확정":"지급 확정"}
               </button>
             </div>
           </div>
@@ -436,10 +486,13 @@ export default function RewardsPage() {
               </div>
             </div>
             <div className="flex gap-2 px-6 pb-5">
+              {mileModal?.editId && (
+                <button onClick={handleMileDelete} className="px-4 py-2.5 text-sm text-red-500 border border-red-200 rounded-xl hover:bg-red-50">삭제</button>
+              )}
               <button onClick={()=>setMileModal(null)} className="flex-1 py-2.5 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">취소</button>
               <button onClick={handleMileSave} disabled={modalSaving}
                 className="flex-1 py-2.5 text-sm font-bold bg-[#1E3A8A] text-white rounded-xl hover:bg-blue-800 disabled:opacity-50 flex items-center justify-center gap-1.5">
-                <Save size={13}/>{modalSaving?"저장 중...":"사용 처리"}
+                <Save size={13}/>{modalSaving?"저장 중...":mileModal?.editId?"수정 확정":"사용 처리"}
               </button>
             </div>
           </div>
