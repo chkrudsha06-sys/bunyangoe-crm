@@ -35,7 +35,7 @@ function ParticleCanvas() {
       vx: (Math.random() - 0.5) * 0.35,
       vy: (Math.random() - 0.5) * 0.35,
       r: Math.random() * 1.8 + 0.8,
-      alpha: Math.random() * 0.35 + 0.1,
+      alpha: Math.random() * 0.55 + 0.25,
     }));
 
     const draw = () => {
@@ -61,8 +61,8 @@ function ParticleCanvas() {
             ctx.beginPath();
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(255,255,255,${(1 - dist/130) * 0.12})`;
-            ctx.lineWidth = 0.6;
+            ctx.strokeStyle = `rgba(255,255,255,${(1 - dist/130) * 0.35})`;
+            ctx.lineWidth = 1.0;
             ctx.stroke();
           }
         }
@@ -77,8 +77,8 @@ function ParticleCanvas() {
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
           ctx.lineTo(mouse.x, mouse.y);
-          ctx.strokeStyle = `rgba(255,255,255,${(1 - dist/170) * 0.28})`;
-          ctx.lineWidth = 0.8;
+          ctx.strokeStyle = `rgba(255,255,255,${(1 - dist/170) * 0.6})`;
+          ctx.lineWidth = 1.2;
           ctx.stroke();
         }
       }
@@ -86,7 +86,7 @@ function ParticleCanvas() {
       // 마우스 포인트
       ctx.beginPath();
       ctx.arc(mouse.x, mouse.y, 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
       ctx.fill();
 
       animId = requestAnimationFrame(draw);
