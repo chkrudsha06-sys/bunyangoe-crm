@@ -460,10 +460,26 @@ export default function SalesPage() {
                     </td>
                     <td className="px-3 py-2.5 text-xs text-center"><span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full">{e.team_member||"-"}</span></td>
                     <td className="px-3 py-2.5 text-slate-500 text-xs text-center">{e.consultant||"-"}</td>
-                    <td className="px-3 py-2.5 text-blue-600 font-medium text-xs text-center">{e.hightarget_mileage ? fw(e.hightarget_mileage) : "-"}</td>
-                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs text-center">{e.hightarget_reward ? fw(e.hightarget_reward) : "-"}</td>
-                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs text-center">{e.hogaengnono_reward ? fw(e.hogaengnono_reward) : "-"}</td>
-                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs text-center">{e.lms_reward ? fw(e.lms_reward) : "-"}</td>
+                    <td className="px-3 py-2.5 font-medium text-xs text-center">
+                      <span className={e.hightarget_mileage < 0 ? "text-red-500" : "text-blue-600"}>
+                        {e.hightarget_mileage ? fw(e.hightarget_mileage) : "-"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 font-medium text-xs text-center">
+                      <span className={e.hightarget_reward < 0 ? "text-red-500" : "text-amber-600"}>
+                        {e.hightarget_reward ? fw(e.hightarget_reward) : "-"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 font-medium text-xs text-center">
+                      <span className={e.hogaengnono_reward < 0 ? "text-red-500" : "text-amber-600"}>
+                        {e.hogaengnono_reward ? fw(e.hogaengnono_reward) : "-"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 font-medium text-xs text-center">
+                      <span className={e.lms_reward < 0 ? "text-red-500" : "text-amber-600"}>
+                        {e.lms_reward ? fw(e.lms_reward) : "-"}
+                      </span>
+                    </td>
                     <td className="px-3 py-2.5 flex items-center gap-1 text-center">
                       <button onClick={()=>handleEdit(e)} className="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50 flex items-center gap-1">
                         <Edit2 size={11}/>수정
