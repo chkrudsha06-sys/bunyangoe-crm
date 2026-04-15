@@ -93,9 +93,10 @@ export default function SalesPage() {
   const [filterStart, setFilterStart]     = useState("");
   const [filterEnd, setFilterEnd]         = useState("");
   const [filterRefund, setFilterRefund]   = useState("");
+  const [filterMonth, setFilterMonth]     = useState("");
   const [vipSearch, setVipSearch]         = useState("");
 
-  useEffect(() => { fetchExecutions(); }, [filterRoute, filterChannel, filterMember, filterStart, filterEnd, filterRefund]);
+  useEffect(() => { fetchExecutions(); }, [filterRoute, filterChannel, filterMember, filterStart, filterEnd, filterRefund, filterMonth]);
   useEffect(() => { fetchVipMembers(); }, []);
 
   const fetchExecutions = async () => {
@@ -111,6 +112,12 @@ export default function SalesPage() {
     if (filterStart)   q = q.gte("payment_date", filterStart);
     if (filterEnd)     q = q.lte("payment_date", filterEnd);
     if (filterRefund === "refund") q = q.not("refund_amount", "is", null);
+    if (filterMonth) {
+      const year = new Date().getFullYear();
+      const m = filterMonth.padStart(2,"0");
+      const lastDay = new Date(year, parseInt(filterMonth), 0).getDate();
+      q = q.gte("payment_date", `${year}-${m}-01`).lte("payment_date", `${year}-${m}-${lastDay}`);
+    }
     const { data } = await q;
     setExecutions((data as AdExecution[]) || []);
     setLoading(false);
@@ -155,7 +162,7 @@ export default function SalesPage() {
       total:       { amt: sumAmt(list),                          vat: sumVat(list) },
       inBunyan:    { amt: sumAmt(filterCh(list,"분양회 입회비")), vat: sumVat(filterCh(list,"분양회 입회비")) },
       monBunyan:   { amt: sumAmt(filterCh(list,"분양회 월회비")), vat: sumVat(filterCh(list,"분양회 월회비")) },
-      adSpecial:   { amt: sumAmt(adList),                        vat: sumVat(adList) },
+      adSpecial:   { amt: sumAmt(filterCh(list.filter(e=>e.contract_route==="분양회"), ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"])), vat: sumVat(filterCh(list.filter(e=>e.contract_route==="분양회"), ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"])) },
       hightarget:  { amt: sumAmt(filterCh(list,"하이타겟")),      vat: sumVat(filterCh(list,"하이타겟")) },
       hogaengCh:   { amt: sumAmt(filterCh(list,"호갱노노_채널톡")),  vat: sumVat(filterCh(list,"호갱노노_채널톡")) },
       hogaengDan:  { amt: sumAmt(filterCh(list,"호갱노노_단지마커")), vat: sumVat(filterCh(list,"호갱노노_단지마커")) },
@@ -369,13 +376,21 @@ export default function SalesPage() {
             <option value="">전체</option>
             <option value="refund">환불 건만</option>
           </select>
+          {/* 월별 빠른 탐색 */}
+          <select value={filterMonth} onChange={e=>{ setFilterMonth(e.target.value); setFilterStart(""); setFilterEnd(""); }}
+            className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+            <option value="">전체 월</option>
+            {Array.from({length:12},(_,i)=>i+1).map(m=>(
+              <option key={m} value={String(m)}>{m}월</option>
+            ))}
+          </select>
           {/* 기간 설정 */}
           <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
             <span className="text-xs text-slate-400 font-medium whitespace-nowrap">기간</span>
-            <input type="date" value={filterStart} onChange={e=>setFilterStart(e.target.value)}
+            <input type="date" value={filterStart} onChange={e=>{ setFilterStart(e.target.value); setFilterMonth(""); }}
               className="text-xs text-slate-600 bg-transparent outline-none"/>
             <span className="text-slate-300 text-xs">—</span>
-            <input type="date" value={filterEnd} onChange={e=>setFilterEnd(e.target.value)}
+            <input type="date" value={filterEnd} onChange={e=>{ setFilterEnd(e.target.value); setFilterMonth(""); }}
               className="text-xs text-slate-600 bg-transparent outline-none"/>
             {(filterStart||filterEnd) && (
               <button onClick={()=>{setFilterStart("");setFilterEnd("");}}
