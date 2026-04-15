@@ -1,377 +1,649 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { login, getCurrentUser } from "@/lib/auth";
+import { useState, useEffect, useMemo } from "react";
+import { supabase } from "@/lib/supabase";
+import { CreditCard, Plus, Save, X, TrendingUp, Search, Edit2 } from "lucide-react";
 
-// ─── 인트로 오버레이 ─────────────────────────────────────────
-type IntroPhase = 'idle'|'typing1'|'hold1'|'exit1'|'typing2'|'hold2'|'exit2'|'done';
-
-function IntroOverlay({ onDone }: { onDone: () => void }) {
-  const [phase, setPhase]             = useState<IntroPhase>('idle');
-  const [chars1, setChars1]           = useState(0);
-  const [chars2, setChars2]           = useState(0);
-  const [textOpacity, setTextOpacity] = useState(1);
-  const [overlayOpacity, setOverlayOpacity] = useState(1);
-
-  const TEXT1 = "F I R S T  M O V E R";
-  const TEXT2 = "1 %";
-
-  useEffect(() => {
-    const T: ReturnType<typeof setTimeout>[] = [];
-
-    T.push(setTimeout(() => {
-      // ① FIRST MOVER 타이핑 (75ms/글자)
-      setPhase('typing1');
-      let i = 0;
-      const iv1 = setInterval(() => {
-        i++; setChars1(i);
-        if (i >= TEXT1.length) clearInterval(iv1);
-      }, 75);
-
-      T.push(setTimeout(() => {
-        setPhase('hold1');
-        T.push(setTimeout(() => {
-          setPhase('exit1'); setTextOpacity(0);
-
-          T.push(setTimeout(() => {
-            setChars1(0); setTextOpacity(1);
-
-            // ② 1 % 타이핑 (120ms/글자)
-            setPhase('typing2');
-            let j = 0;
-            const iv2 = setInterval(() => {
-              j++; setChars2(j);
-              if (j >= TEXT2.length) clearInterval(iv2);
-            }, 120);
-
-            T.push(setTimeout(() => {
-              setPhase('hold2');
-              T.push(setTimeout(() => {
-                setPhase('exit2'); setTextOpacity(0);
-                T.push(setTimeout(() => {
-                  setOverlayOpacity(0);
-                  T.push(setTimeout(() => { setPhase('done'); onDone(); }, 800));
-                }, 350));
-              }, 500));
-            }, TEXT2.length * 120 + 80));
-          }, 350));
-        }, 450));
-      }, TEXT1.length * 75 + 80));
-    }, 2000));
-
-    return () => T.forEach(clearTimeout);
-  }, [onDone]);
-
-  if (phase === 'done') return null;
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 30,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      opacity: overlayOpacity,
-      transition: 'opacity 0.8s ease',
-      pointerEvents: 'none',  // 버튼 클릭 항상 통과
-    }}>
-      <div style={{
-        opacity: textOpacity,
-        transition: 'opacity 0.35s ease',
-        textAlign: 'center',
-        fontFamily: "'Montserrat','Pretendard',sans-serif",
-        userSelect: 'none',
-        width: '100%', padding: '0 5vw',
-        boxSizing: 'border-box' as const,
-      }}>
-
-        {/* FIRST MOVER */}
-        {(phase === 'typing1' || phase === 'hold1' || phase === 'exit1') && (
-          <div style={{
-            fontSize: 'clamp(44px, 6.5vw, 96px)',
-            fontWeight: 800,
-            color: '#ffffff',
-            letterSpacing: '0.22em',
-            textShadow: '0 0 40px rgba(255,255,255,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            whiteSpace: 'nowrap' as const,
-          }}>
-            <span>{TEXT1.slice(0, chars1)}</span>
-            {phase === 'typing1' && (
-              <span style={{
-                display: 'inline-block', width: '3px', height: '0.75em',
-                background: '#fff', marginLeft: '5px',
-                animation: 'blink 0.55s steps(1) infinite',
-              }}/>
-            )}
-          </div>
-        )}
-
-        {/* 1 % */}
-        {(phase === 'typing2' || phase === 'hold2' || phase === 'exit2') && (
-          <div style={{
-            fontSize: 'clamp(80px, 14vw, 200px)',
-            fontWeight: 900,
-            color: '#ffffff',
-            letterSpacing: '0.1em',
-            textShadow: '0 0 50px rgba(255,255,255,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            lineHeight: 1,
-          }}>
-            <span>{TEXT2.slice(0, chars2)}</span>
-            {phase === 'typing2' && (
-              <span style={{
-                display: 'inline-block', width: '4px', height: '0.7em',
-                background: '#fff', marginLeft: '6px',
-                animation: 'blink 0.55s steps(1) infinite',
-              }}/>
-            )}
-          </div>
-        )}
-      </div>
-
-      <style>{`
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-      `}</style>
-    </div>
-  );
+interface AdExecution {
+  id: number;
+  member_name: string;
+  position: string | null;
+  execution_amount: number;
+  vat_amount: number | null;
+  channel: string;
+  contract_route: string | null;
+  bunyanghoe_number: string | null;
+  payment_date: string | null;
+  team_member: string | null;
+  consultant: string | null;
+  hightarget_reward_type: string | null;
+  hightarget_mileage: number;
+  hightarget_reward: number;
+  hogaengnono_reward: number;
+  lms_reward: number;
+  created_at: string;
 }
 
-const SLIDES = [
-  {
-    engBold: "First Mover",
-    engRest: " in Real Estate Sales",
-    kor1: "분양 산업의 판도를 바꾸는 새로운 기준.",
-    kor2: "대한민국 분양 생태계를 선도하는 퍼스트무버, 분양의신.",
-  },
-  {
-    engBold: "Exclusive",
-    engRest: " VIP Membership for the Top 1%",
-    kor1: "광고를 넘어, 성장을 함께하는 프라이빗 파트너십.",
-    kor2: "분양상담사 최상위 100인만을 위한 멤버십, 분양회.",
-  },
-];
+interface VipMember {
+  id: number; name: string; title: string | null;
+  assigned_to: string; consultant: string | null;
+  bunyanghoe_number: string | null; meeting_result: string;
+}
 
-// ─── 메인 로그인 페이지 ──────────────────────────────────────
-export default function LoginPage() {
-  const router = useRouter();
-  const [slide, setSlide] = useState(0);
-  const [visible, setVisible] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [userId, setUserId] = useState("");
-  const [userPw, setUserPw] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [showPw, setShowPw] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [introDone, setIntroDone] = useState(false);
+// 분양회 전용 채널 포함
+const CHANNELS_BUNYANGHOE = ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS","분양회 입회비","분양회 월회비"];
+const CHANNELS_WANPAN     = ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
+const CHANNELS_DAEHYUP    = ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
+const TEAM = ["조계현","이세호","기여운","최연전"];
 
-  useEffect(() => {
-    const user = getCurrentUser();
-    if (user) router.push("/");
-  }, [router]);
+const EMPTY_FORM = {
+  sales_type:"", vip_member_id:"",
+  member_name:"", position:"", bunyanghoe_number:"",
+  execution_amount:"", vat_yn:"여",  // 부가세 여/부
+  channel:"", payment_date:"",
+  team_member:"", consultant:"",
+  hightarget_reward_type:"",
+};
 
-  useEffect(() => {
-    const v = videoRef.current;
-    if (v) { v.muted = true; v.play().catch(() => {}); }
-  }, []);
+// ── 리워드 계산 (집행금액 기준) ──────────────────────────────
+function calcRewards(channel: string, amount: number, rewardType: string) {
+  let hightarget_mileage = 0, hightarget_reward = 0, hogaengnono_reward = 0, lms_reward = 0;
+  if (channel === "하이타겟") {
+    if (rewardType === "마일리지10%") hightarget_mileage = Math.floor(amount * 0.10);
+    else if (rewardType === "리워드5%") hightarget_reward = Math.floor(amount * 0.05);
+  } else if (channel === "호갱노노_채널톡") {
+    // (집행금액 / 150) * 200 * 5%
+    hogaengnono_reward = Math.floor((amount / 150) * 200 * 0.05);
+  } else if (channel === "호갱노노_단지마커" || channel === "호갱노노_기타") {
+    hogaengnono_reward = Math.floor(amount * 0.05);
+  } else if (channel === "LMS") {
+    lms_reward = Math.floor(amount * 0.15);
+  }
+  return { hightarget_mileage, hightarget_reward, hogaengnono_reward, lms_reward };
+}
 
-  // 슬라이드 자동 전환
-  useEffect(() => {
-    if (!introDone) return;
-    const timer = setInterval(() => {
-      setVisible(false);
-      setTimeout(() => { setSlide(s => (s + 1) % SLIDES.length); setVisible(true); }, 600);
-    }, 5500);
-    return () => clearInterval(timer);
-  }, [introDone]);
+function fw(n: number) {
+  if (!n) return "-";
+  return n.toLocaleString() + "원";
+}
+function fwFull(n: number) {
+  if (!n) return "-";
+  return n.toLocaleString() + "원";
+}
 
-  const handleLogin = async () => {
-    if (!userId || !userPw) { setError("아이디와 비밀번호를 입력해주세요."); return; }
+function parseAmount(s: string) { return Number(s.replace(/,/g,"")) || 0; }
+function formatAmt(s: string) {
+  const n = s.replace(/[^0-9]/g,"");
+  return n ? Number(n).toLocaleString() : "";
+}
+
+export default function SalesPage() {
+  const [executions, setExecutions]   = useState<AdExecution[]>([]);
+  const [vipMembers, setVipMembers]   = useState<VipMember[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [showModal, setShowModal]     = useState(false);
+  const [editId, setEditId]           = useState<number|null>(null);
+  const [form, setForm]               = useState<any>(EMPTY_FORM);
+  const [saving, setSaving]           = useState(false);
+  const [filterChannel, setFilterChannel] = useState("");
+  const [filterMember, setFilterMember]   = useState("");
+  const [filterStart, setFilterStart]     = useState("");
+  const [filterEnd, setFilterEnd]         = useState("");
+  const [vipSearch, setVipSearch]         = useState("");
+
+  useEffect(() => { fetchExecutions(); }, [filterChannel, filterMember, filterStart, filterEnd]);
+  useEffect(() => { fetchVipMembers(); }, []);
+
+  const fetchExecutions = async () => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 400));
-    const user = login(userId, userPw);
-    if (user) { router.push("/"); }
-    else { setError("아이디 또는 비밀번호가 올바르지 않습니다."); setLoading(false); }
+    let q = supabase.from("ad_executions").select("*").order("payment_date",{ascending:false,nullsFirst:false});
+    if (filterChannel === "호갱노노(전체)") {
+      q = q.in("channel", ["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타"]);
+    } else if (filterChannel) {
+      q = q.eq("channel", filterChannel);
+    }
+    if (filterMember)  q = q.eq("team_member", filterMember);
+    if (filterStart)   q = q.gte("payment_date", filterStart);
+    if (filterEnd)     q = q.lte("payment_date", filterEnd);
+    const { data } = await q;
+    setExecutions((data as AdExecution[]) || []);
+    setLoading(false);
   };
 
-  const cur = SLIDES[slide];
+  const fetchVipMembers = async () => {
+    const { data } = await supabase.from("contacts")
+      .select("id,name,title,assigned_to,consultant,bunyanghoe_number,meeting_result")
+      .in("meeting_result",["계약완료","예약완료"])
+      .order("bunyanghoe_number",{ascending:true});
+    setVipMembers((data as VipMember[]) || []);
+  };
 
-  // 로고 — 상단 네비용 (영상 배경 위)
-  const navLogoStyle: React.CSSProperties = {
-    height: 38, objectFit: "contain" as const,
+  const filteredVip = useMemo(() => {
+    const list = !vipSearch.trim()
+      ? [...vipMembers]
+      : vipMembers.filter(v => v.name.includes(vipSearch.trim()));
+    return list.sort((a, b) => {
+      const na = parseInt(a.bunyanghoe_number?.replace(/[^0-9]/g, "") || "9999");
+      const nb = parseInt(b.bunyanghoe_number?.replace(/[^0-9]/g, "") || "9999");
+      return na - nb;
+    });
+  }, [vipMembers, vipSearch]);
+
+  // ── 대시보드 집계 ─────────────────────────────────────────
+  const now = new Date();
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`;
+  const monthEnd   = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${new Date(now.getFullYear(),now.getMonth()+1,0).getDate()}`;
+
+  const monthly = executions.filter(e => e.payment_date && e.payment_date >= monthStart && e.payment_date <= monthEnd);
+  const all     = executions;
+
+  // 공급가액 / VAT포함 집계
+  const sumAmt  = (list: AdExecution[]) => list.reduce((s,e)=>s+(e.execution_amount||0),0);
+  const sumVat  = (list: AdExecution[]) => list.reduce((s,e)=>s+(e.vat_amount && e.vat_amount !== e.execution_amount ? (e.vat_amount||0) : (e.execution_amount||0)),0);
+  const filterCh = (list: AdExecution[], ch: string|string[]) =>
+    Array.isArray(ch) ? list.filter(e=>ch.includes(e.channel)) : list.filter(e=>e.channel===ch);
+
+  const calc = (list: AdExecution[]) => {
+    const adList = filterCh(list, ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"]);
+    return {
+      total:       { amt: sumAmt(list),                          vat: sumVat(list) },
+      inBunyan:    { amt: sumAmt(filterCh(list,"분양회 입회비")), vat: sumVat(filterCh(list,"분양회 입회비")) },
+      monBunyan:   { amt: sumAmt(filterCh(list,"분양회 월회비")), vat: sumVat(filterCh(list,"분양회 월회비")) },
+      adSpecial:   { amt: sumAmt(adList),                        vat: sumVat(adList) },
+      hightarget:  { amt: sumAmt(filterCh(list,"하이타겟")),      vat: sumVat(filterCh(list,"하이타겟")) },
+      hogaengCh:   { amt: sumAmt(filterCh(list,"호갱노노_채널톡")),  vat: sumVat(filterCh(list,"호갱노노_채널톡")) },
+      hogaengDan:  { amt: sumAmt(filterCh(list,"호갱노노_단지마커")), vat: sumVat(filterCh(list,"호갱노노_단지마커")) },
+      hogaengEtc:  { amt: sumAmt(filterCh(list,"호갱노노_기타")),     vat: sumVat(filterCh(list,"호갱노노_기타")) },
+      lms:         { amt: sumAmt(filterCh(list,"LMS")),           vat: sumVat(filterCh(list,"LMS")) },
+    };
   };
-  const modalLogoStyle: React.CSSProperties = {
-    height: 28, objectFit: "contain" as const,
+
+  const mon = calc(monthly);
+  const cum = calc(all);
+
+  // ── VAT 계산 ──────────────────────────────────────────────
+  const rawAmount  = parseAmount(form.execution_amount);
+  const vatAmount  = form.vat_yn === "여" ? Math.round(rawAmount * 1.1) : rawAmount;
+
+  // 리워드 미리보기 (집행금액 기준)
+  const previewRewards = form.channel && rawAmount > 0
+    ? calcRewards(form.channel, rawAmount, form.hightarget_reward_type)
+    : null;
+
+  // ── 분양회 입회자 선택 ────────────────────────────────────
+  const handleVipSelect = (memberId: string) => {
+    const m = vipMembers.find(v => String(v.id) === memberId);
+    if (!m) return;
+    setForm((p:any) => ({
+      ...p, vip_member_id: memberId,
+      member_name: m.name, position: m.title||"",
+      bunyanghoe_number: m.bunyanghoe_number||"",
+      team_member: m.assigned_to||"", consultant: m.consultant||"",
+    }));
+    setVipSearch("");
   };
+
+  // ── 저장 ─────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!form.sales_type)       return alert("매출구분을 선택해주세요.");
+    if (!form.member_name)      return alert("고객명을 입력해주세요.");
+    if (!form.channel)          return alert("광고채널을 선택해주세요.");
+    if (!rawAmount)             return alert("집행금액을 입력해주세요.");
+    setSaving(true);
+    const rewards = calcRewards(form.channel, rawAmount, form.hightarget_reward_type);
+    const payload = {
+      member_name: form.member_name,
+      position: form.position||null,
+      execution_amount: rawAmount,
+      vat_amount: vatAmount,
+      channel: form.channel,
+      contract_route: form.sales_type,
+      bunyanghoe_number: form.bunyanghoe_number||null,
+      payment_date: form.payment_date||null,
+      team_member: form.team_member||null,
+      consultant: form.consultant||null,
+      hightarget_reward_type: form.hightarget_reward_type||null,
+      ...rewards,
+    };
+    let error;
+    if (editId) {
+      const res = await supabase.from("ad_executions").update(payload).eq("id", editId);
+      error = res.error;
+    } else {
+      const res = await supabase.from("ad_executions").insert(payload);
+      error = res.error;
+    }
+    setSaving(false);
+    if (error) {
+      alert(`저장 실패: ${error.message}\n\n코드: ${error.code||"-"}\n상세: ${error.details||"-"}`);
+      console.error("저장 에러:", error);
+      return;
+    }
+    setShowModal(false); setEditId(null);
+    setForm(EMPTY_FORM); setVipSearch("");
+    fetchExecutions();
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("삭제하시겠습니까?")) return;
+    await supabase.from("ad_executions").delete().eq("id", id);
+    fetchExecutions();
+  };
+
+  const handleEdit = (e: AdExecution) => {
+    setEditId(e.id);
+    setForm({
+      sales_type: e.contract_route||"",
+      vip_member_id: "",
+      member_name: e.member_name,
+      position: e.position||"",
+      bunyanghoe_number: e.bunyanghoe_number||"",
+      execution_amount: e.execution_amount ? e.execution_amount.toLocaleString() : "",
+      vat_yn: (e.vat_amount && e.vat_amount !== e.execution_amount) ? "여" : "부",
+      channel: e.channel,
+      payment_date: e.payment_date||"",
+      team_member: e.team_member||"",
+      consultant: e.consultant||"",
+      hightarget_reward_type: e.hightarget_reward_type||"",
+    });
+    setShowModal(true);
+  };
+
+  const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
+  const lbl = "block text-xs font-semibold text-slate-500 mb-1";
+  const isBunyanghoe = form.sales_type === "분양회";
+  const isWanpan     = form.sales_type === "완판트럭";
+  const isDaehyup    = form.sales_type === "대협팀활동";
+  const channels     = isBunyanghoe ? CHANNELS_BUNYANGHOE : isDaehyup ? CHANNELS_DAEHYUP : CHANNELS_WANPAN;
+
+  // 대시보드 카드 데이터
+  const dashCols = [
+    { label:"총 집행금액",       m:mon.total,      c:cum.total },
+    { label:"분양회 입회비",     m:mon.inBunyan,   c:cum.inBunyan },
+    { label:"분양회 월회비",     m:mon.monBunyan,  c:cum.monBunyan },
+    { label:"광고특전 집행매출", m:mon.adSpecial,  c:cum.adSpecial },
+    { label:"연계매출(하이타겟)",m:mon.hightarget, c:cum.hightarget },
+  ];
+  const channelCols = [
+    { label:"하이타겟",          m:mon.hightarget, c:cum.hightarget },
+    { label:"호갱노노_채널톡",   m:mon.hogaengCh,  c:cum.hogaengCh },
+    { label:"호갱노노_단지마커", m:mon.hogaengDan, c:cum.hogaengDan },
+    { label:"호갱노노_기타",     m:mon.hogaengEtc, c:cum.hogaengEtc },
+    { label:"LMS",               m:mon.lms,        c:cum.lms },
+  ];
 
   return (
-    <div style={{ position: "fixed", inset: 0, overflow: "hidden", fontFamily: "'Pretendard','Noto Sans KR',sans-serif" }}>
-
-      {/* 인트로 오버레이 */}
-      {!introDone && <IntroOverlay onDone={() => setIntroDone(true)}/>}
-
-      {/* 배경 영상 */}
-      <video
-        ref={videoRef}
-        autoPlay muted loop playsInline preload="auto"
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }}
-      >
-        <source src="/login-bg.mp4" type="video/mp4"/>
-      </video>
-
-      {/* 오버레이 */}
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1 }}/>
-
-      {/* 그리드 */}
-      <div style={{
-        position: "absolute", inset: 0, zIndex: 2,
-        backgroundImage: "linear-gradient(rgba(255,255,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.04) 1px,transparent 1px)",
-        backgroundSize: "80px 80px", pointerEvents: "none",
-      }}/>
-
-      {/* 하단 그라디언트 */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40vh", background: "linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 100%)", zIndex: 3, pointerEvents: "none" }}/>
-
-      {/* 상단 네비 */}
-      <div style={{
-        position: "absolute", top: 0, left: 0, right: 0,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "28px 52px", zIndex: 10,
-        background: "linear-gradient(to bottom,rgba(0,0,0,0.4) 0%,transparent 100%)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/company-logo.png" alt="광고인" style={navLogoStyle}
-            onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}/>
-          <div style={{ width: 1, height: 22, background: "rgba(255,255,255,0.25)" }}/>
+    <div className="flex flex-col h-full bg-[#F1F5F9]">
+      {/* ── 헤더 ── */}
+      <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: "0.05em" }}>광고인㈜</div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em" }}>대외협력팀</div>
+            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <CreditCard size={20} className="text-blue-500"/>통합매출관리
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">광고 집행 내역 및 리워드 현황</p>
+          </div>
+          <button onClick={() => { setForm(EMPTY_FORM); setEditId(null); setVipSearch(""); setShowModal(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-[#1E3A8A] text-white text-sm font-semibold rounded-lg hover:bg-blue-800 shadow-sm">
+            <Plus size={14}/>매출 등록
+          </button>
+        </div>
+
+        {/* ── 대시보드 ── */}
+        <div className="mb-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-blue-500"/>
+            <span className="text-xs font-bold text-slate-600">당월 매출</span>
+            <span className="text-xs text-slate-400">{now.getFullYear()}.{String(now.getMonth()+1).padStart(2,"0")}</span>
+          </div>
+          <div className="grid grid-cols-5 gap-2">
+            {dashCols.map(({ label, m, c }) => {
+              const tc = label.includes("총") ? "text-slate-800" : label.includes("하이타겟") ? "text-blue-600" : "text-amber-600";
+              const tc2 = label.includes("총") ? "text-slate-500" : label.includes("하이타겟") ? "text-blue-400" : "text-amber-400";
+              return (
+                <div key={label} className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 flex flex-col">
+                  <p className="text-[10px] text-slate-400 mb-1.5 truncate font-medium">{label}</p>
+                  <div className="space-y-0.5 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[9px] text-slate-400">공급가액</span>
+                      <span className={`text-xs font-bold ${tc}`}>{fw(m.amt)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[9px] text-blue-400">부가세포함</span>
+                      <span className="text-xs font-bold text-blue-500">{fw(m.vat)}</span>
+                    </div>
+                  </div>
+                  <div className="border-t border-dashed border-slate-200 my-2"/>
+                  <div className="flex items-center gap-1 mb-1">
+                    <span className="text-[9px] text-slate-400 font-semibold tracking-wider">누적</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[9px] text-slate-400">공급가액</span>
+                      <span className={`text-xs font-bold ${tc2}`}>{fw(c.amt)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[9px] text-blue-300">부가세포함</span>
+                      <span className="text-xs font-bold text-blue-400">{fw(c.vat)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
-        <button onClick={() => setShowModal(true)} style={{
-          padding: "12px 32px",
-          background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)",
-          border: "1px solid rgba(255,255,255,0.25)", borderRadius: 50,
-          color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", letterSpacing: "0.06em",
-          transition: "all 0.25s",
-        }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.2)"; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)"; }}
-        >시스템 접속</button>
-      </div>
 
-      {/* 메인 카피 */}
-      <div style={{
-        position: "absolute", bottom: "14vh", left: "52px",
-        zIndex: 10, maxWidth: "700px",
-        opacity: visible && introDone ? 1 : 0,
-        transform: visible && introDone ? "translateY(0)" : "translateY(18px)",
-        transition: "opacity 0.6s ease, transform 0.6s ease",
-      }}>
-        <h1 style={{
-          margin: "0 0 18px 0",
-          fontSize: "clamp(36px,4.5vw,64px)", lineHeight: 1.12,
-          fontFamily: "'Montserrat','Pretendard',sans-serif",
-          fontWeight: 300, color: "rgba(255,255,255,0.95)", letterSpacing: "-0.01em",
-        }}>
-          <strong style={{ fontWeight: 800 }}>{cur.engBold}</strong>{cur.engRest}
-        </h1>
-        <p style={{ margin: 0, fontSize: "clamp(13px,1.3vw,17px)", color: "rgba(255,255,255,0.6)", lineHeight: 1.8 }}>
-          {cur.kor1}<br/>{cur.kor2}
-        </p>
-      </div>
-
-      {/* 슬라이드 인디케이터 */}
-      <div style={{ position: "absolute", bottom: "14vh", right: "52px", display: "flex", gap: "10px", zIndex: 10, alignItems: "center" }}>
-        {SLIDES.map((_, i) => (
-          <button key={i}
-            onClick={() => { setVisible(false); setTimeout(() => { setSlide(i); setVisible(true); }, 300); }}
-            style={{
-              width: i === slide ? "32px" : "8px", height: "3px", borderRadius: "2px",
-              background: i === slide ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.3)",
-              border: "none", cursor: "pointer", transition: "all 0.4s ease", padding: 0,
-            }}/>
-        ))}
-      </div>
-
-      {/* 카피라이트 */}
-      <div style={{ position: "absolute", bottom: "28px", left: "52px", zIndex: 10, fontSize: 11, color: "rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
-        © 2026 광고인㈜ · 분양의신 · All rights reserved.
-      </div>
-
-      {/* 로그인 모달 */}
-      <div style={{
-        position: "fixed", inset: 0, zIndex: 50,
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-        opacity: showModal ? 1 : 0, pointerEvents: showModal ? "auto" : "none",
-        transition: "opacity 0.35s ease",
-        background: showModal ? "rgba(0,0,0,0.7)" : "transparent",
-        backdropFilter: showModal ? "blur(10px)" : "none",
-      }}>
-        <div style={{
-          background: "rgba(8,10,20,0.97)", backdropFilter: "blur(32px)",
-          border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24,
-          padding: "44px 42px 40px", width: "100%", maxWidth: 440,
-          boxShadow: "0 40px 100px rgba(0,0,0,0.8)",
-          transform: showModal ? "translateY(0) scale(1)" : "translateY(24px) scale(0.97)",
-          transition: "transform 0.4s cubic-bezier(0.16,1,0.3,1)",
-        }}>
-          {/* 모달 헤더 */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/company-logo.png" alt="광고인" style={modalLogoStyle}
-                onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}/>
-              <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.15)" }}/>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 600, letterSpacing: "0.04em" }}>광고인㈜ 대외협력팀</span>
-            </div>
-            <button onClick={() => setShowModal(false)} style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.08)", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-          </div>
-
-          <h3 style={{ fontSize: 26, fontWeight: 900, color: "white", margin: "0 0 6px 0", letterSpacing: "-0.01em" }}>CRM시스템 접속</h3>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.35)", margin: "0 0 30px 0" }}>아이디와 비밀번호를 입력하세요</p>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)", marginBottom: 8, letterSpacing: "0.04em" }}>아이디</label>
-              <input type="text" value={userId}
-                onChange={e => { setUserId(e.target.value); setError(""); }}
-                placeholder="아이디 입력" onKeyDown={e => e.key === "Enter" && handleLogin()}
-                onFocus={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)"; }}
-                onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; }}
-                style={{ width: "100%", padding: "14px 16px", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.12)", borderRadius: 12, fontSize: 15, color: "white", outline: "none", boxSizing: "border-box" as const, transition: "all 0.2s" }}/>
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)", marginBottom: 8, letterSpacing: "0.04em" }}>비밀번호</label>
-              <div style={{ position: "relative" }}>
-                <input type={showPw ? "text" : "password"} value={userPw}
-                  onChange={e => { setUserPw(e.target.value); setError(""); }}
-                  placeholder="비밀번호 입력" onKeyDown={e => e.key === "Enter" && handleLogin()}
-                  onFocus={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)"; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; }}
-                  style={{ width: "100%", padding: "14px 52px 14px 16px", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.12)", borderRadius: 12, fontSize: 15, color: "white", outline: "none", boxSizing: "border-box" as const, transition: "all 0.2s" }}/>
-                <button type="button" onClick={() => setShowPw(!showPw)}
-                  style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "rgba(255,255,255,0.35)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
-                  {showPw ? "숨기기" : "보기"}
-                </button>
-              </div>
-            </div>
-            {error && (
-              <div style={{ fontSize: 13, color: "#FCA5A5", padding: "11px 14px", background: "rgba(239,68,68,0.12)", borderRadius: 10, border: "1px solid rgba(239,68,68,0.25)" }}>{error}</div>
+        {/* 필터 */}
+        <div className="flex gap-2 flex-wrap items-center">
+          <select value={filterChannel} onChange={e=>setFilterChannel(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+            <option value="">전체 채널</option>
+            <option value="호갱노노(전체)">호갱노노(전체)</option>
+            {CHANNELS_BUNYANGHOE.map(c=><option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={filterMember} onChange={e=>setFilterMember(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+            <option value="">전체 담당자</option>
+            {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
+          </select>
+          {/* 기간 설정 */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+            <span className="text-xs text-slate-400 font-medium whitespace-nowrap">기간</span>
+            <input type="date" value={filterStart} onChange={e=>setFilterStart(e.target.value)}
+              className="text-xs text-slate-600 bg-transparent outline-none"/>
+            <span className="text-slate-300 text-xs">—</span>
+            <input type="date" value={filterEnd} onChange={e=>setFilterEnd(e.target.value)}
+              className="text-xs text-slate-600 bg-transparent outline-none"/>
+            {(filterStart||filterEnd) && (
+              <button onClick={()=>{setFilterStart("");setFilterEnd("");}}
+                className="text-slate-400 hover:text-red-400 text-xs ml-1">✕</button>
             )}
-            <button onClick={handleLogin} disabled={loading}
-              style={{ width: "100%", padding: "15px", marginTop: 4, background: "white", color: "#0a0a0a", fontSize: 15, fontWeight: 800, border: "none", borderRadius: 12, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1, letterSpacing: "0.03em", transition: "all 0.2s" }}
-              onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = "#f0f0f0"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "white"; }}>
-              {loading ? "로그인 중..." : "로그인"}
-            </button>
           </div>
         </div>
       </div>
 
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700;800;900&display=swap');
-      `}</style>
+      {/* ── 테이블 ── */}
+      <div className="flex-1 overflow-auto p-4">
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
+          </div>
+        ) : executions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+            <TrendingUp size={40} className="mb-3 opacity-30"/>
+            <p className="text-sm">집행 내역이 없습니다</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  {["매출구분","분양회 넘버링","고객명","직급","집행금액","VAT포함금액","광고채널","결제일","대협팀담당","담당컨설턴트","하이타겟마일리지","하이타겟리워드","호갱노노리워드","LMS리워드",""].map(h=>(
+                    <th key={h} className="text-left px-3 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {executions.map(e=>(
+                  <tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-3 py-2.5">
+                      <span className={`text-xs px-1.5 py-0.5 rounded border ${e.contract_route==="분양회"?"bg-amber-50 text-amber-700 border-amber-100":e.contract_route==="완판트럭"?"bg-emerald-50 text-emerald-700 border-emerald-100":e.contract_route==="대협팀활동"?"bg-blue-50 text-blue-700 border-blue-100":"bg-slate-50 text-slate-500 border-slate-100"}`}>
+                        {e.contract_route||"-"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-xs font-bold text-amber-600">{(e as any).bunyanghoe_number||"-"}</td>
+                    <td className="px-3 py-2.5 font-semibold text-slate-800 text-xs">{e.member_name}</td>
+                    <td className="px-3 py-2.5 text-slate-500 text-xs">{e.position||"-"}</td>
+                    <td className="px-3 py-2.5 font-bold text-slate-800 text-xs">{fwFull(e.execution_amount)}</td>
+                    <td className="px-3 py-2.5 text-xs">
+                      {e.vat_amount && e.vat_amount !== e.execution_amount
+                        ? <span className="font-bold text-blue-600">{fwFull(e.vat_amount)}</span>
+                        : <span className="text-slate-400">-</span>}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100">{e.channel}</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-500 text-xs">
+                      {e.payment_date ? new Date(e.payment_date).toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"}) : "-"}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs"><span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full">{e.team_member||"-"}</span></td>
+                    <td className="px-3 py-2.5 text-slate-500 text-xs">{e.consultant||"-"}</td>
+                    <td className="px-3 py-2.5 text-blue-600 font-medium text-xs">{e.hightarget_mileage ? fw(e.hightarget_mileage) : "-"}</td>
+                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs">{e.hightarget_reward ? fw(e.hightarget_reward) : "-"}</td>
+                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs">{e.hogaengnono_reward ? fw(e.hogaengnono_reward) : "-"}</td>
+                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs">{e.lms_reward ? fw(e.lms_reward) : "-"}</td>
+                    <td className="px-3 py-2.5 flex items-center gap-1">
+                      <button onClick={()=>handleEdit(e)} className="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50 flex items-center gap-1">
+                        <Edit2 size={11}/>수정
+                      </button>
+                      <button onClick={()=>handleDelete(e.id)} className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50">삭제</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── 매출집행등록 모달 ── */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h2 className="font-bold text-slate-800">{editId ? "매출 수정" : "매출집행등록"}</h2>
+              <button onClick={()=>{setShowModal(false);setEditId(null);}} className="text-slate-400 hover:text-slate-600"><X size={18}/></button>
+            </div>
+
+            <div className="flex-1 overflow-auto px-6 py-4 space-y-4">
+
+              {/* ① 매출구분 */}
+              <div>
+                <label className={lbl}>매출구분 *</label>
+                <div className="flex gap-2">
+                  {["분양회","완판트럭","대협팀활동"].map(t=>(
+                    <button key={t} onClick={()=>setForm({...EMPTY_FORM, sales_type:t, vat_yn:"여"})}
+                      className={`flex-1 py-2.5 text-sm font-bold rounded-xl border-2 transition-all ${
+                        form.sales_type===t
+                          ? t==="분양회"    ? "bg-amber-50 border-amber-400 text-amber-700"
+                          : t==="완판트럭"  ? "bg-emerald-50 border-emerald-400 text-emerald-700"
+                                           : "bg-blue-50 border-blue-400 text-blue-700"
+                          : "bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300"
+                      }`}>{t}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 분양회 */}
+              {isBunyanghoe && (
+                <>
+                  <div>
+                    <label className={lbl}>분양회 입회자 선택 *</label>
+                    <div className="relative mb-2">
+                      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                      <input className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"
+                        placeholder="이름으로 검색..." value={vipSearch} onChange={e=>setVipSearch(e.target.value)}/>
+                    </div>
+                    <div className="border border-slate-200 rounded-lg max-h-40 overflow-y-auto bg-slate-50">
+                      {filteredVip.length===0
+                        ? <div className="text-center py-4 text-xs text-slate-400">검색 결과 없음</div>
+                        : filteredVip.map(v=>(
+                          <button key={v.id} onClick={()=>handleVipSelect(String(v.id))}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-blue-50 border-b border-slate-100 last:border-0 transition-colors ${form.vip_member_id===String(v.id)?"bg-blue-50":""}`}>
+                            <span className="text-xs font-bold text-amber-600 min-w-[48px]">{v.bunyanghoe_number||"미부여"}</span>
+                            <span className="font-semibold text-slate-800">{v.name}</span>
+                            <span className="text-xs text-slate-400">{v.title||""}</span>
+                            <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-full ${v.meeting_result==="계약완료"?"bg-emerald-100 text-emerald-700":"bg-blue-100 text-blue-700"}`}>{v.meeting_result}</span>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+
+                  {form.vip_member_id && (
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-amber-700 mb-2">선택된 분양회 회원</p>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div><span className="text-slate-400">넘버링</span><p className="font-bold text-amber-600">{form.bunyanghoe_number||"-"}</p></div>
+                        <div><span className="text-slate-400">고객명</span><p className="font-bold text-slate-800">{form.member_name}</p></div>
+                        <div><span className="text-slate-400">직급</span><p className="font-bold text-slate-800">{form.position||"-"}</p></div>
+                        <div><span className="text-slate-400">대협팀 담당</span><p className="font-bold text-slate-800">{form.team_member||"-"}</p></div>
+                        <div><span className="text-slate-400">담당 컨설턴트</span><p className="font-bold text-slate-800">{form.consultant||"-"}</p></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 집행금액 + VAT */}
+                  <div>
+                    <label className={lbl}>집행금액 *</label>
+                    <input className={inp} value={form.execution_amount}
+                      onChange={e=>setForm({...form, execution_amount:formatAmt(e.target.value)})}
+                      placeholder="5,000,000"/>
+                    {rawAmount > 0 && (
+                      <div className="mt-2 flex items-center gap-3">
+                        <span className="text-xs text-slate-500 font-semibold">부가세</span>
+                        {["여","부"].map(v=>(
+                          <button key={v} onClick={()=>setForm({...form,vat_yn:v})}
+                            className={`px-4 py-1.5 text-xs font-bold rounded-lg border-2 transition-all ${
+                              form.vat_yn===v
+                                ? v==="여" ? "bg-blue-50 border-blue-400 text-blue-700"
+                                           : "bg-slate-100 border-slate-400 text-slate-700"
+                                : "bg-white border-slate-200 text-slate-400"
+                            }`}>{v}</button>
+                        ))}
+                        <span className="text-xs text-slate-400 ml-1">
+                          VAT포함금액: <span className="font-bold text-blue-600">{vatAmount.toLocaleString()}원</span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 광고채널 + 하이타겟 옵션 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={lbl}>광고채널 *</label>
+                      <select className={inp} value={form.channel} onChange={e=>setForm({...form,channel:e.target.value,hightarget_reward_type:""})}>
+                        <option value="">선택</option>
+                        {channels.map(c=><option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    {form.channel==="하이타겟" && (
+                      <div>
+                        <label className={lbl}>마일리지/리워드</label>
+                        <select className={inp} value={form.hightarget_reward_type} onChange={e=>setForm({...form,hightarget_reward_type:e.target.value})}>
+                          <option value="">선택</option>
+                          <option value="마일리지10%">마일리지 10%</option>
+                          <option value="리워드5%">리워드 5%</option>
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <label className={lbl}>결제일</label>
+                      <input type="date" className={inp} value={form.payment_date} onChange={e=>setForm({...form,payment_date:e.target.value})}/>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 완판트럭 */}
+              {isWanpan && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className={lbl}>고객명 *</label><input className={inp} value={form.member_name} onChange={e=>setForm({...form,member_name:e.target.value})} placeholder="홍길동"/></div>
+                  <div><label className={lbl}>직급</label><input className={inp} value={form.position} onChange={e=>setForm({...form,position:e.target.value})} placeholder="본부장"/></div>
+                  <div>
+                    <label className={lbl}>집행금액 *</label>
+                    <input className={inp} value={form.execution_amount}
+                      onChange={e=>setForm({...form,execution_amount:formatAmt(e.target.value)})}
+                      placeholder="5,000,000"/>
+                    {rawAmount > 0 && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs text-slate-500 font-semibold">부가세</span>
+                        {["여","부"].map(v=>(
+                          <button key={v} onClick={()=>setForm({...form,vat_yn:v})}
+                            className={`px-3 py-1 text-xs font-bold rounded-lg border-2 transition-all ${form.vat_yn===v ? v==="여"?"bg-blue-50 border-blue-400 text-blue-700":"bg-slate-100 border-slate-400 text-slate-700":"bg-white border-slate-200 text-slate-400"}`}>{v}</button>
+                        ))}
+                        <span className="text-xs text-blue-600 font-bold">{vatAmount.toLocaleString()}원</span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className={lbl}>광고채널 *</label>
+                    <select className={inp} value={form.channel} onChange={e=>setForm({...form,channel:e.target.value,hightarget_reward_type:""})}>
+                      <option value="">선택</option>
+                      {channels.map(c=><option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div><label className={lbl}>결제일</label><input type="date" className={inp} value={form.payment_date} onChange={e=>setForm({...form,payment_date:e.target.value})}/></div>
+                  <div>
+                    <label className={lbl}>대협팀 담당자</label>
+                    <select className={inp} value={form.team_member} onChange={e=>setForm({...form,team_member:e.target.value})}>
+                      <option value="">선택</option>{TEAM.map(m=><option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div><label className={lbl}>담당 컨설턴트</label><input className={inp} value={form.consultant} onChange={e=>setForm({...form,consultant:e.target.value})} placeholder="컨설턴트명"/></div>
+                </div>
+              )}
+
+              {/* 대협팀활동 — 완판트럭과 동일 구성, 리워드 없음 */}
+              {isDaehyup && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className={lbl}>고객명 *</label><input className={inp} value={form.member_name} onChange={e=>setForm({...form,member_name:e.target.value})} placeholder="홍길동"/></div>
+                  <div><label className={lbl}>직급</label><input className={inp} value={form.position} onChange={e=>setForm({...form,position:e.target.value})} placeholder="본부장"/></div>
+                  <div>
+                    <label className={lbl}>집행금액 *</label>
+                    <input className={inp} value={form.execution_amount}
+                      onChange={e=>setForm({...form,execution_amount:formatAmt(e.target.value)})}
+                      placeholder="5,000,000"/>
+                    {rawAmount > 0 && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs text-slate-500 font-semibold">부가세</span>
+                        {["여","부"].map(v=>(
+                          <button key={v} onClick={()=>setForm({...form,vat_yn:v})}
+                            className={`px-3 py-1 text-xs font-bold rounded-lg border-2 transition-all ${form.vat_yn===v ? v==="여"?"bg-blue-50 border-blue-400 text-blue-700":"bg-slate-100 border-slate-400 text-slate-700":"bg-white border-slate-200 text-slate-400"}`}>{v}</button>
+                        ))}
+                        <span className="text-xs text-blue-600 font-bold">{vatAmount.toLocaleString()}원</span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className={lbl}>광고채널 *</label>
+                    <select className={inp} value={form.channel} onChange={e=>setForm({...form,channel:e.target.value,hightarget_reward_type:""})}>
+                      <option value="">선택</option>
+                      {channels.map(c=><option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div><label className={lbl}>결제일</label><input type="date" className={inp} value={form.payment_date} onChange={e=>setForm({...form,payment_date:e.target.value})}/></div>
+                  <div>
+                    <label className={lbl}>대협팀 담당자</label>
+                    <select className={inp} value={form.team_member} onChange={e=>setForm({...form,team_member:e.target.value})}>
+                      <option value="">선택</option>{TEAM.map(m=><option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div><label className={lbl}>담당 컨설턴트</label><input className={inp} value={form.consultant} onChange={e=>setForm({...form,consultant:e.target.value})} placeholder="컨설턴트명"/></div>
+                </div>
+              )}
+
+              {/* 리워드 미리보기 */}
+              {previewRewards && form.sales_type && Object.values(previewRewards).some(v=>v>0) && (
+                <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                  <p className="text-xs font-semibold text-amber-700 mb-2">자동 계산 리워드 (집행금액 기준)</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                    {previewRewards.hightarget_mileage>0 && <div className="flex justify-between"><span>하이타겟 마일리지</span><span className="font-bold text-blue-600">{fw(previewRewards.hightarget_mileage)}</span></div>}
+                    {previewRewards.hightarget_reward>0  && <div className="flex justify-between"><span>하이타겟 리워드</span><span className="font-bold text-amber-600">{fw(previewRewards.hightarget_reward)}</span></div>}
+                    {previewRewards.hogaengnono_reward>0 && <div className="flex justify-between"><span>호갱노노 리워드</span><span className="font-bold text-amber-600">{fw(previewRewards.hogaengnono_reward)}</span></div>}
+                    {previewRewards.lms_reward>0         && <div className="flex justify-between"><span>LMS 리워드</span><span className="font-bold text-amber-600">{fw(previewRewards.lms_reward)}</span></div>}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
+              <button onClick={()=>{setShowModal(false);setEditId(null);}} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">취소</button>
+              <button onClick={handleSave} disabled={saving||!form.sales_type}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-[#1E3A8A] text-white font-semibold rounded-lg hover:bg-blue-800 disabled:opacity-40">
+                <Save size={13}/>{saving?"저장 중...":editId?"수정":"저장"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
