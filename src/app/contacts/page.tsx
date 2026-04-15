@@ -28,7 +28,7 @@ const EMPTY_FORM = {
   name: "", title: "", phone: "",
   customer_type: "", tm_sensitivity: "", prospect_type: "",
   meeting_date: "", meeting_date_text: "", meeting_address: "",
-  meeting_result: "", management_stage: "", memo: "", assigned_to: "", consultant: "", contract_date: "", reservation_date: "",
+  meeting_result: "", management_stage: "", memo: "", assigned_to: "", consultant: "", contract_date: "", reservation_date: "", regular_payment_date: "",
 };
 
 // 옵션 목록
@@ -154,7 +154,7 @@ export default function ContactsPage() {
       customer_type: c.customer_type || "", tm_sensitivity: c.tm_sensitivity || "",
       prospect_type: c.prospect_type || "", meeting_date: c.meeting_date?.split("T")[0] || "",
       meeting_date_text: c.meeting_date_text || "", meeting_address: c.meeting_address || "",
-      meeting_result: c.meeting_result || "", management_stage: c.management_stage || "",
+      meeting_result: c.meeting_result || "", management_stage: c.management_stage || "", regular_payment_date: (c as any).regular_payment_date || "",
       memo: c.memo || "", assigned_to: c.assigned_to || "",
     });
     setUseDatePicker(!c.meeting_date_text);
@@ -181,6 +181,7 @@ export default function ContactsPage() {
       consultant: form.consultant || null,
       contract_date: form.contract_date || null,
       reservation_date: form.reservation_date || null,
+      regular_payment_date: form.regular_payment_date || null,
     };
     let error;
     if (editContact) {
@@ -418,6 +419,12 @@ export default function ContactsPage() {
                   <div>
                     <label className={lbl}>계약완료일 <span className="text-blue-400">★ 자동반영</span></label>
                     <input type="date" className={inp} value={form.contract_date} onChange={e=>f("contract_date",e.target.value)}/>
+                  </div>
+                )}
+                {form.meeting_result === "계약완료" && (
+                  <div>
+                    <label className={lbl}>정기출금일 <span className="text-emerald-500">계약완료 전용</span></label>
+                    <input type="date" className={inp} value={form.regular_payment_date} onChange={e=>f("regular_payment_date",e.target.value)}/>
                   </div>
                 )}
                 {form.meeting_result === "예약완료" && (
