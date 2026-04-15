@@ -279,7 +279,7 @@ export default function ContactsPage() {
                   {[
                     ["#","w-10"], ["고객명","w-24"], ["직급","w-20"], ["연락처","w-32"],
                     ["고객유형","w-20"], ["TM감도","w-28"], ["가망구분","w-28"],
-                    ["미팅일정","w-24"], ["미팅지역","w-24"], ["미팅결과","w-28"],
+                    ["미팅일정","w-24"], ["미팅지역","w-24"], ["미팅결과","w-28"], ["정기출금일","w-24"],
                     ["관리구간","w-24"], ["담당자","w-20"], ["담당컨설턴트","w-24"], ["비고","w-32"], ["","w-20"],
                   ].map(([h,w])=>(
                     <th key={h} className={`text-center px-3 py-2.5 text-slate-500 text-xs font-semibold ${w} truncate`}>{h}</th>
@@ -315,6 +315,11 @@ export default function ContactsPage() {
                     </td>
                     <td className="px-3 py-2.5 text-center align-middle">
                       {c.meeting_result ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.meeting_result]||"bg-slate-100 text-slate-600"}`}>{c.meeting_result}</span> : <span className="text-slate-300 text-xs">-</span>}
+                    </td>
+                    <td className="px-3 py-2.5 text-center align-middle text-xs">
+                      {(c as any).regular_payment_date
+                        ? <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-medium border border-emerald-100">{`매월 ${(c as any).regular_payment_date}일`}</span>
+                        : <span className="text-slate-300">-</span>}
                     </td>
                     <td className="px-3 py-2.5 text-center align-middle">
                       {c.management_stage ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.management_stage]||"bg-slate-100 text-slate-600"}`}>{c.management_stage}</span> : <span className="text-slate-300 text-xs">-</span>}
