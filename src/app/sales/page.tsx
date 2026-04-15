@@ -161,6 +161,7 @@ export default function SalesPage() {
       hogaengDan:  { amt: sumAmt(filterCh(list,"호갱노노_단지마커")), vat: sumVat(filterCh(list,"호갱노노_단지마커")) },
       hogaengEtc:  { amt: sumAmt(filterCh(list,"호갱노노_기타")),     vat: sumVat(filterCh(list,"호갱노노_기타")) },
       lms:         { amt: sumAmt(filterCh(list,"LMS")),           vat: sumVat(filterCh(list,"LMS")) },
+      refund:      list.reduce((s,e)=>s+(e.refund_amount||0),0),
     };
   };
 
@@ -271,9 +272,6 @@ export default function SalesPage() {
     { label:"분양회 월회비",     m:mon.monBunyan,  c:cum.monBunyan },
     { label:"광고특전 집행매출", m:mon.adSpecial,  c:cum.adSpecial },
     { label:"연계매출(하이타겟)",m:mon.hightarget, c:cum.hightarget },
-  ];
-  const refundCols = [
-    { label:"환불금액", mVal: mon.refund, cVal: cum.refund },
   ];
   const channelCols = [
     { label:"하이타겟",          m:mon.hightarget, c:cum.hightarget },
