@@ -108,7 +108,7 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
             color: '#ffffff',
             letterSpacing: '0.08em',
             fontFamily: "'Montserrat','Pretendard',sans-serif",
-            textShadow: '0 0 40px rgba(255,255,255,0.25)',
+            textShadow: '0 0 30px rgba(185,145,30,0.7), 0 0 60px rgba(185,145,30,0.35)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             whiteSpace: 'nowrap' as const,
           }}>
@@ -131,7 +131,7 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
             color: '#ffffff',
             letterSpacing: '0.04em',
             fontFamily: "'Montserrat','Pretendard',sans-serif",
-            textShadow: '0 0 50px rgba(255,255,255,0.3)',
+            textShadow: '0 0 40px rgba(185,145,30,0.8), 0 0 80px rgba(185,145,30,0.4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             lineHeight: 1,
           }}>
