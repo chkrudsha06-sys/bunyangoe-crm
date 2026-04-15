@@ -1,647 +1,485 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import { getCurrentUser, CRMUser } from "@/lib/auth";
-import { Clock, ChevronLeft, ChevronRight, Plus, X, Save, Trash2 } from "lucide-react";
+import { CreditCard, Plus, Save, X, TrendingUp, Search } from "lucide-react";
 
-// ── 타입 ──
-interface Stats {
-  totalRevenue: number;
-  joinCount: number; contractCount: number; reservationCount: number;
-  hotProspect: number; meetingProspect: number; linkedProspect: number;
-  upcomingMeetings: number;
-  membershipFeeAmt: number; monthlyFeeAmt: number;
-  linkedRevenue: number;
-}
-const EMPTY: Stats = {
-  totalRevenue:0, joinCount:0, contractCount:0, reservationCount:0,
-  hotProspect:0, meetingProspect:0, linkedProspect:0,
-  upcomingMeetings:0, membershipFeeAmt:0, monthlyFeeAmt:0, linkedRevenue:0,
-};
-interface MonthlyRevenue { month: string; hightarget: number; special: number; }
-interface TodayEvent { id: number; name: string; phone: string | null; meeting_date: string; meeting_address: string | null; assigned_to: string; }
-
-function fw(n: number) {
-  if (!n) return "0원";
-  if (n >= 100000000) return `${(n/100000000).toFixed(1)}억원`;
-  if (n >= 10000000) return `${Math.floor(n/10000000).toLocaleString()}천만원`;
-  if (n >= 10000) return `${Math.floor(n/10000).toLocaleString()}만원`;
-  return `${n.toLocaleString()}원`;
-}
-
-async function fetchStats(user: CRMUser, start: string, end: string, isAll = false): Promise<Stats> {
-  const isExec = user.role === "exec";
-  let cQ = supabase.from("contacts").select("meeting_result,tm_sensitivity");
-  if (isExec) cQ = cQ.eq("assigned_to", user.name);
-  if (!isAll) cQ = cQ.gte("created_at", start).lte("created_at", end + "T23:59:59");
-  const { data: c = [] } = await cQ;
-
-  let aQ = supabase.from("ad_executions").select("execution_amount,channel");
-  if (isExec) aQ = aQ.eq("team_member", user.name);
-  if (!isAll) aQ = aQ.gte("payment_date", start).lte("payment_date", end);
-  const { data: a = [] } = await aQ;
-
-  let mQ = supabase.from("contacts").select("id").gte("meeting_date", new Date().toISOString().split("T")[0]);
-  if (isExec) mQ = mQ.eq("assigned_to", user.name);
-  const { data: m = [] } = await mQ;
-
-  const cont = (c||[]).filter((x:any)=>x.meeting_result==="계약완료");
-  return {
-    totalRevenue: (a||[]).reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
-    joinCount: (c||[]).filter((x:any)=>["계약완료","예약완료"].includes(x.meeting_result||"")).length,
-    contractCount: cont.length,
-    reservationCount: (c||[]).filter((x:any)=>x.meeting_result==="예약완료").length,
-    hotProspect: (c||[]).filter((x:any)=>x.tm_sensitivity==="즉가입가망").length,
-    meetingProspect: (c||[]).filter((x:any)=>x.tm_sensitivity==="미팅예정가망").length,
-    linkedProspect: (c||[]).filter((x:any)=>x.tm_sensitivity==="연계매출가망").length,
-    upcomingMeetings: (m||[]).length,
-    membershipFeeAmt: cont.length * 500000,
-    monthlyFeeAmt: cont.length * 100000,
-    linkedRevenue: (a||[]).filter((x:any)=>x.channel==="하이타겟").reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
-  };
-}
-
-async function fetchMonthlyRevenue(user: CRMUser, year: number, month: number): Promise<MonthlyRevenue[]> {
-  const isExec = user.role === "exec";
-  const months = [-2,-1,0].map(offset => {
-    const d = new Date(year, month - 1 + offset, 1);
-    const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0];
-    const e = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().split("T")[0];
-    return { label: `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}`, s, e };
-  });
-  const results: MonthlyRevenue[] = [];
-  for (const m of months) {
-    let q = supabase.from("ad_executions").select("execution_amount,channel")
-      .gte("payment_date", m.s).lte("payment_date", m.e);
-    if (isExec) q = q.eq("team_member", user.name);
-    const { data: a = [] } = await q;
-    results.push({
-      month: m.label,
-      hightarget: (a||[]).filter((x:any)=>x.channel==="하이타겟").reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
-      special: (a||[]).reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
-    });
-  }
-  return results;
-}
-
-async function fetchTodayEvents(user: CRMUser, date: string): Promise<TodayEvent[]> {
-  const isExec = user.role === "exec";
-  let q = supabase.from("contacts").select("id,name,phone,meeting_date,meeting_address,assigned_to")
-    .eq("meeting_date", date).order("meeting_date");
-  if (isExec) q = q.eq("assigned_to", user.name);
-  const { data = [] } = await q;
-  return (data || []) as TodayEvent[];
-}
-
-// ── 카드 컴포넌트 ──
-function DashCard({ icon, label, main, subs, cumLabel }: {
-  icon: string; label: string; main: string;
-  subs?: { label: string; value: string; color?: string }[];
-  cumLabel: string;
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col" style={{ minWidth: 148, flex: "1 1 0" }}>
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg mb-2 bg-slate-50`}>{icon}</div>
-      <p className="text-xs text-slate-400 font-medium mb-1">{label}</p>
-      <p className="text-2xl font-black text-slate-800 leading-tight">{main}</p>
-      {subs && subs.length > 0 && (
-        <div className="mt-1.5 space-y-0.5 flex-1">
-          {subs.map(s => (
-            <div key={s.label} className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">{s.label}</span>
-              <span className={`text-[11px] font-bold ${s.color || "text-slate-600"}`}>{s.value}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {!subs && <div className="flex-1" />}
-      {/* 누적 - 항상 하단 고정 */}
-      <div className="mt-3 pt-2.5 border-t border-slate-100">
-        <p className="text-[11px] text-slate-400 font-medium">누적 {cumLabel}</p>
-      </div>
-    </div>
-  );
-}
-
-// ── 바 차트 ──
-function BarChart({ data }: { data: MonthlyRevenue[] }) {
-  const max = Math.max(...data.flatMap(d => [d.hightarget, d.special]), 1);
-  const bar = (v: number) => Math.max(4, Math.round((v / max) * 100));
-  return (
-    <div className="flex items-end justify-around gap-4 h-32 px-2">
-      {data.map((d, i) => (
-        <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
-          <div className="flex items-end gap-1.5 w-full justify-center">
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="text-[10px] text-blue-600 font-bold">{d.hightarget > 0 ? fw(d.hightarget) : ""}</span>
-              <div className="w-7 rounded-t-md bg-blue-500" style={{ height: `${bar(d.hightarget)}px` }} />
-            </div>
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="text-[10px] text-indigo-500 font-bold">{d.special > 0 ? fw(d.special) : ""}</span>
-              <div className="w-7 rounded-t-md bg-indigo-300" style={{ height: `${bar(d.special)}px` }} />
-            </div>
-          </div>
-          <span className="text-[11px] text-slate-400 font-medium">{d.month}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── 이벤트 타입 ──
-const EV_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  연차:   { bg: "bg-red-50",    text: "text-red-600",    dot: "bg-red-400" },
-  반차:   { bg: "bg-orange-50", text: "text-orange-600", dot: "bg-orange-400" },
-  미팅:   { bg: "bg-blue-50",   text: "text-blue-600",   dot: "bg-blue-400" },
-  기타:   { bg: "bg-slate-50",  text: "text-slate-500",  dot: "bg-slate-400" },
-  // 자동 표시용
-  미팅일정:   { bg: "bg-violet-50", text: "text-violet-600", dot: "bg-violet-400" },
-};
-
-interface CalEventItem {
+interface AdExecution {
   id: number;
-  date: string;
-  title: string;
-  content: string | null;
-  author: string;
-  event_type: string;
+  member_name: string;
+  position: string | null;
+  execution_amount: number;
+  channel: string;
+  contract_route: string | null;
+  payment_date: string | null;
+  team_member: string | null;
+  consultant: string | null;
+  hightarget_reward_type: string | null;
+  hightarget_mileage: number;
+  hightarget_reward: number;
+  hogaengnono_reward: number;
+  lms_reward: number;
+  created_at: string;
 }
 
-// ── 캘린더 컴포넌트 ──
-function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
-  const [calYear, setCalYear] = useState(new Date().getFullYear());
-  const [calMonth, setCalMonth] = useState(new Date().getMonth() + 1);
-  const [events, setEvents] = useState<CalEventItem[]>([]);
-  const [meetings, setMeetings] = useState<any[]>([]);
-  const [wanpans, setWanpans] = useState<any[]>([]);
-  const [showAdd, setShowAdd] = useState(false);
-  const [showDayPopup, setShowDayPopup] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [selDate, setSelDate] = useState<string | null>(null);
-  const [form, setForm] = useState({ event_type: "미팅", content: "" });
-  const [saving, setSaving] = useState(false);
+interface VipMember {
+  id: number;
+  name: string;
+  title: string | null;
+  assigned_to: string;
+  consultant: string | null;
+  bunyanghoe_number: string | null;
+  meeting_result: string;
+}
 
-  // localStorage에서 직접 유저명 가져오기
-  const getAuthorName = (): string => {
-    try {
-      const raw = localStorage.getItem("crm_user");
-      if (raw) return JSON.parse(raw).name || "";
-    } catch {}
-    return userProp?.name || "";
+const CHANNELS = ["하이타겟", "호갱노노_채널톡", "호갱노노_단지마커", "호갱노노_기타", "LMS"];
+const TEAM = ["조계현", "이세호", "기여운", "최연전"];
+
+const EMPTY_FORM = {
+  sales_type: "",         // 매출구분: 분양회 | 완판트럭
+  vip_member_id: "",      // 분양회 선택 시 분양회 입회자 ID
+  member_name: "",
+  position: "",
+  bunyanghoe_number: "",
+  execution_amount: "",
+  channel: "",
+  payment_date: "",
+  team_member: "",
+  consultant: "",
+  hightarget_reward_type: "",
+};
+
+function calcRewards(channel: string, amount: number, rewardType: string) {
+  let hightarget_mileage = 0, hightarget_reward = 0, hogaengnono_reward = 0, lms_reward = 0;
+  if (channel === "하이타겟") {
+    if (rewardType === "마일리지10%") hightarget_mileage = Math.floor(amount * 0.1);
+    else if (rewardType === "리워드5%") hightarget_reward = Math.floor(amount * 0.05);
+  } else if (channel.startsWith("호갱노노")) {
+    hogaengnono_reward = Math.floor(amount * 0.05);
+  } else if (channel === "LMS") {
+    lms_reward = Math.floor(amount * 0.15);
+  }
+  return { hightarget_mileage, hightarget_reward, hogaengnono_reward, lms_reward };
+}
+
+function formatWon(n: number) {
+  if (!n) return "-";
+  return n >= 10000 ? `${Math.floor(n / 10000)}만원` : `${n.toLocaleString()}원`;
+}
+
+// 집행금액 천단위 콤마 포맷
+function formatAmountInput(val: string) {
+  const num = val.replace(/[^0-9]/g, "");
+  if (!num) return "";
+  return Number(num).toLocaleString();
+}
+
+export default function SalesPage() {
+  const [executions, setExecutions] = useState<AdExecution[]>([]);
+  const [vipMembers, setVipMembers] = useState<VipMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState<any>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [filterChannel, setFilterChannel] = useState("");
+  const [filterMember, setFilterMember] = useState("");
+  const [vipSearch, setVipSearch] = useState("");
+
+  useEffect(() => { fetchExecutions(); }, [filterChannel, filterMember]);
+  useEffect(() => { fetchVipMembers(); }, []);
+
+  const fetchExecutions = async () => {
+    setLoading(true);
+    let query = supabase.from("ad_executions").select("*").order("payment_date", { ascending: false, nullsFirst: false });
+    if (filterChannel) query = query.eq("channel", filterChannel);
+    if (filterMember) query = query.eq("team_member", filterMember);
+    const { data } = await query;
+    setExecutions((data as AdExecution[]) || []);
+    setLoading(false);
   };
 
-  const fetchCalData = useCallback(async () => {
-    const authorName = getAuthorName();
-    if (!authorName) return;
-    const start = `${calYear}-${String(calMonth).padStart(2,"0")}-01`;
-    const end = `${calYear}-${String(calMonth).padStart(2,"0")}-${new Date(calYear, calMonth, 0).getDate()}`;
+  const fetchVipMembers = async () => {
+    const { data } = await supabase
+      .from("contacts")
+      .select("id, name, title, assigned_to, consultant, bunyanghoe_number, meeting_result")
+      .in("meeting_result", ["계약완료", "예약완료"])
+      .order("bunyanghoe_number", { ascending: true });
+    setVipMembers((data as VipMember[]) || []);
+  };
 
-    const { data: ev, error: evErr } = await supabase.from("calendar_events")
-      .select("*").gte("date", start).lte("date", end).eq("author", authorName);
-    if (evErr) console.error("calendar_events 오류:", evErr.message);
-    setEvents((ev || []) as CalEventItem[]);
+  // 분양회 목록 검색 필터
+  const filteredVip = useMemo(() => {
+    if (!vipSearch.trim()) return vipMembers;
+    return vipMembers.filter(v => v.name.includes(vipSearch.trim()));
+  }, [vipMembers, vipSearch]);
 
-    const { data: mt } = await supabase.from("contacts")
-      .select("id,name,meeting_date,assigned_to")
-      .not("meeting_date","is",null).gte("meeting_date",start).lte("meeting_date",end)
-      .eq("assigned_to", authorName);
-    setMeetings(mt || []);
+  const totalAmount  = executions.reduce((s, e) => s + (e.execution_amount || 0), 0);
+  const totalReward  = executions.reduce((s, e) => s + e.hightarget_reward + e.hogaengnono_reward + e.lms_reward, 0);
+  const totalMileage = executions.reduce((s, e) => s + e.hightarget_mileage, 0);
 
-    // 완판트럭 (본인이 포함된 것)
-    const { data: wp } = await supabase.from("wanpan_trucks")
-      .select("id,dispatch_date,location,staff_members")
-      .not("dispatch_date","is",null).gte("dispatch_date",start).lte("dispatch_date",end);
-    // staff_members에 본인 이름이 포함된 것만 필터
-    const wpFiltered = (wp || []).filter((w: any) => {
-      try { return JSON.parse(w.staff_members || "[]").includes(authorName); } catch { return false; }
+  // 분양회 입회자 선택 시 자동 입력
+  const handleVipSelect = (memberId: string) => {
+    const member = vipMembers.find(v => String(v.id) === memberId);
+    if (!member) { setForm({ ...form, vip_member_id: "" }); return; }
+    setForm({
+      ...form,
+      vip_member_id:      memberId,
+      member_name:        member.name,
+      position:           member.title || "",
+      bunyanghoe_number:  member.bunyanghoe_number || "",
+      team_member:        member.assigned_to || "",
+      consultant:         member.consultant || "",
     });
-    setWanpans(wpFiltered);
-  }, [calYear, calMonth, userProp, refreshKey]);
+  };
 
-  useEffect(() => { fetchCalData(); }, [fetchCalData]);
+  const handleSave = async () => {
+    if (!form.sales_type)          return alert("매출구분을 선택해주세요.");
+    if (!form.member_name)         return alert("고객명을 입력해주세요.");
+    if (!form.channel)             return alert("광고채널을 선택해주세요.");
+    if (!form.execution_amount)    return alert("집행금액을 입력해주세요.");
 
-  const handleAdd = async () => {
-    if (!selDate) { alert("날짜를 선택해주세요."); return; }
-    const authorName = getAuthorName();
-    if (!authorName) { alert("로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요."); return; }
     setSaving(true);
-    const { error } = await supabase.from("calendar_events").insert({
-      date: selDate,
-      title: form.event_type,
-      content: form.content || null,
-      author: authorName,
-      event_type: form.event_type,
+    const amount = Number(form.execution_amount.replace(/,/g, "")) || 0;
+    const rewards = calcRewards(form.channel, amount, form.hightarget_reward_type);
+    await supabase.from("ad_executions").insert({
+      member_name:     form.member_name,
+      position:        form.position || null,
+      execution_amount: amount,
+      channel:         form.channel,
+      contract_route:  form.sales_type,   // 매출구분 → contract_route에 저장
+      payment_date:    form.payment_date || null,
+      team_member:     form.team_member || null,
+      consultant:      form.consultant || null,
+      hightarget_reward_type: form.hightarget_reward_type || null,
+      ...rewards,
     });
     setSaving(false);
-    if (error) { alert("저장 실패: " + error.message); return; }
-    setShowAdd(false);
-    setForm({ event_type: "미팅", content: "" });
-    setRefreshKey(k => k + 1);
+    setShowModal(false);
+    setForm(EMPTY_FORM);
+    setVipSearch("");
+    fetchExecutions();
   };
 
   const handleDelete = async (id: number) => {
-    const authorName = getAuthorName();
-    await supabase.from("calendar_events").delete().eq("id", id);
-    setRefreshKey(k => k + 1);
+    if (!confirm("삭제하시겠습니까?")) return;
+    await supabase.from("ad_executions").delete().eq("id", id);
+    fetchExecutions();
   };
 
-  const firstDay = new Date(calYear, calMonth - 1, 1).getDay();
-  const daysInMonth = new Date(calYear, calMonth, 0).getDate();
-  const today = new Date().toISOString().split("T")[0];
-  const getDs = (d: number) => `${calYear}-${String(calMonth).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-  const days = ["일","월","화","수","목","금","토"];
+  const previewRewards = form.channel && form.execution_amount
+    ? calcRewards(form.channel, Number(form.execution_amount.replace(/,/g, "")) || 0, form.hightarget_reward_type)
+    : null;
 
-  const getItems = (d: number) => {
-    const ds = getDs(d);
-    return {
-      ev: events.filter(e => e.date === ds),
-      mt: meetings.filter(m => m.meeting_date?.startsWith(ds)),
-      wp: wanpans.filter(w => w.dispatch_date?.startsWith(ds)),
-    };
-  };
+  const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
+  const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 
-  const selItems = selDate ? {
-    ev: events.filter(e => e.date === selDate),
-    mt: meetings.filter(m => m.meeting_date?.startsWith(selDate || "")),
-    wp: wanpans.filter(w => w.dispatch_date?.startsWith(selDate || "")),
-  } : { ev: [], mt: [], wp: [] };
-
-  return (
-    <>
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      {/* 헤더 */}
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button onClick={()=>{ if(calMonth===1){setCalMonth(12);setCalYear(y=>y-1);}else setCalMonth(m=>m-1);}}
-            className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronLeft size={13}/></button>
-          <span className="text-sm font-bold text-slate-700">{calYear}년 {calMonth}월</span>
-          <button onClick={()=>{ if(calMonth===12){setCalMonth(1);setCalYear(y=>y+1);}else setCalMonth(m=>m+1);}}
-            className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronRight size={13}/></button>
-        </div>
-        <button
-          onClick={()=>{
-            const ds = today;
-            setSelDate(ds);
-            setShowAdd(true);
-          }}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          <Plus size={11}/> 일정 추가
-        </button>
-      </div>
-
-      {/* 요일 */}
-      <div className="grid grid-cols-7 border-b border-slate-50">
-        {days.map((d,i)=>(
-          <div key={d} className={`text-center py-1.5 text-[10px] font-semibold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
-        ))}
-      </div>
-
-      {/* 날짜 */}
-      <div className="grid grid-cols-7">
-        {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`} className="min-h-[72px] border-r border-b border-slate-50 bg-slate-50/20"/>)}
-        {Array.from({length:daysInMonth}).map((_,i)=>{
-          const d = i+1; const ds = getDs(d);
-          const {ev,mt,wp} = getItems(d);
-          const isToday = ds===today; const dow=(firstDay+i)%7;
-          const isSelected = selDate===ds && !showAdd;
-          const total = ev.length+mt.length+wp.length;
-          return (
-            <div key={d}
-              onClick={()=>{ setSelDate(ds); setShowDayPopup(true); setShowAdd(false); }}
-              onDoubleClick={()=>{ setSelDate(ds); setShowAdd(true); setShowDayPopup(false); }}
-              className={`min-h-[72px] border-r border-b border-slate-50 p-1 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}
-              title="더블클릭: 일정 추가">
-              <div className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold mb-0.5 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"}`}>{d}</div>
-              <div className="space-y-0.5">
-                {wp.map(w=>(
-                  <div key={`w${w.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-amber-100 text-amber-700">🚚 완판트럭</div>
-                ))}
-                {mt.slice(0,1).map(m=>(
-                  <div key={`m${m.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-violet-50 text-violet-600">미팅 - {m.assigned_to}</div>
-                ))}
-                {ev.slice(0,2).map(e=>{
-                  const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
-                  return <div key={e.id} className={`text-[9px] px-1 py-0.5 rounded truncate font-semibold ${c.bg} ${c.text}`}>{e.event_type}</div>;
-                })}
-                {total>3&&<p className="text-[9px] text-slate-400 pl-0.5">+{total-3}</p>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-
-
-    </div>
-
-    {/* 날짜 일정 팝업 */}
-    {showDayPopup && selDate && !showAdd && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{background:"rgba(0,0,0,0.35)"}}
-        onClick={()=>setShowDayPopup(false)}>
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[70vh] flex flex-col"
-          onClick={e=>e.stopPropagation()}>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <h3 className="font-bold text-slate-800 text-sm">
-              {new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"})}
-            </h3>
-            <div className="flex items-center gap-2">
-              <button onClick={()=>{setShowDayPopup(false);setShowAdd(true);}}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                <Plus size={12}/> 추가
-              </button>
-              <button onClick={()=>setShowDayPopup(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {selItems.wp.length===0 && selItems.mt.length===0 && selItems.ev.length===0 && (
-              <p className="text-center py-6 text-slate-300 text-sm">일정이 없습니다</p>
-            )}
-            {selItems.wp.map(w=>(
-              <div key={`w${w.id}`} className="rounded-xl p-3 bg-amber-50 border border-amber-100">
-                <p className="text-xs font-bold text-amber-700 mb-1">🚚 완판트럭</p>
-                <p className="text-sm font-bold text-slate-800">{w.location||"-"}</p>
-              </div>
-            ))}
-            {selItems.mt.map(m=>(
-              <div key={`m${m.id}`} className="rounded-xl p-3 bg-violet-50 border border-violet-100">
-                <p className="text-xs font-bold text-violet-700 mb-1">미팅일정</p>
-                <p className="text-sm font-bold text-slate-800">{m.name}</p>
-              </div>
-            ))}
-            {selItems.ev.map(e=>{
-              const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
-              return (
-                <div key={e.id} className={`rounded-xl p-3 border ${c.bg} border-slate-100`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-xs font-bold ${c.text}`}>{e.event_type}</span>
-                    <button onClick={()=>{handleDelete(e.id);}}
-                      className="text-slate-300 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-50">
-                      <Trash2 size={13}/>
-                    </button>
-                  </div>
-                  {e.content&&<p className="text-sm text-slate-600 leading-relaxed">{e.content}</p>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* 일정 추가 모달 - fixed로 항상 화면 중앙에 */}
-    {showAdd && (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}
-        onClick={()=>setShowAdd(false)}
-      >
-        <div
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-sm"
-          onClick={e=>e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <h3 className="font-bold text-slate-800 text-sm">일정 추가</h3>
-            <button onClick={()=>setShowAdd(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
-          </div>
-          <div className="p-5 space-y-4">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1.5">날짜</p>
-              <input type="date" value={selDate||today} onChange={e=>setSelDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-400"/>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1.5">유형 선택</p>
-              <div className="grid grid-cols-4 gap-2">
-                {["연차","반차","미팅","기타"].map(t=>{
-                  const c = EV_COLORS[t];
-                  return (
-                    <button key={t} onClick={()=>setForm((f: any)=>({...f,event_type:t}))}
-                      className={`py-2 text-xs font-bold rounded-xl border transition-colors ${form.event_type===t?`${c.bg} ${c.text} border-current`:"bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}>
-                      {t}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1.5">상세내용 <span className="text-slate-300">(선택)</span></p>
-              <textarea value={form.content} onChange={e=>setForm((f: any)=>({...f,content:e.target.value}))}
-                rows={3} placeholder="내용을 입력하세요"
-                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-400 resize-none"/>
-            </div>
-          </div>
-          <div className="flex gap-2 px-5 pb-5">
-            <button onClick={()=>setShowAdd(false)} className="flex-1 py-2.5 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">취소</button>
-            <button onClick={handleAdd} disabled={saving}
-              className="flex-1 py-2.5 text-sm font-bold bg-[#1E3A8A] text-white rounded-xl hover:bg-blue-800 disabled:opacity-50 flex items-center justify-center gap-1.5">
-              <Save size={13}/>{saving?"저장 중...":"저장"}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-    </>
-  );
-}
-
-
-// ── 메인 ──
-export default function DashboardPage() {
-  const [user, setUser] = useState<CRMUser|null>(null);
-  const [current, setCurrent] = useState<Stats>(EMPTY);
-  const [cumulative, setCumulative] = useState<Stats>(EMPTY);
-  const [monthlyRev, setMonthlyRev] = useState<MonthlyRevenue[]>([]);
-  const [todayEvents, setTodayEvents] = useState<TodayEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [now, setNow] = useState(new Date());
-  const [eventDate, setEventDate] = useState(new Date().toISOString().split("T")[0]);
-
-  // 기간 필터
-  const initStart = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`;
-  };
-  const initEnd = () => new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState(initStart);
-  const [endDate, setEndDate] = useState(initEnd);
-  const [selMonth, setSelMonth] = useState(new Date().getMonth()+1);
-
-  useEffect(()=>{const t=setInterval(()=>setNow(new Date()),1000);return()=>clearInterval(t);},[]);
-  useEffect(()=>{setUser(getCurrentUser());},[]);
-
-  useEffect(()=>{
-    if (!user) return;
-    setLoading(true);
-    Promise.all([
-      fetchStats(user, startDate, endDate, false),
-      fetchStats(user, startDate, endDate, true),
-      fetchMonthlyRevenue(user, new Date().getFullYear(), new Date().getMonth()+1),
-      fetchTodayEvents(user, eventDate),
-    ]).then(([c,cum,rev,ev])=>{
-      setCurrent(c); setCumulative(cum); setMonthlyRev(rev); setTodayEvents(ev); setLoading(false);
-    });
-  },[user, startDate, endDate, eventDate]);
-
-  const applyMonth = (m: number) => {
-    setSelMonth(m);
-    const y = new Date().getFullYear();
-    const s = `${y}-${String(m).padStart(2,"0")}-01`;
-    const lastDay = new Date(y, m, 0).getDate();
-    const e = `${y}-${String(m).padStart(2,"0")}-${String(lastDay).padStart(2,"0")}`;
-    setStartDate(s); setEndDate(e);
-  };
-
-  const timeStr = now.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
-  const dateStr = now.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"});
-  const isExec = user?.role === "exec";
-
-  const CARDS = [
-    {
-      icon:"💰", label:"총 매출", main: fw(current.totalRevenue),
-      subs: undefined,
-      cumLabel: fw(cumulative.totalRevenue),
-    },
-    {
-      icon:"🏆", label:"분양회 입회건수", main: `${current.joinCount}건`,
-      subs:[
-        {label:"계약완료", value:`${current.contractCount}건`, color:"text-emerald-600"},
-        {label:"예약완료", value:`${current.reservationCount}건`, color:"text-blue-600"},
-      ],
-      cumLabel: `${cumulative.joinCount}건`,
-    },
-    {
-      icon:"🎯", label:"가망고객", main:`${current.hotProspect+current.meetingProspect+current.linkedProspect}명`,
-      subs:[
-        {label:"즉가입가망", value:`${current.hotProspect}명`, color:"text-red-500"},
-        {label:"미팅예정가망", value:`${current.meetingProspect}명`, color:"text-amber-500"},
-        {label:"연계매출가망", value:`${current.linkedProspect}명`, color:"text-slate-500"},
-      ],
-      cumLabel:`${cumulative.hotProspect+cumulative.meetingProspect+cumulative.linkedProspect}명`,
-    },
-    {
-      icon:"📅", label:"미팅예정", main:`${current.upcomingMeetings}건`,
-      subs:undefined,
-      cumLabel:`${cumulative.upcomingMeetings}명`,
-    },
-    {
-      icon:"💳", label:"입회비", main:fw(current.membershipFeeAmt),
-      subs:undefined,
-      cumLabel:fw(cumulative.membershipFeeAmt),
-    },
-    {
-      icon:"🔄", label:"월회비", main:fw(current.monthlyFeeAmt),
-      subs:undefined,
-      cumLabel:fw(cumulative.monthlyFeeAmt),
-    },
-    {
-      icon:"⚡", label:"연계매출 (하이타겟)", main:fw(current.linkedRevenue),
-      subs:undefined,
-      cumLabel:fw(cumulative.linkedRevenue),
-    },
-  ];
+  const isBunyanghoe = form.sales_type === "분양회";
+  const isWanpan     = form.sales_type === "완판트럭";
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
       {/* 헤더 */}
-      <div className="bg-white border-b border-slate-200 px-6 py-3 sticky top-0 z-10">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-base font-black text-slate-800">
-              대외협력팀 {isExec ? <span className="text-blue-600">{user?.name} {user?.title}</span> : <span className="text-slate-500">종합</span>} 대시보드
+            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <CreditCard size={20} className="text-blue-500"/>
+              통합매출관리
             </h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Clock size={11} className="text-blue-400"/>
-              <span className="text-xs text-slate-400">{dateStr}</span>
-              <span style={{ fontSize:"11px", fontFamily:"monospace", fontWeight:700, color:"#E2A83A", fontVariantNumeric:"tabular-nums" }}>{timeStr}</span>
-            </div>
+            <p className="text-xs text-slate-500 mt-0.5">광고 집행 내역 및 리워드 현황</p>
           </div>
-          {/* 기간 필터 */}
-          <div className="flex items-center gap-2">
-            {/* 월 빠른 선택 */}
-            <select value={selMonth} onChange={e=>applyMonth(Number(e.target.value))}
-              className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold outline-none cursor-pointer">
-              {Array.from({length:12},(_,i)=>(
-                <option key={i+1} value={i+1}>{i+1}월</option>
-              ))}
-            </select>
-            {/* 날짜 직접 입력 */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-              <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}
-                className="text-xs text-slate-600 bg-transparent outline-none"/>
-              <span className="text-slate-300 text-xs">—</span>
-              <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)}
-                className="text-xs text-slate-600 bg-transparent outline-none"/>
+          <button
+            onClick={() => { setForm(EMPTY_FORM); setVipSearch(""); setShowModal(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-[#1E3A8A] text-white text-sm font-semibold rounded-lg hover:bg-blue-800 shadow-sm"
+          >
+            <Plus size={14}/>매출 등록
+          </button>
+        </div>
+
+        {/* 요약 */}
+        <div className="grid grid-cols-3 gap-3 mb-3">
+          {[
+            { label:"총 집행금액",    value:formatWon(totalAmount),  color:"text-slate-800", bg:"bg-slate-50" },
+            { label:"총 리워드 발생",  value:formatWon(totalReward),  color:"text-amber-600", bg:"bg-amber-50" },
+            { label:"총 마일리지 적립", value:formatWon(totalMileage), color:"text-blue-600",  bg:"bg-blue-50" },
+          ].map(({ label, value, color, bg }) => (
+            <div key={label} className={`${bg} rounded-xl px-4 py-3 border border-slate-100`}>
+              <p className="text-xs text-slate-500 mb-1">{label}</p>
+              <p className={`text-lg font-bold ${color}`}>{value}</p>
             </div>
-          </div>
+          ))}
+        </div>
+
+        {/* 필터 */}
+        <div className="flex gap-2">
+          <select value={filterChannel} onChange={e => setFilterChannel(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+            <option value="">전체 채널</option>
+            {CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={filterMember} onChange={e => setFilterMember(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+            <option value="">전체 담당자</option>
+            {TEAM.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
         </div>
       </div>
 
-      {/* 본문 */}
-      <div className="flex-1 overflow-auto p-5 space-y-4">
-
-        {/* 당월 현황 카드 */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div style={{ width:"7px", height:"7px", borderRadius:"50%", background:"#E2A83A", boxShadow:"0 0 8px rgba(226,168,58,0.6)" }}/>
-              <h2 className="text-sm font-bold text-slate-700">당월 현황</h2>
-              <span className="text-xs text-slate-400">{startDate.replace(/-/g,".")} ~ {endDate.replace(/-/g,".")}</span>
-            </div>
-            {loading && <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>}
+      {/* 테이블 */}
+      <div className="flex-1 overflow-auto p-4">
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
           </div>
-          <div className="p-4 flex gap-3 overflow-x-auto">
-            {CARDS.map(card=>(
-              <DashCard key={card.label} icon={card.icon} label={card.label}
-                main={card.main} subs={card.subs} cumLabel={card.cumLabel}/>
-            ))}
+        ) : executions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+            <TrendingUp size={40} className="mb-3 opacity-30"/>
+            <p className="text-sm">집행 내역이 없습니다</p>
+            <button onClick={() => setShowModal(true)} className="mt-2 text-xs text-blue-600 underline">첫 번째 매출 등록하기</button>
           </div>
-        </div>
-
-        {/* 그래프 + 오늘의 일정 */}
-        <div className="grid grid-cols-5 gap-4">
-          {/* 매출실적 그래프 */}
-          <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-700">매출실적</h3>
-              <div className="flex items-center gap-3 text-xs text-slate-400">
-                <div style={{ display:"flex", alignItems:"center", gap:"6px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#E2A83A" }}/><span>하이타겟</span></div>
-                <div style={{ display:"flex", alignItems:"center", gap:"6px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"rgba(96,165,250,0.6)" }}/><span>특전총매출</span></div>
-              </div>
-            </div>
-            {monthlyRev.length > 0 ? <BarChart data={monthlyRev}/> : (
-              <div className="h-32 flex items-center justify-center text-slate-300 text-sm">데이터 없음</div>
-            )}
+        ) : (
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  {["매출구분","고객명","직급","집행금액","광고채널","결제일","대협팀담당","담당컨설턴트","하이타겟마일리지","하이타겟리워드","호갱노노리워드","LMS리워드",""].map(h => (
+                    <th key={h} className="text-left px-3 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {executions.map(e => (
+                  <tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-3 py-2.5">
+                      <span className={`text-xs px-1.5 py-0.5 rounded border ${
+                        e.contract_route === "분양회"
+                          ? "bg-amber-50 text-amber-700 border-amber-100"
+                          : e.contract_route === "완판트럭"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                          : "bg-slate-50 text-slate-500 border-slate-100"
+                      }`}>{e.contract_route || "-"}</span>
+                    </td>
+                    <td className="px-3 py-2.5 font-semibold text-slate-800 text-xs">{e.member_name}</td>
+                    <td className="px-3 py-2.5 text-slate-500 text-xs">{e.position || "-"}</td>
+                    <td className="px-3 py-2.5 font-bold text-slate-800 text-xs">{formatWon(e.execution_amount)}</td>
+                    <td className="px-3 py-2.5">
+                      <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100">{e.channel}</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-500 text-xs">
+                      {e.payment_date ? new Date(e.payment_date).toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"}) : "-"}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs"><span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full">{e.team_member || "-"}</span></td>
+                    <td className="px-3 py-2.5 text-slate-500 text-xs">{e.consultant || "-"}</td>
+                    <td className="px-3 py-2.5 text-blue-600 font-medium text-xs">{e.hightarget_mileage ? formatWon(e.hightarget_mileage) : "-"}</td>
+                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs">{e.hightarget_reward ? formatWon(e.hightarget_reward) : "-"}</td>
+                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs">{e.hogaengnono_reward ? formatWon(e.hogaengnono_reward) : "-"}</td>
+                    <td className="px-3 py-2.5 text-amber-600 font-medium text-xs">{e.lms_reward ? formatWon(e.lms_reward) : "-"}</td>
+                    <td className="px-3 py-2.5">
+                      <button onClick={() => handleDelete(e.id)} className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50">삭제</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        )}
+      </div>
 
-          {/* 오늘의 일정 */}
-          <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-slate-700">오늘의 일정</h3>
-              <input type="date" value={eventDate} onChange={e=>{setEventDate(e.target.value);}}
-                className="text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none text-slate-600"/>
+      {/* 매출집행등록 모달 */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h2 className="font-bold text-slate-800">매출집행등록</h2>
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18}/></button>
             </div>
-            <div className="space-y-2 max-h-36 overflow-y-auto">
-              {todayEvents.length === 0 ? (
-                <div className="text-center py-6 text-slate-300 text-sm">일정이 없습니다</div>
-              ) : todayEvents.map(ev=>(
-                <div key={ev.id} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">{ev.name}</p>
-                    <p className="text-xs text-slate-400">{ev.meeting_address || "장소 미정"}</p>
-                  </div>
-                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">{ev.assigned_to}</span>
+
+            <div className="flex-1 overflow-auto px-6 py-4 space-y-4">
+
+              {/* ① 매출구분 */}
+              <div>
+                <label className={lbl}>매출구분 *</label>
+                <div className="flex gap-2">
+                  {["분양회","완판트럭"].map(t => (
+                    <button key={t}
+                      onClick={() => setForm({ ...EMPTY_FORM, sales_type: t })}
+                      className={`flex-1 py-2.5 text-sm font-bold rounded-xl border-2 transition-all ${
+                        form.sales_type === t
+                          ? t === "분양회"
+                            ? "bg-amber-50 border-amber-400 text-amber-700"
+                            : "bg-emerald-50 border-emerald-400 text-emerald-700"
+                          : "bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300"
+                      }`}
+                    >{t}</button>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* ② 분양회 선택 시 */}
+              {isBunyanghoe && (
+                <>
+                  {/* 분양회 입회자 검색 + 선택 */}
+                  <div>
+                    <label className={lbl}>분양회 입회자 선택 *</label>
+                    <div className="relative mb-2">
+                      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                      <input
+                        className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"
+                        placeholder="이름으로 검색..."
+                        value={vipSearch}
+                        onChange={e => setVipSearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="border border-slate-200 rounded-lg max-h-44 overflow-y-auto bg-slate-50">
+                      {filteredVip.length === 0 ? (
+                        <div className="text-center py-4 text-xs text-slate-400">검색 결과 없음</div>
+                      ) : filteredVip.map(v => (
+                        <button key={v.id}
+                          onClick={() => { handleVipSelect(String(v.id)); setVipSearch(""); }}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-blue-50 border-b border-slate-100 last:border-0 transition-colors ${
+                            form.vip_member_id === String(v.id) ? "bg-blue-50" : ""
+                          }`}
+                        >
+                          <span className="text-xs font-bold text-amber-600 min-w-[48px]">{v.bunyanghoe_number || "미부여"}</span>
+                          <span className="font-semibold text-slate-800">{v.name}</span>
+                          <span className="text-xs text-slate-400">{v.title || ""}</span>
+                          <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-full ${
+                            v.meeting_result === "계약완료" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                          }`}>{v.meeting_result}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 자동 입력된 정보 표시 */}
+                  {form.vip_member_id && (
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-amber-700 mb-2">선택된 분양회 회원</p>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div><span className="text-slate-400">넘버링</span><p className="font-bold text-amber-600">{form.bunyanghoe_number || "-"}</p></div>
+                        <div><span className="text-slate-400">고객명</span><p className="font-bold text-slate-800">{form.member_name}</p></div>
+                        <div><span className="text-slate-400">직급</span><p className="font-bold text-slate-800">{form.position || "-"}</p></div>
+                        <div><span className="text-slate-400">대협팀 담당자</span><p className="font-bold text-slate-800">{form.team_member || "-"}</p></div>
+                        <div><span className="text-slate-400">담당 컨설턴트</span><p className="font-bold text-slate-800">{form.consultant || "-"}</p></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 집행금액 + 광고채널 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={lbl}>집행금액 *</label>
+                      <input
+                        className={inp}
+                        value={form.execution_amount}
+                        onChange={e => setForm({ ...form, execution_amount: formatAmountInput(e.target.value) })}
+                        placeholder="5,000,000"
+                      />
+                    </div>
+                    <div>
+                      <label className={lbl}>광고채널 *</label>
+                      <select className={inp} value={form.channel} onChange={e => setForm({ ...form, channel: e.target.value, hightarget_reward_type:"" })}>
+                        <option value="">선택</option>
+                        {CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    {form.channel === "하이타겟" && (
+                      <div>
+                        <label className={lbl}>마일리지/리워드</label>
+                        <select className={inp} value={form.hightarget_reward_type} onChange={e => setForm({ ...form, hightarget_reward_type: e.target.value })}>
+                          <option value="">선택</option>
+                          <option value="마일리지10%">마일리지 10%</option>
+                          <option value="리워드5%">리워드 5%</option>
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <label className={lbl}>결제일</label>
+                      <input type="date" className={inp} value={form.payment_date} onChange={e => setForm({ ...form, payment_date: e.target.value })}/>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ③ 완판트럭 선택 시 */}
+              {isWanpan && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={lbl}>고객명 *</label>
+                    <input className={inp} value={form.member_name} onChange={e => setForm({ ...form, member_name: e.target.value })} placeholder="홍길동"/>
+                  </div>
+                  <div>
+                    <label className={lbl}>직급</label>
+                    <input className={inp} value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} placeholder="본부장"/>
+                  </div>
+                  <div>
+                    <label className={lbl}>집행금액 *</label>
+                    <input
+                      className={inp}
+                      value={form.execution_amount}
+                      onChange={e => setForm({ ...form, execution_amount: formatAmountInput(e.target.value) })}
+                      placeholder="5,000,000"
+                    />
+                  </div>
+                  <div>
+                    <label className={lbl}>광고채널 *</label>
+                    <select className={inp} value={form.channel} onChange={e => setForm({ ...form, channel: e.target.value, hightarget_reward_type:"" })}>
+                      <option value="">선택</option>
+                      {CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  {form.channel === "하이타겟" && (
+                    <div>
+                      <label className={lbl}>마일리지/리워드</label>
+                      <select className={inp} value={form.hightarget_reward_type} onChange={e => setForm({ ...form, hightarget_reward_type: e.target.value })}>
+                        <option value="">선택</option>
+                        <option value="마일리지10%">마일리지 10%</option>
+                        <option value="리워드5%">리워드 5%</option>
+                      </select>
+                    </div>
+                  )}
+                  <div>
+                    <label className={lbl}>결제일</label>
+                    <input type="date" className={inp} value={form.payment_date} onChange={e => setForm({ ...form, payment_date: e.target.value })}/>
+                  </div>
+                  <div>
+                    <label className={lbl}>대협팀 담당자</label>
+                    <select className={inp} value={form.team_member} onChange={e => setForm({ ...form, team_member: e.target.value })}>
+                      <option value="">선택</option>
+                      {TEAM.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={lbl}>담당 컨설턴트</label>
+                    <input className={inp} value={form.consultant} onChange={e => setForm({ ...form, consultant: e.target.value })} placeholder="컨설턴트명"/>
+                  </div>
+                </div>
+              )}
+
+              {/* 리워드 미리보기 */}
+              {previewRewards && (form.sales_type) && (
+                Object.values(previewRewards).some(v => v > 0) && (
+                  <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                    <p className="text-xs font-semibold text-amber-700 mb-2">자동 계산 리워드</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                      {previewRewards.hightarget_mileage > 0 && <div className="flex justify-between"><span>하이타겟 마일리지</span><span className="font-bold text-blue-600">{formatWon(previewRewards.hightarget_mileage)}</span></div>}
+                      {previewRewards.hightarget_reward  > 0 && <div className="flex justify-between"><span>하이타겟 리워드</span><span className="font-bold text-amber-600">{formatWon(previewRewards.hightarget_reward)}</span></div>}
+                      {previewRewards.hogaengnono_reward > 0 && <div className="flex justify-between"><span>호갱노노 리워드</span><span className="font-bold text-amber-600">{formatWon(previewRewards.hogaengnono_reward)}</span></div>}
+                      {previewRewards.lms_reward         > 0 && <div className="flex justify-between"><span>LMS 리워드</span><span className="font-bold text-amber-600">{formatWon(previewRewards.lms_reward)}</span></div>}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">취소</button>
+              <button onClick={handleSave} disabled={saving || !form.sales_type}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-[#1E3A8A] text-white font-semibold rounded-lg hover:bg-blue-800 disabled:opacity-40">
+                <Save size={13}/>{saving ? "저장 중..." : "저장"}
+              </button>
             </div>
           </div>
         </div>
-
-        {/* 캘린더 */}
-        <DashCalendar user={user} />
-
-      </div>
+      )}
     </div>
   );
 }
