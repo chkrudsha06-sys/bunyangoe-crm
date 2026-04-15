@@ -221,12 +221,7 @@ export default function LoginPage() {
       {/* 오버레이 */}
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1 }}/>
 
-      {/* 그리드 */}
-      <div style={{
-        position: "absolute", inset: 0, zIndex: 2,
-        backgroundImage: "linear-gradient(rgba(255,255,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.04) 1px,transparent 1px)",
-        backgroundSize: "80px 80px", pointerEvents: "none",
-      }}/>
+
 
       {/* 하단 그라디언트 */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40vh", background: "linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 100%)", zIndex: 3, pointerEvents: "none" }}/>
