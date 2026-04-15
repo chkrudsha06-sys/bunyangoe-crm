@@ -21,6 +21,7 @@ interface AdExecution {
   hightarget_reward: number;
   hogaengnono_reward: number;
   lms_reward: number;
+  refund_amount: number | null;
   created_at: string;
 }
 
@@ -31,7 +32,7 @@ interface VipMember {
 }
 
 // 분양회 전용 채널 포함
-const CHANNELS_BUNYANGHOE = ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS","분양회 입회비","분양회 월회비"];
+const CHANNELS_BUNYANGHOE = ["분양회 입회비","분양회 월회비","하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
 const CHANNELS_WANPAN     = ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
 const CHANNELS_DAEHYUP    = ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
 const TEAM = ["조계현","이세호","기여운","최연전"];
@@ -43,6 +44,7 @@ const EMPTY_FORM = {
   channel:"", payment_date:"",
   team_member:"", consultant:"",
   hightarget_reward_type:"",
+  refund_amount:"",
 };
 
 // ── 리워드 계산 (집행금액 기준) ──────────────────────────────
@@ -90,9 +92,10 @@ export default function SalesPage() {
   const [filterMember, setFilterMember]   = useState("");
   const [filterStart, setFilterStart]     = useState("");
   const [filterEnd, setFilterEnd]         = useState("");
+  const [filterRefund, setFilterRefund]   = useState("");
   const [vipSearch, setVipSearch]         = useState("");
 
-  useEffect(() => { fetchExecutions(); }, [filterRoute, filterChannel, filterMember, filterStart, filterEnd]);
+  useEffect(() => { fetchExecutions(); }, [filterRoute, filterChannel, filterMember, filterStart, filterEnd, filterRefund]);
   useEffect(() => { fetchVipMembers(); }, []);
 
   const fetchExecutions = async () => {
@@ -107,6 +110,7 @@ export default function SalesPage() {
     if (filterMember)  q = q.eq("team_member", filterMember);
     if (filterStart)   q = q.gte("payment_date", filterStart);
     if (filterEnd)     q = q.lte("payment_date", filterEnd);
+    if (filterRefund === "refund") q = q.not("refund_amount", "is", null);
     const { data } = await q;
     setExecutions((data as AdExecution[]) || []);
     setLoading(false);
@@ -205,6 +209,7 @@ export default function SalesPage() {
       team_member: form.team_member||null,
       consultant: form.consultant||null,
       hightarget_reward_type: form.hightarget_reward_type||null,
+      refund_amount: form.refund_amount ? Number(form.refund_amount.replace(/,/g,"")) : null,
       ...rewards,
     };
     let error;
@@ -247,6 +252,7 @@ export default function SalesPage() {
       team_member: e.team_member||"",
       consultant: e.consultant||"",
       hightarget_reward_type: e.hightarget_reward_type||"",
+      refund_amount: e.refund_amount ? e.refund_amount.toLocaleString() : "",
     });
     setShowModal(true);
   };
@@ -265,6 +271,9 @@ export default function SalesPage() {
     { label:"분양회 월회비",     m:mon.monBunyan,  c:cum.monBunyan },
     { label:"광고특전 집행매출", m:mon.adSpecial,  c:cum.adSpecial },
     { label:"연계매출(하이타겟)",m:mon.hightarget, c:cum.hightarget },
+  ];
+  const refundCols = [
+    { label:"환불금액", mVal: mon.refund, cVal: cum.refund },
   ];
   const channelCols = [
     { label:"하이타겟",          m:mon.hightarget, c:cum.hightarget },
@@ -345,12 +354,22 @@ export default function SalesPage() {
           </select>
           <select value={filterChannel} onChange={e=>setFilterChannel(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
             <option value="">전체 채널</option>
+            <option value="분양회 입회비">분양회 입회비</option>
+            <option value="분양회 월회비">분양회 월회비</option>
+            <option value="하이타겟">하이타겟</option>
             <option value="호갱노노(전체)">호갱노노(전체)</option>
-            {CHANNELS_BUNYANGHOE.map(c=><option key={c} value={c}>{c}</option>)}
+            <option value="호갱노노_채널톡">호갱노노_채널톡</option>
+            <option value="호갱노노_단지마커">호갱노노_단지마커</option>
+            <option value="호갱노노_기타">호갱노노_기타</option>
+            <option value="LMS">LMS</option>
           </select>
           <select value={filterMember} onChange={e=>setFilterMember(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
             <option value="">전체 담당자</option>
             {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
+          </select>
+          <select value={filterRefund} onChange={e=>setFilterRefund(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+            <option value="">전체</option>
+            <option value="refund">환불 건만</option>
           </select>
           {/* 기간 설정 */}
           <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
@@ -384,7 +403,7 @@ export default function SalesPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {["매출구분","분양회 넘버링","고객명","직급","집행금액","VAT포함금액","광고채널","결제일","대협팀담당","담당컨설턴트","하이타겟마일리지","하이타겟리워드","호갱노노리워드","LMS리워드",""].map(h=>(
+                  {["매출구분","분양회 넘버링","고객명","직급","집행금액","VAT포함금액","환불금액","광고채널","결제일","대협팀담당","담당컨설턴트","하이타겟마일리지","하이타겟리워드","호갱노노리워드","LMS리워드",""].map(h=>(
                     <th key={h} className="text-left px-3 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -405,6 +424,11 @@ export default function SalesPage() {
                       {e.vat_amount && e.vat_amount !== e.execution_amount
                         ? <span className="font-bold text-blue-600">{fwFull(e.vat_amount)}</span>
                         : <span className="text-slate-400">-</span>}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs">
+                      {(e as any).refund_amount
+                        ? <span className="font-bold text-red-500">-{((e as any).refund_amount).toLocaleString()}원</span>
+                        : <span className="text-slate-300">-</span>}
                     </td>
                     <td className="px-3 py-2.5">
                       <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100">{e.channel}</span>
@@ -523,6 +547,14 @@ export default function SalesPage() {
                     )}
                   </div>
 
+                  {/* 환불금액 */}
+                  <div>
+                    <label className={lbl}>환불금액 <span className="text-slate-400">(선택)</span></label>
+                    <input className={inp} value={form.refund_amount}
+                      onChange={e=>setForm({...form,refund_amount:formatAmt(e.target.value)})}
+                      placeholder="환불 시 입력"/>
+                  </div>
+
                   {/* 광고채널 + 하이타겟 옵션 */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -578,6 +610,12 @@ export default function SalesPage() {
                       {channels.map(c=><option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
+                  <div className="col-span-2">
+                    <label className={lbl}>환불금액 <span className="text-slate-400">(선택)</span></label>
+                    <input className={inp} value={form.refund_amount}
+                      onChange={e=>setForm({...form,refund_amount:formatAmt(e.target.value)})}
+                      placeholder="환불 시 입력"/>
+                  </div>
                   <div><label className={lbl}>결제일</label><input type="date" className={inp} value={form.payment_date} onChange={e=>setForm({...form,payment_date:e.target.value})}/></div>
                   <div>
                     <label className={lbl}>대협팀 담당자</label>
@@ -617,6 +655,12 @@ export default function SalesPage() {
                       {channels.map(c=><option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
+                  <div className="col-span-2">
+                    <label className={lbl}>환불금액 <span className="text-slate-400">(선택)</span></label>
+                    <input className={inp} value={form.refund_amount}
+                      onChange={e=>setForm({...form,refund_amount:formatAmt(e.target.value)})}
+                      placeholder="환불 시 입력"/>
+                  </div>
                   <div><label className={lbl}>결제일</label><input type="date" className={inp} value={form.payment_date} onChange={e=>setForm({...form,payment_date:e.target.value})}/></div>
                   <div>
                     <label className={lbl}>대협팀 담당자</label>
@@ -625,6 +669,12 @@ export default function SalesPage() {
                     </select>
                   </div>
                   <div><label className={lbl}>담당 컨설턴트</label><input className={inp} value={form.consultant} onChange={e=>setForm({...form,consultant:e.target.value})} placeholder="컨설턴트명"/></div>
+                  <div className="col-span-2">
+                    <label className={lbl}>환불금액 <span className="text-slate-400">(선택)</span></label>
+                    <input className={inp} value={form.refund_amount}
+                      onChange={e=>setForm({...form,refund_amount:formatAmt(e.target.value)})}
+                      placeholder="환불 시 입력"/>
+                  </div>
                 </div>
               )}
 
