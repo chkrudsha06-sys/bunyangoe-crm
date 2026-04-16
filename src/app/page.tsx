@@ -594,7 +594,7 @@ export default function DashboardPage() {
   const dateStr = now.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"});
   const isExec = user?.role === "exec";
 
-  const CARDS = [
+ const CARDS = [
     {
       icon:"💰", label:"총매출(광고특전)",
       main: current.totalRevenue.toLocaleString()+"원",
@@ -610,17 +610,13 @@ export default function DashboardPage() {
     {
       icon:"💳", label:"분양회 입회비",
       main: current.membershipFeeAmt.toLocaleString()+"원",
-      subs:[
-        {label:"당월", value:`${current.membershipCount}건`, color:"text-slate-600"},
-      ],
+      subs:[{label:"당월", value:`${current.membershipCount}건`, color:"text-slate-600"}],
       cumLabel: cumulative.membershipFeeAmt.toLocaleString()+"원",
     },
     {
       icon:"🔄", label:"분양회 월회비",
       main: current.monthlyFeeAmt.toLocaleString()+"원",
-      subs:[
-        {label:"당월", value:`${current.monthlyFeeCount}건`, color:"text-slate-600"},
-      ],
+      subs:[{label:"당월", value:`${current.monthlyFeeCount}건`, color:"text-slate-600"}],
       cumLabel: cumulative.monthlyFeeAmt.toLocaleString()+"원",
     },
     {
@@ -637,113 +633,9 @@ export default function DashboardPage() {
       icon:"📅", label:"미팅",
       main:`${current.upcomingMeetings}건`,
       subs:[
-        {label:"미팅예정", value:`${current.upcomingMeetings}건`,  color:"text-blue-500"},
-        {label:"미팅완료", value:`${current.meetingDone}건`,        color:"text-emerald-500"},
+        {label:"미팅예정", value:`${current.upcomingMeetings}건`, color:"text-blue-500"},
+        {label:"미팅완료", value:`${current.meetingDone}건`,       color:"text-emerald-500"},
       ],
       cumLabel:`${cumulative.upcomingMeetings + cumulative.meetingDone}건`,
     },
   ];
-
-  return (
-    <div className="flex flex-col h-full bg-[#F1F5F9]">
-      {/* 헤더 */}
-      <div className="bg-white border-b border-slate-200 px-6 py-3 sticky top-0 z-10">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-base font-black text-slate-800">
-              대외협력팀 {isExec ? <span className="text-blue-600">{user?.name} {user?.title}</span> : <span className="text-slate-500">종합</span>} 대시보드
-            </h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Clock size={11} className="text-blue-400"/>
-              <span className="text-xs text-slate-400">{dateStr}</span>
-              <span style={{ fontSize:"11px", fontFamily:"monospace", fontWeight:700, color: isExec ? "#2563EB" : "#64748B", fontVariantNumeric:"tabular-nums" }}>{timeStr}</span>
-            </div>
-          </div>
-          {/* 기간 필터 */}
-          <div className="flex items-center gap-2">
-            {/* 월 빠른 선택 */}
-            <select value={selMonth} onChange={e=>applyMonth(Number(e.target.value))}
-              className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold outline-none cursor-pointer">
-              {Array.from({length:12},(_,i)=>(
-                <option key={i+1} value={i+1}>{i+1}월</option>
-              ))}
-            </select>
-            {/* 날짜 직접 입력 */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-              <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}
-                className="text-xs text-slate-600 bg-transparent outline-none"/>
-              <span className="text-slate-300 text-xs">—</span>
-              <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)}
-                className="text-xs text-slate-600 bg-transparent outline-none"/>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 본문 */}
-      <div className="flex-1 overflow-auto p-5 space-y-4">
-
-        {/* 당월 현황 카드 */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div style={{ width:"7px", height:"7px", borderRadius:"50%", background:"#E2A83A", boxShadow:"0 0 8px rgba(226,168,58,0.6)" }}/>
-              <h2 className="text-sm font-bold text-slate-700">당월 현황</h2>
-              <span className="text-xs text-slate-400">{startDate.replace(/-/g,".")} ~ {endDate.replace(/-/g,".")}</span>
-            </div>
-            {loading && <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>}
-          </div>
-          <div className="p-4 flex gap-3 overflow-x-auto">
-            {CARDS.map(card=>(
-              <DashCard key={card.label} icon={card.icon} label={card.label}
-                main={card.main} subs={card.subs} cumLabel={card.cumLabel}/>
-            ))}
-          </div>
-        </div>
-
-        {/* 그래프 + 오늘의 일정 */}
-        <div className="grid grid-cols-5 gap-4">
-          {/* 매출실적 그래프 */}
-          <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-700">매출실적</h3>
-              <div className="flex items-center gap-3 text-xs text-slate-400">
-                <div style={{ display:"flex", alignItems:"center", gap:"6px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#E2A83A" }}/><span>하이타겟</span></div>
-                <div style={{ display:"flex", alignItems:"center", gap:"6px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"rgba(96,165,250,0.6)" }}/><span>특전총매출</span></div>
-              </div>
-            </div>
-            {monthlyRev.length > 0 ? <BarChart data={monthlyRev}/> : (
-              <div className="h-32 flex items-center justify-center text-slate-300 text-sm">데이터 없음</div>
-            )}
-          </div>
-
-          {/* 오늘의 일정 */}
-          <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-slate-700">오늘의 일정</h3>
-              <input type="date" value={eventDate} onChange={e=>{setEventDate(e.target.value);}}
-                className="text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none text-slate-600"/>
-            </div>
-            <div className="space-y-2 max-h-36 overflow-y-auto">
-              {todayEvents.length === 0 ? (
-                <div className="text-center py-6 text-slate-300 text-sm">일정이 없습니다</div>
-              ) : todayEvents.map(ev=>(
-                <div key={ev.id} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">{ev.name}</p>
-                    <p className="text-xs text-slate-400">{ev.meeting_address || "장소 미정"}</p>
-                  </div>
-                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">{ev.assigned_to}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* 캘린더 */}
-        <DashCalendar user={user} />
-
-      </div>
-    </div>
-  );
-}
