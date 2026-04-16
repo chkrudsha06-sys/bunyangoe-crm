@@ -345,9 +345,9 @@ function WorkRequestBoard({ user }: { user: CRMUser | null }) {
           </div>
         </div>
       )}
-      <div className="space-y-2 max-h-48 overflow-y-auto">
+      <div className="space-y-2 max-h-64 overflow-y-auto">
         {items.length === 0
-          ? <p className="text-center py-6 text-slate-300 text-sm">등록된 업무요청이 없습니다</p>
+          ? <p className="text-center py-8 text-slate-300 text-sm">등록된 업무요청이 없습니다</p>
           : items.map(item=>(
             <div key={item.id} className="flex items-start gap-3 px-3 py-2.5 bg-slate-50 rounded-xl border border-slate-100">
               <div className="flex-1 min-w-0">
@@ -447,9 +447,9 @@ function NoticeBoard({ user }: { user: CRMUser | null }) {
           </div>
         </div>
       )}
-      <div className="space-y-2 max-h-48 overflow-y-auto">
+      <div className="space-y-2 max-h-64 overflow-y-auto">
         {items.length === 0
-          ? <p className="text-center py-6 text-slate-300 text-sm">등록된 공지가 없습니다</p>
+          ? <p className="text-center py-8 text-slate-300 text-sm">등록된 공지가 없습니다</p>
           : items.map(item=>(
             <div key={item.id} className={`px-3 py-2.5 rounded-xl border ${item.is_pinned?"bg-amber-50 border-amber-200":"bg-slate-50 border-slate-100"}`}>
               <div className="flex items-start justify-between gap-2">
@@ -579,11 +579,11 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
     <>
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
       {/* 헤더 */}
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button onClick={()=>{ if(calMonth===1){setCalMonth(12);setCalYear(y=>y-1);}else setCalMonth(m=>m-1);}}
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronLeft size={13}/></button>
-          <span className="text-sm font-bold text-slate-700">{calYear}년 {calMonth}월</span>
+          <span className="text-base font-bold text-slate-700">{calYear}년 {calMonth}월</span>
           <button onClick={()=>{ if(calMonth===12){setCalMonth(1);setCalYear(y=>y+1);}else setCalMonth(m=>m+1);}}
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronRight size={13}/></button>
         </div>
@@ -601,7 +601,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
       {/* 요일 */}
       <div className="grid grid-cols-7 border-b border-slate-50">
         {days.map((d,i)=>(
-          <div key={d} className={`text-center py-1.5 text-[10px] font-semibold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
+          <div key={d} className={`text-center py-2.5 text-xs font-semibold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
         ))}
       </div>
 
@@ -618,7 +618,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
             <div key={d}
               onClick={()=>{ setSelDate(ds); setShowDayPopup(true); setShowAdd(false); }}
               onDoubleClick={()=>{ setSelDate(ds); setShowAdd(true); setShowDayPopup(false); }}
-              className={`min-h-[72px] border-r border-b border-slate-50 p-1 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}
+              className={`min-h-[96px] border-r border-b border-slate-50 p-1.5 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}
               title="더블클릭: 일정 추가">
               <div className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold mb-0.5 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"}`}>{d}</div>
               <div className="space-y-0.5">
@@ -867,7 +867,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2 mt-1">
               <Clock size={13} className="text-blue-400"/>
               <span className="text-sm font-semibold text-slate-500">{dateStr}</span>
-              <span style={{ fontSize:"15px", fontFamily:"'Montserrat', monospace", fontWeight:900, color: isExec ? "#2563EB" : "#64748B", fontVariantNumeric:"tabular-nums", letterSpacing:"0.05em" }}>{timeStr}</span>
+              <b style={{ fontSize:"16px", fontFamily:"'Montserrat', 'Arial Black', sans-serif", fontWeight:900, color: isExec ? "#1D4ED8" : "#334155", fontVariantNumeric:"tabular-nums", letterSpacing:"0.04em", WebkitTextStroke:"0.3px currentColor" }}>{timeStr}</b>
             </div>
           </div>
           {/* 기간 필터 */}
