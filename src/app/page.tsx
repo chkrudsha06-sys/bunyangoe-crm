@@ -201,24 +201,23 @@ function DashCard({ icon, label, main, subs, cumLabel }: {
   cumLabel: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col" style={{ minWidth: 148, flex: "1 1 0" }}>
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg mb-2 bg-slate-50`}>{icon}</div>
-      <p className="text-xs text-slate-400 font-medium mb-1">{label}</p>
-      <p className="text-2xl font-black text-slate-800 leading-tight">{main}</p>
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{ minWidth: 180, flex: "1 1 0" }}>
+      <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl mb-3 bg-slate-50">{icon}</div>
+      <p className="text-sm text-slate-400 font-semibold mb-1.5">{label}</p>
+      <p className="text-3xl font-black text-slate-800 leading-tight">{main}</p>
       {subs && subs.length > 0 && (
-        <div className="mt-1.5 space-y-0.5 flex-1">
+        <div className="mt-2.5 space-y-1 flex-1">
           {subs.map(s => (
-            <div key={s.label} className="flex items-center gap-1.5">
-              <span className="text-[11px] text-slate-400 whitespace-nowrap">{s.label}</span>
-              <span className={`text-[11px] font-bold whitespace-nowrap ${s.color || "text-slate-600"}`}>{s.value}</span>
+            <div key={s.label} className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 whitespace-nowrap">{s.label}</span>
+              <span className={`text-xs font-bold whitespace-nowrap ${s.color || "text-slate-600"}`}>{s.value}</span>
             </div>
           ))}
         </div>
       )}
       {!subs && <div className="flex-1" />}
-      {/* 누적 - 항상 하단 고정 */}
-      <div className="mt-3 pt-2.5 border-t border-slate-100">
-        <p className="text-sm font-bold text-slate-800">누적 {cumLabel}</p>
+      <div className="mt-4 pt-3 border-t border-slate-100">
+        <p className="text-sm font-bold text-slate-700">누적 {cumLabel}</p>
       </div>
     </div>
   );
@@ -227,14 +226,14 @@ function DashCard({ icon, label, main, subs, cumLabel }: {
 // ── 바 차트 ──
 function BarChart({ data }: { data: MonthlyRevenue[] }) {
   const max = Math.max(...data.flatMap(d => [d.special, d.hightarget, d.bunyanghoe]), 1);
-  const bar = (v: number) => Math.max(4, Math.round((v / max) * 100));
+  const bar = (v: number) => Math.max(6, Math.round((v / max) * 140));
   const BARS = [
     { key: "special",    color: "#6366F1", label: "특전총매출" },
     { key: "hightarget", color: "#F59E0B", label: "하이타겟" },
     { key: "bunyanghoe", color: "#10B981", label: "분양회" },
   ];
   return (
-    <div className="flex items-end justify-around gap-4 h-36 px-2">
+    <div className="flex items-end justify-around gap-4 h-44 px-4">
       {data.map((d, i) => (
         <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
           <div className="flex items-end gap-1.5 w-full justify-center">
@@ -243,7 +242,7 @@ function BarChart({ data }: { data: MonthlyRevenue[] }) {
               return (
                 <div key={b.key} className="flex flex-col items-center gap-0.5">
                   <span className="text-[9px] font-bold" style={{color:b.color}}>{v > 0 ? v.toLocaleString() : ""}</span>
-                  <div className="w-6 rounded-t-md" style={{ height:`${bar(v)}px`, background:b.color, opacity: 0.85 }}/>
+                  <div className="w-8 rounded-t-md" style={{ height:`${bar(v)}px`, background:b.color, opacity: 0.85 }}/>
                 </div>
               );
             })}
@@ -318,7 +317,7 @@ function WorkRequestBoard({ user }: { user: CRMUser | null }) {
   return (
     <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-slate-700">업무요청</h3>
+        <h3 className="text-base font-bold text-slate-700">업무요청</h3>
         <button onClick={()=>setShowForm(v=>!v)}
           className="text-xs px-3 py-1.5 bg-[#1E3A8A] text-white rounded-lg hover:bg-blue-800 font-semibold">
           + 요청 작성
@@ -356,11 +355,11 @@ function WorkRequestBoard({ user }: { user: CRMUser | null }) {
                   <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${STATUS_COLOR[item.status]||"bg-slate-50 text-slate-500 border-slate-200"}`}>{item.status}</span>
                   <p className="text-sm font-semibold text-slate-800 truncate">{item.title}</p>
                 </div>
-                {item.content && <p className="text-xs text-slate-400 truncate">{item.content}</p>}
+                {item.content && <p className="text-xs text-slate-500 truncate">{item.content}</p>}
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] text-slate-400">{item.author}</span>
-                  {item.assigned_to && <span className="text-[10px] text-blue-500 font-medium">→ {item.assigned_to}</span>}
-                  <span className="text-[10px] text-slate-300">{new Date(item.created_at).toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})}</span>
+                  <span className="text-xs text-slate-400">{item.author}</span>
+                  {item.assigned_to && <span className="text-xs text-blue-500 font-medium">→ {item.assigned_to}</span>}
+                  <span className="text-xs text-slate-300">{new Date(item.created_at).toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})}</span>
                 </div>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
@@ -416,7 +415,7 @@ function NoticeBoard({ user }: { user: CRMUser | null }) {
   return (
     <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-slate-700">공지사항</h3>
+        <h3 className="text-base font-bold text-slate-700">공지사항</h3>
         {isAdmin && (
           <button onClick={()=>setShowForm(v=>!v)}
             className="text-xs px-3 py-1.5 bg-[#1E3A8A] text-white rounded-lg hover:bg-blue-800 font-semibold">
@@ -859,16 +858,16 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
       {/* 헤더 */}
-      <div className="bg-white border-b border-slate-200 px-6 py-3 sticky top-0 z-10">
+      <div className="bg-white border-b border-slate-200 px-8 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-base font-black text-slate-800">
+            <h1 className="text-xl font-black text-slate-800">
               대외협력팀 {isExec ? <span className="text-blue-600">{user?.name} {user?.title}</span> : <span className="text-slate-500">종합</span>} 대시보드
             </h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Clock size={11} className="text-blue-400"/>
-              <span className="text-xs text-slate-400">{dateStr}</span>
-              <span style={{ fontSize:"11px", fontFamily:"monospace", fontWeight:700, color: isExec ? "#2563EB" : "#64748B", fontVariantNumeric:"tabular-nums" }}>{timeStr}</span>
+            <div className="flex items-center gap-2 mt-1">
+              <Clock size={13} className="text-blue-400"/>
+              <span className="text-sm font-semibold text-slate-500">{dateStr}</span>
+              <span style={{ fontSize:"14px", fontFamily:"monospace", fontWeight:900, color: isExec ? "#2563EB" : "#64748B", fontVariantNumeric:"tabular-nums" }}>{timeStr}</span>
             </div>
           </div>
           {/* 기간 필터 */}
@@ -893,19 +892,19 @@ export default function DashboardPage() {
       </div>
 
       {/* 본문 */}
-      <div className="flex-1 overflow-auto p-5 space-y-4">
+      <div className="flex-1 overflow-auto p-6 space-y-5">
 
         {/* 당월 현황 카드 */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div style={{ width:"7px", height:"7px", borderRadius:"50%", background:"#E2A83A", boxShadow:"0 0 8px rgba(226,168,58,0.6)" }}/>
-              <h2 className="text-sm font-bold text-slate-700">당월 현황</h2>
-              <span className="text-xs text-slate-400">{startDate.replace(/-/g,".")} ~ {endDate.replace(/-/g,".")}</span>
+              <h2 className="text-base font-bold text-slate-700">당월 현황</h2>
+              <span className="text-sm text-slate-400">{startDate.replace(/-/g,".")} ~ {endDate.replace(/-/g,".")}</span>
             </div>
             {loading && <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>}
           </div>
-          <div className="p-4 flex gap-3 overflow-x-auto">
+          <div className="p-5 flex gap-4 overflow-x-auto">
             {CARDS.map(card=>(
               <DashCard key={card.label} icon={card.icon} label={card.label}
                 main={card.main} subs={card.subs} cumLabel={card.cumLabel}/>
@@ -918,7 +917,7 @@ export default function DashboardPage() {
           {/* 매출실적 그래프 */}
           <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-700">매출실적</h3>
+              <h3 className="text-base font-bold text-slate-700">매출실적</h3>
               <div className="flex items-center gap-3 text-xs text-slate-400">
                 <div style={{ display:"flex", alignItems:"center", gap:"5px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#6366F1" }}/><span>특전총매출</span></div>
                 <div style={{ display:"flex", alignItems:"center", gap:"5px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#F59E0B" }}/><span>하이타겟</span></div>
@@ -933,7 +932,7 @@ export default function DashboardPage() {
           {/* KPI */}
           <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-700">KPI</h3>
+              <h3 className="text-base font-bold text-slate-700">KPI</h3>
               <span className="text-xs text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100">설정 예정</span>
             </div>
             <div className="flex flex-col items-center justify-center h-28 gap-2">
