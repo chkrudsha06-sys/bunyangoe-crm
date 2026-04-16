@@ -140,21 +140,26 @@ export default function RewardsPage() {
     };
   }
 
-  // ── 이전 분기 이월액 계산 ──────────────────────────────────
-  function getCarriedOver(contact: VipContact, q: string): number {
-    const prev = prevQuarter(q);
-    if (!prev) return 0;
-    // 이전 분기 발생리워드
-    const prevExec    = getExecByQ(contact, prev);
-    const prevReward  = prevExec.htReward + prevExec.hogReward + prevExec.lmsReward;
-    const prevTax     = prevReward > 0 ? Math.floor(prevReward * 0.033) : 0;
-    const prevCarried = getCarriedOver(contact, prev); // 재귀: 그 이전 이월액
-    const prevPayable = prevReward - prevTax + prevCarried;
-    // 이전 분기 실지급액
-    const prevPaid = payments
-      .filter(p=>(p.contact_id===contact.id || (p as any).member_name===contact.name) && p.quarter===prev)
-      .reduce((s,p)=>s+(p.paid_amount||0),0);
-    return Math.max(prevPayable - prevPaid, 0);
+  // ── 이전 분기 이월액 계산 (반복문 방식 - 무한루프 방지) ──────
+  function getCarriedOver(contact: VipContact, targetQ: string): number {
+    // Q1부터 targetQ 이전 분기까지 순서대로 계산
+    const allQ = getQuarters();
+    const targetIdx = allQ.findIndex(q => q === targetQ);
+    if (targetIdx <= 0) return 0;
+
+    let carried = 0;
+    for (let i = 0; i < targetIdx; i++) {
+      const q = allQ[i];
+      const exec    = getExecByQ(contact, q);
+      const reward  = exec.htReward + exec.hogReward + exec.lmsReward;
+      const tax     = reward > 0 ? Math.floor(reward * 0.033) : 0;
+      const payable = (reward - tax) + carried;
+      const paid    = payments
+        .filter(p=>(p.contact_id===contact.id || (p as any).member_name===contact.name) && p.quarter===q)
+        .reduce((s,p)=>s+(p.paid_amount||0),0);
+      carried = Math.max(payable - paid, 0);
+    }
+    return carried;
   }
 
   // ── 해당 분기 계산 ──────────────────────────────────────────
