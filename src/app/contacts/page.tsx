@@ -113,7 +113,6 @@ export default function ContactsPage() {
   const [fResult, setFResult] = useState("");
   const [fStage, setFStage] = useState("");
   const [fAssigned, setFAssigned] = useState("");
-  const [showFilter, setShowFilter] = useState(false);
   const [page, setPage] = useState(1);
   const PER_PAGE = 30;
 
@@ -138,7 +137,7 @@ export default function ContactsPage() {
     if (fProspect) q = q.eq("prospect_type", fProspect);
     if (fResult) q = q.eq("meeting_result", fResult);
     if (fStage) q = q.eq("management_stage", fStage);
-    if (fAssigned) q = q.eq("assigned_to", fAssigned);
+    if (fAssigned && fAssigned !== "__ALL__") q = q.eq("assigned_to", fAssigned);
     q = q.order("created_at", { ascending: false }).range((page-1)*PER_PAGE, page*PER_PAGE-1);
     const { data, count } = await q;
     setContacts((data || []) as Contact[]);
@@ -248,60 +247,34 @@ export default function ContactsPage() {
           </button>
         </div>
 
-        {/* 검색 + 필터 */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
+        {/* 검색 + 필터 (상시 노출) */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative" style={{minWidth:"200px",flex:"1 1 0"}}>
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
             <input type="text" placeholder="이름, 연락처, 메모, 지역 검색..." value={search}
               onChange={e=>{setSearch(e.target.value);setPage(1);}}
               className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
           </div>
-          <button onClick={()=>setShowFilter(!showFilter)}
-            className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl border transition-colors ${
-              showFilter || activeFilters > 0 ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-            }`}>
-            <Filter size={14}/> 필터 {activeFilters > 0 && <span className="bg-white/30 text-white text-xs px-1.5 rounded-full">{activeFilters}</span>}
+          <Sel val={fCustomerType} onChange={v=>{setFCustomerType(v);setPage(1);}} opts={OPT.customer_type} placeholder="고객유형"/>
+          <Sel val={fProspect} onChange={v=>{setFProspect(v);setPage(1);}} opts={OPT.prospect_type} placeholder="가망구분"/>
+          <Sel val={fResult} onChange={v=>{setFResult(v);setPage(1);}} opts={OPT.meeting_result} placeholder="미팅결과"/>
+          <Sel val={fStage} onChange={v=>{setFStage(v);setPage(1);}} opts={OPT.management_stage} placeholder="고객관리구간"/>
+          {/* 담당자 — 전체/개인 선택 */}
+          <select
+            value={fAssigned}
+            onChange={e=>{setFAssigned(e.target.value);setPage(1);}}
+            className="w-full appearance-none px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-400 pr-8" style={{minWidth:"110px",maxWidth:"140px"}}>
+            <option value="">담당자</option>
+            <option value="__ALL__">전체</option>
+            {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
+          </select>
+          {/* 필터 초기화 */}
+          <button
+            onClick={()=>{setFCustomerType("");setFProspect("");setFResult("");setFStage("");setFAssigned("");setSearch("");setPage(1);}}
+            className="px-3 py-2 text-sm font-semibold text-red-400 border border-red-200 rounded-xl hover:bg-red-50 whitespace-nowrap">
+            ↺ 초기화
           </button>
-          {activeFilters > 0 && (
-            <button onClick={()=>{setFCustomerType("");setFProspect("");setFResult("");setFStage("");setFAssigned("");}}
-              className="text-xs text-red-400 hover:text-red-600 px-2">초기화</button>
-          )}
         </div>
-
-        {/* 필터 패널 */}
-        {showFilter && (
-          <div className="mt-3 space-y-2">
-            <div className="grid grid-cols-5 gap-2">
-              <Sel val={fCustomerType} onChange={v=>{setFCustomerType(v);setPage(1);}} opts={OPT.customer_type} placeholder="고객유형"/>
-              <Sel val={fProspect} onChange={v=>{setFProspect(v);setPage(1);}} opts={OPT.prospect_type} placeholder="가망구분"/>
-              <Sel val={fResult} onChange={v=>{setFResult(v);setPage(1);}} opts={OPT.meeting_result} placeholder="미팅결과"/>
-              <Sel val={fStage} onChange={v=>{setFStage(v);setPage(1);}} opts={OPT.management_stage} placeholder="고객관리구간"/>
-              <Sel val={fAssigned} onChange={v=>{setFAssigned(v);setPage(1);}} opts={TEAM} placeholder="담당자"/>
-            </div>
-            {/* 담당자 전체 + 초기화 */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={()=>{setFAssigned("");setPage(1);}}
-                className={`text-sm px-3 py-1.5 rounded-lg border font-semibold transition-colors ${fAssigned===""?"bg-blue-600 text-white border-blue-600":"bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}>
-                전체 담당자
-              </button>
-              {TEAM.map(name=>(
-                <button key={name}
-                  onClick={()=>{setFAssigned(name);setPage(1);}}
-                  className={`text-sm px-3 py-1.5 rounded-lg border font-semibold transition-colors ${fAssigned===name?"bg-blue-600 text-white border-blue-600":"bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}>
-                  {name}
-                </button>
-              ))}
-              <div className="ml-auto">
-                <button
-                  onClick={()=>{setFCustomerType("");setFProspect("");setFResult("");setFStage("");setFAssigned("");setSearch("");setPage(1);}}
-                  className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-400 hover:bg-red-50 font-semibold">
-                  ↺ 필터 초기화
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 테이블 */}
