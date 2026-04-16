@@ -172,10 +172,19 @@ export default function PipelinePage() {
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
-      const { data } = await supabase
+      // exec 로그인 시 본인 담당 고객만
+      let execName = "";
+      try {
+        const raw = localStorage.getItem("crm_user");
+        if (raw) { const u = JSON.parse(raw); if (u.role === "exec") execName = u.name; }
+      } catch {}
+
+      let q = supabase
         .from("contacts")
         .select("id,name,title,phone,tm_sensitivity,prospect_type,meeting_date,meeting_date_text,meeting_address,meeting_result,management_stage,assigned_to,memo")
         .order("created_at", { ascending: false });
+      if (execName) q = q.eq("assigned_to", execName);
+      const { data } = await q;
       setContacts((data || []) as Contact[]);
       setLoading(false);
     };
