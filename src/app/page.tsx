@@ -599,15 +599,15 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
       </div>
 
       {/* 요일 */}
-      <div className="grid grid-cols-7 border-l border-b border-slate-200">
+      <div className="grid grid-cols-7 border border-slate-200 divide-x divide-slate-200">
         {days.map((d,i)=>(
           <div key={d} className={`text-center py-3 text-sm font-bold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
         ))}
       </div>
 
       {/* 날짜 */}
-      <div className="grid grid-cols-7 border-l border-slate-200">
-        {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`} className="min-h-[72px] border-r border-b border-slate-50 bg-slate-50/20"/>)}
+      <div className="grid grid-cols-7 border border-slate-200 divide-x divide-y divide-slate-200">
+        {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`} className="min-h-[96px] bg-slate-50/30"/>)}
         {Array.from({length:daysInMonth}).map((_,i)=>{
           const d = i+1; const ds = getDs(d);
           const {ev,mt,wp} = getItems(d);
@@ -618,7 +618,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
             <div key={d}
               onClick={()=>{ setSelDate(ds); setShowDayPopup(true); setShowAdd(false); }}
               onDoubleClick={()=>{ setSelDate(ds); setShowAdd(true); setShowDayPopup(false); }}
-              className={`min-h-[96px] border-r border-b border-slate-200 p-1.5 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"} `}
+              className={`min-h-[96px] p-1.5 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"}`}
               title="더블클릭: 일정 추가">
               <div className={`w-8 h-8 flex items-center justify-center rounded-full text-base font-bold mb-1 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-600"}`}>{d}</div>
               <div className="space-y-0.5">
@@ -639,7 +639,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
         })}
         {/* 마지막 줄 빈 셀 채우기 */}
         {Array.from({length: (7 - (firstDay + daysInMonth) % 7) % 7}).map((_,i)=>(
-          <div key={`t${i}`} className="min-h-[96px] border-r border-b border-slate-200 bg-slate-50/30"/>
+          <div key={`t${i}`} className="min-h-[96px] bg-slate-50/30"/>
         ))}
       </div>
 
