@@ -10,7 +10,16 @@ import {
   CreditCard, LogOut, ChevronRight, FileText,
 } from "lucide-react";
 
-interface SidebarProps { user: CRMUser; }
+interface NotificationItem { id: number; message: string; created_at: string; is_read: boolean; }
+interface SidebarProps {
+  user: CRMUser;
+  unreadCount?: number;
+  notifications?: NotificationItem[];
+  showPanel?: boolean;
+  onBellClick?: () => void;
+  onPanelClose?: () => void;
+  onMarkAll?: () => Promise<void>;
+}
 
 const EXEC_MENUS = [
   { href: "/", label: "대시보드", icon: LayoutDashboard },
@@ -39,7 +48,7 @@ const ROLE_STYLE: Record<string, { bg: string; text: string; label: string }> = 
   ops:   { bg: "bg-emerald-100", text: "text-emerald-700", label: "운영파트" },
 };
 
-export default function Sidebar({ user }: SidebarProps) {
+export default function Sidebar({ user, unreadCount=0, notifications=[], showPanel=false, onBellClick, onPanelClose, onMarkAll }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const isAdmin = user.role === "admin";
