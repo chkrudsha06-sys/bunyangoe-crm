@@ -20,6 +20,8 @@ interface WanpanTruck {
   consultant_members: string | null;
   has_photo: boolean;
   notes: string | null;
+  assigned_to: string | null;
+  order_confirmed_by: string | null;
 }
 
 const DAEHYUP_MEMBERS = ["김정후","김창완","최웅","조계현","이세호","기여운","최연전"];
@@ -30,7 +32,7 @@ const EMPTY: any = {
   location:"", dispatch_date:"", is_ordered:false,
   staff_count:"", staff_members:[],
   consultant_count:"", consultant_members:[],
-  has_photo:false, notes:"",
+  has_photo:false, notes:"", assigned_to:"", order_confirmed_by:null,
 };
 
 function parseMembers(val: string | null): string[] {
@@ -102,7 +104,7 @@ export default function WanpanTruckPage() {
       team_size: t.team_size||"", agency: t.agency||"",
       contact_point: t.contact_point||"", contact_point_title: t.contact_point_title||"",
       contact_phone: t.contact_phone||"", location: t.location||"",
-      dispatch_date: t.dispatch_date?.split("T")[0]||"", is_ordered: t.is_ordered,
+      dispatch_date: t.dispatch_date?.split("T")[0]||"", is_ordered: t.is_ordered, assigned_to: t.assigned_to||"", order_confirmed_by: t.order_confirmed_by||null,
       staff_count: t.staff_count||"", staff_members: parseMembers(t.staff_members),
       consultant_count: t.consultant_count||"", consultant_members: parseMembers(t.consultant_members),
       has_photo: t.has_photo||false, notes: t.notes||"",
@@ -118,6 +120,7 @@ export default function WanpanTruckPage() {
       contact_point_title: form.contact_point_title||null,
       contact_phone: form.contact_phone||null, location: form.location||null,
       dispatch_date: form.dispatch_date||null, is_ordered: form.is_ordered,
+      assigned_to: form.assigned_to||null, order_confirmed_by: form.order_confirmed_by||null,
       staff_count: Number(form.staff_count)||null,
       staff_members: form.staff_members.length>0 ? JSON.stringify(form.staff_members) : null,
       consultant_count: Number(form.consultant_count)||null,
@@ -151,38 +154,35 @@ export default function WanpanTruckPage() {
   const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
   const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 
-  const HEADERS = ["#","발송일","현장위치","대행사","접점","직급","소통자 연락처","조직수","대협팀 출장인원","컨설턴트 출장인원","촬영","발주여부","비고",""];
+  const HEADERS = ["#","발송일","현장위치","대행사","접점","직급","소통자 연락처","조직수","대협팀 출장인원","컨설턴트 출장인원","촬영","발주여부","담당자확인","비고",""];
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-1">
           <div>
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <Truck size={20} className="text-blue-500" />완판트럭
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">완판트럭 진행 리스트 관리</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-center px-4 py-2 bg-blue-50 rounded-xl border border-blue-100">
-              <p className="text-lg font-bold text-blue-600">{trucks.length}</p>
-              <p className="text-xs text-blue-500">전체 회차</p>
-            </div>
-            <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[#1E3A8A] text-white text-sm font-semibold rounded-lg hover:bg-blue-800 shadow-sm">
-              <Plus size={14} />신규 등록
-            </button>
-          </div>
         </div>
-        {/* 월별 필터 */}
+        {/* 월별 필터 + 전체회차 + 신규등록 한 줄 */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 font-semibold">월별 검색</span>
           <select value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}
-            className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-semibold outline-none">
+            className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-semibold outline-none">
             <option value="">전체</option>
             {Array.from({length:12},(_,i)=>i+1).map(m=>(
               <option key={m} value={String(m)}>{m}월</option>
             ))}
           </select>
+          <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
+            <span className="text-sm font-bold text-blue-600">{trucks.length}</span>
+            <span className="text-sm text-blue-500">전체 회차</span>
+          </div>
+          <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[#1E3A8A] text-white text-sm font-semibold rounded-lg hover:bg-blue-800 shadow-sm ml-auto">
+            <Plus size={14} />신규 등록
+          </button>
         </div>
       </div>
 
@@ -253,6 +253,33 @@ export default function WanpanTruckPage() {
                           {t.is_ordered?"완료":"미발주"}
                         </button>
                       </td>
+                      {/* 담당자 확인 */}
+                      <td className="px-3 py-2.5 text-center align-middle">
+                        {t.assigned_to ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-xs text-slate-600 font-medium">{t.assigned_to}</span>
+                            {t.order_confirmed_by ? (
+                              <span className="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold flex items-center gap-0.5">
+                                <CheckCircle size={10}/> 확인완료
+                              </span>
+                            ) : (
+                              (() => {
+                                let curUser = "";
+                                try { const r = localStorage.getItem("crm_user"); if(r) curUser = JSON.parse(r).name||""; } catch {}
+                                return curUser === t.assigned_to ? (
+                                  <button
+                                    onClick={async()=>{ await supabase.from("wanpan_trucks").update({order_confirmed_by:t.assigned_to}).eq("id",t.id); fetchTrucks(); }}
+                                    className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-600 rounded-full font-semibold hover:bg-amber-200 border border-amber-200">
+                                    확인하기
+                                  </button>
+                                ) : (
+                                  <span className="text-xs text-slate-300">미확인</span>
+                                );
+                              })()
+                            )}
+                          </div>
+                        ) : <span className="text-slate-300 text-xs">-</span>}
+                      </td>
                       <td className="px-3 py-2.5 text-center align-middle max-w-[100px]">
                         <p className="text-xs text-slate-500 truncate">{t.notes||"-"}</p>
                       </td>
@@ -321,6 +348,15 @@ export default function WanpanTruckPage() {
                 </div>
 
                 <div className="flex items-center gap-2 pt-4">
+<div className="col-span-2">
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">담당자 지정</label>
+                    <select value={form.assigned_to||""} onChange={e=>setForm({...form,assigned_to:e.target.value})}
+                      className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400">
+                      <option value="">선택</option>
+                      <option value="김재영">김재영</option>
+                      <option value="최은정">최은정</option>
+                    </select>
+                  </div>
                   <input type="checkbox" id="is_ordered" checked={form.is_ordered} onChange={e=>setForm({...form,is_ordered:e.target.checked})} className="w-4 h-4"/>
                   <label htmlFor="is_ordered" className="text-sm text-slate-700 font-medium">발주완료</label>
                 </div>
