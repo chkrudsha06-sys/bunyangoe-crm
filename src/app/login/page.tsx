@@ -4,46 +4,61 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { login, getCurrentUser } from "@/lib/auth";
 
-// ─── 인트로 오버레이 (luminaire 정확 재현) ───────────────────
+// ─── 인트로 오버레이 ─────────────────────────────────────────
+// MOVER 글자: M O V E R (인덱스 0~4)
+const MOVER_CHARS = ['M','O','V','E','R'];
+const GOLD = '#C9982A';
+const GOLD_BRIGHT = '#F0C040';
+
 function IntroOverlay({ onDone }: { onDone: () => void }) {
-  // FIRST MOVER 텍스트 Y
   const [textY, setTextY]         = useState(0);
   const [textOp, setTextOp]       = useState(0);
-  // 검정 화면 위/아래 패널 열림
-  const [topH, setTopH]           = useState(50);   // 위 패널 높이% (50→0)
-  const [botH, setBotH]           = useState(50);   // 아래 패널 높이% (50→0)
+  // MOVER 황금 애니메이션: -1=없음, 0~4=현재 켜진 인덱스, 5=전체 골드
+  const [goldIdx, setGoldIdx]     = useState(-1);
+  const [allGold, setAllGold]     = useState(false);
+  const [topH, setTopH]           = useState(50);
+  const [botH, setBotH]           = useState(50);
   const [panelOpen, setPanelOpen] = useState(false);
-  // 가운데 메인 텍스트 등장
   const [centerOp, setCenterOp]   = useState(0);
   const [centerY, setCenterY]     = useState(20);
-  const [done, setDone]           = useState(false);
 
   useEffect(() => {
     const T: ReturnType<typeof setTimeout>[] = [];
     const raf = (fn: ()=>void) => requestAnimationFrame(()=>requestAnimationFrame(fn));
 
-    // ① 0.5s 후 FIRST MOVER 페이드인 + 약간 위로
+    // ① 0.5s 후 FIRST MOVER 페이드인
     T.push(setTimeout(() => {
       raf(() => { setTextOp(1); setTextY(0); });
 
-      // ② 1.2s 홀드 후 텍스트 위로 올라가며 + 패널 열리기 시작
+      // ② 1.0s 후 MOVER 한글자씩 골드 (4초 총: 글자당 480ms × 5 = 2400ms + 전체골드 1000ms + 여유 600ms)
       T.push(setTimeout(() => {
-        setTextY(-30);
-        setTextOp(0);
-        setPanelOpen(true);
-        raf(() => { setTopH(0); setBotH(0); });
-
-        // ③ 패널 열리면서 가운데 텍스트 등장
-        T.push(setTimeout(() => {
-          raf(() => { setCenterOp(1); setCenterY(0); });
-
-          // ④ 3초 유지 후 done
+        const charDelay = 480; // 글자당 간격
+        MOVER_CHARS.forEach((_, i) => {
           T.push(setTimeout(() => {
-            setDone(true);
-            onDone();
-          }, 3000));
-        }, 200));
-      }, 1400));
+            setGoldIdx(i);
+          }, i * charDelay));
+        });
+
+        // 5글자 후 전체 골드
+        T.push(setTimeout(() => {
+          setAllGold(true);
+          setGoldIdx(-1);
+
+          // 전체 골드 1.0s 유지 후 패널 열림
+          T.push(setTimeout(() => {
+            setTextY(-30); setTextOp(0);
+            setPanelOpen(true);
+            raf(() => { setTopH(0); setBotH(0); });
+
+            T.push(setTimeout(() => {
+              raf(() => { setCenterOp(1); setCenterY(0); });
+              T.push(setTimeout(() => {
+                onDone();
+              }, 3000));
+            }, 200));
+          }, 1000));
+        }, MOVER_CHARS.length * charDelay + 200));
+      }, 1000));
     }, 500));
 
     return () => T.forEach(clearTimeout);
@@ -90,8 +105,26 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
               ? 'transform 0.6s ease, opacity 0.5s ease'
               : 'transform 0.0s, opacity 0.7s ease',
             whiteSpace: 'nowrap' as const,
+            display: 'flex', alignItems: 'center', gap: 0,
           }}>
-            FIRST MOVER
+            {/* FIRST  */}
+            {'FIRST '.split('').map((ch, i) => (
+              <span key={i}>{ch === ' ' ? ' ' : ch}</span>
+            ))}
+            {/* MOVER — 한글자씩 골드 */}
+            {MOVER_CHARS.map((ch, i) => {
+              const isActive = goldIdx === i;
+              const isGold   = allGold || isActive;
+              return (
+                <span key={i} style={{
+                  color: isGold ? GOLD_BRIGHT : '#ffffff',
+                  transition: 'color 0.25s ease',
+                  display: 'inline-block',
+                }}>
+                  {ch}
+                </span>
+              );
+            })}
           </div>
         </div>
       )}
@@ -332,8 +365,8 @@ export default function LoginPage() {
         display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
         opacity: showModal ? 1 : 0, pointerEvents: showModal ? "auto" : "none",
         transition: "opacity 0.35s ease",
-        background: showModal ? "rgba(0,0,0,0.7)" : "transparent",
-        backdropFilter: showModal ? "blur(10px)" : "none",
+        background: showModal ? "rgba(0,0,0,0.45)" : "transparent",
+        backdropFilter: showModal ? "blur(6px)" : "none",
       }}>
         <div style={{
           background: "rgba(8,10,20,0.97)", backdropFilter: "blur(32px)",
