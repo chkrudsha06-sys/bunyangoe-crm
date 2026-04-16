@@ -205,9 +205,9 @@ function DashCard({ icon, label, main, subs, cumLabel }: {
       {subs && subs.length > 0 && (
         <div className="mt-1.5 space-y-0.5 flex-1">
           {subs.map(s => (
-            <div key={s.label} className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">{s.label}</span>
-              <span className={`text-[11px] font-bold ${s.color || "text-slate-600"}`}>{s.value}</span>
+            <div key={s.label} className="flex items-center gap-1.5">
+              <span className="text-[11px] text-slate-400 whitespace-nowrap">{s.label}</span>
+              <span className={`text-[11px] font-bold whitespace-nowrap ${s.color || "text-slate-600"}`}>{s.value}</span>
             </div>
           ))}
         </div>
@@ -215,7 +215,7 @@ function DashCard({ icon, label, main, subs, cumLabel }: {
       {!subs && <div className="flex-1" />}
       {/* 누적 - 항상 하단 고정 */}
       <div className="mt-3 pt-2.5 border-t border-slate-100">
-        <p className="text-[11px] text-slate-400 font-medium">누적 {cumLabel}</p>
+        <p className="text-sm font-bold text-slate-800">누적 {cumLabel}</p>
       </div>
     </div>
   );
