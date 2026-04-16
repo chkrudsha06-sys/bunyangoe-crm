@@ -31,6 +31,12 @@ const COLUMNS = [
   { key: "예약완료",      label: "예약 완료",      color: "bg-blue-50",   border: "border-blue-200",   dot: "bg-blue-500",   badge: "bg-blue-100 text-blue-700" },
 ];
 
+const STAGE_BADGE: Record<string,string> = {
+  "리드": "bg-pink-100 text-pink-600",
+  "프로스펙팅": "bg-orange-100 text-orange-500",
+  "딜크로징": "bg-sky-100 text-sky-600",
+  "리텐션": "bg-purple-100 text-purple-500",
+};
 const AVATAR_COLORS = ["bg-blue-500","bg-violet-500","bg-amber-500","bg-emerald-500","bg-rose-500","bg-cyan-500","bg-indigo-500","bg-pink-500"];
 
 function getAvatarColor(name: string) {
@@ -99,6 +105,13 @@ function ContactCard({ contact, col, onNotesClick }: {
       </div>
 
       {/* 연락처 */}
+      {contact.management_stage && (
+        <div className="mb-1.5">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${STAGE_BADGE[contact.management_stage]||"bg-slate-100 text-slate-500"}`}>
+            {contact.management_stage}
+          </span>
+        </div>
+      )}
       {contact.phone && (
         <div className="flex items-center gap-1.5 mb-1.5">
           <Phone size={11} className="text-slate-300 flex-shrink-0"/>
