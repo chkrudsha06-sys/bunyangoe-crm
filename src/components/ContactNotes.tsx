@@ -37,7 +37,21 @@ export default function ContactNotes({ contactId, authorName, compact }: Props) 
     setLoading(false);
   };
 
-  useEffect(() => { fetchNotes(); }, [contactId]);
+  useEffect(() => {
+    fetchNotes();
+
+    // Realtime 구독 — 노트 추가/삭제 시 즉시 반영
+    const channel = supabase
+      .channel(`notes_${contactId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "contact_notes", filter: `contact_id=eq.${contactId}` },
+        () => { fetchNotes(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [contactId]);
 
   const getAuthor = () => {
     if (authorName) return authorName;
