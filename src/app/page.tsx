@@ -23,6 +23,8 @@ const EMPTY: Stats = {
 };
 interface MonthlyRevenue { month: string; hightarget: number; special: number; bunyanghoe: number; }
 interface TodayEvent { id: number; name: string; phone: string | null; meeting_date: string; meeting_address: string | null; assigned_to: string; }
+interface Notice { id: number; title: string; content: string | null; author: string; created_at: string; is_pinned: boolean; }
+interface WorkRequest { id: number; title: string; content: string | null; author: string; assigned_to: string | null; status: string; created_at: string; }
 
 function fw(n: number) {
   if (!n) return "0원";
@@ -270,6 +272,209 @@ interface CalEventItem {
   content: string | null;
   author: string;
   event_type: string;
+}
+
+// ── 업무요청 보드 ────────────────────────────────────────────
+function WorkRequestBoard({ user }: { user: CRMUser | null }) {
+  const [items, setItems]       = useState<any[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm]         = useState({ title:"", content:"", assigned_to:"" });
+  const [saving, setSaving]     = useState(false);
+  const TEAM = ["조계현","이세호","기여운","최연전","김재영","최은정"];
+  const STATUS_COLOR: Record<string,string> = {
+    "요청": "bg-amber-50 text-amber-600 border-amber-200",
+    "진행중": "bg-blue-50 text-blue-600 border-blue-200",
+    "완료": "bg-emerald-50 text-emerald-600 border-emerald-200",
+  };
+
+  useEffect(() => { fetchItems(); }, []);
+  const fetchItems = async () => {
+    const { data } = await supabase.from("work_requests")
+      .select("*").order("created_at",{ascending:false}).limit(10);
+    setItems(data||[]);
+  };
+  const handleSubmit = async () => {
+    if (!form.title) return alert("제목을 입력하세요.");
+    setSaving(true);
+    await supabase.from("work_requests").insert({
+      title: form.title, content: form.content||null,
+      assigned_to: form.assigned_to||null,
+      author: user?.name||"", status:"요청",
+    });
+    setSaving(false); setShowForm(false);
+    setForm({title:"",content:"",assigned_to:""});
+    fetchItems();
+  };
+  const updateStatus = async (id:number, status:string) => {
+    await supabase.from("work_requests").update({status}).eq("id",id);
+    fetchItems();
+  };
+  const deleteItem = async (id:number) => {
+    if (!confirm("삭제하시겠습니까?")) return;
+    await supabase.from("work_requests").delete().eq("id",id);
+    fetchItems();
+  };
+
+  return (
+    <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-bold text-slate-700">업무요청</h3>
+        <button onClick={()=>setShowForm(v=>!v)}
+          className="text-xs px-3 py-1.5 bg-[#1E3A8A] text-white rounded-lg hover:bg-blue-800 font-semibold">
+          + 요청 작성
+        </button>
+      </div>
+      {showForm && (
+        <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+          <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))}
+            placeholder="요청 제목" className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
+          <textarea value={form.content} onChange={e=>setForm(p=>({...p,content:e.target.value}))}
+            placeholder="상세 내용" rows={2}
+            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 resize-none"/>
+          <div className="flex gap-2">
+            <select value={form.assigned_to} onChange={e=>setForm(p=>({...p,assigned_to:e.target.value}))}
+              className="flex-1 px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none">
+              <option value="">담당자 선택</option>
+              {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
+            </select>
+            <button onClick={handleSubmit} disabled={saving}
+              className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-bold disabled:opacity-50">
+              {saving?"저장중...":"등록"}
+            </button>
+            <button onClick={()=>setShowForm(false)}
+              className="px-3 py-2 text-sm text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50">취소</button>
+          </div>
+        </div>
+      )}
+      <div className="space-y-2 max-h-48 overflow-y-auto">
+        {items.length === 0
+          ? <p className="text-center py-6 text-slate-300 text-sm">등록된 업무요청이 없습니다</p>
+          : items.map(item=>(
+            <div key={item.id} className="flex items-start gap-3 px-3 py-2.5 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${STATUS_COLOR[item.status]||"bg-slate-50 text-slate-500 border-slate-200"}`}>{item.status}</span>
+                  <p className="text-sm font-semibold text-slate-800 truncate">{item.title}</p>
+                </div>
+                {item.content && <p className="text-xs text-slate-400 truncate">{item.content}</p>}
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] text-slate-400">{item.author}</span>
+                  {item.assigned_to && <span className="text-[10px] text-blue-500 font-medium">→ {item.assigned_to}</span>}
+                  <span className="text-[10px] text-slate-300">{new Date(item.created_at).toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {item.status === "요청" && (
+                  <button onClick={()=>updateStatus(item.id,"진행중")}
+                    className="text-[10px] px-1.5 py-1 bg-blue-50 text-blue-600 rounded border border-blue-200 hover:bg-blue-100">진행</button>
+                )}
+                {item.status === "진행중" && (
+                  <button onClick={()=>updateStatus(item.id,"완료")}
+                    className="text-[10px] px-1.5 py-1 bg-emerald-50 text-emerald-600 rounded border border-emerald-200 hover:bg-emerald-100">완료</button>
+                )}
+                <button onClick={()=>deleteItem(item.id)}
+                  className="text-[10px] px-1.5 py-1 bg-red-50 text-red-400 rounded border border-red-200 hover:bg-red-100">삭제</button>
+              </div>
+            </div>
+          ))}
+      </div>
+    </div>
+  );
+}
+
+// ── 공지사항 보드 ────────────────────────────────────────────
+function NoticeBoard({ user }: { user: CRMUser | null }) {
+  const [items, setItems]       = useState<any[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm]         = useState({ title:"", content:"", is_pinned:false });
+  const [saving, setSaving]     = useState(false);
+  const isAdmin = user?.role === "admin" || user?.role === "ops";
+
+  useEffect(() => { fetchItems(); }, []);
+  const fetchItems = async () => {
+    const { data } = await supabase.from("notices")
+      .select("*").order("is_pinned",{ascending:false}).order("created_at",{ascending:false}).limit(10);
+    setItems(data||[]);
+  };
+  const handleSubmit = async () => {
+    if (!form.title) return alert("제목을 입력하세요.");
+    setSaving(true);
+    await supabase.from("notices").insert({
+      title: form.title, content: form.content||null,
+      author: user?.name||"", is_pinned: form.is_pinned,
+    });
+    setSaving(false); setShowForm(false);
+    setForm({title:"",content:"",is_pinned:false});
+    fetchItems();
+  };
+  const deleteItem = async (id:number) => {
+    if (!confirm("삭제하시겠습니까?")) return;
+    await supabase.from("notices").delete().eq("id",id);
+    fetchItems();
+  };
+
+  return (
+    <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-bold text-slate-700">공지사항</h3>
+        {isAdmin && (
+          <button onClick={()=>setShowForm(v=>!v)}
+            className="text-xs px-3 py-1.5 bg-[#1E3A8A] text-white rounded-lg hover:bg-blue-800 font-semibold">
+            + 공지 작성
+          </button>
+        )}
+      </div>
+      {showForm && (
+        <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+          <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))}
+            placeholder="공지 제목" className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
+          <textarea value={form.content} onChange={e=>setForm(p=>({...p,content:e.target.value}))}
+            placeholder="공지 내용" rows={2}
+            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 resize-none"/>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+              <input type="checkbox" checked={form.is_pinned} onChange={e=>setForm(p=>({...p,is_pinned:e.target.checked}))}
+                className="w-3.5 h-3.5"/>
+              📌 고정
+            </label>
+            <div className="flex gap-2 ml-auto">
+              <button onClick={handleSubmit} disabled={saving}
+                className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-bold disabled:opacity-50">
+                {saving?"저장중...":"등록"}
+              </button>
+              <button onClick={()=>setShowForm(false)}
+                className="px-3 py-2 text-sm text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50">취소</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="space-y-2 max-h-48 overflow-y-auto">
+        {items.length === 0
+          ? <p className="text-center py-6 text-slate-300 text-sm">등록된 공지가 없습니다</p>
+          : items.map(item=>(
+            <div key={item.id} className={`px-3 py-2.5 rounded-xl border ${item.is_pinned?"bg-amber-50 border-amber-200":"bg-slate-50 border-slate-100"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    {item.is_pinned && <span className="text-[10px]">📌</span>}
+                    <p className="text-sm font-semibold text-slate-800 truncate">{item.title}</p>
+                  </div>
+                  {item.content && <p className="text-xs text-slate-400 truncate">{item.content}</p>}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] text-slate-400">{item.author}</span>
+                    <span className="text-[10px] text-slate-300">{new Date(item.created_at).toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})}</span>
+                  </div>
+                </div>
+                {isAdmin && (
+                  <button onClick={()=>deleteItem(item.id)}
+                    className="text-[10px] px-1.5 py-1 bg-red-50 text-red-400 rounded border border-red-200 hover:bg-red-100 flex-shrink-0">삭제</button>
+                )}
+              </div>
+            </div>
+          ))}
+      </div>
+    </div>
+  );
 }
 
 // ── 캘린더 컴포넌트 ──
@@ -708,7 +913,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 그래프 + 오늘의 일정 */}
+        {/* 그래프 + KPI */}
         <div className="grid grid-cols-5 gap-4">
           {/* 매출실적 그래프 */}
           <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
@@ -738,6 +943,14 @@ export default function DashboardPage() {
               <p className="text-sm text-slate-300 font-medium">KPI 설정 후 표시됩니다</p>
             </div>
           </div>
+        </div>
+
+        {/* 업무요청 + 공지사항 */}
+        <div className="grid grid-cols-5 gap-4">
+          {/* 업무요청 — col-span-3 (매출실적과 동일) */}
+          <WorkRequestBoard user={user}/>
+          {/* 공지사항 — col-span-2 (KPI와 동일) */}
+          <NoticeBoard user={user}/>
         </div>
 
         {/* 캘린더 */}
