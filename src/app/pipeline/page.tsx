@@ -81,7 +81,6 @@ function ContactCard({ contact, col, onNotesClick }: {
   onNotesClick: (contactId: number, name: string) => void;
 }) {
 
-  const handleDoubleClick = () => { window.location.href = `/contacts/${contact.id}`; };
 
   const meetingDate = contact.meeting_date
     ? new Date(contact.meeting_date + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
@@ -89,9 +88,7 @@ function ContactCard({ contact, col, onNotesClick }: {
 
   return (
     <div
-      onDoubleClick={handleDoubleClick}
       className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all group"
-      title="클릭: 고객 상세 페이지"
     >
       {/* 헤더 */}
       <div className="flex items-start justify-between mb-2.5">
@@ -109,7 +106,11 @@ function ContactCard({ contact, col, onNotesClick }: {
             )}
           </div>
         </div>
-        <ChevronRight size={13} className="text-slate-200 group-hover:text-slate-400 mt-1 transition-colors flex-shrink-0"/>
+        <a
+          href={`/contacts/${contact.id}`}
+          onClick={e => e.stopPropagation()}
+          className="text-[10px] px-2 py-1 bg-blue-50 text-blue-500 rounded-lg border border-blue-100 hover:bg-blue-100 font-semibold flex-shrink-0 whitespace-nowrap"
+        >상세</a>
       </div>
 
       {/* 연락처 */}
