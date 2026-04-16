@@ -463,17 +463,19 @@ export default function RewardsPage() {
                       {/* 지급후 잔액 */}
                       <td className="px-2 py-2.5 text-center">
                         {(() => {
-                          const totalNet = (d as any).totalNet || 0;
-                          if (pInline && d.netPay > 0) {
-                            const inputAmt = Number((pInline.amt||"0").replace(/,/g,""))||0;
-                            const remain   = d.netPay - inputAmt;
-                            return <span className={`text-xs font-bold ${remain > 0?"text-amber-500":remain===0?"text-slate-400":"text-red-400"}`}>{fw(remain)}</span>;
+                          const tn = (d as any).totalNet as number || 0;
+                          // 지급처리 입력 중 → 실시간 잔액
+                          if (pInline) {
+                            const paid   = Number((pInline.amt||"0").replace(/,/g,""))||0;
+                            const remain = tn - d.totalPaid - paid;
+                            const color  = remain > 0 ? "text-amber-500" : remain === 0 ? "text-slate-400" : "text-red-400";
+                            return <span className={`text-xs font-bold ${color}`}>{remain.toLocaleString()}원</span>;
                           }
-                          if (d.isPaid) {
-                            return <span className="text-xs font-bold text-slate-400">{fw(d.netPay)}</span>;
-                          }
-                          if (d.netPay > 0) {
-                            return <span className="text-xs text-slate-300">-</span>;
+                          // 지급완료 → 잔액 표시
+                          if (tn > 0) {
+                            const remain = tn - d.totalPaid;
+                            const color  = remain > 0 ? "text-amber-500" : "text-slate-400";
+                            return <span className={`text-xs font-bold ${color}`}>{remain.toLocaleString()}원</span>;
                           }
                           return <span className="text-xs text-slate-300">-</span>;
                         })()}
