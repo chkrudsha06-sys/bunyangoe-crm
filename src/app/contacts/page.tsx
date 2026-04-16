@@ -270,12 +270,36 @@ export default function ContactsPage() {
 
         {/* 필터 패널 */}
         {showFilter && (
-          <div className="mt-3 grid grid-cols-5 gap-2">
-            <Sel val={fCustomerType} onChange={v=>{setFCustomerType(v);setPage(1);}} opts={OPT.customer_type} placeholder="고객유형"/>
-            <Sel val={fProspect} onChange={v=>{setFProspect(v);setPage(1);}} opts={OPT.prospect_type} placeholder="가망구분"/>
-            <Sel val={fResult} onChange={v=>{setFResult(v);setPage(1);}} opts={OPT.meeting_result} placeholder="미팅결과"/>
-            <Sel val={fStage} onChange={v=>{setFStage(v);setPage(1);}} opts={OPT.management_stage} placeholder="고객관리구간"/>
-            <Sel val={fAssigned} onChange={v=>{setFAssigned(v);setPage(1);}} opts={TEAM} placeholder="담당자"/>
+          <div className="mt-3 space-y-2">
+            <div className="grid grid-cols-5 gap-2">
+              <Sel val={fCustomerType} onChange={v=>{setFCustomerType(v);setPage(1);}} opts={OPT.customer_type} placeholder="고객유형"/>
+              <Sel val={fProspect} onChange={v=>{setFProspect(v);setPage(1);}} opts={OPT.prospect_type} placeholder="가망구분"/>
+              <Sel val={fResult} onChange={v=>{setFResult(v);setPage(1);}} opts={OPT.meeting_result} placeholder="미팅결과"/>
+              <Sel val={fStage} onChange={v=>{setFStage(v);setPage(1);}} opts={OPT.management_stage} placeholder="고객관리구간"/>
+              <Sel val={fAssigned} onChange={v=>{setFAssigned(v);setPage(1);}} opts={TEAM} placeholder="담당자"/>
+            </div>
+            {/* 담당자 전체 + 초기화 */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={()=>{setFAssigned("");setPage(1);}}
+                className={`text-sm px-3 py-1.5 rounded-lg border font-semibold transition-colors ${fAssigned===""?"bg-blue-600 text-white border-blue-600":"bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}>
+                전체 담당자
+              </button>
+              {TEAM.map(name=>(
+                <button key={name}
+                  onClick={()=>{setFAssigned(name);setPage(1);}}
+                  className={`text-sm px-3 py-1.5 rounded-lg border font-semibold transition-colors ${fAssigned===name?"bg-blue-600 text-white border-blue-600":"bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}>
+                  {name}
+                </button>
+              ))}
+              <div className="ml-auto">
+                <button
+                  onClick={()=>{setFCustomerType("");setFProspect("");setFResult("");setFStage("");setFAssigned("");setSearch("");setPage(1);}}
+                  className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-400 hover:bg-red-50 font-semibold">
+                  ↺ 필터 초기화
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
