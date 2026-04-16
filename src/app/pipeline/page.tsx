@@ -150,7 +150,7 @@ function ContactCard({ contact, col, onNotesClick, refreshKey }: {
         onClick={e => e.stopPropagation()}
         onDoubleClick={e => e.stopPropagation()}
       >
-        <ContactNotes contactId={contact.id} compact refreshKey={notesRefreshKey}/>
+        <ContactNotes contactId={contact.id} compact refreshKey={refreshKey}/>
         <p
           onClick={() => onNotesClick(contact.id, contact.name)}
           className="text-xs text-slate-800 font-semibold mt-1.5 text-right cursor-pointer hover:text-blue-600 select-none">
