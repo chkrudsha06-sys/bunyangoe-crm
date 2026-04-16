@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
       items,
     } = body;
 
+    // 1. 템플릿 Excel 데이터 채우기
     const templatePath = path.join(process.cwd(), "public", "quote_template.xlsx");
     if (!fs.existsSync(templatePath)) {
       return NextResponse.json({ error: "템플릿 파일이 없습니다" }, { status: 500 });
@@ -22,27 +23,20 @@ export async function POST(req: NextRequest) {
     const ws = workbook.worksheets[0];
 
     const set = (row: number, col: number, val: any) => {
-      const cell = ws.getCell(row, col);
-      cell.value = val;
+      ws.getCell(row, col).value = val;
     };
 
-    // 대상물건 (C3)
     set(3, 3, property);
-
-    // 위탁인(갑)
-    set(4, 3, clientAddr);       // 주소 C4
-    set(4, 7, clientBizNo);      // 사업자번호 G4
-    set(5, 3, clientName);       // 계약자 C5
-    set(5, 7, clientCeo);        // 대표자 G5
-    set(6, 3, clientMgr);        // 담당자 C6
-    set(6, 7, clientPhone);      // HP G6
-
-    // 견적일자 G10
-    set(10, 7, new Date(quoteDate));
+    set(4, 3, clientAddr);
+    set(4, 7, clientBizNo);
+    set(5, 3, clientName);
+    set(5, 7, clientCeo);
+    set(6, 3, clientMgr);
+    set(6, 7, clientPhone);
+    const dateObj = new Date(quoteDate);
+    set(10, 7, dateObj);
     ws.getCell(10, 7).numFmt = "yyyy-mm-dd";
 
-    // 광고 항목 (최대 첫 번째 항목 → row 12)
-    // 다중 항목이면 행을 추가해야 하지만 우선 첫 번째 항목 처리
     if (items && items.length > 0) {
       const it = items[0];
       set(12, 2, it.media);
@@ -50,44 +44,99 @@ export async function POST(req: NextRequest) {
       set(12, 4, it.targeting);
       set(12, 5, Number(it.quantity) || 0);
       set(12, 6, Number(it.unitPrice) || 0);
-      // G12는 수식 =E12*F12 이므로 그대로 두면 자동 계산
-
-      // 타겟팅 상세
-      set(13, 3, it.ageGroup);    // 연령대 C13
-      set(13, 6, it.sendType);    // 발송유형 F13
-      set(14, 3, it.region1);     // 지역① C14
-      set(15, 3, it.region3);     // 지역③ C15
-      set(16, 3, it.region2);     // 지역② C16
+      set(13, 3, it.ageGroup);
+      set(13, 6, it.sendType);
+      set(14, 3, it.region1);
+      set(15, 3, it.region3);
+      set(16, 3, it.region2);
     }
 
-    // 다중 항목 처리 (2번째 항목부터 행 삽입)
-    if (items && items.length > 1) {
-      for (let i = 1; i < items.length; i++) {
-        const it = items[i];
-        const targetRow = 12 + i;
-        ws.insertRow(targetRow, []);
-        set(targetRow, 1, i + 1);
-        set(targetRow, 2, it.media);
-        set(targetRow, 3, it.type);
-        set(targetRow, 4, it.targeting);
-        set(targetRow, 5, Number(it.quantity) || 0);
-        set(targetRow, 6, Number(it.unitPrice) || 0);
-        set(targetRow, 7, { formula: `=E${targetRow}*F${targetRow}` });
+    // 2. Excel → Buffer
+    const excelBuffer = await workbook.xlsx.writeBuffer();
+    const excelBase64 = Buffer.from(excelBuffer).toString("base64");
+
+    // 3. CloudConvert API로 Excel → PDF 변환
+    const apiKey = process.env.CLOUDCONVERT_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: "API 키가 없습니다" }, { status: 500 });
+    }
+
+    // Job 생성
+    const jobRes = await fetch("https://api.cloudconvert.com/v2/jobs", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        tasks: {
+          "upload-file": {
+            operation: "import/base64",
+            file: excelBase64,
+            filename: "quote.xlsx",
+          },
+          "convert-file": {
+            operation: "convert",
+            input: "upload-file",
+            input_format: "xlsx",
+            output_format: "pdf",
+            engine: "libreoffice",
+          },
+          "export-file": {
+            operation: "export/url",
+            input: "convert-file",
+          },
+        },
+        tag: "bunyangoe-crm",
+      }),
+    });
+
+    const job = await jobRes.json();
+
+    if (!jobRes.ok) {
+      console.error("CloudConvert job 생성 실패:", job);
+      return NextResponse.json({ error: "변환 작업 생성 실패" }, { status: 500 });
+    }
+
+    const jobId = job.data.id;
+
+    // 4. 완료 대기 (최대 30초 폴링)
+    let pdfUrl = "";
+    for (let i = 0; i < 15; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const statusRes = await fetch(`https://api.cloudconvert.com/v2/jobs/${jobId}`, {
+        headers: { "Authorization": `Bearer ${apiKey}` },
+      });
+      const status = await statusRes.json();
+      const exportTask = status.data?.tasks?.find((t: any) => t.name === "export-file");
+      if (exportTask?.status === "finished") {
+        pdfUrl = exportTask.result?.files?.[0]?.url;
+        break;
+      }
+      if (status.data?.status === "error") {
+        return NextResponse.json({ error: "변환 중 오류 발생" }, { status: 500 });
       }
     }
 
-    const buffer = await workbook.xlsx.writeBuffer();
+    if (!pdfUrl) {
+      return NextResponse.json({ error: "변환 시간 초과" }, { status: 500 });
+    }
 
-    const filename = `광고인_견적서_${property}_${quoteDate}.xlsx`;
+    // 5. PDF 다운로드 후 클라이언트에 전달
+    const pdfRes = await fetch(pdfUrl);
+    const pdfBuffer = await pdfRes.arrayBuffer();
+
+    const filename = `광고인_견적서_${property}_${quoteDate}.pdf`;
     const encoded = encodeURIComponent(filename);
 
-    return new NextResponse(new Uint8Array(buffer as ArrayBuffer), {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename*=UTF-8''${encoded}`,
       },
     });
+
   } catch (e: any) {
     console.error("견적서 생성 오류:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });
