@@ -1,6 +1,41 @@
 "use client";
 
-// 성씨별 고정 아바타 색상
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
+import { Phone, Calendar, MapPin, X, ChevronRight, Search } from "lucide-react";
+import ContactNotes from "@/components/ContactNotes";
+
+interface Contact {
+  id: number;
+  name: string;
+  title: string | null;
+  phone: string | null;
+  tm_sensitivity: string | null;
+  prospect_type: string | null;
+  meeting_date: string | null;
+  meeting_date_text: string | null;
+  meeting_address: string | null;
+  meeting_result: string | null;
+  management_stage: string | null;
+  assigned_to: string | null;
+  memo: string | null;
+}
+
+const COLUMNS = [
+  { key: "즉가입가망",    label: "즉가입 가망",    color: "bg-red-50",    border: "border-red-200",    dot: "bg-red-400",    badge: "bg-red-100 text-red-600" },
+  { key: "미팅예정가망",  label: "미팅 예정",      color: "bg-cyan-50",   border: "border-cyan-200",   dot: "bg-cyan-400",   badge: "bg-cyan-100 text-cyan-700" },
+  { key: "연계매출가망",  label: "연계매출 가망",  color: "bg-amber-50",  border: "border-amber-200",  dot: "bg-amber-400",  badge: "bg-amber-100 text-amber-700" },
+  { key: "계약완료",      label: "계약 완료",      color: "bg-emerald-50",border: "border-emerald-200",dot: "bg-emerald-500",badge: "bg-emerald-100 text-emerald-700" },
+  { key: "예약완료",      label: "예약 완료",      color: "bg-blue-50",   border: "border-blue-200",   dot: "bg-blue-500",   badge: "bg-blue-100 text-blue-700" },
+];
+
+const STAGE_BADGE: Record<string,string> = {
+  "리드": "bg-pink-100 text-pink-600",
+  "프로스펙팅": "bg-orange-100 text-orange-500",
+  "딜크로징": "bg-sky-100 text-sky-600",
+  "리텐션": "bg-purple-100 text-purple-500",
+};
 const SURNAME_COLORS: Record<string,string> = {
   "김": "bg-blue-500",   "이": "bg-violet-500", "박": "bg-emerald-500",
   "최": "bg-rose-500",   "정": "bg-amber-500",  "강": "bg-cyan-500",
@@ -13,167 +48,264 @@ const SURNAME_COLORS: Record<string,string> = {
   "손": "bg-emerald-600","배": "bg-sky-600",    "백": "bg-slate-500",
   "허": "bg-pink-600",   "남": "bg-teal-600",   "유": "bg-orange-600",
 };
-function getAvatarColor(name: string): string {
-  return (name && SURNAME_COLORS[name[0]]) ? SURNAME_COLORS[name[0]] : "bg-slate-400";
+const AVATAR_COLORS = ["bg-blue-500","bg-violet-500","bg-amber-500","bg-emerald-500","bg-rose-500","bg-cyan-500","bg-indigo-500","bg-pink-500"];
+
+function getAvatarColor(name: string) {
+  if (name && SURNAME_COLORS[name[0]]) return SURNAME_COLORS[name[0]];
+  let sum = 0;
+  for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
+  return AVATAR_COLORS[sum % AVATAR_COLORS.length];
 }
 
-
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
-import { Award, Phone, Calendar, Search } from "lucide-react";
-
-interface VipContact {
-  id: number;
-  name: string;
-  phone: string | null;
-  assigned_to: string;
-  meeting_result: string;
-  contract_date: string | null;
-  reservation_date: string | null;
-  meeting_date: string | null;
-  consultant: string | null;
-  memo: string | null;
-}
-
-export default function VipMembersPage() {
-  const [contacts, setContacts] = useState<VipContact[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [filterMember, setFilterMember] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-
-  const TEAM = ["조계현", "이세호", "기여운", "최연전"];
-
-  useEffect(() => { fetchVipMembers(); }, [filterMember, filterStatus]);
-
-  const fetchVipMembers = async () => {
-    setLoading(true);
-    let query = supabase.from("contacts").select("*")
-      .in("meeting_result", ["계약완료", "예약완료"])
-      .order("created_at", { ascending: false });
-    if (filterMember) query = query.eq("assigned_to", filterMember);
-    if (filterStatus) query = query.eq("meeting_result", filterStatus);
-    const { data } = await query;
-    setContacts((data as VipContact[]) || []);
-    setLoading(false);
-  };
-
-  const filtered = contacts.filter((c) =>
-    !search || c.name.includes(search) || (c.phone && c.phone.includes(search))
+function NotesPopup({ contactId, name, onClose }: { contactId: number; name: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[80vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className={`w-7 h-7 ${getAvatarColor(name)} rounded-full flex items-center justify-center text-white text-xs font-bold`}>{name[0]}</div>
+            <span className="font-bold text-slate-800 text-sm">{name} — 활동 노트</span>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1"><X size={16}/></button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <ContactNotes contactId={contactId} />
+        </div>
+      </div>
+    </div>
   );
-  const contracts = filtered.filter((c) => c.meeting_result === "계약완료");
-  const reservations = filtered.filter((c) => c.meeting_result === "예약완료");
+}
+
+function ContactCard({ contact, col, onNotesClick }: {
+  contact: Contact;
+  col: typeof COLUMNS[0];
+  onNotesClick: (contactId: number, name: string) => void;
+}) {
+  const router = useRouter();
+
+  const handleDoubleClick = () => { router.push(`/contacts/${contact.id}`); };
+
+  const meetingDate = contact.meeting_date
+    ? new Date(contact.meeting_date + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
+    : contact.meeting_date_text || null;
+
+  return (
+    <div
+      onDoubleClick={handleDoubleClick}
+      className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all group"
+      title="클릭: 고객 상세 페이지"
+    >
+      {/* 헤더 */}
+      <div className="flex items-start justify-between mb-2.5">
+        <div className="flex items-center gap-2">
+          <div className={`w-10 h-10 ${getAvatarColor(contact.name)} rounded-full flex items-center justify-center text-white text-base font-black flex-shrink-0`}>
+            {contact.name[0]}
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-slate-800 text-base">{contact.name}</span>
+              {contact.title && <span className="text-sm text-slate-400">{contact.title}</span>}
+            </div>
+            {contact.assigned_to && (
+              <span className="text-sm text-slate-500">{contact.assigned_to}</span>
+            )}
+          </div>
+        </div>
+        <ChevronRight size={13} className="text-slate-200 group-hover:text-slate-400 mt-1 transition-colors flex-shrink-0"/>
+      </div>
+
+      {/* 연락처 */}
+      {contact.management_stage && (
+        <div className="mb-1.5">
+          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${STAGE_BADGE[contact.management_stage]||"bg-slate-100 text-slate-500"}`}>
+            {contact.management_stage}
+          </span>
+        </div>
+      )}
+      {contact.phone && (
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Phone size={11} className="text-slate-300 flex-shrink-0"/>
+          <span className="text-sm text-slate-500">{contact.phone}</span>
+        </div>
+      )}
+
+      {/* 미팅일정 */}
+      {meetingDate && (
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Calendar size={11} className="text-blue-300 flex-shrink-0"/>
+          <span className="text-sm text-blue-500 font-semibold">{meetingDate}</span>
+          {contact.meeting_address && (
+            <>
+              <span className="text-slate-200">·</span>
+              <MapPin size={10} className="text-slate-300"/>
+              <span className="text-sm text-slate-400">{contact.meeting_address}</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* 활동 노트 */}
+      <div
+        className="mt-2 pt-2 border-t border-slate-50"
+        onClick={e => e.stopPropagation()}
+        onDoubleClick={e => e.stopPropagation()}
+      >
+        <ContactNotes contactId={contact.id} compact />
+        <p
+          onClick={() => onNotesClick(contact.id, contact.name)}
+          className="text-xs text-slate-800 font-semibold mt-1.5 text-right cursor-pointer hover:text-blue-600 select-none">
+          활동노트 입력하기 →
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function PipelinePage() {
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notesPopup, setNotesPopup] = useState<{ contactId: number; name: string } | null>(null);
+  const [search, setSearch] = useState("");
+  const [fProspect, setFProspect] = useState("");
+  const [fAssigned, setFAssigned] = useState("");
+  const [fResult, setFResult] = useState("");
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("contacts")
+        .select("id,name,title,phone,tm_sensitivity,prospect_type,meeting_date,meeting_date_text,meeting_address,meeting_result,management_stage,assigned_to,memo")
+        .order("created_at", { ascending: false });
+      setContacts((data || []) as Contact[]);
+      setLoading(false);
+    };
+    fetchAll();
+  }, []);
+
+  const filtered = contacts.filter(c => {
+    const matchSearch = !search || 
+      c.name.includes(search) || 
+      (c.phone && c.phone.includes(search)) ||
+      (c.meeting_address && c.meeting_address.includes(search));
+    const matchProspect = !fProspect || c.prospect_type === fProspect;
+    const matchAssigned = !fAssigned || c.assigned_to === fAssigned;
+    const matchResult = !fResult || c.meeting_result === fResult;
+    return matchSearch && matchProspect && matchAssigned && matchResult;
+  });
+
+  const getColumnContacts = (colKey: string) => {
+    return filtered.filter(c =>
+      c.prospect_type === colKey ||
+      c.tm_sensitivity === colKey ||
+      c.meeting_result === colKey
+    );
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
+      {/* 헤더 */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Award size={20} className="text-amber-500" />분양회 입회자
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">계약완료 및 예약완료 고객 목록</p>
+            <h1 className="text-lg font-black text-slate-800">파이프라인</h1>
+            <p className="text-xs text-slate-400 mt-0.5">
+              전체 <span className="text-blue-600 font-bold">{contacts.length}</span>명 중 <span className="text-blue-600 font-bold">{filtered.length}</span>명 표시
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-center px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100">
-              <p className="text-lg font-bold text-emerald-600">{contracts.length}</p>
-              <p className="text-xs text-emerald-500">계약완료</p>
-            </div>
-            <div className="text-center px-4 py-2 bg-blue-50 rounded-xl border border-blue-100">
-              <p className="text-lg font-bold text-blue-600">{reservations.length}</p>
-              <p className="text-xs text-blue-500">예약완료</p>
-            </div>
-            <div className="text-center px-4 py-2 bg-amber-50 rounded-xl border border-amber-100">
-              <p className="text-lg font-bold text-amber-600">{filtered.length}</p>
-              <p className="text-xs text-amber-500">전체</p>
-            </div>
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/>실시간
           </div>
         </div>
+        {/* 검색 + 필터 */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1 max-w-xs">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" placeholder="이름, 연락처 검색..." value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+            <input type="text" placeholder="이름, 연락처, 지역 검색..." value={search}
+              onChange={e=>setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
           </div>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700">
-            <option value="">전체 상태</option>
+          <select value={fProspect} onChange={e=>setFProspect(e.target.value)}
+            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 outline-none">
+            <option value="">전체 가망구분</option>
+            <option value="즉가입가망">즉가입가망</option>
+            <option value="미팅예정가망">미팅예정가망</option>
+            <option value="연계매출가망">연계매출가망</option>
+          </select>
+          <select value={fResult} onChange={e=>setFResult(e.target.value)}
+            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 outline-none">
+            <option value="">전체 미팅결과</option>
             <option value="계약완료">계약완료</option>
             <option value="예약완료">예약완료</option>
+            <option value="미팅후가망관리">미팅후가망관리</option>
           </select>
-          <select value={filterMember} onChange={(e) => setFilterMember(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700">
+          <select value={fAssigned} onChange={e=>setFAssigned(e.target.value)}
+            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 outline-none">
             <option value="">전체 담당자</option>
-            {TEAM.map((m) => <option key={m} value={m}>{m}</option>)}
+            {["조계현","이세호","기여운","최연전"].map(m=><option key={m} value={m}>{m}</option>)}
           </select>
+          {(search||fProspect||fResult||fAssigned) && (
+            <button onClick={()=>{setSearch("");setFProspect("");setFResult("");setFAssigned("");}}
+              className="text-xs text-red-400 hover:text-red-600 px-2 py-1">초기화</button>
+          )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4">
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      {/* 칸반 */}
+      {loading ? (
+        <div className="flex items-center justify-center flex-1">
+          <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-x-auto p-4">
+          <div className="flex gap-3 min-w-max h-full">
+            {COLUMNS.map(col => {
+              const colContacts = getColumnContacts(col.key);
+              return (
+                <div key={col.key} className={`w-72 flex flex-col rounded-2xl border ${col.border} ${col.color} overflow-hidden`}>
+                  {/* 컬럼 헤더 */}
+                  <div className="px-4 py-3 border-b border-white/60 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2.5 h-2.5 rounded-full ${col.dot}`}/>
+                      <span className="text-sm font-bold text-slate-700">{col.label}</span>
+                    </div>
+                    <span className={`text-xs font-black px-2 py-0.5 rounded-full ${col.badge}`}>
+                      {colContacts.length}
+                    </span>
+                  </div>
+
+                  {/* 카드 리스트 */}
+                  <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+                    {colContacts.length === 0 ? (
+                      <div className="flex items-center justify-center h-20 text-slate-300 text-sm">없음</div>
+                    ) : (
+                      colContacts.map(c => (
+                        <ContactCard
+                          key={c.id}
+                          contact={c}
+                          col={col}
+                          onNotesClick={(id, name) => setNotesPopup({ contactId: id, name })}
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-            <Award size={40} className="mb-3 opacity-30" />
-            <p className="text-sm">입회자 데이터가 없습니다</p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  {["#", "고객명", "연락처", "담당컨설턴트", "대협팀담당자", "상태", "계약/예약 완료일", "메모"].map((h) => (
-                    <th key={h} className="text-center px-4 py-3 text-slate-500 text-xs font-semibold">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((c, i) => (
-                  <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 text-center align-middle text-slate-400 text-xs">{i + 1}</td>
-                    <td className="px-4 py-3 text-center align-middle">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className={`w-7 h-7 ${getAvatarColor(c.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
-                          <span className="text-white text-xs font-bold">{c.name[0]}</span>
-                        </div>
-                        <span className="font-semibold text-slate-800">{c.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center align-middle">
-                      <span className="text-slate-600 flex items-center justify-center gap-1 text-xs">
-                        <Phone size={11} />{c.phone || "-"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center align-middle text-slate-600 text-xs">{c.consultant || "-"}</td>
-                    <td className="px-4 py-3 text-center align-middle">
-                      <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100">{c.assigned_to}</span>
-                    </td>
-                    <td className="px-4 py-3 text-center align-middle">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${c.meeting_result === "계약완료" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"}`}>
-                        {c.meeting_result}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center align-middle">
-                      <span className="text-slate-600 flex items-center justify-center gap-1 text-xs">
-                        <Calendar size={11} />
-                        {c.meeting_result === "계약완료" && c.contract_date
-                          ? new Date(c.contract_date).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })
-                          : c.meeting_result === "예약완료" && c.reservation_date
-                          ? new Date(c.reservation_date).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })
-                          : "-"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center align-middle max-w-[200px]">
-                      <p className="text-xs text-slate-500 truncate">{c.memo || "-"}</p>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* 활동노트 팝업 */}
+      {notesPopup && (
+        <NotesPopup
+          contactId={notesPopup.contactId}
+          name={notesPopup.name}
+          onClose={() => setNotesPopup(null)}
+        />
+      )}
+
+
     </div>
   );
 }
