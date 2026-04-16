@@ -36,10 +36,10 @@ const BADGE: Record<string, string> = {
   연계매출가망: "bg-slate-100 text-slate-600 border-slate-200",
   신규: "bg-sky-100 text-sky-700 border-sky-200",
   기고객: "bg-violet-100 text-violet-700 border-violet-200",
-  리드: "bg-blue-50 text-blue-600 border-blue-100",
-  프로스펙팅: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  딜크로징: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  리텐션: "bg-teal-100 text-teal-700 border-teal-200",
+  리드: "bg-pink-100 text-pink-600 border-pink-200",
+  프로스펙팅: "bg-orange-100 text-orange-500 border-orange-200",
+  딜크로징: "bg-sky-100 text-sky-600 border-sky-200",
+  리텐션: "bg-purple-100 text-purple-500 border-purple-200",
 };
 
 const OPT = {
