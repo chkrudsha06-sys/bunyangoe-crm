@@ -867,7 +867,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2 mt-1">
               <Clock size={13} className="text-blue-400"/>
               <span className="text-sm font-semibold text-slate-500">{dateStr}</span>
-              <span style={{ fontSize:"14px", fontFamily:"monospace", fontWeight:900, color: isExec ? "#2563EB" : "#64748B", fontVariantNumeric:"tabular-nums" }}>{timeStr}</span>
+              <span style={{ fontSize:"15px", fontFamily:"'Montserrat', monospace", fontWeight:900, color: isExec ? "#2563EB" : "#64748B", fontVariantNumeric:"tabular-nums", letterSpacing:"0.05em" }}>{timeStr}</span>
             </div>
           </div>
           {/* 기간 필터 */}
