@@ -10,7 +10,7 @@ import {
   CreditCard, LogOut, ChevronRight, FileText,
 } from "lucide-react";
 
-interface NotificationItem { id: number; message: string; created_at: string; is_read: boolean; }
+interface NotificationItem { id: number; message: string | null; created_at: string; is_read: boolean; assignee_name?: string; title?: string; source_type?: string; source_id?: number | null; }
 interface SidebarProps {
   user: CRMUser;
   unreadCount?: number;
