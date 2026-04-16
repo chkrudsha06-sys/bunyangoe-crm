@@ -146,13 +146,16 @@ export default function RewardsPage() {
     }
     const myMileUsages = mileageUsages.filter(m=>m.contact_id===contact.id);
     const mileUsed  = myMileUsages.reduce((s,m)=>s+(m.usage_amount||0),0);
-    const cumReward = cumHt + cumHog + cumLms;
-    const taxBase   = Math.max(cumReward - totalPaid, 0);
-    const incomeTax = taxBase > 0 ? Math.floor(taxBase * 0.033) : 0;
-    const netPay    = taxBase - incomeTax;
+    const cumReward  = cumHt + cumHog + cumLms;
+    // 실지급예정액 = 누적리워드 - 소득세(고정, totalPaid와 무관)
+    const incomeTax  = cumReward > 0 ? Math.floor(cumReward * 0.033) : 0;
+    const totalNet   = cumReward - incomeTax;   // 전체 실지급예정액 (고정)
+    // 지급후잔액 = 전체실지급예정액 - 이미 지급한 금액
+    const netPay     = Math.max(totalNet - totalPaid, 0);
+    const isPaid     = totalPaid >= totalNet && totalNet > 0;
     return { cumMileage, cumHt, cumHog, cumLms, cumReward, totalPaid,
       mileUsed, mileBalance:cumMileage-mileUsed, myMileUsages,
-      incomeTax, netPay, isPaid: totalPaid>0 && netPay<=0 };
+      incomeTax, totalNet, netPay, isPaid };
   }
 
   // 지급 처리 (인라인)
@@ -399,9 +402,9 @@ export default function RewardsPage() {
                       <td className="px-2 py-2.5 text-center">
                         <span className="text-xs text-red-500 font-medium">{d.incomeTax>0?`-${fw(d.incomeTax)}`:"-"}</span>
                       </td>
-                      {/* 실지급예정액 */}
+                      {/* 실지급예정액 — 고정(totalNet) */}
                       <td className="px-2 py-2.5 text-center">
-                        <span className={`text-xs font-bold ${d.netPay>0?"text-emerald-600":"text-slate-300"}`}>{d.netPay>0?fw(d.netPay):"-"}</span>
+                        <span className={`text-xs font-bold ${(d as any).totalNet>0?"text-emerald-600":"text-slate-300"}`}>{(d as any).totalNet>0?fw((d as any).totalNet):"-"}</span>
                       </td>
 
                       {/* 지급처리 인라인 */}
@@ -459,23 +462,21 @@ export default function RewardsPage() {
 
                       {/* 지급후 잔액 */}
                       <td className="px-2 py-2.5 text-center">
-                        {d.netPay > 0 && pInline ? (
-                          (() => {
-                            const paidAmt = Number((pInline.amt||"0").replace(/,/g,""))||0;
-                            const remain  = d.netPay - paidAmt;
-                            return (
-                              <span className={`text-xs font-bold ${remain > 0 ? "text-amber-500" : remain === 0 ? "text-slate-400" : "text-red-400"}`}>
-                                {remain !== d.netPay ? fw(remain) : "-"}
-                              </span>
-                            );
-                          })()
-                        ) : d.isPaid ? (
-                          <span className="text-xs text-slate-400">0원</span>
-                        ) : d.netPay > 0 ? (
-                          <span className="text-xs text-slate-300">-</span>
-                        ) : (
-                          <span className="text-xs text-slate-300">-</span>
-                        )}
+                        {(() => {
+                          const totalNet = (d as any).totalNet || 0;
+                          if (pInline && d.netPay > 0) {
+                            const inputAmt = Number((pInline.amt||"0").replace(/,/g,""))||0;
+                            const remain   = d.netPay - inputAmt;
+                            return <span className={`text-xs font-bold ${remain > 0?"text-amber-500":remain===0?"text-slate-400":"text-red-400"}`}>{fw(remain)}</span>;
+                          }
+                          if (d.isPaid) {
+                            return <span className="text-xs font-bold text-slate-400">{fw(d.netPay)}</span>;
+                          }
+                          if (d.netPay > 0) {
+                            return <span className="text-xs text-slate-300">-</span>;
+                          }
+                          return <span className="text-xs text-slate-300">-</span>;
+                        })()}
                       </td>
 
                       {/* 지급내역 팝업 */}
