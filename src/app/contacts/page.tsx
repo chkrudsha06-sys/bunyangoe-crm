@@ -112,16 +112,7 @@ export default function ContactsPage() {
   const [fProspect, setFProspect] = useState("");
   const [fResult, setFResult] = useState("");
   const [fStage, setFStage] = useState("");
-  const [fAssigned, setFAssigned] = useState(() => {
-    try {
-      const raw = typeof window !== "undefined" ? localStorage.getItem("crm_user") : null;
-      if (raw) {
-        const u = JSON.parse(raw);
-        if (u.role === "exec") return u.name;
-      }
-    } catch {}
-    return "";
-  });
+  const [fAssigned, setFAssigned] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [page, setPage] = useState(1);
   const PER_PAGE = 30;
