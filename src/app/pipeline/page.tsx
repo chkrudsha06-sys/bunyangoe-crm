@@ -84,7 +84,6 @@ function ContactCard({ contact, col, onNotesClick }: {
   const router = useRouter();
 
   const handleDoubleClick = () => { router.push(`/contacts/${contact.id}`); };
-  const handleClick = () => { router.push(`/contacts/${contact.id}`); };
 
   const meetingDate = contact.meeting_date
     ? new Date(contact.meeting_date + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
@@ -92,7 +91,6 @@ function ContactCard({ contact, col, onNotesClick }: {
 
   return (
     <div
-      onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all group"
       title="클릭: 고객 상세 페이지"
@@ -149,12 +147,15 @@ function ContactCard({ contact, col, onNotesClick }: {
       {/* 활동 노트 */}
       <div
         className="mt-2 pt-2 border-t border-slate-50"
-        onDoubleClick={e => { e.stopPropagation(); onNotesClick(contact.id, contact.name); }}
         onClick={e => e.stopPropagation()}
-        title="더블클릭: 전체 활동노트 확인"
+        onDoubleClick={e => e.stopPropagation()}
       >
         <ContactNotes contactId={contact.id} compact />
-        <p className="text-xs text-slate-800 font-semibold mt-1.5 text-right cursor-pointer hover:text-blue-600">활동노트 입력하기 →</p>
+        <p
+          onClick={() => onNotesClick(contact.id, contact.name)}
+          className="text-xs text-slate-800 font-semibold mt-1.5 text-right cursor-pointer hover:text-blue-600 select-none">
+          활동노트 입력하기 →
+        </p>
       </div>
     </div>
   );
