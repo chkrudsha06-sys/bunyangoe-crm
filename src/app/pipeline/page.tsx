@@ -148,7 +148,8 @@ function ContactCard({ contact, col, onNotesClick, refreshKey }: {
       <div
         className="mt-2 pt-2 border-t border-slate-50"
         onClick={e => e.stopPropagation()}
-        onDoubleClick={e => e.stopPropagation()}
+        onDoubleClick={e => { e.stopPropagation(); onNotesClick(contact.id, contact.name); }}
+        title="더블클릭: 활동노트 전체보기"
       >
         <ContactNotes contactId={contact.id} compact refreshKey={refreshKey}/>
         <p
