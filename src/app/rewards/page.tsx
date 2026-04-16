@@ -301,6 +301,7 @@ export default function RewardsPage() {
                   <th className="text-center px-2 py-2.5 text-red-500 text-xs font-semibold whitespace-nowrap">소득세(3.3%)</th>
                   <th className="text-center px-2 py-2.5 text-emerald-600 text-xs font-semibold whitespace-nowrap">실지급예정액</th>
                   <th className="text-center px-2 py-2.5 text-emerald-600 text-xs font-semibold whitespace-nowrap">지급처리</th>
+                  <th className="text-center px-2 py-2.5 text-emerald-600 text-xs font-semibold whitespace-nowrap">지급후잔액</th>
                   <th className="text-center px-2 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">지급내역</th>
                 </tr>
               </thead>
@@ -415,11 +416,11 @@ export default function RewardsPage() {
                                 onChange={e=>setPayInline(p=>({...p,[contact.id]:{...p[contact.id],amt:e.target.value.replace(/[^0-9]/g,"").replace(/\B(?=(\d{3})+(?!\d))/g,",")}}))}
                                 className={inp}/>
                               {(contact.bank_holder||contact.bank_name||contact.bank_account) && (
-                                <div className="bg-slate-50 rounded px-2 py-1 border border-slate-200 text-[10px] text-slate-500 space-y-0.5">
+                                <div className="bg-slate-50 rounded px-2 py-1 border border-slate-200 text-[10px] text-slate-500 space-y-0.5 text-center">
                                   {contact.bank_holder && <p>예금주: <span className="font-semibold text-slate-700">{contact.bank_holder}</span></p>}
                                   {contact.bank_name && <p>은행: <span className="font-semibold text-slate-700">{contact.bank_name}</span></p>}
                                   {contact.bank_account && (
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center justify-center gap-1">
                                       <p>계좌: <span className="font-semibold text-slate-700">{contact.bank_account}</span></p>
                                       <button onClick={()=>{
                                         navigator.clipboard.writeText(contact.bank_account||"");
@@ -453,6 +454,27 @@ export default function RewardsPage() {
                           <span className="text-xs px-3 py-1.5 bg-slate-100 text-slate-400 rounded-lg border border-slate-200 font-semibold cursor-not-allowed whitespace-nowrap inline-block">
                             지급처리
                           </span>
+                        )}
+                      </td>
+
+                      {/* 지급후 잔액 */}
+                      <td className="px-2 py-2.5 text-center">
+                        {d.netPay > 0 && pInline ? (
+                          (() => {
+                            const paidAmt = Number((pInline.amt||"0").replace(/,/g,""))||0;
+                            const remain  = d.netPay - paidAmt;
+                            return (
+                              <span className={`text-xs font-bold ${remain > 0 ? "text-amber-500" : remain === 0 ? "text-slate-400" : "text-red-400"}`}>
+                                {remain !== d.netPay ? fw(remain) : "-"}
+                              </span>
+                            );
+                          })()
+                        ) : d.isPaid ? (
+                          <span className="text-xs text-slate-400">0원</span>
+                        ) : d.netPay > 0 ? (
+                          <span className="text-xs text-slate-300">-</span>
+                        ) : (
+                          <span className="text-xs text-slate-300">-</span>
                         )}
                       </td>
 
