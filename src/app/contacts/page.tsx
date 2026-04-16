@@ -119,21 +119,26 @@ export default function ContactsPage() {
 
   const fetchContacts = useCallback(async () => {
     setLoading(true);
-    // exec 로그인 시 본인 담당 고객만 — 필터 state와 무관하게 쿼리 레벨 강제 적용
+    // exec 로그인 시 기본값: 본인 담당 고객만
+    // 단, 사용자가 직접 필터를 적용하면 전체 기준으로 전환
     let execName = "";
     try {
       const raw = localStorage.getItem("crm_user");
       if (raw) { const u = JSON.parse(raw); if (u.role === "exec") execName = u.name; }
     } catch {}
 
+    // 필터가 하나라도 적용되면 exec 제한 해제
+    const hasFilter = !!(search || fCustomerType || fProspect || fResult || fStage || fAssigned);
+
     let q = supabase.from("contacts").select("*", { count: "exact" });
-    if (execName) q = q.eq("assigned_to", execName);  // exec는 항상 본인만
+    // 필터 없을 때만 exec 본인 고객 제한
+    if (execName && !hasFilter) q = q.eq("assigned_to", execName);
     if (search) q = q.or(`name.ilike.%${search}%,phone.ilike.%${search}%,memo.ilike.%${search}%,meeting_address.ilike.%${search}%`);
     if (fCustomerType) q = q.eq("customer_type", fCustomerType);
     if (fProspect) q = q.eq("prospect_type", fProspect);
     if (fResult) q = q.eq("meeting_result", fResult);
     if (fStage) q = q.eq("management_stage", fStage);
-    if (!execName && fAssigned) q = q.eq("assigned_to", fAssigned); // admin/ops만 담당자 필터 적용
+    if (fAssigned) q = q.eq("assigned_to", fAssigned);
     q = q.order("created_at", { ascending: false }).range((page-1)*PER_PAGE, page*PER_PAGE-1);
     const { data, count } = await q;
     setContacts((data || []) as Contact[]);
