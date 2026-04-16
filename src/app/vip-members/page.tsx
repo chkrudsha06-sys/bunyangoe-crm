@@ -75,6 +75,102 @@ function AccountCell({ value, contactId, onSaved }: { value: string|null; contac
   );
 }
 
+
+const TH_COLS = ["넘버링","고객명","연락처","담당컨설턴트","대협팀담당자","완료일","예금주","은행명","계좌번호","메모"];
+
+function VipTable({ title, color, rows, onSaved, fmtBun }: {
+  title: string; color: "emerald"|"blue";
+  rows: VipContact[]; onSaved: ()=>void; fmtBun: (n:string|null)=>string;
+}) {
+  const PAGE = 8;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(rows.length / PAGE);
+  const paged = rows.slice((page-1)*PAGE, page*PAGE);
+
+  const colorMap = {
+    emerald: { dot:"bg-emerald-500", badge:"bg-emerald-100 text-emerald-700", header:"border-l-4 border-emerald-500" },
+    blue:    { dot:"bg-blue-500",    badge:"bg-blue-100 text-blue-700",       header:"border-l-4 border-blue-500" },
+  };
+  const cc = colorMap[color];
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      {/* 섹션 헤더 */}
+      <div className={`flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 ${cc.header}`}>
+        <div className="flex items-center gap-2">
+          <div className={`w-2.5 h-2.5 rounded-full ${cc.dot}`}/>
+          <span className="text-sm font-bold text-slate-700">{title}</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${cc.badge}`}>{rows.length}명</span>
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}
+              className="px-2 py-1 text-xs text-slate-500 hover:text-blue-600 disabled:opacity-30">◀</button>
+            <span className="text-xs text-slate-500">{page}/{totalPages}</span>
+            <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages}
+              className="px-2 py-1 text-xs text-slate-500 hover:text-blue-600 disabled:opacity-30">▶</button>
+          </div>
+        )}
+      </div>
+      {rows.length === 0 ? (
+        <div className="py-8 text-center text-slate-300 text-sm">데이터가 없습니다</div>
+      ) : (
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>{TH_COLS.map(h=><th key={h} className="text-center px-3 py-3 text-slate-600 text-sm font-semibold whitespace-nowrap">{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {paged.map(c=>(
+              <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <td className="px-3 py-3 text-center align-middle">
+                  <span className="text-sm font-black text-amber-600">{fmtBun(c.bunyanghoe_number)}</span>
+                </td>
+                <td className="px-3 py-3 text-center align-middle">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className={`w-9 h-9 ${getAvatarColor(c.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
+                      <span className="text-white text-sm font-black">{c.name[0]}</span>
+                    </div>
+                    <span className="font-bold text-slate-800 text-sm">{c.name}</span>
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-center align-middle">
+                  <span className="text-slate-600 flex items-center justify-center gap-1 text-sm">
+                    <Phone size={13}/>{c.phone||"-"}
+                  </span>
+                </td>
+                <td className="px-3 py-3 text-center align-middle text-sm text-slate-600">{c.consultant||"-"}</td>
+                <td className="px-3 py-3 text-center align-middle text-sm text-slate-700">{c.assigned_to}</td>
+                <td className="px-3 py-3 text-center align-middle">
+                  <span className="text-slate-600 flex items-center justify-center gap-1 text-sm">
+                    <Calendar size={13}/>
+                    {c.meeting_result==="계약완료"&&c.contract_date
+                      ? new Date(c.contract_date).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"})
+                      : c.meeting_result==="예약완료"&&c.reservation_date
+                      ? new Date(c.reservation_date).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"})
+                      : "-"}
+                  </span>
+                </td>
+                <td className="px-3 py-3 text-center align-middle">
+                  <EditableCell value={c.bank_holder} contactId={c.id} field="bank_holder" placeholder="예금주" onSaved={onSaved}/>
+                </td>
+                <td className="px-3 py-3 text-center align-middle">
+                  <EditableCell value={c.bank_name} contactId={c.id} field="bank_name" placeholder="은행명" onSaved={onSaved}/>
+                </td>
+                <td className="px-3 py-3 text-center align-middle">
+                  <AccountCell value={c.bank_account} contactId={c.id} onSaved={onSaved}/>
+                </td>
+                <td className="px-3 py-3 text-center align-middle max-w-[160px]">
+                  <p className="text-sm text-slate-500 truncate">{c.memo||"-"}</p>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 export default function VipMembersPage() {
   const [contacts, setContacts] = useState<VipContact[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -112,8 +208,6 @@ export default function VipMembersPage() {
   const reservations = filtered.filter(c=>c.meeting_result==="예약완료");
 
   const fmtBun = (n: string|null) => n ? (n.startsWith("B-") ? n : `B-${n}`) : "-";
-  const TH = (h: string) => <th key={h} className="text-center px-3 py-3 text-slate-600 text-sm font-semibold whitespace-nowrap">{h}</th>;
-
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
@@ -156,79 +250,24 @@ export default function VipMembersPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-4 space-y-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
           </div>
-        ) : filtered.length===0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-            <Award size={40} className="mb-3 opacity-30"/>
-            <p className="text-sm">입회자 데이터가 없습니다</p>
-          </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  {["넘버링","고객명","연락처","담당컨설턴트","대협팀담당자","상태","예금주","은행명","계좌번호","계약/예약 완료일","메모"].map(TH)}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(c=>(
-                  <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                    <td className="px-3 py-3 text-center align-middle">
-                      <span className="text-sm font-black text-amber-600">{fmtBun(c.bunyanghoe_number)}</span>
-                    </td>
-                    <td className="px-3 py-3 text-center align-middle">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className={`w-9 h-9 ${getAvatarColor(c.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
-                          <span className="text-white text-sm font-black">{c.name[0]}</span>
-                        </div>
-                        <span className="font-bold text-slate-800 text-sm">{c.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-center align-middle">
-                      <span className="text-slate-600 flex items-center justify-center gap-1 text-sm">
-                        <Phone size={13}/>{c.phone||"-"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-center align-middle text-sm text-slate-600">{c.consultant||"-"}</td>
-                    <td className="px-3 py-3 text-center align-middle">
-                      <span className="text-sm text-slate-700">{c.assigned_to}</span>
-                    </td>
-                    <td className="px-3 py-3 text-center align-middle">
-                      <span className={`text-sm px-2 py-1 rounded-full font-medium ${c.meeting_result==="계약완료"?"bg-emerald-100 text-emerald-700":"bg-blue-100 text-blue-700"}`}>
-                        {c.meeting_result}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-center align-middle">
-                      <EditableCell value={c.bank_holder} contactId={c.id} field="bank_holder" placeholder="예금주" onSaved={fetchVipMembers}/>
-                    </td>
-                    <td className="px-3 py-3 text-center align-middle">
-                      <EditableCell value={c.bank_name} contactId={c.id} field="bank_name" placeholder="은행명" onSaved={fetchVipMembers}/>
-                    </td>
-                    <td className="px-3 py-3 text-center align-middle">
-                      <AccountCell value={c.bank_account} contactId={c.id} onSaved={fetchVipMembers}/>
-                    </td>
-                    <td className="px-3 py-3 text-center align-middle">
-                      <span className="text-slate-600 flex items-center justify-center gap-1 text-sm">
-                        <Calendar size={13}/>
-                        {c.meeting_result==="계약완료"&&c.contract_date
-                          ? new Date(c.contract_date).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"})
-                          : c.meeting_result==="예약완료"&&c.reservation_date
-                          ? new Date(c.reservation_date).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"})
-                          : "-"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-center align-middle max-w-[160px]">
-                      <p className="text-sm text-slate-500 truncate">{c.memo||"-"}</p>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* ── 계약완료 ── */}
+            <VipTable
+              title="계약완료" color="emerald" rows={contracts}
+              onSaved={fetchVipMembers} fmtBun={fmtBun}
+            />
+            {/* ── 예약완료 ── */}
+            <VipTable
+              title="예약완료" color="blue" rows={reservations}
+              onSaved={fetchVipMembers} fmtBun={fmtBun}
+            />
+          </>
         )}
       </div>
     </div>
