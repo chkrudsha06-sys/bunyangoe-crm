@@ -315,7 +315,7 @@ function WorkRequestBoard({ user }: { user: CRMUser | null }) {
   };
 
   return (
-    <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+    <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"260px"}}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-slate-700">업무요청</h3>
         <button onClick={()=>setShowForm(v=>!v)}
@@ -413,7 +413,7 @@ function NoticeBoard({ user }: { user: CRMUser | null }) {
   };
 
   return (
-    <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+    <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"260px"}}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-slate-700">공지사항</h3>
         {isAdmin && (
@@ -599,9 +599,9 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
       </div>
 
       {/* 요일 */}
-      <div className="grid grid-cols-7 border-b border-slate-50">
+      <div className="grid grid-cols-7 border-b border-slate-200">
         {days.map((d,i)=>(
-          <div key={d} className={`text-center py-2.5 text-xs font-semibold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
+          <div key={d} className={`text-center py-3 text-sm font-bold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
         ))}
       </div>
 
@@ -618,9 +618,9 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
             <div key={d}
               onClick={()=>{ setSelDate(ds); setShowDayPopup(true); setShowAdd(false); }}
               onDoubleClick={()=>{ setSelDate(ds); setShowAdd(true); setShowDayPopup(false); }}
-              className={`min-h-[96px] border-r border-b border-slate-50 p-1.5 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}
+              className={`min-h-[96px] border-r border-b border-slate-200 p-1.5 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}
               title="더블클릭: 일정 추가">
-              <div className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold mb-0.5 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"}`}>{d}</div>
+              <div className={`w-8 h-8 flex items-center justify-center rounded-full text-base font-bold mb-1 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-600"}`}>{d}</div>
               <div className="space-y-0.5">
                 {wp.map(w=>(
                   <div key={`w${w.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-amber-100 text-amber-700">🚚 완판트럭</div>
@@ -915,7 +915,7 @@ export default function DashboardPage() {
         {/* 그래프 + KPI */}
         <div className="grid grid-cols-5 gap-4">
           {/* 매출실적 그래프 */}
-          <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"260px"}}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-slate-700">매출실적</h3>
               <div className="flex items-center gap-3 text-xs text-slate-400">
@@ -930,7 +930,7 @@ export default function DashboardPage() {
           </div>
 
           {/* KPI */}
-          <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"260px"}}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-slate-700">KPI</h3>
               <span className="text-xs text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100">설정 예정</span>
