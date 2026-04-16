@@ -26,7 +26,6 @@ const COLUMNS = [
   { key: "즉가입가망",    label: "즉가입 가망",    color: "bg-red-50",    border: "border-red-200",    dot: "bg-red-400",    badge: "bg-red-100 text-red-600" },
   { key: "미팅예정가망",  label: "미팅 예정",      color: "bg-cyan-50",   border: "border-cyan-200",   dot: "bg-cyan-400",   badge: "bg-cyan-100 text-cyan-700" },
   { key: "연계매출가망",  label: "연계매출 가망",  color: "bg-amber-50",  border: "border-amber-200",  dot: "bg-amber-400",  badge: "bg-amber-100 text-amber-700" },
-  { key: "미팅후가망관리",label: "미팅 후 관리",   color: "bg-purple-50", border: "border-purple-200", dot: "bg-purple-400", badge: "bg-purple-100 text-purple-700" },
   { key: "계약완료",      label: "계약 완료",      color: "bg-emerald-50",border: "border-emerald-200",dot: "bg-emerald-500",badge: "bg-emerald-100 text-emerald-700" },
   { key: "예약완료",      label: "예약 완료",      color: "bg-blue-50",   border: "border-blue-200",   dot: "bg-blue-500",   badge: "bg-blue-100 text-blue-700" },
 ];
@@ -37,9 +36,22 @@ const STAGE_BADGE: Record<string,string> = {
   "딜크로징": "bg-sky-100 text-sky-600",
   "리텐션": "bg-purple-100 text-purple-500",
 };
+const SURNAME_COLORS: Record<string,string> = {
+  "김": "bg-blue-500",   "이": "bg-violet-500", "박": "bg-emerald-500",
+  "최": "bg-rose-500",   "정": "bg-amber-500",  "강": "bg-cyan-500",
+  "조": "bg-indigo-500", "윤": "bg-pink-500",   "장": "bg-orange-500",
+  "임": "bg-teal-500",   "한": "bg-sky-500",    "오": "bg-purple-500",
+  "서": "bg-red-500",    "신": "bg-lime-600",   "권": "bg-fuchsia-500",
+  "황": "bg-yellow-600", "안": "bg-blue-600",   "송": "bg-green-600",
+  "류": "bg-indigo-600", "전": "bg-rose-600",   "홍": "bg-red-400",
+  "고": "bg-cyan-600",   "문": "bg-violet-600", "양": "bg-amber-600",
+  "손": "bg-emerald-600","배": "bg-sky-600",    "백": "bg-slate-500",
+  "허": "bg-pink-600",   "남": "bg-teal-600",   "유": "bg-orange-600",
+};
 const AVATAR_COLORS = ["bg-blue-500","bg-violet-500","bg-amber-500","bg-emerald-500","bg-rose-500","bg-cyan-500","bg-indigo-500","bg-pink-500"];
 
 function getAvatarColor(name: string) {
+  if (name && SURNAME_COLORS[name[0]]) return SURNAME_COLORS[name[0]];
   let sum = 0;
   for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
   return AVATAR_COLORS[sum % AVATAR_COLORS.length];
@@ -71,9 +83,8 @@ function ContactCard({ contact, col, onNotesClick }: {
 }) {
   const router = useRouter();
 
-  const handleDoubleClick = () => {
-    router.push(`/contacts/${contact.id}`);
-  };
+  const handleDoubleClick = () => { router.push(`/contacts/${contact.id}`); };
+  const handleClick = () => { router.push(`/contacts/${contact.id}`); };
 
   const meetingDate = contact.meeting_date
     ? new Date(contact.meeting_date + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
@@ -81,23 +92,24 @@ function ContactCard({ contact, col, onNotesClick }: {
 
   return (
     <div
+      onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      className="bg-white rounded-xl border border-slate-100 shadow-sm p-3.5 cursor-pointer hover:shadow-md hover:border-slate-200 transition-all group"
-      title="더블클릭하면 고객 상세 페이지로 이동"
+      className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all group"
+      title="클릭: 고객 상세 페이지"
     >
       {/* 헤더 */}
       <div className="flex items-start justify-between mb-2.5">
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 ${getAvatarColor(contact.name)} rounded-full flex items-center justify-center text-white text-sm font-black flex-shrink-0`}>
+          <div className={`w-10 h-10 ${getAvatarColor(contact.name)} rounded-full flex items-center justify-center text-white text-base font-black flex-shrink-0`}>
             {contact.name[0]}
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-bold text-slate-800 text-sm">{contact.name}</span>
-              {contact.title && <span className="text-xs text-slate-400">{contact.title}</span>}
+              <span className="font-bold text-slate-800 text-base">{contact.name}</span>
+              {contact.title && <span className="text-sm text-slate-400">{contact.title}</span>}
             </div>
             {contact.assigned_to && (
-              <span className="text-xs text-slate-400">{contact.assigned_to}</span>
+              <span className="text-sm text-slate-500">{contact.assigned_to}</span>
             )}
           </div>
         </div>
@@ -107,7 +119,7 @@ function ContactCard({ contact, col, onNotesClick }: {
       {/* 연락처 */}
       {contact.management_stage && (
         <div className="mb-1.5">
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${STAGE_BADGE[contact.management_stage]||"bg-slate-100 text-slate-500"}`}>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${STAGE_BADGE[contact.management_stage]||"bg-slate-100 text-slate-500"}`}>
             {contact.management_stage}
           </span>
         </div>
@@ -115,7 +127,7 @@ function ContactCard({ contact, col, onNotesClick }: {
       {contact.phone && (
         <div className="flex items-center gap-1.5 mb-1.5">
           <Phone size={11} className="text-slate-300 flex-shrink-0"/>
-          <span className="text-xs text-slate-500">{contact.phone}</span>
+          <span className="text-sm text-slate-500">{contact.phone}</span>
         </div>
       )}
 
@@ -123,12 +135,12 @@ function ContactCard({ contact, col, onNotesClick }: {
       {meetingDate && (
         <div className="flex items-center gap-1.5 mb-1.5">
           <Calendar size={11} className="text-blue-300 flex-shrink-0"/>
-          <span className="text-xs text-blue-500 font-medium">{meetingDate}</span>
+          <span className="text-sm text-blue-500 font-semibold">{meetingDate}</span>
           {contact.meeting_address && (
             <>
               <span className="text-slate-200">·</span>
               <MapPin size={10} className="text-slate-300"/>
-              <span className="text-xs text-slate-400">{contact.meeting_address}</span>
+              <span className="text-sm text-slate-400">{contact.meeting_address}</span>
             </>
           )}
         </div>
@@ -142,7 +154,7 @@ function ContactCard({ contact, col, onNotesClick }: {
         title="더블클릭: 전체 활동노트 확인"
       >
         <ContactNotes contactId={contact.id} compact />
-        <p className="text-[9px] text-slate-300 mt-1 text-right">더블클릭으로 전체보기</p>
+        <p className="text-xs text-slate-800 font-semibold mt-1.5 text-right cursor-pointer hover:text-blue-600">활동노트 입력하기 →</p>
       </div>
     </div>
   );
