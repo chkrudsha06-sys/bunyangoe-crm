@@ -14,6 +14,7 @@ interface Stats {
   membershipFeeAmt: number; monthlyFeeAmt: number;
   linkedRevenue: number;
 }
+// 누적용 별도 Stats (동일 구조 재활용)
 const EMPTY: Stats = {
   totalRevenue:0, joinCount:0, contractCount:0, reservationCount:0,
   hotProspect:0, meetingProspect:0, linkedProspect:0,
@@ -24,41 +25,109 @@ interface TodayEvent { id: number; name: string; phone: string | null; meeting_d
 
 function fw(n: number) {
   if (!n) return "0원";
-  if (n >= 100000000) return `${(n/100000000).toFixed(1)}억원`;
-  if (n >= 10000000) return `${Math.floor(n/10000000).toLocaleString()}천만원`;
-  if (n >= 10000) return `${Math.floor(n/10000).toLocaleString()}만원`;
-  return `${n.toLocaleString()}원`;
+  return n.toLocaleString() + "원";
 }
 
 async function fetchStats(user: CRMUser, start: string, end: string, isAll = false): Promise<Stats> {
+  // exec=개인별, admin/ops=팀전체
   const isExec = user.role === "exec";
-  let cQ = supabase.from("contacts").select("meeting_result,tm_sensitivity");
-  if (isExec) cQ = cQ.eq("assigned_to", user.name);
-  if (!isAll) cQ = cQ.gte("created_at", start).lte("created_at", end + "T23:59:59");
-  const { data: c = [] } = await cQ;
+  const today  = new Date().toISOString().split("T")[0];
+  const monthStart = start;
+  const monthEnd   = end;
 
-  let aQ = supabase.from("ad_executions").select("execution_amount,channel");
-  if (isExec) aQ = aQ.eq("team_member", user.name);
-  if (!isAll) aQ = aQ.gte("payment_date", start).lte("payment_date", end);
-  const { data: a = [] } = await aQ;
+  // ── 1. 분양회 입회 (계약/예약완료, 완료일 기준) ──────────────
+  let joinQ = supabase.from("contacts")
+    .select("meeting_result,tm_sensitivity,contract_date,reservation_date,meeting_date,assigned_to");
+  if (isExec) joinQ = joinQ.eq("assigned_to", user.name);
+  const { data: allContacts = [] } = await joinQ;
 
-  let mQ = supabase.from("contacts").select("id").gte("meeting_date", new Date().toISOString().split("T")[0]);
-  if (isExec) mQ = mQ.eq("assigned_to", user.name);
-  const { data: m = [] } = await mQ;
+  // 당월 계약/예약완료 (완료일 기준)
+  const monthJoined = (allContacts||[]).filter((x:any) => {
+    const d = x.meeting_result === "계약완료" ? x.contract_date : x.reservation_date;
+    if (!d) return false;
+    return !isAll && d >= monthStart && d <= monthEnd;
+  });
+  const allJoined = (allContacts||[]).filter((x:any) =>
+    ["계약완료","예약완료"].includes(x.meeting_result||"")
+  );
 
-  const cont = (c||[]).filter((x:any)=>x.meeting_result==="계약완료");
+  // 가망고객 (파이프라인 - 계약/예약완료 제외)
+  const prospects = (allContacts||[]).filter((x:any) =>
+    !["계약완료","예약완료"].includes(x.meeting_result||"")
+  );
+
+  // 당월 미팅예정 (미팅일정이 당월, 계약/예약완료 제외)
+  const monthMeetings = (allContacts||[]).filter((x:any) => {
+    if (["계약완료","예약완료"].includes(x.meeting_result||"")) return false;
+    if (!x.meeting_date) return false;
+    return !isAll && x.meeting_date >= monthStart && x.meeting_date <= monthEnd;
+  });
+  // 누적 총미팅 (계약/예약완료 포함 전체)
+  const totalMeetings = (allContacts||[]).filter((x:any) => x.meeting_date).length;
+
+  // ── 2. 광고 집행 (VAT 포함 실효금액) ──────────────────────────
+  let adQ = supabase.from("ad_executions")
+    .select("execution_amount,vat_amount,channel,team_member,refund_amount,contract_route,payment_date");
+  if (isExec) adQ = adQ.eq("team_member", user.name);
+  const { data: allAd = [] } = await adQ;
+
+  const effAmt = (x:any) => (x.vat_amount && x.vat_amount !== x.execution_amount) ? (x.vat_amount||0) : (x.execution_amount||0);
+
+  // 당월 광고 (분양회, 광고채널 하이타겟+호갱노노+LMS)
+  const AD_CHANNELS = ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
+  const monthAd = (allAd||[]).filter((x:any) => {
+    if (isAll) return false;
+    return x.payment_date >= monthStart && x.payment_date <= monthEnd;
+  });
+
+  // 당월 총매출 (광고특전 = 분양회의 AD_CHANNELS)
+  const monthAdSpecial = monthAd.filter((x:any) =>
+    x.contract_route === "분양회" && AD_CHANNELS.includes(x.channel)
+  );
+  const totalRevenue = monthAdSpecial.reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
+
+  // 당월 입회비 / 월회비
+  const membershipFeeAmt = monthAd
+    .filter((x:any) => x.channel === "분양회 입회비")
+    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
+  const monthlyFeeAmt = monthAd
+    .filter((x:any) => x.channel === "분양회 월회비")
+    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
+
+  // 누적 입회비 / 월회비
+  const cumMembershipFee = (allAd||[])
+    .filter((x:any) => x.channel === "분양회 입회비")
+    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
+  const cumMonthlyFee = (allAd||[])
+    .filter((x:any) => x.channel === "분양회 월회비")
+    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
+
+  // 당월 하이타겟 연계매출 (환불 차감)
+  const linkedRevenue = monthAd
+    .filter((x:any) => x.channel === "하이타겟")
+    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
+
+  // 누적 하이타겟
+  const cumLinkedRevenue = (allAd||[])
+    .filter((x:any) => x.channel === "하이타겟")
+    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
+
   return {
-    totalRevenue: (a||[]).reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
-    joinCount: (c||[]).filter((x:any)=>["계약완료","예약완료"].includes(x.meeting_result||"")).length,
-    contractCount: cont.length,
-    reservationCount: (c||[]).filter((x:any)=>x.meeting_result==="예약완료").length,
-    hotProspect: (c||[]).filter((x:any)=>x.tm_sensitivity==="즉가입가망").length,
-    meetingProspect: (c||[]).filter((x:any)=>x.tm_sensitivity==="미팅예정가망").length,
-    linkedProspect: (c||[]).filter((x:any)=>x.tm_sensitivity==="연계매출가망").length,
-    upcomingMeetings: (m||[]).length,
-    membershipFeeAmt: cont.length * 500000,
-    monthlyFeeAmt: cont.length * 100000,
-    linkedRevenue: (a||[]).filter((x:any)=>x.channel==="하이타겟").reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
+    totalRevenue,
+    joinCount: isAll ? allJoined.length : monthJoined.length,
+    contractCount: isAll
+      ? allJoined.filter((x:any)=>x.meeting_result==="계약완료").length
+      : monthJoined.filter((x:any)=>x.meeting_result==="계약완료").length,
+    reservationCount: isAll
+      ? allJoined.filter((x:any)=>x.meeting_result==="예약완료").length
+      : monthJoined.filter((x:any)=>x.meeting_result==="예약완료").length,
+    hotProspect: prospects.filter((x:any)=>x.tm_sensitivity==="즉가입가망").length,
+    meetingProspect: prospects.filter((x:any)=>x.tm_sensitivity==="미팅예정가망").length,
+    linkedProspect: prospects.filter((x:any)=>x.tm_sensitivity==="연계매출가망").length,
+    upcomingMeetings: isAll ? totalMeetings : monthMeetings.length,
+    membershipFeeAmt: isAll ? cumMembershipFee : membershipFeeAmt,
+    monthlyFeeAmt: isAll ? cumMonthlyFee : monthlyFeeAmt,
+    linkedRevenue: isAll ? cumLinkedRevenue : linkedRevenue,
   };
 }
 
@@ -499,9 +568,10 @@ export default function DashboardPage() {
 
   const CARDS = [
     {
-      icon:"💰", label:"총 매출", main: fw(current.totalRevenue),
+      icon:"💰", label:"총 매출",
+      main: current.totalRevenue.toLocaleString()+"원",
       subs: undefined,
-      cumLabel: fw(cumulative.totalRevenue),
+      cumLabel: cumulative.totalRevenue.toLocaleString()+"원",
     },
     {
       icon:"🏆", label:"분양회 입회건수", main: `${current.joinCount}건`,
@@ -514,31 +584,35 @@ export default function DashboardPage() {
     {
       icon:"🎯", label:"가망고객", main:`${current.hotProspect+current.meetingProspect+current.linkedProspect}명`,
       subs:[
-        {label:"즉가입가망", value:`${current.hotProspect}명`, color:"text-red-500"},
+        {label:"즉가입가망",   value:`${current.hotProspect}명`,    color:"text-red-500"},
         {label:"미팅예정가망", value:`${current.meetingProspect}명`, color:"text-amber-500"},
-        {label:"연계매출가망", value:`${current.linkedProspect}명`, color:"text-slate-500"},
+        {label:"연계매출가망", value:`${current.linkedProspect}명`,  color:"text-slate-500"},
       ],
       cumLabel:`${cumulative.hotProspect+cumulative.meetingProspect+cumulative.linkedProspect}명`,
     },
     {
-      icon:"📅", label:"미팅예정", main:`${current.upcomingMeetings}건`,
+      icon:"📅", label:"미팅예정",
+      main:`${current.upcomingMeetings}건`,
       subs:undefined,
-      cumLabel:`${cumulative.upcomingMeetings}명`,
+      cumLabel:`누적 ${cumulative.upcomingMeetings}건`,
     },
     {
-      icon:"💳", label:"입회비", main:fw(current.membershipFeeAmt),
+      icon:"💳", label:"입회비",
+      main: current.membershipFeeAmt.toLocaleString()+"원",
       subs:undefined,
-      cumLabel:fw(cumulative.membershipFeeAmt),
+      cumLabel: cumulative.membershipFeeAmt.toLocaleString()+"원",
     },
     {
-      icon:"🔄", label:"월회비", main:fw(current.monthlyFeeAmt),
+      icon:"🔄", label:"월회비",
+      main: current.monthlyFeeAmt.toLocaleString()+"원",
       subs:undefined,
-      cumLabel:fw(cumulative.monthlyFeeAmt),
+      cumLabel: cumulative.monthlyFeeAmt.toLocaleString()+"원",
     },
     {
-      icon:"⚡", label:"연계매출 (하이타겟)", main:fw(current.linkedRevenue),
+      icon:"⚡", label:"연계매출(하이타겟)",
+      main: current.linkedRevenue.toLocaleString()+"원",
       subs:undefined,
-      cumLabel:fw(cumulative.linkedRevenue),
+      cumLabel: cumulative.linkedRevenue.toLocaleString()+"원",
     },
   ];
 
