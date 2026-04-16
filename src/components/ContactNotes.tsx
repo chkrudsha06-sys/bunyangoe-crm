@@ -15,10 +15,11 @@ interface Note {
 interface Props {
   contactId: number;
   authorName?: string;
-  compact?: boolean; // 파이프라인 카드용 축약 모드
+  compact?: boolean;
+  refreshKey?: number; // 외부에서 갱신 트리거
 }
 
-export default function ContactNotes({ contactId, authorName, compact }: Props) {
+export default function ContactNotes({ contactId, authorName, compact, refreshKey }: Props) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -37,7 +38,7 @@ export default function ContactNotes({ contactId, authorName, compact }: Props) 
     setLoading(false);
   };
 
-  useEffect(() => { fetchNotes(); }, [contactId]);
+  useEffect(() => { fetchNotes(); }, [contactId, refreshKey]);
 
   const getAuthor = () => {
     if (authorName) return authorName;
