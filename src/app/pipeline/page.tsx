@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
 import { Phone, Calendar, MapPin, X, ChevronRight, Search } from "lucide-react";
 import ContactNotes from "@/components/ContactNotes";
 
@@ -81,9 +80,8 @@ function ContactCard({ contact, col, onNotesClick }: {
   col: typeof COLUMNS[0];
   onNotesClick: (contactId: number, name: string) => void;
 }) {
-  const router = useRouter();
 
-  const handleDoubleClick = () => { router.push(`/contacts/${contact.id}`); };
+  const handleDoubleClick = () => { window.location.href = `/contacts/${contact.id}`; };
 
   const meetingDate = contact.meeting_date
     ? new Date(contact.meeting_date + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
