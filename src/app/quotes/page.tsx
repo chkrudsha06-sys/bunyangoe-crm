@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FileText, Plus, Trash2, FileDown } from "lucide-react";
+import { useState as _u } from "react";
 import { supabase } from "@/lib/supabase";
 
 interface AdItem {
@@ -63,6 +64,39 @@ export default function QuotePage() {
       items:JSON.stringify(items), total_amount:total, total_vat:totalVat,
     });
     setSaving(false); setSaved(true); setTimeout(()=>setSaved(false),2000);
+  };
+
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!property) return alert("대상물건을 입력하세요.");
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/generate-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          property, quoteDate,
+          clientAddr, clientName, clientBizNo, clientCeo,
+          clientMgr, clientPhone, items,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "오류 발생");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `광고인_견적서_${property}_${quoteDate}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch(e: any) {
+      alert("PDF 생성 오류: " + e.message);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const handlePDF = () => {
@@ -238,9 +272,9 @@ export default function QuotePage() {
               className="px-4 py-2 text-sm font-semibold border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 disabled:opacity-50">
               {saved ? "✓ 저장됨" : "저장"}
             </button>
-            <button onClick={handlePDF}
+            <button onClick={handleDownload} disabled={downloading}
               className="flex items-center gap-2 px-4 py-2 bg-[#1E3A8A] text-white text-sm font-semibold rounded-xl hover:bg-blue-800 shadow-sm">
-              <FileDown size={14}/> PDF 저장
+              <FileDown size={14}/> {downloading ? "변환중... (최대 30초)" : "PDF 저장"}
             </button>
           </div>
         </div>
