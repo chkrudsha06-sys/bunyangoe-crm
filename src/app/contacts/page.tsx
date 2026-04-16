@@ -54,9 +54,10 @@ const BADGE: Record<string, string> = {
   연계매출가망: "bg-slate-100 text-slate-600",
   신규: "bg-sky-100 text-sky-700",
   기고객: "bg-violet-100 text-violet-700",
-  리드: "bg-blue-50 text-blue-600",
-  프로스펙팅: "bg-indigo-100 text-indigo-700",
-  딜크로징: "bg-emerald-100 text-emerald-700",
+  리드: "bg-pink-100 text-pink-600",
+  프로스펙팅: "bg-orange-100 text-orange-500",
+  딜크로징: "bg-sky-100 text-sky-600",
+  리텐션: "bg-purple-100 text-purple-500",
 };
 
 const TEAM = ["조계현", "이세호", "기여운", "최연전"];
@@ -111,7 +112,16 @@ export default function ContactsPage() {
   const [fProspect, setFProspect] = useState("");
   const [fResult, setFResult] = useState("");
   const [fStage, setFStage] = useState("");
-  const [fAssigned, setFAssigned] = useState("");
+  const [fAssigned, setFAssigned] = useState(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("crm_user") : null;
+      if (raw) {
+        const u = JSON.parse(raw);
+        if (u.role === "exec") return u.name;
+      }
+    } catch {}
+    return "";
+  });
   const [showFilter, setShowFilter] = useState(false);
   const [page, setPage] = useState(1);
   const PER_PAGE = 30;
@@ -335,7 +345,7 @@ export default function ContactsPage() {
                     </td>
                     <td className="px-3 py-2.5 text-center align-middle text-xs">
                       {(c as any).regular_payment_date
-                        ? <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-medium border border-emerald-100">{`매월 ${(c as any).regular_payment_date}일`}</span>
+                        ? <span className="text-xs text-slate-600">{`매월 ${(c as any).regular_payment_date}일`}</span>
                         : <span className="text-slate-300">-</span>}
                     </td>
                     <td className="px-3 py-2.5 text-center align-middle">
