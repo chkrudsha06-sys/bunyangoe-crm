@@ -75,10 +75,11 @@ function NotesPopup({ contactId, name, onClose }: { contactId: number; name: str
   );
 }
 
-function ContactCard({ contact, col, onNotesClick }: {
+function ContactCard({ contact, col, onNotesClick, refreshKey }: {
   contact: Contact;
   col: typeof COLUMNS[0];
   onNotesClick: (contactId: number, name: string) => void;
+  refreshKey?: number;
 }) {
 
 
@@ -293,6 +294,7 @@ export default function PipelinePage() {
                           key={c.id}
                           contact={c}
                           col={col}
+                          refreshKey={notesRefreshKey}
                           onNotesClick={(id, name) => setNotesPopup({ contactId: id, name })}
                         />
                       ))
