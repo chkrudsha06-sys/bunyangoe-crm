@@ -21,7 +21,7 @@ const EMPTY: Stats = {
   hotProspect:0, meetingProspect:0, linkedProspect:0,
   upcomingMeetings:0, meetingDone:0, membershipFeeAmt:0, membershipCount:0, monthlyFeeAmt:0, monthlyFeeCount:0, linkedRevenue:0, linkedCount:0,
 };
-interface MonthlyRevenue { month: string; hightarget: number; special: number; }
+interface MonthlyRevenue { month: string; hightarget: number; special: number; bunyanghoe: number; }
 interface TodayEvent { id: number; name: string; phone: string | null; meeting_date: string; meeting_address: string | null; assigned_to: string; }
 
 function fw(n: number) {
@@ -177,6 +177,7 @@ async function fetchMonthlyRevenue(user: CRMUser, year: number, month: number): 
       month: m.label,
       hightarget: (a||[]).filter((x:any)=>x.channel==="하이타겟").reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
       special: (a||[]).reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
+      bunyanghoe: (a||[]).filter((x:any)=>["분양회 입회비","분양회 월회비"].includes(x.channel)).reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
     });
   }
   return results;
@@ -223,21 +224,27 @@ function DashCard({ icon, label, main, subs, cumLabel }: {
 
 // ── 바 차트 ──
 function BarChart({ data }: { data: MonthlyRevenue[] }) {
-  const max = Math.max(...data.flatMap(d => [d.hightarget, d.special]), 1);
+  const max = Math.max(...data.flatMap(d => [d.special, d.hightarget, d.bunyanghoe]), 1);
   const bar = (v: number) => Math.max(4, Math.round((v / max) * 100));
+  const BARS = [
+    { key: "special",    color: "#6366F1", label: "특전총매출" },
+    { key: "hightarget", color: "#F59E0B", label: "하이타겟" },
+    { key: "bunyanghoe", color: "#10B981", label: "분양회" },
+  ];
   return (
-    <div className="flex items-end justify-around gap-4 h-32 px-2">
+    <div className="flex items-end justify-around gap-4 h-36 px-2">
       {data.map((d, i) => (
         <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
           <div className="flex items-end gap-1.5 w-full justify-center">
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="text-[10px] text-blue-600 font-bold">{d.hightarget > 0 ? fw(d.hightarget) : ""}</span>
-              <div className="w-7 rounded-t-md bg-blue-500" style={{ height: `${bar(d.hightarget)}px` }} />
-            </div>
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="text-[10px] text-indigo-500 font-bold">{d.special > 0 ? fw(d.special) : ""}</span>
-              <div className="w-7 rounded-t-md bg-indigo-300" style={{ height: `${bar(d.special)}px` }} />
-            </div>
+            {BARS.map(b => {
+              const v = (d as any)[b.key] as number;
+              return (
+                <div key={b.key} className="flex flex-col items-center gap-0.5">
+                  <span className="text-[9px] font-bold" style={{color:b.color}}>{v > 0 ? v.toLocaleString() : ""}</span>
+                  <div className="w-6 rounded-t-md" style={{ height:`${bar(v)}px`, background:b.color, opacity: 0.85 }}/>
+                </div>
+              );
+            })}
           </div>
           <span className="text-[11px] text-slate-400 font-medium">{d.month}</span>
         </div>
@@ -605,7 +612,7 @@ export default function DashboardPage() {
       icon:"⚡", label:"연계매출(하이타겟)",
       main: current.linkedRevenue.toLocaleString()+"원",
       subs: undefined,
-      cumLabel: `${cumulative.linkedCount}건`,
+      cumLabel: cumulative.linkedRevenue.toLocaleString()+"원",
     },
     {
       icon:"💳", label:"분양회 입회비",
@@ -708,8 +715,9 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold text-slate-700">매출실적</h3>
               <div className="flex items-center gap-3 text-xs text-slate-400">
-                <div style={{ display:"flex", alignItems:"center", gap:"6px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#E2A83A" }}/><span>하이타겟</span></div>
-                <div style={{ display:"flex", alignItems:"center", gap:"6px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"rgba(96,165,250,0.6)" }}/><span>특전총매출</span></div>
+                <div style={{ display:"flex", alignItems:"center", gap:"5px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#6366F1" }}/><span>특전총매출</span></div>
+                <div style={{ display:"flex", alignItems:"center", gap:"5px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#F59E0B" }}/><span>하이타겟</span></div>
+                <div style={{ display:"flex", alignItems:"center", gap:"5px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#10B981" }}/><span>분양회</span></div>
               </div>
             </div>
             {monthlyRev.length > 0 ? <BarChart data={monthlyRev}/> : (
@@ -717,25 +725,17 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* 오늘의 일정 */}
+          {/* KPI */}
           <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-slate-700">오늘의 일정</h3>
-              <input type="date" value={eventDate} onChange={e=>{setEventDate(e.target.value);}}
-                className="text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none text-slate-600"/>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-700">KPI</h3>
+              <span className="text-xs text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100">설정 예정</span>
             </div>
-            <div className="space-y-2 max-h-36 overflow-y-auto">
-              {todayEvents.length === 0 ? (
-                <div className="text-center py-6 text-slate-300 text-sm">일정이 없습니다</div>
-              ) : todayEvents.map(ev=>(
-                <div key={ev.id} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">{ev.name}</p>
-                    <p className="text-xs text-slate-400">{ev.meeting_address || "장소 미정"}</p>
-                  </div>
-                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">{ev.assigned_to}</span>
-                </div>
-              ))}
+            <div className="flex flex-col items-center justify-center h-28 gap-2">
+              <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center">
+                <span className="text-lg">🎯</span>
+              </div>
+              <p className="text-sm text-slate-300 font-medium">KPI 설정 후 표시됩니다</p>
             </div>
           </div>
         </div>
