@@ -114,13 +114,13 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
             {/* 1% */}
             <div style={{
               fontFamily: "'Montserrat','Pretendard',sans-serif",
-              fontSize: 'clamp(80px, 15vw, 220px)',
+              fontSize: 'clamp(48px, 8vw, 120px)',
               fontWeight: 800,
-              letterSpacing: '-0.01em',
+              letterSpacing: '0.04em',
               color: '#ffffff',
               lineHeight: 1,
             }}>
-              1%
+              VIP Membership
             </div>
             {/* Bunyangoe CRM System */}
             <div style={{
@@ -226,10 +226,10 @@ export default function LoginPage() {
           <div style={{ textAlign: 'center' }}>
             <div style={{
               fontFamily: "'Montserrat','Pretendard',sans-serif",
-              fontSize: 'clamp(80px, 15vw, 220px)',
-              fontWeight: 800, letterSpacing: '-0.01em',
+              fontSize: 'clamp(48px, 8vw, 120px)',
+              fontWeight: 800, letterSpacing: '0.04em',
               color: '#ffffff', lineHeight: 1,
-            }}>1%</div>
+            }}>VIP Membership</div>
             <div style={{
               fontFamily: "'Montserrat','Pretendard',sans-serif",
               fontSize: 'clamp(13px, 1.5vw, 22px)',
