@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { FileText, Plus, Trash2, Printer } from "lucide-react";
+import { FileText, Plus, Trash2, Download } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface AdItem {
@@ -65,7 +65,37 @@ export default function QuotePage() {
     setSaving(false); setSaved(true); setTimeout(()=>setSaved(false),2000);
   };
 
-  const handlePrint = () => {
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!property) return alert("대상물건을 입력하세요.");
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/generate-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          property, quoteDate,
+          clientAddr, clientName, clientBizNo, clientCeo,
+          clientMgr, clientPhone, items,
+        }),
+      });
+      if (!res.ok) throw new Error("생성 실패");
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `광고인_견적서_${property}_${quoteDate}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch(e) {
+      alert("다운로드 중 오류가 발생했습니다.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handlePrint_UNUSED = () => {
     const printHtml = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"/>
 <title>견적서_${property}</title>
 <style>
@@ -208,9 +238,9 @@ ${items.map((it,i)=>`<tr>
               className="px-4 py-2 text-sm font-semibold border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 disabled:opacity-50">
               {saved?"✓ 저장됨":"저장"}
             </button>
-            <button onClick={handlePrint}
+            <button onClick={handleDownload} disabled={downloading}
               className="flex items-center gap-2 px-4 py-2 bg-[#1E3A8A] text-white text-sm font-semibold rounded-xl hover:bg-blue-800 shadow-sm">
-              <Printer size={14}/> PDF 저장
+              <Download size={14}/> {downloading ? "생성중..." : "엑셀 다운로드"}
             </button>
           </div>
         </div>
