@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     const filename = `광고인_견적서_${property}_${quoteDate}.xlsx`;
     const encoded = encodeURIComponent(filename);
 
-    return new NextResponse(buffer as Buffer, {
+    return new NextResponse(new Uint8Array(buffer as ArrayBuffer), {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
