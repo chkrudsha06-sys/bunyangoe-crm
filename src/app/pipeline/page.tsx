@@ -149,7 +149,7 @@ function ContactCard({ contact, col, onNotesClick }: {
         onClick={e => e.stopPropagation()}
         onDoubleClick={e => e.stopPropagation()}
       >
-        <ContactNotes contactId={contact.id} compact />
+        <ContactNotes contactId={contact.id} compact refreshKey={notesRefreshKey}/>
         <p
           onClick={() => onNotesClick(contact.id, contact.name)}
           className="text-xs text-slate-800 font-semibold mt-1.5 text-right cursor-pointer hover:text-blue-600 select-none">
@@ -164,6 +164,7 @@ export default function PipelinePage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [notesPopup, setNotesPopup] = useState<{ contactId: number; name: string } | null>(null);
+  const [notesRefreshKey, setNotesRefreshKey] = useState(0);
   const [search, setSearch] = useState("");
   const [fProspect, setFProspect] = useState("");
   const [fAssigned, setFAssigned] = useState("");
@@ -309,7 +310,7 @@ export default function PipelinePage() {
         <NotesPopup
           contactId={notesPopup.contactId}
           name={notesPopup.name}
-          onClose={() => setNotesPopup(null)}
+          onClose={() => { setNotesPopup(null); setNotesRefreshKey(k => k + 1); }}
         />
       )}
 
