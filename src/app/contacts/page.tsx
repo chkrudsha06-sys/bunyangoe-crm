@@ -85,7 +85,7 @@ function Sel({ val, onChange, opts, placeholder, className="" }: {
   return (
     <div className={`relative ${className}`}>
       <select value={val} onChange={e=>onChange(e.target.value)}
-        className="w-full appearance-none px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-400 pr-8">
+        className="w-full appearance-none px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-400 pr-7">
         <option value="">{placeholder}</option>
         {opts.map(o=><option key={o} value={o}>{o}</option>)}
       </select>
@@ -249,11 +249,11 @@ export default function ContactsPage() {
 
         {/* 검색 + 필터 (상시 노출) */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative" style={{minWidth:"200px",flex:"1 1 0"}}>
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+          <div className="relative flex-1 max-w-xs">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
             <input type="text" placeholder="이름, 연락처, 메모, 지역 검색..." value={search}
               onChange={e=>{setSearch(e.target.value);setPage(1);}}
-              className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
+              className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
           </div>
           <Sel val={fCustomerType} onChange={v=>{setFCustomerType(v);setPage(1);}} opts={OPT.customer_type} placeholder="고객유형"/>
           <Sel val={fProspect} onChange={v=>{setFProspect(v);setPage(1);}} opts={OPT.prospect_type} placeholder="가망구분"/>
@@ -263,7 +263,7 @@ export default function ContactsPage() {
           <select
             value={fAssigned}
             onChange={e=>{setFAssigned(e.target.value);setPage(1);}}
-            className="w-full appearance-none px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-400 pr-8" style={{minWidth:"110px",maxWidth:"140px"}}>
+            className="w-full appearance-none px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-400 pr-7" style={{minWidth:"110px",maxWidth:"140px"}}>
             <option value="">담당자</option>
             <option value="__ALL__">전체</option>
             {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
@@ -271,7 +271,7 @@ export default function ContactsPage() {
           {/* 필터 초기화 */}
           <button
             onClick={()=>{setFCustomerType("");setFProspect("");setFResult("");setFStage("");setFAssigned("");setSearch("");setPage(1);}}
-            className="px-3 py-2 text-sm font-semibold text-red-400 border border-red-200 rounded-xl hover:bg-red-50 whitespace-nowrap">
+            className="px-2.5 py-2 text-xs font-semibold text-red-400 border border-red-200 rounded-xl hover:bg-red-50 whitespace-nowrap">
             ↺ 초기화
           </button>
         </div>
