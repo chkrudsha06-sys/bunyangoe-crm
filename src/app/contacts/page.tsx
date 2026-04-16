@@ -312,7 +312,7 @@ export default function ContactsPage() {
                       {c.customer_type ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${BADGE[c.customer_type]||"bg-slate-100 text-slate-600"}`}>{c.customer_type}</span> : <span className="text-slate-300 text-sm">-</span>}
                     </td>
                     <td className="px-3 py-3 text-center align-middle">
-                      <div className="text-xs text-slate-600 truncate max-w-[100px] cursor-pointer"
+                      <div className="text-sm text-slate-600 truncate text-center cursor-pointer"
                         onDoubleClick={()=>c.tm_sensitivity&&setPopup(c.tm_sensitivity)}>
                         {c.tm_sensitivity||"-"}
                       </div>
