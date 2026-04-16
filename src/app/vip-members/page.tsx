@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { Award, Phone, Calendar, Search, Copy, Check } from "lucide-react";
+import { Award, Phone, Calendar, Search, Copy, Check, Link, Upload, X } from "lucide-react";
+import { useState as useStateAlias } from "react";
 
 interface VipContact {
   id: number;
@@ -18,6 +19,7 @@ interface VipContact {
   bank_holder: string | null;
   bank_name: string | null;
   bank_account: string | null;
+  client_token: string | null;
 }
 
 // 인라인 편집 셀
@@ -62,6 +64,41 @@ function EditableCell({ value, contactId, field, placeholder, onSaved }: {
     >
       {value || placeholder}
     </span>
+      {/* 리포트 업로드 모달 */}
+      {reportModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h2 className="font-bold text-slate-800">리포트 업로드 — {reportModal.name}</h2>
+              <button onClick={()=>setReportModal(null)}><X size={18} className="text-slate-400"/></button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              {[
+                {label:"제목 *", field:"title", placeholder:"2026년 4월 하이타겟 리포트"},
+                {label:"리포트 월", field:"report_month", placeholder:"2026-04"},
+                {label:"분기", field:"quarter", placeholder:"2026-Q2"},
+                {label:"파일 URL", field:"file_url", placeholder:"https://... (구글드라이브 등)"},
+                {label:"메모", field:"memo", placeholder:"간단한 설명"},
+              ].map(({label,field,placeholder})=>(
+                <div key={field}>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">{label}</label>
+                  <input value={(reportForm as any)[field]}
+                    onChange={e=>setReportForm(p=>({...p,[field]:e.target.value}))}
+                    placeholder={placeholder}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 px-6 pb-5">
+              <button onClick={()=>setReportModal(null)} className="flex-1 py-2.5 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">취소</button>
+              <button onClick={saveReport} disabled={reportSaving}
+                className="flex-1 py-2.5 text-sm font-bold bg-[#1E3A8A] text-white rounded-xl hover:bg-blue-800 disabled:opacity-50">
+                {reportSaving?"저장 중...":"업로드"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
   );
 }
 
@@ -91,6 +128,41 @@ function AccountCell({ value, contactId, onSaved }: {
         </button>
       )}
     </div>
+      {/* 리포트 업로드 모달 */}
+      {reportModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h2 className="font-bold text-slate-800">리포트 업로드 — {reportModal.name}</h2>
+              <button onClick={()=>setReportModal(null)}><X size={18} className="text-slate-400"/></button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              {[
+                {label:"제목 *", field:"title", placeholder:"2026년 4월 하이타겟 리포트"},
+                {label:"리포트 월", field:"report_month", placeholder:"2026-04"},
+                {label:"분기", field:"quarter", placeholder:"2026-Q2"},
+                {label:"파일 URL", field:"file_url", placeholder:"https://... (구글드라이브 등)"},
+                {label:"메모", field:"memo", placeholder:"간단한 설명"},
+              ].map(({label,field,placeholder})=>(
+                <div key={field}>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">{label}</label>
+                  <input value={(reportForm as any)[field]}
+                    onChange={e=>setReportForm(p=>({...p,[field]:e.target.value}))}
+                    placeholder={placeholder}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 px-6 pb-5">
+              <button onClick={()=>setReportModal(null)} className="flex-1 py-2.5 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">취소</button>
+              <button onClick={saveReport} disabled={reportSaving}
+                className="flex-1 py-2.5 text-sm font-bold bg-[#1E3A8A] text-white rounded-xl hover:bg-blue-800 disabled:opacity-50">
+                {reportSaving?"저장 중...":"업로드"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
   );
 }
 
@@ -186,7 +258,7 @@ export default function VipMembersPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {["#","고객명","연락처","담당컨설턴트","대협팀담당자","상태","예금주","은행명","계좌번호","계약/예약 완료일","메모"].map(TH)}
+                  {["#","고객명","연락처","담당컨설턴트","대협팀담당자","상태","예금주","은행명","계좌번호","계약/예약 완료일","메모","대시보드링크","리포트"].map(TH)}
                 </tr>
               </thead>
               <tbody>
@@ -240,6 +312,28 @@ export default function VipMembersPage() {
                     <td className="px-3 py-3 text-center align-middle max-w-[180px]">
                       <p className="text-xs text-slate-500 truncate">{c.memo||"-"}</p>
                     </td>
+                    {/* 대시보드 링크 */}
+                    <td className="px-3 py-3 text-center align-middle">
+                      {(c as any).client_token ? (
+                        <button onClick={()=>copyLink((c as any).client_token, c.id)}
+                          className={`flex items-center gap-1 mx-auto text-xs px-2 py-1 rounded border transition-colors ${copiedToken===c.id?"bg-emerald-50 text-emerald-600 border-emerald-200":"bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"}`}>
+                          {copiedToken===c.id ? <Check size={11}/> : <Copy size={11}/>}
+                          {copiedToken===c.id ? "복사됨" : "링크복사"}
+                        </button>
+                      ) : (
+                        <button onClick={()=>generateToken(c)}
+                          className="flex items-center gap-1 mx-auto text-xs px-2 py-1 bg-slate-50 text-slate-600 rounded border border-slate-200 hover:bg-slate-100">
+                          <Link size={11}/>생성
+                        </button>
+                      )}
+                    </td>
+                    {/* 리포트 업로드 */}
+                    <td className="px-3 py-3 text-center align-middle">
+                      <button onClick={()=>{ setReportModal(c); setReportForm({title:"",report_month:"",quarter:"",memo:"",file_url:""}); }}
+                        className="flex items-center gap-1 mx-auto text-xs px-2 py-1 bg-emerald-50 text-emerald-600 rounded border border-emerald-200 hover:bg-emerald-100">
+                        <Upload size={11}/>리포트
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -248,5 +342,40 @@ export default function VipMembersPage() {
         )}
       </div>
     </div>
+      {/* 리포트 업로드 모달 */}
+      {reportModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h2 className="font-bold text-slate-800">리포트 업로드 — {reportModal.name}</h2>
+              <button onClick={()=>setReportModal(null)}><X size={18} className="text-slate-400"/></button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              {[
+                {label:"제목 *", field:"title", placeholder:"2026년 4월 하이타겟 리포트"},
+                {label:"리포트 월", field:"report_month", placeholder:"2026-04"},
+                {label:"분기", field:"quarter", placeholder:"2026-Q2"},
+                {label:"파일 URL", field:"file_url", placeholder:"https://... (구글드라이브 등)"},
+                {label:"메모", field:"memo", placeholder:"간단한 설명"},
+              ].map(({label,field,placeholder})=>(
+                <div key={field}>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">{label}</label>
+                  <input value={(reportForm as any)[field]}
+                    onChange={e=>setReportForm(p=>({...p,[field]:e.target.value}))}
+                    placeholder={placeholder}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 px-6 pb-5">
+              <button onClick={()=>setReportModal(null)} className="flex-1 py-2.5 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">취소</button>
+              <button onClick={saveReport} disabled={reportSaving}
+                className="flex-1 py-2.5 text-sm font-bold bg-[#1E3A8A] text-white rounded-xl hover:bg-blue-800 disabled:opacity-50">
+                {reportSaving?"저장 중...":"업로드"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
   );
 }
