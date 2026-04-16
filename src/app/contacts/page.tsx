@@ -128,13 +128,21 @@ export default function ContactsPage() {
 
   const fetchContacts = useCallback(async () => {
     setLoading(true);
+    // exec 로그인 시 본인 담당 고객만 — 필터 state와 무관하게 쿼리 레벨 강제 적용
+    let execName = "";
+    try {
+      const raw = localStorage.getItem("crm_user");
+      if (raw) { const u = JSON.parse(raw); if (u.role === "exec") execName = u.name; }
+    } catch {}
+
     let q = supabase.from("contacts").select("*", { count: "exact" });
+    if (execName) q = q.eq("assigned_to", execName);  // exec는 항상 본인만
     if (search) q = q.or(`name.ilike.%${search}%,phone.ilike.%${search}%,memo.ilike.%${search}%,meeting_address.ilike.%${search}%`);
     if (fCustomerType) q = q.eq("customer_type", fCustomerType);
     if (fProspect) q = q.eq("prospect_type", fProspect);
     if (fResult) q = q.eq("meeting_result", fResult);
     if (fStage) q = q.eq("management_stage", fStage);
-    if (fAssigned) q = q.eq("assigned_to", fAssigned);
+    if (!execName && fAssigned) q = q.eq("assigned_to", fAssigned); // admin/ops만 담당자 필터 적용
     q = q.order("created_at", { ascending: false }).range((page-1)*PER_PAGE, page*PER_PAGE-1);
     const { data, count } = await q;
     setContacts((data || []) as Contact[]);
@@ -298,41 +306,41 @@ export default function ContactsPage() {
                     ["미팅일정","w-24"], ["미팅지역","w-24"], ["미팅결과","w-28"], ["완료/예약일","w-24"], ["정기출금일","w-24"],
                     ["관리구간","w-24"], ["담당자","w-20"], ["담당컨설턴트","w-24"], ["비고","w-32"], ["","w-20"],
                   ].map(([h,w])=>(
-                    <th key={h} className={`text-center px-3 py-2.5 text-slate-500 text-xs font-semibold ${w} truncate`}>{h}</th>
+                    <th key={h} className={`text-center px-3 py-3 text-slate-600 text-sm font-semibold ${w} truncate`}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {contacts.map((c, i) => (
                   <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                    <td className="px-3 py-2.5 text-center align-middle text-slate-400 text-xs">{(page-1)*PER_PAGE+i+1}</td>
-                    <td className="px-3 py-2.5 text-center align-middle font-bold text-slate-800 truncate">{c.name}</td>
-                    <td className="px-3 py-2.5 text-center align-middle text-slate-500 text-xs truncate">{c.title||"-"}</td>
-                    <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{c.phone||"-"}</td>
-                    <td className="px-3 py-2.5 text-center align-middle">
-                      {c.customer_type ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${BADGE[c.customer_type]||"bg-slate-100 text-slate-600"}`}>{c.customer_type}</span> : <span className="text-slate-300 text-xs">-</span>}
+                    <td className="px-3 py-3 text-center align-middle text-slate-400 text-sm">{(page-1)*PER_PAGE+i+1}</td>
+                    <td className="px-3 py-3 text-center align-middle font-bold text-slate-800 truncate">{c.name}</td>
+                    <td className="px-3 py-3 text-center align-middle text-slate-500 text-sm truncate">{c.title||"-"}</td>
+                    <td className="px-3 py-3 text-center align-middle text-slate-600 text-sm">{c.phone||"-"}</td>
+                    <td className="px-3 py-3 text-center align-middle">
+                      {c.customer_type ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${BADGE[c.customer_type]||"bg-slate-100 text-slate-600"}`}>{c.customer_type}</span> : <span className="text-slate-300 text-sm">-</span>}
                     </td>
-                    <td className="px-3 py-2.5 text-center align-middle">
+                    <td className="px-3 py-3 text-center align-middle">
                       <div className="text-xs text-slate-600 truncate max-w-[100px] cursor-pointer"
                         onDoubleClick={()=>c.tm_sensitivity&&setPopup(c.tm_sensitivity)}>
                         {c.tm_sensitivity||"-"}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-center align-middle">
-                      {c.prospect_type ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.prospect_type]||"bg-slate-100 text-slate-600"}`}>{c.prospect_type}</span> : <span className="text-slate-300 text-xs">-</span>}
+                    <td className="px-3 py-3 text-center align-middle">
+                      {c.prospect_type ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.prospect_type]||"bg-slate-100 text-slate-600"}`}>{c.prospect_type}</span> : <span className="text-slate-300 text-sm">-</span>}
                     </td>
-                    <td className="px-3 py-2.5 text-center align-middle text-xs text-slate-600 truncate">
+                    <td className="px-3 py-3 text-center align-middle text-sm text-slate-600 truncate">
                       {c.meeting_date ? new Date(c.meeting_date+"T00:00:00").toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})
                        : c.meeting_date_text || "-"}
                     </td>
-                    <td className="px-3 py-2.5 text-center align-middle text-xs text-slate-500 truncate max-w-[90px] cursor-pointer"
+                    <td className="px-3 py-3 text-center align-middle text-sm text-slate-600 truncate max-w-[100px] cursor-pointer"
                       onDoubleClick={()=>c.meeting_address&&setPopup(c.meeting_address)}>
                       {c.meeting_address||"-"}
                     </td>
-                    <td className="px-3 py-2.5 text-center align-middle">
-                      {c.meeting_result ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.meeting_result]||"bg-slate-100 text-slate-600"}`}>{c.meeting_result}</span> : <span className="text-slate-300 text-xs">-</span>}
+                    <td className="px-3 py-3 text-center align-middle">
+                      {c.meeting_result ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.meeting_result]||"bg-slate-100 text-slate-600"}`}>{c.meeting_result}</span> : <span className="text-slate-300 text-sm">-</span>}
                     </td>
-                    <td className="px-3 py-2.5 text-center align-middle text-xs text-slate-600">
+                    <td className="px-3 py-3 text-center align-middle text-xs text-slate-600">
                       {c.meeting_result === "계약완료" && c.contract_date
                         ? <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-medium border border-emerald-100">
                             {new Date(c.contract_date+"T00:00:00").toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})}
@@ -343,23 +351,23 @@ export default function ContactsPage() {
                           </span>
                         : <span className="text-slate-300">-</span>}
                     </td>
-                    <td className="px-3 py-2.5 text-center align-middle text-xs">
+                    <td className="px-3 py-3 text-center align-middle text-xs">
                       {(c as any).regular_payment_date
-                        ? <span className="text-xs text-slate-600">{`매월 ${(c as any).regular_payment_date}일`}</span>
+                        ? <span className="text-sm text-slate-600">{`매월 ${(c as any).regular_payment_date}일`}</span>
                         : <span className="text-slate-300">-</span>}
                     </td>
-                    <td className="px-3 py-2.5 text-center align-middle">
-                      {c.management_stage ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.management_stage]||"bg-slate-100 text-slate-600"}`}>{c.management_stage}</span> : <span className="text-slate-300 text-xs">-</span>}
+                    <td className="px-3 py-3 text-center align-middle">
+                      {c.management_stage ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${BADGE[c.management_stage]||"bg-slate-100 text-slate-600"}`}>{c.management_stage}</span> : <span className="text-slate-300 text-sm">-</span>}
                     </td>
-                    <td className="px-3 py-2.5 text-center align-middle">
-                      <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full">{c.assigned_to||"-"}</span>
+                    <td className="px-3 py-3 text-center align-middle">
+                      <span className="text-sm px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full">{c.assigned_to||"-"}</span>
                     </td>
-                    <td className="px-3 py-2.5 text-center align-middle text-xs text-slate-500 truncate">{(c as any).consultant||"-"}</td>
-                    <td className="px-3 py-2.5 text-center align-middle max-w-[120px] cursor-pointer"
+                    <td className="px-3 py-3 text-center align-middle text-xs text-slate-500 truncate">{(c as any).consultant||"-"}</td>
+                    <td className="px-3 py-3 text-center align-middle max-w-[120px] cursor-pointer"
                       onDoubleClick={()=>c.memo&&setPopup(c.memo)}>
                       <p className="text-xs text-slate-500 truncate">{c.memo||"-"}</p>
                     </td>
-                    <td className="px-3 py-2.5 text-center align-middle">
+                    <td className="px-3 py-3 text-center align-middle">
                       <div className="flex gap-1">
                         <button onClick={()=>openEdit(c)}
                           className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
