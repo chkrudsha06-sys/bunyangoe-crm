@@ -62,16 +62,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "CLOUDCONVERT_API_KEY 환경변수가 없습니다" }, { status: 500 });
     }
 
-    // 4. 폰트 URL 구성 (base64 대신 URL import 방식으로 변경)
-    //    - 13MB 폰트를 base64로 전송하면 Vercel 메모리 압박 + CloudConvert 업로드 타임아웃 발생
-    //    - URL import 방식은 CloudConvert가 직접 다운로드하므로 안정적
-    const host = req.headers.get("host");
-    const forwardedProto = req.headers.get("x-forwarded-proto");
-    const isLocal = !!host && (host.includes("localhost") || host.includes("127.0.0.1"));
-    const protocol = forwardedProto || (isLocal ? "http" : "https");
-    const fontUrl = host && !isLocal ? `${protocol}://${host}/malgun.ttf` : null;
-
-    // 5. Job 생성 (synchronous 방식)
+    // 4. Job 생성
+    //    - 폰트 업로드 제거: CloudConvert LibreOffice는 시스템 폰트(Noto Sans CJK)로 한글 자동 렌더링
+    //    - 외부 폰트 업로드는 convert 단계에서 활용되지 않으므로 무의미했음
     const tasks: Record<string, any> = {
       "upload-file": {
         operation: "import/base64",
@@ -91,17 +84,6 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    // 프로덕션(Vercel)에서만 폰트 URL import 추가
-    // - 로컬은 CloudConvert가 접근 불가하므로 skip → LibreOffice 기본 한글 폰트 fallback
-    if (fontUrl) {
-      tasks["upload-font"] = {
-        operation: "import/url",
-        url: fontUrl,
-        filename: "malgun.ttf",
-      };
-      tasks["convert-file"].input = ["upload-file", "upload-font"];
-    }
-
     const jobRes = await fetch("https://sync.api.cloudconvert.com/v2/jobs", {
       method: "POST",
       headers: {
@@ -119,7 +101,7 @@ export async function POST(req: NextRequest) {
 
     const job = await jobRes.json();
 
-    // 6. 결과에서 PDF URL 추출
+    // 5. 결과에서 PDF URL 추출
     const jobTasks = job.data?.tasks || job.tasks || [];
     const taskArr: any[] = Array.isArray(jobTasks) ? jobTasks : Object.values(jobTasks);
 
@@ -132,7 +114,7 @@ export async function POST(req: NextRequest) {
       || (typeof exportTask?.result?.files?.[0] === "string" ? exportTask.result.files[0] : null);
 
     if (!pdfUrl) {
-      // 실패한 태스크만 추려서 상세 로그 반환 (디버깅 편의성 개선)
+      // 실패한 태스크만 추려서 상세 로그 반환
       const failedTasks = taskArr
         .filter((t: any) => t.status === "error")
         .map((t: any) => ({
@@ -153,7 +135,7 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // 7. PDF 다운로드 후 클라이언트에 전달
+    // 6. PDF 다운로드 후 클라이언트에 전달
     const pdfRes = await fetch(pdfUrl);
     if (!pdfRes.ok) {
       return NextResponse.json({ error: "PDF 다운로드 실패" }, { status: 500 });
