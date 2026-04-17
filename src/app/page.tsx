@@ -77,7 +77,7 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
   const effAmt = (x:any) => (x.vat_amount && x.vat_amount !== x.execution_amount) ? (x.vat_amount||0) : (x.execution_amount||0);
 
   // 당월 광고 (분양회, 광고채널 하이타겟+호갱노노+LMS)
-  const AD_CHANNELS = ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
+  const AD_CHANNELS = ["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
   const monthAd = (allAd||[]).filter((x:any) => {
     if (isAll) return false;
     return x.payment_date >= monthStart && x.payment_date <= monthEnd;
