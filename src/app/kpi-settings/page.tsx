@@ -97,7 +97,6 @@ export default function KpiSettingsPage() {
     setUser(u);
     setAuthChecked(true);
     if (!u || u.role !== "admin") {
-      // 비관리자는 대시보드로 리다이렉트
       setTimeout(() => router.push("/"), 1500);
     }
   }, [router]);
@@ -118,11 +117,9 @@ export default function KpiSettingsPage() {
 
     const rows = (data as KpiRow[]) || [];
 
-    // 팀 전체
     const teamRow = rows.find(r => r.scope === "team");
     setTeam(teamRow || makeEmpty(year, month, "team", "team"));
 
-    // 실행파트
     const em: Record<string, KpiRow> = {};
     EXEC_MEMBERS.forEach(name => {
       const r = rows.find(x => x.scope === "execution" && x.target_name === name);
@@ -130,7 +127,6 @@ export default function KpiSettingsPage() {
     });
     setExecMap(em);
 
-    // 운영파트
     const om: Record<string, KpiRow> = {};
     OPS_MEMBERS.forEach(name => {
       const r = rows.find(x => x.scope === "operation" && x.target_name === name);
@@ -150,7 +146,6 @@ export default function KpiSettingsPage() {
       ...OPS_MEMBERS.map(n  => ({ ...opsMap[n],  year, month, scope: "operation", target_name: n })),
     ];
 
-    // upsert (있으면 업데이트, 없으면 삽입)
     const { error } = await supabase
       .from("kpi_settings")
       .upsert(rows, { onConflict: "year,month,scope,target_name" });
@@ -164,7 +159,6 @@ export default function KpiSettingsPage() {
     }
   };
 
-  // 인증 체크 전 로딩
   if (!authChecked) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -173,7 +167,6 @@ export default function KpiSettingsPage() {
     );
   }
 
-  // 관리자 아닌 경우
   if (!user || user.role !== "admin") {
     return (
       <div className="flex flex-col items-center justify-center h-full text-slate-400 p-6">
@@ -196,7 +189,6 @@ export default function KpiSettingsPage() {
             <p className="text-xs text-slate-500 mt-0.5">대협팀 전체 및 개인별 월간 목표 설정</p>
           </div>
           <div className="flex items-center gap-2">
-            {/* 년/월 선택 */}
             <select value={year} onChange={e=>setYear(parseInt(e.target.value))}
               className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400">
               {[2025,2026,2027,2028].map(y => <option key={y} value={y}>{y}년</option>)}
@@ -238,15 +230,19 @@ export default function KpiSettingsPage() {
                 <span className="text-xs text-amber-600 ml-1">({year}년 {month}월)</span>
               </div>
               <div className="p-5 space-y-5">
-                {/* 주요 KPI */}
+                {/* 주요 KPI - 4개 필드 (분양회 매출 추가) */}
                 <div>
                   <p className="text-xs font-bold text-slate-600 mb-2.5 flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>주요 KPI
                   </p>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-4 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1.5">분양회 모집</label>
                       <CountInput value={team.recruit_count} onChange={v=>setTeam({...team, recruit_count: v})} unit="명"/>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1.5">분양회 매출(회비)</label>
+                      <MoneyInput value={team.bunyanghoe_revenue} onChange={v=>setTeam({...team, bunyanghoe_revenue: v})}/>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1.5">연계매출(하이타겟)</label>
@@ -264,7 +260,7 @@ export default function KpiSettingsPage() {
                   <p className="text-xs font-bold text-slate-600 mb-2.5 flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-400"/>부가 KPI
                   </p>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-4 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1.5 flex items-center gap-1">
                         <Truck size={11} className="text-slate-400"/>완판트럭
@@ -346,7 +342,7 @@ export default function KpiSettingsPage() {
               </div>
             </section>
 
-            {/* 하단 저장 버튼 (스크롤 많을 때 편의) */}
+            {/* 하단 저장 버튼 */}
             <div className="flex justify-end pb-4">
               <button
                 onClick={handleSaveAll}
