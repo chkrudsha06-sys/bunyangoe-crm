@@ -62,14 +62,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "CLOUDCONVERT_API_KEY 환경변수가 없습니다" }, { status: 500 });
     }
 
-    // 4. 맑은 고딕 폰트 파일 Base64 인코딩
-    const fontPath = path.join(process.cwd(), "public", "malgun.ttf");
-    let fontBase64 = "";
-    if (fs.existsSync(fontPath)) {
-      fontBase64 = fs.readFileSync(fontPath).toString("base64");
-    }
+    // 4. 폰트 URL 구성 (base64 대신 URL import 방식으로 변경)
+    //    - 13MB 폰트를 base64로 전송하면 Vercel 메모리 압박 + CloudConvert 업로드 타임아웃 발생
+    //    - URL import 방식은 CloudConvert가 직접 다운로드하므로 안정적
+    const host = req.headers.get("host");
+    const forwardedProto = req.headers.get("x-forwarded-proto");
+    const isLocal = !!host && (host.includes("localhost") || host.includes("127.0.0.1"));
+    const protocol = forwardedProto || (isLocal ? "http" : "https");
+    const fontUrl = host && !isLocal ? `${protocol}://${host}/malgun.ttf` : null;
 
-    // 5. Job 생성 (synchronous 방식 + 폰트 업로드)
+    // 5. Job 생성 (synchronous 방식)
     const tasks: Record<string, any> = {
       "upload-file": {
         operation: "import/base64",
@@ -89,11 +91,12 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    // 폰트 파일이 있으면 함께 업로드
-    if (fontBase64) {
+    // 프로덕션(Vercel)에서만 폰트 URL import 추가
+    // - 로컬은 CloudConvert가 접근 불가하므로 skip → LibreOffice 기본 한글 폰트 fallback
+    if (fontUrl) {
       tasks["upload-font"] = {
-        operation: "import/base64",
-        file: fontBase64,
+        operation: "import/url",
+        url: fontUrl,
         filename: "malgun.ttf",
       };
       tasks["convert-file"].input = ["upload-file", "upload-font"];
@@ -110,30 +113,52 @@ export async function POST(req: NextRequest) {
 
     if (!jobRes.ok) {
       const errBody = await jobRes.text();
-      console.error("CloudConvert 오류:", errBody);
+      console.error("CloudConvert HTTP 오류:", errBody);
       return NextResponse.json({ error: "CloudConvert 변환 실패: " + errBody }, { status: 500 });
     }
 
     const job = await jobRes.json();
 
-    // 5. 결과에서 PDF URL 추출 (다양한 응답 구조 처리)
+    // 6. 결과에서 PDF URL 추출
     const jobTasks = job.data?.tasks || job.tasks || [];
-    const exportTask = Array.isArray(jobTasks)
-      ? jobTasks.find((t: any) => t.name === "export-file" || t.operation === "export/url")
-      : Object.values(jobTasks as Record<string, any>).find((t: any) => t.operation === "export/url");
+    const taskArr: any[] = Array.isArray(jobTasks) ? jobTasks : Object.values(jobTasks);
+
+    const exportTask = taskArr.find(
+      (t: any) => t.name === "export-file" || t.operation === "export/url"
+    );
 
     const pdfUrl = exportTask?.result?.files?.[0]?.url
       || exportTask?.result?.url
-      || exportTask?.result?.files?.[0];
+      || (typeof exportTask?.result?.files?.[0] === "string" ? exportTask.result.files[0] : null);
 
     if (!pdfUrl) {
-      const debugInfo = JSON.stringify(job).substring(0, 500);
-      console.error("PDF URL 없음. 응답:", debugInfo);
-      return NextResponse.json({ error: `PDF URL을 찾을 수 없습니다. 응답: ${debugInfo}` }, { status: 500 });
+      // 실패한 태스크만 추려서 상세 로그 반환 (디버깅 편의성 개선)
+      const failedTasks = taskArr
+        .filter((t: any) => t.status === "error")
+        .map((t: any) => ({
+          name: t.name,
+          operation: t.operation,
+          code: t.code,
+          message: t.message,
+        }));
+
+      console.error("PDF URL 없음. 실패한 태스크:", failedTasks);
+
+      return NextResponse.json({
+        error: "PDF 변환에 실패했습니다.",
+        failedTasks,
+        hint: failedTasks.length > 0
+          ? `실패 단계: ${failedTasks.map(t => t.name).join(", ")}`
+          : "모든 태스크는 성공했으나 PDF URL을 찾을 수 없습니다.",
+      }, { status: 500 });
     }
 
-    // 6. PDF 다운로드 후 클라이언트에 전달
+    // 7. PDF 다운로드 후 클라이언트에 전달
     const pdfRes = await fetch(pdfUrl);
+    if (!pdfRes.ok) {
+      return NextResponse.json({ error: "PDF 다운로드 실패" }, { status: 500 });
+    }
+
     const pdfBuffer = await pdfRes.arrayBuffer();
 
     const filename = `광고인_견적서_${property}_${quoteDate}.pdf`;
