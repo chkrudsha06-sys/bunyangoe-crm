@@ -315,7 +315,7 @@ function WorkRequestBoard({ user }: { user: CRMUser | null }) {
   };
 
   return (
-    <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"260px"}}>
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"360px"}}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-slate-700">업무요청</h3>
         <button onClick={()=>setShowForm(v=>!v)}
@@ -413,7 +413,7 @@ function NoticeBoard({ user }: { user: CRMUser | null }) {
   };
 
   return (
-    <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"260px"}}>
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"360px"}}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-slate-700">공지사항</h3>
         {isAdmin && (
@@ -917,9 +917,9 @@ export default function DashboardPage() {
         </div>
 
         {/* 그래프 + KPI */}
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           {/* 매출실적 그래프 */}
-          <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"260px"}}>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"360px"}}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-slate-700">매출실적</h3>
               <div className="flex items-center gap-3 text-xs text-slate-400">
@@ -934,7 +934,7 @@ export default function DashboardPage() {
           </div>
 
           {/* KPI */}
-          <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"260px"}}>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"360px"}}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-slate-700">KPI</h3>
               <span className="text-xs text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100">설정 예정</span>
@@ -949,10 +949,10 @@ export default function DashboardPage() {
         </div>
 
         {/* 업무요청 + 공지사항 */}
-        <div className="grid grid-cols-5 gap-4">
-          {/* 업무요청 — col-span-3 (매출실적과 동일) */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* 업무요청 */}
           <WorkRequestBoard user={user}/>
-          {/* 공지사항 — col-span-2 (KPI와 동일) */}
+          {/* 공지사항 */}
           <NoticeBoard user={user}/>
         </div>
 
