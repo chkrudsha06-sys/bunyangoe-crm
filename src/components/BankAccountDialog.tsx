@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -85,85 +84,94 @@ export default function BankAccountDialog({
     onClose();
   };
 
+  const groupOrder: Bank["group"][] = ["major","local","foreign","saving","securities"];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      {/* 팝업 크기 확대: max-w-3xl (768px), 높이 최대 90vh */}
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-base font-bold text-slate-800">계좌정보 입력</h3>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
+          <h3 className="text-lg font-bold text-slate-800">계좌정보 입력</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-slate-100 text-slate-400">
-            <X size={18}/>
+            <X size={20}/>
           </button>
         </div>
 
-        {/* 본문 */}
-        <div className="p-5 space-y-4">
+        {/* 본문 - 스크롤 가능 */}
+        <div className="p-6 space-y-5 overflow-y-auto flex-1">
           {/* 예금주 */}
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">예금주</label>
             <input value={holder} onChange={e=>setHolder(e.target.value)}
               placeholder="예: 홍길동"
-              className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
+              className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
           </div>
 
-          {/* 은행코드 + 은행명 */}
-          <div className="grid grid-cols-5 gap-2">
+          {/* 은행코드 + 은행명 + 은행 검색창 */}
+          <div className="grid grid-cols-6 gap-3">
             <div className="col-span-2">
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">은행코드</label>
               <input value={bankCode} readOnly
                 placeholder="자동"
-                className="w-full px-3 py-2 text-sm bg-slate-100 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed text-center font-mono"/>
+                className="w-full px-3 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed text-center font-mono"/>
             </div>
-            <div className="col-span-3 relative" ref={listRef}>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">은행명</label>
+            <div className="col-span-4">
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">은행명 검색</label>
               <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
                 <input
                   value={query}
                   onChange={e => {
                     setQuery(e.target.value);
-                    setShowList(true);
-                    // 입력 중에는 아직 확정 X (리스트에서 선택 시 확정)
                     const match = findBankByName(e.target.value);
                     if (match) { setBankCode(match.code); setBankName(match.name); }
                     else { setBankCode(""); setBankName(""); }
                   }}
-                  onFocus={() => setShowList(true)}
-                  placeholder="은행명 검색"
-                  className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"
+                  placeholder="은행명 또는 코드로 검색"
+                  className="w-full pl-9 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"
                 />
               </div>
+            </div>
+          </div>
 
-              {/* 은행 리스트 드롭다운 */}
-              {showList && (
-                <div className="absolute z-10 top-full left-0 right-0 mt-1 max-h-72 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-xl">
-                  {filtered.length === 0 ? (
-                    <div className="px-3 py-4 text-center text-xs text-slate-400">검색 결과 없음</div>
-                  ) : (
-                    (["major","local","foreign","saving","securities"] as Bank["group"][]).map(g => {
-                      const list = grouped[g];
-                      if (!list || list.length === 0) return null;
-                      return (
-                        <div key={g}>
-                          <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 bg-slate-50 sticky top-0">
-                            {GROUP_LABELS[g]}
-                          </div>
-                          {list.map(b => (
-                            <button key={b.code}
-                              onClick={() => pickBank(b)}
-                              className="w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-blue-50 transition-colors">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[11px] font-mono text-slate-400 w-8">{b.code}</span>
-                                <span className="text-slate-700">{b.name}</span>
-                              </div>
-                              {bankCode === b.code && <Check size={14} className="text-blue-500"/>}
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+          {/* 은행 리스트 - 2열 그리드로 많이 보이도록 */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+              은행 선택 {filtered.length > 0 && <span className="text-slate-400 font-normal">({filtered.length}개)</span>}
+            </label>
+            <div ref={listRef} className="border border-slate-200 rounded-lg bg-white h-[320px] overflow-y-auto">
+              {filtered.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-sm text-slate-400">검색 결과 없음</div>
+              ) : (
+                groupOrder.map(g => {
+                  const list = grouped[g];
+                  if (!list || list.length === 0) return null;
+                  return (
+                    <div key={g}>
+                      <div className="px-3 py-1.5 text-[11px] font-bold text-slate-500 bg-slate-50 sticky top-0 border-b border-slate-100">
+                        {GROUP_LABELS[g]}
+                      </div>
+                      <div className="grid grid-cols-2 gap-0">
+                        {list.map(b => (
+                          <button key={b.code}
+                            onClick={() => pickBank(b)}
+                            className={`flex items-center justify-between px-3 py-2.5 text-sm text-left border-b border-slate-100 transition-colors ${
+                              bankCode === b.code
+                                ? "bg-blue-50 text-blue-700 font-semibold"
+                                : "hover:bg-slate-50 text-slate-700"
+                            }`}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-mono text-slate-400 w-8">{b.code}</span>
+                              <span>{b.name}</span>
+                            </div>
+                            {bankCode === b.code && <Check size={14} className="text-blue-500 flex-shrink-0"/>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -173,18 +181,18 @@ export default function BankAccountDialog({
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">계좌번호</label>
             <input value={account} onChange={e=>setAccount(e.target.value)}
               placeholder="예: 123-456-789012"
-              className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 font-mono"/>
+              className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 font-mono"/>
           </div>
         </div>
 
         {/* 푸터 */}
-        <div className="flex items-center justify-end gap-2 px-5 py-4 bg-slate-50 border-t border-slate-100">
+        <div className="flex items-center justify-end gap-2 px-6 py-4 bg-slate-50 border-t border-slate-100 flex-shrink-0">
           <button onClick={onClose}
-            className="px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100">
+            className="px-5 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100">
             취소
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="px-5 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            className="px-6 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
             {saving ? "저장 중..." : "완료"}
           </button>
         </div>
