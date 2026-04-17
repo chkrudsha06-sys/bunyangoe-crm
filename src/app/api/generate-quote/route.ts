@@ -3,6 +3,9 @@ import ExcelJS from "exceljs";
 import path from "path";
 import fs from "fs";
 
+// Vercel 함수 최대 실행시간 설정
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -33,9 +36,7 @@ export async function POST(req: NextRequest) {
     set(5, 7, clientCeo);
     set(6, 3, clientMgr);
     set(6, 7, clientPhone);
-    const dateObj = new Date(quoteDate);
-    set(10, 7, dateObj);
-    ws.getCell(10, 7).numFmt = "yyyy-mm-dd";
+    set(10, 7, quoteDate);
 
     if (items && items.length > 0) {
       const it = items[0];
@@ -51,18 +52,18 @@ export async function POST(req: NextRequest) {
       set(16, 3, it.region2);
     }
 
-    // 2. Excel → Buffer
+    // 2. Excel → Buffer → Base64
     const excelBuffer = await workbook.xlsx.writeBuffer();
     const excelBase64 = Buffer.from(excelBuffer).toString("base64");
 
-    // 3. CloudConvert API로 Excel → PDF 변환
+    // 3. CloudConvert API 키 확인
     const apiKey = process.env.CLOUDCONVERT_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "API 키가 없습니다" }, { status: 500 });
+      return NextResponse.json({ error: "CLOUDCONVERT_API_KEY 환경변수가 없습니다" }, { status: 500 });
     }
 
-    // Job 생성
-    const jobRes = await fetch("https://api.cloudconvert.com/v2/jobs", {
+    // 4. Job 생성 (synchronous 방식으로 변경)
+    const jobRes = await fetch("https://sync.api.cloudconvert.com/v2/jobs", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -87,42 +88,27 @@ export async function POST(req: NextRequest) {
             input: "convert-file",
           },
         },
-        tag: "bunyangoe-crm",
       }),
     });
 
+    if (!jobRes.ok) {
+      const errBody = await jobRes.text();
+      console.error("CloudConvert 오류:", errBody);
+      return NextResponse.json({ error: "CloudConvert 변환 실패: " + errBody }, { status: 500 });
+    }
+
     const job = await jobRes.json();
 
-    if (!jobRes.ok) {
-      console.error("CloudConvert job 생성 실패:", job);
-      return NextResponse.json({ error: "변환 작업 생성 실패" }, { status: 500 });
-    }
-
-    const jobId = job.data.id;
-
-    // 4. 완료 대기 (최대 30초 폴링)
-    let pdfUrl = "";
-    for (let i = 0; i < 15; i++) {
-      await new Promise(r => setTimeout(r, 2000));
-      const statusRes = await fetch(`https://api.cloudconvert.com/v2/jobs/${jobId}`, {
-        headers: { "Authorization": `Bearer ${apiKey}` },
-      });
-      const status = await statusRes.json();
-      const exportTask = status.data?.tasks?.find((t: any) => t.name === "export-file");
-      if (exportTask?.status === "finished") {
-        pdfUrl = exportTask.result?.files?.[0]?.url;
-        break;
-      }
-      if (status.data?.status === "error") {
-        return NextResponse.json({ error: "변환 중 오류 발생" }, { status: 500 });
-      }
-    }
+    // 5. 결과에서 PDF URL 추출
+    const exportTask = job.data?.tasks?.find((t: any) => t.name === "export-file");
+    const pdfUrl = exportTask?.result?.files?.[0]?.url;
 
     if (!pdfUrl) {
-      return NextResponse.json({ error: "변환 시간 초과" }, { status: 500 });
+      console.error("PDF URL 없음:", JSON.stringify(job.data));
+      return NextResponse.json({ error: "PDF URL을 찾을 수 없습니다" }, { status: 500 });
     }
 
-    // 5. PDF 다운로드 후 클라이언트에 전달
+    // 6. PDF 다운로드 후 클라이언트에 전달
     const pdfRes = await fetch(pdfUrl);
     const pdfBuffer = await pdfRes.arrayBuffer();
 
