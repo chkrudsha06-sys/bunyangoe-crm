@@ -116,13 +116,20 @@ export async function POST(req: NextRequest) {
 
     const job = await jobRes.json();
 
-    // 5. 결과에서 PDF URL 추출
-    const exportTask = job.data?.tasks?.find((t: any) => t.name === "export-file");
-    const pdfUrl = exportTask?.result?.files?.[0]?.url;
+    // 5. 결과에서 PDF URL 추출 (다양한 응답 구조 처리)
+    const tasks = job.data?.tasks || job.tasks || [];
+    const exportTask = Array.isArray(tasks)
+      ? tasks.find((t: any) => t.name === "export-file" || t.operation === "export/url")
+      : Object.values(tasks as Record<string, any>).find((t: any) => t.operation === "export/url");
+
+    const pdfUrl = exportTask?.result?.files?.[0]?.url
+      || exportTask?.result?.url
+      || exportTask?.result?.files?.[0];
 
     if (!pdfUrl) {
-      console.error("PDF URL 없음:", JSON.stringify(job.data));
-      return NextResponse.json({ error: "PDF URL을 찾을 수 없습니다" }, { status: 500 });
+      const debugInfo = JSON.stringify(job).substring(0, 500);
+      console.error("PDF URL 없음. 응답:", debugInfo);
+      return NextResponse.json({ error: `PDF URL을 찾을 수 없습니다. 응답: ${debugInfo}` }, { status: 500 });
     }
 
     // 6. PDF 다운로드 후 클라이언트에 전달
