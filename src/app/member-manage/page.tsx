@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { Shield, Phone, Calendar, Search, Copy, Check } from "lucide-react";
+import { Shield, Phone, Calendar, Search, Copy, Check, Edit3 } from "lucide-react";
 import BankAccountDialog from "@/components/BankAccountDialog";
 
 // 성씨 스티커 색상 — 분양회 입회자와 동일하게 통일
@@ -32,6 +32,76 @@ interface VipContact {
   bank_code: string | null;
   bank_name: string | null;
   bank_account: string | null;
+}
+
+// ─── 넘버링 편집 셀 ("B-" 고정 프리픽스 + 숫자만 편집) ───
+function NumberingCell({ value, contactId, onSaved }: {
+  value: string | null; contactId: number; onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // 기존값에서 "B-" 접두어 제거해 숫자만 추출
+  const stripPrefix = (v: string | null): string => {
+    if (!v) return "";
+    return v.startsWith("B-") ? v.slice(2) : v;
+  };
+
+  const displayValue = value ? (value.startsWith("B-") ? value : `B-${value}`) : null;
+
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  const save = async () => {
+    // 숫자 외 문자 제거
+    const clean = val.trim().replace(/[^0-9]/g, "");
+    // DB 저장값: "B-" 포함 풀스트링 (빈값이면 null)
+    const saveVal = clean ? `B-${clean}` : null;
+
+    await supabase.from("contacts")
+      .update({ bunyanghoe_number: saveVal })
+      .eq("id", contactId);
+    setEditing(false);
+    onSaved();
+  };
+
+  const cancel = () => {
+    setVal(stripPrefix(value));
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center justify-center gap-0.5">
+        <span className="text-sm font-black text-amber-600 flex-shrink-0">B-</span>
+        <input ref={inputRef} value={val}
+          onChange={e => setVal(e.target.value.replace(/[^0-9]/g, ""))}
+          onBlur={save}
+          onKeyDown={e => {
+            if (e.key === "Enter") save();
+            if (e.key === "Escape") cancel();
+          }}
+          placeholder="001"
+          className="w-14 px-1 py-0.5 text-sm font-black text-amber-600 border border-amber-400 rounded outline-none bg-white text-center"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => { setVal(stripPrefix(value)); setEditing(true); }}
+      className={`group inline-flex items-center gap-1 px-2 py-0.5 rounded hover:bg-amber-50 transition-colors ${
+        !displayValue ? "border border-dashed border-slate-300" : ""
+      }`}
+      title="클릭하여 넘버링 편집"
+    >
+      <span className={`text-sm font-black ${displayValue ? "text-amber-600" : "text-slate-300"}`}>
+        {displayValue || "B-___"}
+      </span>
+      <Edit3 size={10} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"/>
+    </button>
+  );
 }
 
 // 계좌 필드 셀 (예금주/은행코드/은행명): 클릭 시 팝업 오픈
@@ -110,7 +180,6 @@ function AccountNumberCell({
           {hasValue ? value : "계좌번호"}
         </button>
 
-        {/* 복사 버튼 - 계좌번호 있을 때만 표시 */}
         {hasValue && (
           <button
             onClick={handleCopy}
@@ -142,6 +211,16 @@ function AccountNumberCell({
   );
 }
 
+// ─── 넘버링 숫자 추출 (정렬용) ───
+//  - "B-123" → 123
+//  - null/빈값 → Infinity (가장 뒤로)
+function bunNumValue(n: string | null): number {
+  if (!n) return Infinity;
+  const m = n.match(/\d+/);
+  if (!m) return Infinity;
+  return parseInt(m[0], 10);
+}
+
 export default function MemberManagePage() {
   const [contacts, setContacts] = useState<VipContact[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -157,12 +236,16 @@ export default function MemberManagePage() {
     setLoading(true);
     let q = supabase.from("contacts")
       .select("id,name,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_code,bank_name,bank_account")
-      .in("meeting_result",["계약완료","예약완료"])
-      .order("bunyanghoe_number",{ascending:true});
+      .in("meeting_result",["계약완료","예약완료"]);
     if (filterMember) q = q.eq("assigned_to", filterMember);
     if (filterStatus) q = q.eq("meeting_result", filterStatus);
     const { data } = await q;
-    setContacts((data as VipContact[]) || []);
+
+    // 무조건 넘버링 오름차순 정렬 (1번부터 → 미입력은 맨 뒤)
+    const sorted = ((data as VipContact[]) || []).sort((a, b) =>
+      bunNumValue(a.bunyanghoe_number) - bunNumValue(b.bunyanghoe_number)
+    );
+    setContacts(sorted);
     setLoading(false);
   };
 
@@ -242,10 +325,9 @@ export default function MemberManagePage() {
               <tbody>
                 {filtered.map((c) => (
                   <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    {/* ─── 넘버링: 편집 가능 ─── */}
                     <td className="px-3 py-3 text-center align-middle">
-                      <span className="text-sm font-black text-amber-600">
-                        {c.bunyanghoe_number ? (c.bunyanghoe_number.startsWith("B-") ? c.bunyanghoe_number : `B-${c.bunyanghoe_number}`) : "-"}
-                      </span>
+                      <NumberingCell value={c.bunyanghoe_number} contactId={c.id} onSaved={fetchMembers}/>
                     </td>
                     <td className="px-3 py-3 text-center align-middle">
                       <div className="flex items-center justify-center gap-2">
@@ -278,7 +360,6 @@ export default function MemberManagePage() {
                     <td className="px-3 py-3 text-center align-middle">
                       <AccountFieldCell contact={c} field="bank_name" placeholder="은행명" onSaved={fetchMembers}/>
                     </td>
-                    {/* 계좌번호 + 복사 버튼 */}
                     <td className="px-3 py-3 text-center align-middle">
                       <AccountNumberCell contact={c} onSaved={fetchMembers}/>
                     </td>
