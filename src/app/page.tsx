@@ -323,9 +323,45 @@ function KpiItem({ label, target, actual, unit, isMoney }: {
   );
 }
 
+// ── 당월 KPI 달성치 계산에 사용할 상수 ──
+const SPECIAL_CHANNELS = ["LMS", "호갱노노_채널톡", "호갱노노_단지마커", "호갱노노_기타", "호갱노노"];
+// 운영파트 담당자 → 담당 실행파트 멤버 매핑
+const OPS_MAPPING: Record<string, string[]> = {
+  "김재영": ["이세호", "기여운"],
+  "최은정": ["조계현", "최연전"],
+};
+
+// 실효금액: VAT포함금액 있으면 그것, 없으면 집행금액
+function effAmt(e: { vat_amount: number | null; execution_amount: number | null }): number {
+  if (e.vat_amount && e.vat_amount > 0) return e.vat_amount;
+  return e.execution_amount || 0;
+}
+
+// KPI 달성치 묶음
+interface Actuals {
+  // 팀 전체
+  teamRecruit: number;
+  teamBunyanghoeRev: number;
+  teamLinkedRev: number;
+  teamSpecialRev: number;
+  teamWanpan: number;
+  // 개인 (실행파트)
+  myRecruit: number;
+  myBunyanghoeRev: number;
+  myLinkedRev: number;
+  // 개인 (운영파트)
+  myAdOperationRev: number;
+}
+
 function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
   const [team, setTeam] = useState<KpiRow | null>(null);
   const [mine, setMine] = useState<KpiRow | null>(null);
+  const [actuals, setActuals] = useState<Actuals>({
+    teamRecruit: 0, teamBunyanghoeRev: 0, teamLinkedRev: 0,
+    teamSpecialRev: 0, teamWanpan: 0,
+    myRecruit: 0, myBunyanghoeRev: 0, myLinkedRev: 0,
+    myAdOperationRev: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -335,7 +371,12 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
       const now = new Date();
       const year = now.getFullYear();
       const month = now.getMonth() + 1;
+      const monthStr = String(month).padStart(2,"0");
+      const lastDay = new Date(year, month, 0).getDate();
+      const monthStart = `${year}-${monthStr}-01`;
+      const monthEnd   = `${year}-${monthStr}-${String(lastDay).padStart(2,"0")}`;
 
+      // ── 1. KPI 목표 로드 ──
       const { data: t } = await supabase.from("kpi_settings")
         .select("*")
         .eq("year", year).eq("month", month)
@@ -354,13 +395,89 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
       } else {
         setMine(null);
       }
+
+      // ── 2. 매출 데이터 로드 (당월, ad_executions) ──
+      const { data: execRows = [] } = await supabase.from("ad_executions")
+        .select("id,execution_amount,vat_amount,channel,contract_route,payment_date,team_member")
+        .gte("payment_date", monthStart)
+        .lte("payment_date", monthEnd);
+      const execs = (execRows || []) as any[];
+
+      // ── 3. 분양회 모집 데이터 로드 (contacts) ──
+      const { data: contactRows = [] } = await supabase.from("contacts")
+        .select("id,assigned_to,meeting_result,contract_date,reservation_date")
+        .in("meeting_result", ["계약완료","예약완료"]);
+      const contacts = (contactRows || []) as any[];
+
+      // ── 4. 당월 계약/예약일 필터 ──
+      const inMonth = (c: any): boolean => {
+        const date = c.meeting_result === "계약완료" ? c.contract_date : c.reservation_date;
+        if (!date) return false;
+        return date >= monthStart && date <= monthEnd;
+      };
+
+      // ── 5. 달성치 계산 ──
+      // 팀 전체 - 분양회 모집 (계약완료 + 예약완료 당월)
+      const teamRecruit = contacts.filter(inMonth).length;
+
+      // 팀 전체 - 분양회 매출(회비)
+      const teamBunyanghoeRev = execs
+        .filter(e => e.contract_route === "분양회")
+        .filter(e => e.channel === "분양회 입회비" || e.channel === "분양회 월회비")
+        .reduce((s, e) => s + effAmt(e), 0);
+
+      // 팀 전체 - 연계매출(하이타겟)
+      const teamLinkedRev = execs
+        .filter(e => e.channel === "하이타겟")
+        .reduce((s, e) => s + effAmt(e), 0);
+
+      // 팀 전체 - 특전매출 (분양회 매출구분 + 호갱/LMS 채널)
+      const teamSpecialRev = execs
+        .filter(e => e.contract_route === "분양회")
+        .filter(e => SPECIAL_CHANNELS.includes(e.channel))
+        .reduce((s, e) => s + effAmt(e), 0);
+
+      // 팀 전체 - 완판트럭 (별도 로직 미정 → 0)
+      const teamWanpan = 0;
+
+      // 개인 (실행파트)
+      let myRecruit = 0, myBunyanghoeRev = 0, myLinkedRev = 0, myAdOperationRev = 0;
+      if (user.role === "exec") {
+        myRecruit = contacts
+          .filter(c => c.assigned_to === user.name)
+          .filter(inMonth).length;
+
+        myBunyanghoeRev = execs
+          .filter(e => e.team_member === user.name)
+          .filter(e => e.contract_route === "분양회")
+          .filter(e => e.channel === "분양회 입회비" || e.channel === "분양회 월회비")
+          .reduce((s, e) => s + effAmt(e), 0);
+
+        myLinkedRev = execs
+          .filter(e => e.team_member === user.name)
+          .filter(e => e.channel === "하이타겟")
+          .reduce((s, e) => s + effAmt(e), 0);
+      }
+
+      // 개인 (운영파트) - 광고특전운영매출
+      if (user.role === "ops") {
+        const targetMembers = OPS_MAPPING[user.name] || [];
+        myAdOperationRev = execs
+          .filter(e => targetMembers.includes(e.team_member))
+          .filter(e => e.contract_route === "분양회")
+          .filter(e => SPECIAL_CHANNELS.includes(e.channel))
+          .reduce((s, e) => s + effAmt(e), 0);
+      }
+
+      setActuals({
+        teamRecruit, teamBunyanghoeRev, teamLinkedRev, teamSpecialRev, teamWanpan,
+        myRecruit, myBunyanghoeRev, myLinkedRev, myAdOperationRev,
+      });
+
       setLoading(false);
     };
     load();
   }, [user]);
-
-  // 달성치 로직은 추후 구현 예정
-  const actual = 0;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full">
@@ -386,15 +503,15 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
 
             <div className="text-xs font-bold text-slate-500 mb-2">주요 KPI</div>
             <div className="grid grid-cols-2 gap-2 mb-3">
-              <KpiItem label="분양회 모집"       target={team?.recruit_count       ?? 0} actual={actual} unit="명"/>
-              <KpiItem label="분양회 매출(회비)"  target={team?.bunyanghoe_revenue  ?? 0} actual={actual} unit="원" isMoney/>
-              <KpiItem label="연계매출(하이타겟)" target={team?.linked_revenue      ?? 0} actual={actual} unit="원" isMoney/>
-              <KpiItem label="특전매출"           target={team?.special_revenue     ?? 0} actual={actual} unit="원" isMoney/>
+              <KpiItem label="분양회 모집"       target={team?.recruit_count       ?? 0} actual={actuals.teamRecruit}       unit="명"/>
+              <KpiItem label="분양회 매출(회비)"  target={team?.bunyanghoe_revenue  ?? 0} actual={actuals.teamBunyanghoeRev} unit="원" isMoney/>
+              <KpiItem label="연계매출(하이타겟)" target={team?.linked_revenue      ?? 0} actual={actuals.teamLinkedRev}     unit="원" isMoney/>
+              <KpiItem label="특전매출"           target={team?.special_revenue     ?? 0} actual={actuals.teamSpecialRev}    unit="원" isMoney/>
             </div>
 
             <div className="text-xs font-bold text-slate-500 mb-2">부가 KPI</div>
             <div className="grid grid-cols-2 gap-2">
-              <KpiItem label="완판트럭"           target={team?.wanpan_truck_count  ?? 0} actual={actual} unit="건"/>
+              <KpiItem label="완판트럭"           target={team?.wanpan_truck_count  ?? 0} actual={actuals.teamWanpan}        unit="건"/>
             </div>
           </div>
 
@@ -410,13 +527,13 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
 
             {user?.role === "exec" ? (
               <div className="grid grid-cols-2 gap-2">
-                <KpiItem label="분양회 모집"       target={mine?.recruit_count      ?? 0} actual={actual} unit="명"/>
-                <KpiItem label="분양회 매출(회비)"  target={mine?.bunyanghoe_revenue ?? 0} actual={actual} unit="원" isMoney/>
-                <KpiItem label="연계매출"          target={mine?.linked_revenue     ?? 0} actual={actual} unit="원" isMoney/>
+                <KpiItem label="분양회 모집"       target={mine?.recruit_count      ?? 0} actual={actuals.myRecruit}         unit="명"/>
+                <KpiItem label="분양회 매출(회비)"  target={mine?.bunyanghoe_revenue ?? 0} actual={actuals.myBunyanghoeRev}   unit="원" isMoney/>
+                <KpiItem label="연계매출"          target={mine?.linked_revenue     ?? 0} actual={actuals.myLinkedRev}       unit="원" isMoney/>
               </div>
             ) : user?.role === "ops" ? (
               <div className="grid grid-cols-2 gap-2">
-                <KpiItem label="광고특전운영매출" target={mine?.ad_operation_revenue ?? 0} actual={actual} unit="원" isMoney/>
+                <KpiItem label="광고특전운영매출" target={mine?.ad_operation_revenue ?? 0} actual={actuals.myAdOperationRev} unit="원" isMoney/>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-6 text-center">
