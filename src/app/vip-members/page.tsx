@@ -33,7 +33,6 @@ interface VipContact {
   bank_account: string | null;
 }
 
-// ─── 넘버링 숫자 추출 (정렬용) ───
 function bunNumValue(n: string | null): number {
   if (!n) return Infinity;
   const m = n.match(/\d+/);
@@ -41,7 +40,7 @@ function bunNumValue(n: string | null): number {
   return parseInt(m[0], 10);
 }
 
-// 계좌정보 셀 — 클릭 시 팝업 오픈 + 복사 버튼
+// 계좌정보 셀 — 글씨체 통일 + 복사 버튼
 function AccountInfoCell({ contact, onSaved }: { contact: VipContact; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -74,7 +73,7 @@ function AccountInfoCell({ contact, onSaved }: { contact: VipContact; onSaved: (
                 <CreditCard size={11} className="text-blue-500"/>
                 <span>{contact.bank_holder || "예금주 미입력"}</span>
               </div>
-              <div className="text-[11px] text-slate-500 font-mono truncate">
+              <div className="text-[11px] text-slate-500 truncate">
                 {contact.bank_name || "-"} {contact.bank_account || ""}
               </div>
             </div>
@@ -131,7 +130,6 @@ function VipTable({ title, color, rows, onSaved, fmtBun }: {
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
-      {/* 섹션 헤더 */}
       <div className={`flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 ${cc.header} flex-shrink-0`}>
         <div className="flex items-center gap-2">
           <div className={`w-2.5 h-2.5 rounded-full ${cc.dot}`}/>
@@ -140,7 +138,6 @@ function VipTable({ title, color, rows, onSaved, fmtBun }: {
         </div>
       </div>
 
-      {/* 테이블 본문 - 내부 스크롤 */}
       {rows.length === 0 ? (
         <div className="py-8 text-center text-slate-300 text-sm">데이터가 없습니다</div>
       ) : (
@@ -222,7 +219,6 @@ export default function VipMembersPage() {
     if (filterStatus) q = q.eq("meeting_result", filterStatus);
     const { data } = await q;
 
-    // 무조건 넘버링 오름차순 정렬 (1번부터 → 미입력은 맨 뒤)
     const sorted = ((data as VipContact[]) || []).sort((a, b) =>
       bunNumValue(a.bunyanghoe_number) - bunNumValue(b.bunyanghoe_number)
     );
