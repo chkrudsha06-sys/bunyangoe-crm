@@ -295,7 +295,7 @@ export default function LoginPage() {
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "28px 52px", zIndex: 10,
+        padding: "28px 52px", zIndex: 40,
         background: "linear-gradient(to bottom,rgba(0,0,0,0.4) 0%,transparent 100%)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
