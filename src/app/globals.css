@@ -39,7 +39,25 @@ body {
   background-color: var(--bg);
   color: var(--text);
   font-family: 'Apple SD Gothic Neo', 'Pretendard', 'Noto Sans KR', sans-serif;
+  transition: filter 0.3s ease;
 }
+
+/* ═══ 다크모드 (CSS 필터 반전) ═══ */
+body.dark-mode {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+
+/* 이미지, 비디오, 아바타 등은 반전 취소 (원래대로) */
+body.dark-mode img,
+body.dark-mode video,
+body.dark-mode svg,
+body.dark-mode [data-no-invert] {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* 다크모드에서 배경색 보정 */
+body.dark-mode ::-webkit-scrollbar-track { background: transparent; }
+body.dark-mode ::-webkit-scrollbar-thumb { background: #555; }
 
 /* 스크롤바 */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
