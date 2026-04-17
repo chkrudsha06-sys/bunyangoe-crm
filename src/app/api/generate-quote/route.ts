@@ -117,10 +117,10 @@ export async function POST(req: NextRequest) {
     const job = await jobRes.json();
 
     // 5. 결과에서 PDF URL 추출 (다양한 응답 구조 처리)
-    const tasks = job.data?.tasks || job.tasks || [];
-    const exportTask = Array.isArray(tasks)
-      ? tasks.find((t: any) => t.name === "export-file" || t.operation === "export/url")
-      : Object.values(tasks as Record<string, any>).find((t: any) => t.operation === "export/url");
+    const jobTasks = job.data?.tasks || job.tasks || [];
+    const exportTask = Array.isArray(jobTasks)
+      ? jobTasks.find((t: any) => t.name === "export-file" || t.operation === "export/url")
+      : Object.values(jobTasks as Record<string, any>).find((t: any) => t.operation === "export/url");
 
     const pdfUrl = exportTask?.result?.files?.[0]?.url
       || exportTask?.result?.url
