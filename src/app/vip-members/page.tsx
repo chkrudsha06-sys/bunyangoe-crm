@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { Award, Phone, Calendar, Search, Copy, Check } from "lucide-react";
+import { Award, Phone, Calendar, Search, CreditCard } from "lucide-react";
+import BankAccountDialog from "@/components/BankAccountDialog";
+import { findBankByCode } from "@/lib/banks";
 
 const SURNAME_COLORS: Record<string,string> = {
   "김":"bg-blue-500","이":"bg-violet-500","박":"bg-emerald-500","최":"bg-rose-500","정":"bg-amber-500","강":"bg-cyan-500",
@@ -27,56 +29,62 @@ interface VipContact {
   memo: string | null;
   bunyanghoe_number: string | null;
   bank_holder: string | null;
+  bank_code: string | null;
   bank_name: string | null;
   bank_account: string | null;
 }
 
-function EditableCell({ value, contactId, field, placeholder, onSaved }: {
-  value: string | null; contactId: number; field: string; placeholder: string; onSaved: () => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(value || "");
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
-  const save = async () => {
-    await supabase.from("contacts").update({ [field]: val || null }).eq("id", contactId);
-    setEditing(false); onSaved();
-  };
-  if (editing) return (
-    <input ref={inputRef} value={val} onChange={e => setVal(e.target.value)}
-      onBlur={save} onKeyDown={e => { if (e.key==="Enter") save(); if (e.key==="Escape") setEditing(false); }}
-      placeholder={placeholder}
-      className="w-full min-w-[80px] px-2 py-1 text-sm border border-blue-400 rounded-lg outline-none bg-white"/>
-  );
+// 계좌정보 셀 — 클릭 시 팝업 오픈
+function AccountInfoCell({ contact, onSaved }: { contact: VipContact; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const hasAccount = !!(contact.bank_holder || contact.bank_name || contact.bank_account);
+
   return (
-    <span onClick={() => { setVal(value||""); setEditing(true); }}
-      className={`text-sm cursor-pointer px-1 py-0.5 rounded hover:bg-slate-100 ${value?"text-slate-700":"text-slate-300"}`}>
-      {value || placeholder}
-    </span>
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className={`w-full min-w-[150px] max-w-[220px] px-3 py-2 text-xs rounded-lg border text-left transition-colors ${
+          hasAccount
+            ? "bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50"
+            : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200"
+        }`}
+        title="클릭하여 계좌정보 입력/편집"
+      >
+        {hasAccount ? (
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-1 font-semibold text-slate-700">
+              <CreditCard size={11} className="text-blue-500"/>
+              <span>{contact.bank_holder || "예금주 미입력"}</span>
+            </div>
+            <div className="text-[11px] text-slate-500 font-mono truncate">
+              {contact.bank_name || "-"} {contact.bank_account || ""}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center gap-1.5 text-slate-400">
+            <CreditCard size={12}/>
+            <span>계좌정보 입력</span>
+          </div>
+        )}
+      </button>
+
+      <BankAccountDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        contactId={contact.id}
+        initial={{
+          bank_holder:  contact.bank_holder,
+          bank_code:    contact.bank_code,
+          bank_name:    contact.bank_name,
+          bank_account: contact.bank_account,
+        }}
+        onSaved={onSaved}
+      />
+    </>
   );
 }
 
-function AccountCell({ value, contactId, onSaved }: { value: string|null; contactId: number; onSaved: ()=>void }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!value) return;
-    navigator.clipboard.writeText(value).then(() => { setCopied(true); setTimeout(()=>setCopied(false),1500); });
-  };
-  return (
-    <div className="flex items-center justify-center gap-1">
-      <EditableCell value={value} contactId={contactId} field="bank_account" placeholder="계좌번호" onSaved={onSaved}/>
-      {value && (
-        <button onClick={handleCopy} className={`p-1 rounded ${copied?"text-emerald-500":"text-slate-400 hover:text-blue-500"}`}>
-          {copied ? <Check size={11}/> : <Copy size={11}/>}
-        </button>
-      )}
-    </div>
-  );
-}
-
-
-const TH_COLS = ["넘버링","고객명","연락처","담당컨설턴트","대협팀담당자","완료일","예금주","은행명","계좌번호","메모"];
+const TH_COLS = ["넘버링","고객명","연락처","담당컨설턴트","대협팀담당자","완료일","계좌정보","메모"];
 
 function VipTable({ title, color, rows, onSaved, fmtBun }: {
   title: string; color: "emerald"|"blue";
@@ -150,14 +158,11 @@ function VipTable({ title, color, rows, onSaved, fmtBun }: {
                       : "-"}
                   </span>
                 </td>
+                {/* 계좌정보 — 통합 셀 (클릭 시 팝업) */}
                 <td className="px-3 py-3 text-center align-middle">
-                  <EditableCell value={c.bank_holder} contactId={c.id} field="bank_holder" placeholder="예금주" onSaved={onSaved}/>
-                </td>
-                <td className="px-3 py-3 text-center align-middle">
-                  <EditableCell value={c.bank_name} contactId={c.id} field="bank_name" placeholder="은행명" onSaved={onSaved}/>
-                </td>
-                <td className="px-3 py-3 text-center align-middle">
-                  <AccountCell value={c.bank_account} contactId={c.id} onSaved={onSaved}/>
+                  <div className="flex justify-center">
+                    <AccountInfoCell contact={c} onSaved={onSaved}/>
+                  </div>
                 </td>
                 <td className="px-3 py-3 text-center align-middle max-w-[160px]">
                   <p className="text-sm text-slate-500 truncate">{c.memo||"-"}</p>
@@ -191,7 +196,7 @@ export default function VipMembersPage() {
   const fetchVipMembers = async () => {
     setLoading(true);
     let q = supabase.from("contacts")
-      .select("id,name,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_name,bank_account")
+      .select("id,name,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_code,bank_name,bank_account")
       .in("meeting_result",["계약완료","예약완료"])
       .order("created_at",{ascending:false});
     if (filterMember) q = q.eq("assigned_to", filterMember);
