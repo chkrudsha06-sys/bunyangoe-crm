@@ -1,8 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Shield, Phone, Calendar, Search, Copy, Check } from "lucide-react";
+import { Shield, Phone, Calendar, Search, CreditCard } from "lucide-react";
+import BankAccountDialog from "@/components/BankAccountDialog";
+
+// 성씨 스티커 색상 — 분양회 입회자와 동일하게 통일
+const SURNAME_COLORS: Record<string,string> = {
+  "김":"bg-blue-500","이":"bg-violet-500","박":"bg-emerald-500","최":"bg-rose-500","정":"bg-amber-500","강":"bg-cyan-500",
+  "조":"bg-indigo-500","윤":"bg-pink-500","장":"bg-orange-500","임":"bg-teal-500","한":"bg-sky-500","오":"bg-purple-500",
+  "서":"bg-red-500","신":"bg-lime-600","권":"bg-fuchsia-500","황":"bg-yellow-600","안":"bg-blue-600","송":"bg-green-600",
+  "류":"bg-indigo-600","전":"bg-rose-600","홍":"bg-red-400","고":"bg-cyan-600","문":"bg-violet-600","양":"bg-amber-600",
+  "손":"bg-emerald-600","배":"bg-sky-600","백":"bg-slate-500","허":"bg-pink-600","남":"bg-teal-600","유":"bg-orange-600",
+};
+function getAvatarColor(n: string): string {
+  return (n && SURNAME_COLORS[n[0]]) ? SURNAME_COLORS[n[0]] : "bg-slate-400";
+}
 
 interface VipContact {
   id: number;
@@ -16,68 +29,55 @@ interface VipContact {
   memo: string | null;
   bunyanghoe_number: string | null;
   bank_holder: string | null;
+  bank_code: string | null;
   bank_name: string | null;
   bank_account: string | null;
 }
 
-// 인라인 편집 셀
-function EditableCell({ value, contactId, field, placeholder, onSaved }: {
-  value: string | null; contactId: number; field: string;
-  placeholder: string; onSaved: () => void;
+// ─── 계좌 필드 셀: 회색 비활성화 표시 + 클릭 시 팝업 오픈 ───
+function AccountFieldCell({
+  contact, field, placeholder, onSaved,
+}: {
+  contact: VipContact;
+  field: "bank_holder" | "bank_code" | "bank_name" | "bank_account";
+  placeholder: string;
+  onSaved: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(value || "");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const value = contact[field];
+  const hasValue = !!value;
 
-  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
-
-  const save = async () => {
-    await supabase.from("contacts").update({ [field]: val || null }).eq("id", contactId);
-    setEditing(false);
-    onSaved();
-  };
-
-  if (editing) {
-    return (
-      <input ref={inputRef} value={val}
-        onChange={e => setVal(e.target.value)}
-        onBlur={save}
-        onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
-        placeholder={placeholder}
-        className="w-full min-w-[80px] px-2 py-1 text-xs border border-blue-400 rounded-lg outline-none bg-white text-slate-800"/>
-    );
-  }
   return (
-    <span onClick={() => { setVal(value || ""); setEditing(true); }}
-      className={`text-xs cursor-pointer px-1 py-0.5 rounded hover:bg-slate-100 transition-colors ${value ? "text-slate-700" : "text-slate-300"}`}
-      title="클릭하여 편집">
-      {value || placeholder}
-    </span>
-  );
-}
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className={`w-full min-w-[80px] px-2 py-1.5 text-xs rounded-lg border text-center transition-colors ${
+          hasValue
+            ? "bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50 font-semibold"
+            : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200"
+        }`}
+        title="클릭하여 계좌정보 입력/편집"
+      >
+        {hasValue
+          ? (field === "bank_account"
+              ? <span className="font-mono">{value}</span>
+              : value)
+          : placeholder}
+      </button>
 
-// 계좌번호 + 복사
-function AccountCell({ value, contactId, onSaved }: {
-  value: string | null; contactId: number; onSaved: () => void;
-}) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!value) return;
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true); setTimeout(() => setCopied(false), 1500);
-    });
-  };
-  return (
-    <div className="flex items-center justify-center gap-1">
-      <EditableCell value={value} contactId={contactId} field="bank_account" placeholder="계좌번호" onSaved={onSaved}/>
-      {value && (
-        <button onClick={handleCopy}
-          className={`flex-shrink-0 p-1 rounded transition-colors ${copied ? "text-emerald-500" : "text-slate-400 hover:text-blue-500 hover:bg-blue-50"}`}>
-          {copied ? <Check size={11}/> : <Copy size={11}/>}
-        </button>
-      )}
-    </div>
+      <BankAccountDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        contactId={contact.id}
+        initial={{
+          bank_holder:  contact.bank_holder,
+          bank_code:    contact.bank_code,
+          bank_name:    contact.bank_name,
+          bank_account: contact.bank_account,
+        }}
+        onSaved={onSaved}
+      />
+    </>
   );
 }
 
@@ -95,7 +95,7 @@ export default function MemberManagePage() {
   const fetchMembers = async () => {
     setLoading(true);
     let q = supabase.from("contacts")
-      .select("id,name,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_name,bank_account")
+      .select("id,name,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_code,bank_name,bank_account")
       .in("meeting_result",["계약완료","예약완료"])
       .order("bunyanghoe_number",{ascending:true});
     if (filterMember) q = q.eq("assigned_to", filterMember);
@@ -173,7 +173,7 @@ export default function MemberManagePage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {["넘버링","고객명","연락처","담당컨설턴트","대협팀","상태","예금주","은행명","계좌번호","계약/예약일","메모"].map(h=>(
+                  {["넘버링","고객명","연락처","담당컨설턴트","대협팀","상태","예금주","은행코드","은행명","계좌번호","계약/예약일","메모"].map(h=>(
                     <th key={h} className="text-center px-3 py-3 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -188,8 +188,9 @@ export default function MemberManagePage() {
                     </td>
                     <td className="px-3 py-3 text-center align-middle">
                       <div className="flex items-center justify-center gap-2">
-                        <div className="w-7 h-7 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center flex-shrink-0">
-                          <span className="text-white text-xs font-bold">{c.name[0]}</span>
+                        {/* 성씨 스티커 - vip-members와 동일한 색상 체계 */}
+                        <div className={`w-7 h-7 ${getAvatarColor(c.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
+                          <span className="text-white text-xs font-black">{c.name[0]}</span>
                         </div>
                         <span className="font-semibold text-slate-800">{c.name}</span>
                       </div>
@@ -210,15 +211,19 @@ export default function MemberManagePage() {
                     </td>
                     {/* 예금주 */}
                     <td className="px-3 py-3 text-center align-middle">
-                      <EditableCell value={c.bank_holder} contactId={c.id} field="bank_holder" placeholder="예금주" onSaved={fetchMembers}/>
+                      <AccountFieldCell contact={c} field="bank_holder" placeholder="예금주" onSaved={fetchMembers}/>
+                    </td>
+                    {/* 은행코드 */}
+                    <td className="px-3 py-3 text-center align-middle">
+                      <AccountFieldCell contact={c} field="bank_code" placeholder="코드" onSaved={fetchMembers}/>
                     </td>
                     {/* 은행명 */}
                     <td className="px-3 py-3 text-center align-middle">
-                      <EditableCell value={c.bank_name} contactId={c.id} field="bank_name" placeholder="은행명" onSaved={fetchMembers}/>
+                      <AccountFieldCell contact={c} field="bank_name" placeholder="은행명" onSaved={fetchMembers}/>
                     </td>
-                    {/* 계좌번호 + 복사 */}
+                    {/* 계좌번호 */}
                     <td className="px-3 py-3 text-center align-middle">
-                      <AccountCell value={c.bank_account} contactId={c.id} onSaved={fetchMembers}/>
+                      <AccountFieldCell contact={c} field="bank_account" placeholder="계좌번호" onSaved={fetchMembers}/>
                     </td>
                     <td className="px-3 py-3 text-center align-middle">
                       <span className="text-slate-600 flex items-center justify-center gap-1 text-xs">
