@@ -715,6 +715,9 @@ export default function SalesPage() {
         )}
       </div>
 
+      {/* ── 매출일보 팝업 ── */}
+      {showDailyReport && <DailyReportModal onClose={()=>setShowDailyReport(false)}/>}
+
       {/* ── 매출집행등록 모달 ── */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
