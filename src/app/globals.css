@@ -55,6 +55,11 @@ body.dark-mode [data-no-invert] {
   filter: invert(1) hue-rotate(180deg);
 }
 
+/* 성씨 원형 아바타 — 다크모드에서 색상+글씨 원본 유지 */
+body.dark-mode [class*="rounded-full"][class*="items-center"][class*="justify-center"][class*="bg-"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+
 /* 다크모드에서 배경색 보정 */
 body.dark-mode ::-webkit-scrollbar-track { background: transparent; }
 body.dark-mode ::-webkit-scrollbar-thumb { background: #555; }
