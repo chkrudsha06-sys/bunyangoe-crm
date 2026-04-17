@@ -12,10 +12,11 @@ export async function POST(req: NextRequest) {
     const {
       property, quoteDate,
       clientAddr, clientName, clientBizNo, clientCeo, clientMgr, clientPhone,
+      recipientMgr, recipientPhone,   // 수급인(을) 담당자/HP 추가
       items,
     } = body;
 
-    // 1. 템플릿 Excel 데이터 채우기
+    // 1. 템플릿 Excel 열기
     const templatePath = path.join(process.cwd(), "public", "quote_template.xlsx");
     if (!fs.existsSync(templatePath)) {
       return NextResponse.json({ error: "템플릿 파일이 없습니다" }, { status: 500 });
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest) {
       ws.getCell(row, col).value = val;
     };
 
+    // 2. 기본 정보 + 위탁인(갑) 세팅
     set(3, 3, property);
     set(4, 3, clientAddr);
     set(4, 7, clientBizNo);
@@ -36,8 +38,16 @@ export async function POST(req: NextRequest) {
     set(5, 7, clientCeo);
     set(6, 3, clientMgr);
     set(6, 7, clientPhone);
+
+    // 3. 수급인(을) 담당자/HP 동적 반영 (비어있으면 템플릿 기본값 유지)
+    if (recipientMgr) set(9, 3, recipientMgr);       // C9 = 수급인 담당자
+    if (recipientPhone) set(9, 7, recipientPhone);   // G9 = 수급인 HP
+
+    // 4. 견적일자
     set(10, 7, quoteDate);
 
+    // 5. 광고 항목 (첫 번째 항목만 반영 - 현재 템플릿 구조 기준)
+    let totalAmount = 0;
     if (items && items.length > 0) {
       const it = items[0];
       set(12, 2, it.media);
@@ -45,6 +55,12 @@ export async function POST(req: NextRequest) {
       set(12, 4, it.targeting);
       set(12, 5, Number(it.quantity) || 0);
       set(12, 6, Number(it.unitPrice) || 0);
+
+      // 금액을 수식 결과 캐시 대신 "직접 계산한 값"으로 덮어쓰기
+      // → LibreOffice의 수식 재계산 누락 문제 해결
+      const itemAmount = Number(it.amount) || (Number(it.quantity) * Number(it.unitPrice)) || 0;
+      set(12, 7, itemAmount);  // G12 = 금액
+
       set(13, 3, it.ageGroup);
       set(13, 6, it.sendType);
       set(14, 3, it.region1);
@@ -52,19 +68,25 @@ export async function POST(req: NextRequest) {
       set(16, 3, it.region2);
     }
 
-    // 2. Excel → Buffer → Base64
+    // 6. 전체 금액 계산 + VAT 포함 합계 직접 세팅
+    totalAmount = (items || []).reduce(
+      (sum: number, item: any) => sum + (Number(item.amount) || 0),
+      0
+    );
+    const totalVat = Math.round(totalAmount * 1.1);
+    set(17, 7, totalVat);  // G17 = VAT 포함 합계 (수식 덮어쓰기)
+
+    // 7. Excel → Buffer → Base64
     const excelBuffer = await workbook.xlsx.writeBuffer();
     const excelBase64 = Buffer.from(excelBuffer).toString("base64");
 
-    // 3. CloudConvert API 키 확인
+    // 8. CloudConvert API 키 확인
     const apiKey = process.env.CLOUDCONVERT_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: "CLOUDCONVERT_API_KEY 환경변수가 없습니다" }, { status: 500 });
     }
 
-    // 4. Job 생성
-    //    - 폰트 업로드 제거: CloudConvert LibreOffice는 시스템 폰트(Noto Sans CJK)로 한글 자동 렌더링
-    //    - 외부 폰트 업로드는 convert 단계에서 활용되지 않으므로 무의미했음
+    // 9. Job 생성 (폰트 업로드 없음 - LibreOffice 기본 한글 폰트 사용)
     const tasks: Record<string, any> = {
       "upload-file": {
         operation: "import/base64",
@@ -101,7 +123,7 @@ export async function POST(req: NextRequest) {
 
     const job = await jobRes.json();
 
-    // 5. 결과에서 PDF URL 추출
+    // 10. 결과에서 PDF URL 추출
     const jobTasks = job.data?.tasks || job.tasks || [];
     const taskArr: any[] = Array.isArray(jobTasks) ? jobTasks : Object.values(jobTasks);
 
@@ -114,7 +136,6 @@ export async function POST(req: NextRequest) {
       || (typeof exportTask?.result?.files?.[0] === "string" ? exportTask.result.files[0] : null);
 
     if (!pdfUrl) {
-      // 실패한 태스크만 추려서 상세 로그 반환
       const failedTasks = taskArr
         .filter((t: any) => t.status === "error")
         .map((t: any) => ({
@@ -135,7 +156,7 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // 6. PDF 다운로드 후 클라이언트에 전달
+    // 11. PDF 다운로드
     const pdfRes = await fetch(pdfUrl);
     if (!pdfRes.ok) {
       return NextResponse.json({ error: "PDF 다운로드 실패" }, { status: 500 });
@@ -143,7 +164,16 @@ export async function POST(req: NextRequest) {
 
     const pdfBuffer = await pdfRes.arrayBuffer();
 
-    const filename = `광고인_견적서_${property}_${quoteDate}.pdf`;
+    // 12. 파일명 생성: 20260417_LMS_BC카드_2200000.pdf
+    //     - quoteDate의 하이픈 제거
+    //     - 첫 번째 항목의 매체/발송지면유형 사용
+    //     - 슬래시/백슬래시 등 파일명 금지문자 제거
+    const dateStr = (quoteDate || "").replace(/-/g, "");
+    const firstItem = (items && items.length > 0) ? items[0] : {};
+    const sanitize = (s: string) => (s || "").toString().replace(/[\/\\:*?"<>|]/g, "");
+    const mediaName = sanitize(firstItem.media);
+    const typeName  = sanitize(firstItem.type);
+    const filename = `${dateStr}_${mediaName}_${typeName}_${totalVat}.pdf`;
     const encoded = encodeURIComponent(filename);
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
