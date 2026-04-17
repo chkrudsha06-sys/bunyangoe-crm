@@ -163,11 +163,13 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
 
 async function fetchMonthlyRevenue(user: CRMUser, year: number, month: number): Promise<MonthlyRevenue[]> {
   const isExec = user.role === "exec";
-  const months = [-2,-1,0].map(offset => {
+  // 당월 포함 직전 6개월
+  const offsets = Array.from({length: 6}, (_, i) => i - 5);  // [-5, -4, ..., -1, 0]
+  const months = offsets.map(offset => {
     const d = new Date(year, month - 1 + offset, 1);
     const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0];
     const e = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().split("T")[0];
-    return { label: `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}`, s, e };
+    return { label: `${String(d.getFullYear()).slice(2)}.${String(d.getMonth()+1).padStart(2,"0")}`, s, e };
   });
   const results: MonthlyRevenue[] = [];
   for (const m of months) {
@@ -226,28 +228,40 @@ function DashCard({ icon, label, main, subs, cumLabel }: {
 // ── 바 차트 ──
 function BarChart({ data }: { data: MonthlyRevenue[] }) {
   const max = Math.max(...data.flatMap(d => [d.special, d.hightarget, d.bunyanghoe]), 1);
-  const bar = (v: number) => Math.max(6, Math.round((v / max) * 220));
+  const bar = (v: number) => Math.max(3, Math.round((v / max) * 140));
   const BARS = [
     { key: "special",    color: "#6366F1", label: "특전총매출" },
     { key: "hightarget", color: "#F59E0B", label: "하이타겟" },
     { key: "bunyanghoe", color: "#10B981", label: "분양회" },
   ];
+
+  // 금액 축약 (만/억)
+  const fmt = (v: number): string => {
+    if (!v) return "";
+    if (v >= 100_000_000) {
+      const uk = v / 100_000_000;
+      return uk % 1 === 0 ? `${uk}억` : `${uk.toFixed(1)}억`;
+    }
+    if (v >= 10_000) return `${Math.floor(v / 10_000).toLocaleString()}만`;
+    return v.toLocaleString();
+  };
+
   return (
-    <div className="flex items-end justify-around gap-4 w-full h-full min-h-[240px] px-4 pt-2">
+    <div className="flex items-end justify-around gap-1 w-full h-full min-h-[160px] px-2 pt-2">
       {data.map((d, i) => (
-        <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
-          <div className="flex items-end gap-2 w-full justify-center">
+        <div key={i} className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+          <div className="flex items-end gap-0.5 w-full justify-center">
             {BARS.map(b => {
               const v = (d as any)[b.key] as number;
               return (
                 <div key={b.key} className="flex flex-col items-center gap-0.5">
-                  <span className="text-[10px] font-bold" style={{color:b.color}}>{v > 0 ? v.toLocaleString() : ""}</span>
-                  <div className="w-10 rounded-t-md" style={{ height:`${bar(v)}px`, background:b.color, opacity: 0.85 }}/>
+                  <span className="text-[8px] font-bold whitespace-nowrap" style={{color:b.color}}>{fmt(v)}</span>
+                  <div className="rounded-t-md" style={{ width:"12px", height:`${bar(v)}px`, background:b.color, opacity: 0.85 }}/>
                 </div>
               );
             })}
           </div>
-          <span className="text-[11px] text-slate-400 font-medium">{d.month}</span>
+          <span className="text-[10px] text-slate-500 font-semibold whitespace-nowrap">{d.month}</span>
         </div>
       ))}
     </div>
@@ -264,7 +278,6 @@ interface KpiRow {
   ad_operation_revenue: number;
 }
 
-// 금액 축약 (만/억 단위) - 가독성 UP
 function fmtMoney(v: number): string {
   if (!v || v === 0) return "0";
   if (v >= 100_000_000) {
@@ -350,8 +363,8 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
   const actual = 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"360px"}}>
-      <div className="flex items-center justify-between mb-3">
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full">
+      <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-slate-700">KPI</h3>
         <span className="text-xs text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100 font-semibold">
           {new Date().getFullYear()}.{String(new Date().getMonth()+1).padStart(2,"0")} 기준
@@ -363,47 +376,50 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
           <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>
         </div>
       ) : (
-        <div className="flex-1 grid grid-cols-2 gap-4 min-h-0 overflow-y-auto">
-          {/* ═══ 왼쪽: 대협팀 전체 ═══ */}
-          <div className="flex flex-col pr-3 border-r border-slate-100">
-            <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-amber-100">
-              <span className="w-2 h-2 rounded-full bg-amber-500"/>
-              <span className="text-sm font-black text-amber-700 tracking-tight">대협팀 전체</span>
+        <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-y-auto">
+          {/* ═══ 상단: 대협팀 전체 ═══ */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-amber-200">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500"/>
+              <span className="text-base font-black text-amber-700 tracking-tight">대협팀 전체</span>
             </div>
+
             <div className="text-xs font-bold text-slate-500 mb-2">주요 KPI</div>
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2 mb-3">
               <KpiItem label="분양회 모집"       target={team?.recruit_count       ?? 0} actual={actual} unit="명"/>
               <KpiItem label="분양회 매출(회비)"  target={team?.bunyanghoe_revenue  ?? 0} actual={actual} unit="원" isMoney/>
               <KpiItem label="연계매출(하이타겟)" target={team?.linked_revenue      ?? 0} actual={actual} unit="원" isMoney/>
               <KpiItem label="특전매출"           target={team?.special_revenue     ?? 0} actual={actual} unit="원" isMoney/>
             </div>
-            <div className="text-xs font-bold text-slate-500 mt-3 mb-2">부가 KPI</div>
-            <div className="space-y-2">
+
+            <div className="text-xs font-bold text-slate-500 mb-2">부가 KPI</div>
+            <div className="grid grid-cols-2 gap-2">
               <KpiItem label="완판트럭"           target={team?.wanpan_truck_count  ?? 0} actual={actual} unit="건"/>
             </div>
           </div>
 
-          {/* ═══ 오른쪽: 개인 KPI ═══ */}
-          <div className="flex flex-col pl-1">
-            <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-blue-100">
-              <span className="w-2 h-2 rounded-full bg-blue-500"/>
-              <span className="text-sm font-black text-blue-700 tracking-tight">내 목표</span>
+          {/* ═══ 하단: 개인 KPI ═══ */}
+          <div className="pt-3 border-t border-slate-100">
+            <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-blue-200">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500"/>
+              <span className="text-base font-black text-blue-700 tracking-tight">내 목표</span>
               {user?.name && <span className="text-xs text-slate-400 font-semibold">({user.name})</span>}
             </div>
+
             <div className="text-xs font-bold text-slate-500 mb-2">주요 KPI</div>
 
             {user?.role === "exec" ? (
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
                 <KpiItem label="분양회 모집"       target={mine?.recruit_count      ?? 0} actual={actual} unit="명"/>
                 <KpiItem label="분양회 매출(회비)"  target={mine?.bunyanghoe_revenue ?? 0} actual={actual} unit="원" isMoney/>
                 <KpiItem label="연계매출"          target={mine?.linked_revenue     ?? 0} actual={actual} unit="원" isMoney/>
               </div>
             ) : user?.role === "ops" ? (
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
                 <KpiItem label="광고특전운영매출" target={mine?.ad_operation_revenue ?? 0} actual={actual} unit="원" isMoney/>
               </div>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center py-6 text-center">
+              <div className="flex flex-col items-center justify-center py-6 text-center">
                 <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-3 border-2 border-amber-200">
                   <span className="text-xl">👑</span>
                 </div>
@@ -414,6 +430,30 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// 매출실적 추이 카드 (좌측 3번째 행용)
+function RevenueTrendCard({ monthlyRev }: { monthlyRev: MonthlyRevenue[] }) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{minHeight:"200px"}}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-base font-bold text-slate-700">매출실적 추이</h3>
+          <span className="text-[10px] text-slate-400 font-semibold">최근 6개월</span>
+        </div>
+        <div className="flex items-center gap-2 text-[10px] text-slate-400">
+          <div style={{ display:"flex", alignItems:"center", gap:"4px" }}><div style={{ width:"8px", height:"8px", borderRadius:"2px", background:"#6366F1" }}/><span>특전</span></div>
+          <div style={{ display:"flex", alignItems:"center", gap:"4px" }}><div style={{ width:"8px", height:"8px", borderRadius:"2px", background:"#F59E0B" }}/><span>하이타겟</span></div>
+          <div style={{ display:"flex", alignItems:"center", gap:"4px" }}><div style={{ width:"8px", height:"8px", borderRadius:"2px", background:"#10B981" }}/><span>분양회</span></div>
+        </div>
+      </div>
+      <div className="flex-1 flex items-end min-h-0">
+        {monthlyRev.length > 0 ? <BarChart data={monthlyRev}/> : (
+          <div className="w-full h-full flex items-center justify-center text-slate-300 text-sm">데이터 없음</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -479,7 +519,7 @@ function WorkRequestBoard({ user }: { user: CRMUser | null }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"360px"}}>
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{minHeight:"200px"}}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-slate-700">업무요청</h3>
         <button onClick={()=>setShowForm(v=>!v)}
@@ -577,7 +617,7 @@ function NoticeBoard({ user }: { user: CRMUser | null }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"360px"}}>
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{minHeight:"200px"}}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-slate-700">공지사항</h3>
         {isAdmin && (
@@ -1080,35 +1120,17 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 그래프 + KPI */}
+        {/* 좌(업무요청/공지사항/매출실적추이) + 우(KPI) — 높이 자동 매칭 */}
         <div className="grid grid-cols-2 gap-4">
-          {/* 매출실적 그래프 */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"360px"}}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-slate-700">매출실적</h3>
-              <div className="flex items-center gap-3 text-xs text-slate-400">
-                <div style={{ display:"flex", alignItems:"center", gap:"5px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#6366F1" }}/><span>특전총매출</span></div>
-                <div style={{ display:"flex", alignItems:"center", gap:"5px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#F59E0B" }}/><span>하이타겟</span></div>
-                <div style={{ display:"flex", alignItems:"center", gap:"5px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#10B981" }}/><span>분양회</span></div>
-              </div>
-            </div>
-            <div className="flex-1 flex items-end min-h-0">
-              {monthlyRev.length > 0 ? <BarChart data={monthlyRev}/> : (
-                <div className="w-full h-full flex items-center justify-center text-slate-300 text-sm">데이터 없음</div>
-              )}
-            </div>
+          {/* 왼쪽: 3행 분할 */}
+          <div className="grid grid-rows-3 gap-4">
+            <WorkRequestBoard user={user}/>
+            <NoticeBoard user={user}/>
+            <RevenueTrendCard monthlyRev={monthlyRev}/>
           </div>
 
-          {/* KPI */}
+          {/* 오른쪽: KPI (왼쪽 3행 합계 높이만큼 자동 확장) */}
           <DashboardKpiSummary user={user}/>
-        </div>
-
-        {/* 업무요청 + 공지사항 */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* 업무요청 */}
-          <WorkRequestBoard user={user}/>
-          {/* 공지사항 */}
-          <NoticeBoard user={user}/>
         </div>
 
         {/* 캘린더 */}
