@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Plus, Trash2, FileDown } from "lucide-react";
+import { FileText, Trash2, FileDown, Edit3 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface AdItem {
   id: number;
+  isManual: boolean; // 수기입력 모드
   media: string;
   type: string;
   targeting: string;
@@ -19,34 +20,19 @@ interface AdItem {
   sendType: string;
 }
 
-// 매체 옵션
 const MEDIA_OPTS = ["호갱노노", "LMS"];
-
-// 호갱노노 발송유형
 const HOEGANGNONO_TYPES = ["호갱노노_단지마커","호갱노노_채널톡","직방_채널톡"];
-
-// LMS 발송유형 (그룹 구조)
 const LMS_GROUPS = [
-  {
-    label: "■ 카드사",
-    items: ["국민카드","BC카드","삼성카드","신한카드","롯데카드","하나카드"],
-  },
-  {
-    label: "■ 통신사",
-    items: ["SKT","KT"],
-  },
-  {
-    label: "■ 멤버십사외",
-    items: ["롯데멤버스(L.포인트)","스마트스코어","티맵","신세계포인트","OK캐시백"],
-  },
+  { label: "■ 카드사",    items: ["국민카드","BC카드","삼성카드","신한카드","롯데카드","하나카드"] },
+  { label: "■ 통신사",    items: ["SKT","KT"] },
+  { label: "■ 멤버십사외", items: ["롯데멤버스(L.포인트)","스마트스코어","티맵","신세계포인트","OK캐시백"] },
 ];
 
-// 단가 자동 설정
 const getUnitPrice = (media: string, type: string): string => {
   if (media === "호갱노노") {
     if (type === "호갱노노_채널톡") return "150";
     if (type === "직방_채널톡") return "100";
-    return ""; // 단지마커는 수기
+    return "";
   }
   if (media === "LMS") {
     if (type === "롯데멤버스(L.포인트)") return "80";
@@ -55,31 +41,40 @@ const getUnitPrice = (media: string, type: string): string => {
   return "";
 };
 
-// 발송수량 라벨
-const getQuantityLabel = (media: string, type: string): string => {
-  if (media === "호갱노노" && type === "호갱노노_단지마커") return "기간(일)";
-  return "발송수량";
-};
-
-// 단가 고정 여부
 const isUnitPriceFixed = (media: string, type: string): boolean => {
   if (media === "호갱노노" && type === "호갱노노_단지마커") return false;
-  if (media === "호갱노노" && (type === "호갱노노_채널톡" || type === "직방_채널톡")) return true;
+  if (media === "호갱노노") return true;
   if (media === "LMS" && type) return true;
   return false;
 };
 
-// 금액 고정 여부 (호갱노노_단지마커만 수기)
-const isAmountFixed = (media: string, type: string): boolean => {
+const isAmountAuto = (media: string, type: string): boolean => {
   if (media === "호갱노노" && type === "호갱노노_단지마커") return false;
   return true;
 };
 
-const newItem = (id: number): AdItem => ({
-  id, media:"호갱노노", type:"호갱노노_단지마커", targeting:"부동산 관심자",
-  quantity:"", unitPrice:"", amount:"",
-  region1:"", region2:"", region3:"",
-  ageGroup:"30~60대", sendType:"",
+const getQuantityLabel = (media: string, type: string): string =>
+  media === "호갱노노" && type === "호갱노노_단지마커" ? "기간(일)" : "발송수량";
+
+const buildSendType = (media: string, type: string, property: string): string => {
+  if (!media || !type) return "";
+  const parts = [media, type, property].filter(Boolean);
+  return parts.join("_");
+};
+
+const newItem = (id: number, property: string = ""): AdItem => ({
+  id, isManual: false,
+  media: "호갱노노", type: "호갱노노_단지마커", targeting: "부동산 관심자",
+  quantity: "", unitPrice: "", amount: "",
+  region1: "", region2: "", region3: "",
+  ageGroup: "30~60대",
+  sendType: buildSendType("호갱노노", "호갱노노_단지마커", property),
+});
+
+const newManualItem = (id: number): AdItem => ({
+  id, isManual: true,
+  media: "", type: "", targeting: "", quantity: "", unitPrice: "", amount: "",
+  region1: "", region2: "", region3: "", ageGroup: "30~60대", sendType: "",
 });
 
 const inp = "w-full px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
@@ -105,43 +100,42 @@ export default function QuotePage() {
       if (it.id !== id) return it;
       const updated = { ...it, [field]: val };
 
-      // 매체 변경 시 → 첫 번째 타입으로 초기화
       if (field === "media") {
         updated.type = val === "호갱노노" ? "호갱노노_단지마커" : "국민카드";
         updated.unitPrice = getUnitPrice(val, updated.type);
-        updated.amount = "";
-        updated.quantity = "";
+        updated.amount = ""; updated.quantity = "";
+        updated.sendType = buildSendType(val, updated.type, property);
       }
-
-      // 타입 변경 시 → 단가 자동 설정
       if (field === "type") {
         updated.unitPrice = getUnitPrice(it.media, val);
-        updated.amount = "";
-        updated.quantity = "";
+        updated.amount = ""; updated.quantity = "";
+        updated.sendType = buildSendType(it.media, val, property);
       }
-
-      // 수량/단가 변경 시 → 금액 자동 계산 (단지마커 제외)
       if (field === "quantity" || field === "unitPrice") {
-        const q = field === "quantity" ? Number(val) : Number(updated.quantity);
-        const p = field === "unitPrice" ? Number(val) : Number(updated.unitPrice);
-        if (!isAmountFixed(updated.media, updated.type)) {
-          // 단지마커: 수기
-        } else {
-          updated.amount = (q && p) ? String(q * p) : "";
+        const q = Number(field === "quantity" ? val : updated.quantity);
+        const u = Number(field === "unitPrice" ? val : updated.unitPrice);
+        if (isAmountAuto(updated.media, updated.type)) {
+          updated.amount = (q && u) ? String(q * u) : "";
         }
       }
-
       return updated;
     }));
   };
 
-  const addItem    = () => setItems(p => [...p, newItem(p.length+1)]);
-  const removeItem = (id: number) => setItems(p => p.filter(it=>it.id!==id));
+  // property 변경 시 sendType 일괄 업데이트
+  const handlePropertyChange = (val: string) => {
+    setProperty(val);
+    setItems(p => p.map(it => ({
+      ...it,
+      sendType: it.isManual ? it.sendType : buildSendType(it.media, it.type, val),
+    })));
+  };
 
-  const totalVat = Math.round(
-    items.reduce((s,it) => s + (Number(it.amount)||0), 0) * 1.1
-  );
-  const total = items.reduce((s,it) => s + (Number(it.amount)||0), 0);
+  const addManual  = () => setItems(p => [...p, newManualItem(p.length + 1)]);
+  const removeItem = (id: number) => setItems(p => p.filter(it => it.id !== id));
+
+  const total    = items.reduce((s,it) => s + (Number(it.amount)||0), 0);
+  const totalVat = Math.round(total * 1.1);
 
   const handleSave = async () => {
     if (!property) return alert("대상물건을 입력하세요.");
@@ -163,23 +157,17 @@ export default function QuotePage() {
       const res = await fetch("/api/generate-quote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          property, quoteDate,
-          clientAddr, clientName, clientBizNo, clientCeo,
-          clientMgr, clientPhone, items,
-        }),
+        body: JSON.stringify({ property, quoteDate, clientAddr, clientName, clientBizNo, clientCeo, clientMgr, clientPhone, items }),
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "오류 발생");
+        throw new Error(err.error || "오류");
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `광고인_견적서_${property}_${quoteDate}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      a.href = url; a.download = `광고인_견적서_${property}_${quoteDate}.pdf`;
+      a.click(); URL.revokeObjectURL(url);
     } catch(e: any) {
       alert("PDF 생성 오류: " + e.message);
     } finally {
@@ -217,7 +205,7 @@ export default function QuotePage() {
           <h2 className="text-sm font-bold text-slate-700 mb-4 pb-2 border-b border-slate-100">기본 정보</h2>
           <div className="grid grid-cols-2 gap-3">
             <div><label className={lbl}>대상물건 <span className="text-red-400">*</span></label>
-              <input className={inp} value={property} onChange={e=>setProperty(e.target.value)} placeholder="예: [경산] 상방공원 호반써밋"/></div>
+              <input className={inp} value={property} onChange={e=>handlePropertyChange(e.target.value)} placeholder="예: [경산] 상방공원 호반써밋"/></div>
             <div><label className={lbl}>견적일자</label>
               <input type="date" className={inp} value={quoteDate} onChange={e=>setQuoteDate(e.target.value)}/></div>
           </div>
@@ -246,58 +234,69 @@ export default function QuotePage() {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
             <h2 className="text-sm font-bold text-slate-700">광고 항목</h2>
-            <button onClick={addItem} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-600 rounded-lg border border-blue-100 hover:bg-blue-100">
-              <Plus size={12}/> 항목 추가
+            <button onClick={addManual}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-50 text-amber-600 rounded-lg border border-amber-200 hover:bg-amber-100">
+              <Edit3 size={12}/> 수기입력
             </button>
           </div>
 
           <div className="space-y-4">
-            {items.map((it,idx)=>{
-              const qtyLabel = getQuantityLabel(it.media, it.type);
-              const fixedUnit = isUnitPriceFixed(it.media, it.type);
-              const fixedAmt  = isAmountFixed(it.media, it.type);
+            {items.map((it,idx) => {
+              const qtyLabel  = it.isManual ? "발송수량" : getQuantityLabel(it.media, it.type);
+              const fixedUnit = !it.isManual && isUnitPriceFixed(it.media, it.type);
+              const autoAmt   = !it.isManual && isAmountAuto(it.media, it.type);
 
               return (
-                <div key={it.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div key={it.id} className={`p-4 rounded-xl border ${it.isManual ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-bold text-amber-600">항목 {idx+1}</span>
-                    {items.length>1 && <button onClick={()=>removeItem(it.id)} className="text-red-400 hover:text-red-600"><Trash2 size={13}/></button>}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-amber-600">항목 {idx+1}</span>
+                      {it.isManual && <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-600 rounded-full border border-amber-200 font-semibold">수기입력</span>}
+                    </div>
+                    {items.length > 1 && <button onClick={()=>removeItem(it.id)} className="text-red-400 hover:text-red-600"><Trash2 size={13}/></button>}
                   </div>
 
                   <div className="grid grid-cols-4 gap-2 mb-2">
                     {/* 매체 */}
                     <div>
                       <label className={lbl}>매체</label>
-                      <select className={inp} value={it.media} onChange={e=>updateItem(it.id,"media",e.target.value)}>
-                        {MEDIA_OPTS.map(m=><option key={m}>{m}</option>)}
-                      </select>
+                      {it.isManual
+                        ? <input className={inp} value={it.media} onChange={e=>updateItem(it.id,"media",e.target.value)} placeholder="매체 입력"/>
+                        : <select className={inp} value={it.media} onChange={e=>updateItem(it.id,"media",e.target.value)}>
+                            {MEDIA_OPTS.map(m=><option key={m}>{m}</option>)}
+                          </select>
+                      }
                     </div>
 
                     {/* 발송/지면 유형 */}
                     <div>
                       <label className={lbl}>발송/지면 유형</label>
-                      {it.media === "호갱노노" ? (
-                        <select className={inp} value={it.type} onChange={e=>updateItem(it.id,"type",e.target.value)}>
-                          {HOEGANGNONO_TYPES.map(t=><option key={t}>{t}</option>)}
-                        </select>
-                      ) : (
-                        <select className={inp} value={it.type} onChange={e=>updateItem(it.id,"type",e.target.value)}>
-                          {LMS_GROUPS.map(g=>(
-                            <optgroup key={g.label} label={g.label}>
-                              {g.items.map(t=><option key={t} value={t}>{t}</option>)}
-                            </optgroup>
-                          ))}
-                        </select>
-                      )}
+                      {it.isManual
+                        ? <input className={inp} value={it.type} onChange={e=>updateItem(it.id,"type",e.target.value)} placeholder="유형 입력"/>
+                        : it.media === "호갱노노"
+                          ? <select className={inp} value={it.type} onChange={e=>updateItem(it.id,"type",e.target.value)}>
+                              {HOEGANGNONO_TYPES.map(t=><option key={t}>{t}</option>)}
+                            </select>
+                          : <select className={inp} value={it.type} onChange={e=>updateItem(it.id,"type",e.target.value)}>
+                              {LMS_GROUPS.map(g=>(
+                                <optgroup key={g.label} label={g.label}>
+                                  {g.items.map(t=><option key={t}>{t}</option>)}
+                                </optgroup>
+                              ))}
+                            </select>
+                      }
                     </div>
 
-                    {/* 타겟팅 고정 */}
+                    {/* 타겟팅 */}
                     <div>
                       <label className={lbl}>타겟팅</label>
-                      <input className={inp_fixed} value="부동산 관심자" readOnly/>
+                      {it.isManual
+                        ? <input className={inp} value={it.targeting} onChange={e=>updateItem(it.id,"targeting",e.target.value)} placeholder="타겟팅 입력"/>
+                        : <input className={inp_fixed} value="부동산 관심자" readOnly/>
+                      }
                     </div>
 
-                    {/* 발송수량 / 기간(일) */}
+                    {/* 발송수량 */}
                     <div>
                       <label className={lbl}>{qtyLabel}</label>
                       <input type="number" className={inp} value={it.quantity}
@@ -310,8 +309,7 @@ export default function QuotePage() {
                       <label className={lbl}>단가(원)</label>
                       <input type="number"
                         className={fixedUnit ? inp_fixed : inp}
-                        value={it.unitPrice}
-                        readOnly={fixedUnit}
+                        value={it.unitPrice} readOnly={fixedUnit}
                         onChange={e=>!fixedUnit && updateItem(it.id,"unitPrice",e.target.value)}
                         placeholder="단가"/>
                     </div>
@@ -319,15 +317,14 @@ export default function QuotePage() {
                     {/* 금액 */}
                     <div>
                       <label className={lbl}>금액</label>
-                      {fixedAmt ? (
-                        <div className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg font-bold text-blue-700">
-                          {Number(it.amount) ? Number(it.amount).toLocaleString() : "0"}원
-                        </div>
-                      ) : (
-                        <input type="number" className={inp} value={it.amount}
-                          onChange={e=>updateItem(it.id,"amount",e.target.value)}
-                          placeholder="금액 직접 입력"/>
-                      )}
+                      {autoAmt && !it.isManual
+                        ? <div className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg font-bold text-blue-700">
+                            {Number(it.amount) ? Number(it.amount).toLocaleString() : "0"}원
+                          </div>
+                        : <input type="number" className={inp} value={it.amount}
+                            onChange={e=>updateItem(it.id,"amount",e.target.value)}
+                            placeholder="금액 입력"/>
+                      }
                     </div>
 
                     {/* 연령대 */}
@@ -336,10 +333,14 @@ export default function QuotePage() {
                       <input className={inp} value={it.ageGroup} onChange={e=>updateItem(it.id,"ageGroup",e.target.value)}/>
                     </div>
 
-                    {/* 발송유형 */}
+                    {/* 발송유형 — 자동 or 수기 */}
                     <div>
                       <label className={lbl}>발송유형</label>
-                      <input className={inp} value={it.sendType} onChange={e=>updateItem(it.id,"sendType",e.target.value)} placeholder="발송유형 입력"/>
+                      <input className={it.isManual ? inp : inp_fixed}
+                        value={it.isManual ? it.sendType : buildSendType(it.media, it.type, property)}
+                        readOnly={!it.isManual}
+                        onChange={e=>it.isManual && updateItem(it.id,"sendType",e.target.value)}
+                        placeholder="발송유형"/>
                     </div>
                   </div>
 
@@ -354,7 +355,6 @@ export default function QuotePage() {
             })}
           </div>
 
-          {/* 합계 */}
           <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100 flex items-center justify-between">
             <span className="text-sm text-slate-600">공급가액: <b>{total.toLocaleString()}원</b></span>
             <span className="text-base font-black text-blue-700">합계 (VAT 포함): {totalVat.toLocaleString()}원</span>
