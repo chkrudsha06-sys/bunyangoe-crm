@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import { CreditCard, Plus, Save, X, TrendingUp, Search, Edit2 } from "lucide-react";
+import { CreditCard, Plus, Save, X, TrendingUp, Search, Edit2, FileText, ClipboardCopy } from "lucide-react";
+import { useRef, useCallback } from "react";
 
 interface AdExecution {
   id: number;
@@ -79,6 +80,338 @@ function formatAmt(s: string) {
   return n ? Number(n).toLocaleString() : "";
 }
 
+
+// ── 매출일보 팝업 컴포넌트 ──────────────────────────────────
+const OPS_MAP: Record<string, string[]> = {
+  "김재영": ["이세호", "기여운"],
+  "최은정": ["조계현", "최연전"],
+};
+const EXEC_TEAM = ["조계현","이세호","기여운","최연전"];
+const OPS_TEAM  = ["김재영","최은정"];
+const HOGAENG_CHS = ["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타"];
+
+function DailyReportPopup({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const reportRef = useRef<HTMLDivElement>(null);
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [copying, setCopying] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    loadData();
+  }, [open]);
+
+  const effA = (e: any): number => {
+    if (e.vat_amount && e.vat_amount > 0 && e.vat_amount !== e.execution_amount) return e.vat_amount;
+    return e.execution_amount || 0;
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth()+1;
+    const ms = String(m).padStart(2,"0");
+    const ld = new Date(y, m, 0).getDate();
+    const monthStart = `${y}-${ms}-01`;
+    const monthEnd   = `${y}-${ms}-${String(ld).padStart(2,"0")}`;
+    const today = now.toISOString().split("T")[0];
+
+    // KPI 목표
+    const kpiP: any = {};
+    for (const name of EXEC_TEAM) {
+      const { data: k } = await supabase.from("kpi_settings").select("*")
+        .eq("year",y).eq("month",m).eq("scope","execution").eq("target_name",name).maybeSingle();
+      kpiP[name] = k || {};
+    }
+    for (const name of OPS_TEAM) {
+      const { data: k } = await supabase.from("kpi_settings").select("*")
+        .eq("year",y).eq("month",m).eq("scope","operation").eq("target_name",name).maybeSingle();
+      kpiP[name] = k || {};
+    }
+
+    // 당월 매출
+    const { data: monthExecs = [] } = await supabase.from("ad_executions")
+      .select("*").gte("payment_date", monthStart).lte("payment_date", monthEnd);
+    // 당일 매출
+    const todayExecs = (monthExecs||[]).filter((e:any) => e.payment_date === today);
+    // 당월 분양회 모집
+    const { data: contacts = [] } = await supabase.from("contacts")
+      .select("id,assigned_to,meeting_result,contract_date,reservation_date")
+      .in("meeting_result",["계약완료","예약완료"]);
+
+    const inMonth = (c:any) => {
+      const d = c.meeting_result==="계약완료" ? c.contract_date : c.reservation_date;
+      return d && d >= monthStart && d <= monthEnd;
+    };
+
+    // 1단: 실행파트 연계매출
+    const sec1 = EXEC_TEAM.map(name => {
+      const target = kpiP[name]?.linked_revenue || 0;
+      const actual = (monthExecs||[]).filter((e:any) => e.team_member===name && e.channel==="하이타겟")
+        .reduce((s:number,e:any) => s + effA(e) - (e.refund_amount||0), 0);
+      return { name, target, actual, rate: target > 0 ? actual/target : 0 };
+    });
+
+    // 2단: 실행파트 분양회 모집
+    const sec2 = EXEC_TEAM.map(name => {
+      const targetAmt = kpiP[name]?.bunyanghoe_revenue || 0;
+      const targetCnt = kpiP[name]?.recruit_count || 0;
+      const actualAmt = (monthExecs||[]).filter((e:any) =>
+        e.team_member===name && e.contract_route==="분양회" &&
+        (e.channel==="분양회 입회비"||e.channel==="분양회 월회비")
+      ).reduce((s:number,e:any) => s + effA(e) - (e.refund_amount||0), 0);
+      const actualCnt = (contacts||[]).filter((c:any) => c.assigned_to===name && inMonth(c)).length;
+      return { name, targetAmt, targetCnt, actualAmt, actualCnt, rate: targetAmt > 0 ? actualAmt/targetAmt : 0 };
+    });
+
+    // 3단: 운영파트 광고특전
+    const sec3 = OPS_TEAM.map(name => {
+      const target = kpiP[name]?.ad_operation_revenue || 0;
+      const members = OPS_MAP[name] || [];
+      const lms = (monthExecs||[]).filter((e:any) =>
+        members.includes(e.team_member) && e.contract_route==="분양회" && e.channel==="LMS"
+      ).reduce((s:number,e:any) => s + effA(e), 0);
+      const hog = (monthExecs||[]).filter((e:any) =>
+        members.includes(e.team_member) && e.contract_route==="분양회" && HOGAENG_CHS.includes(e.channel)
+      ).reduce((s:number,e:any) => s + effA(e), 0);
+      return { name, target, lms, hog, total: lms+hog, rate: target > 0 ? (lms+hog)/target : 0 };
+    });
+
+    // 4단: 통합 매출 합계 (실행파트 목표 기준)
+    const execTarget = sec1.reduce((s,r) => s+r.target, 0) + sec2.reduce((s,r) => s+r.targetAmt, 0);
+    const execActual = sec1.reduce((s,r) => s+r.actual, 0) + sec2.reduce((s,r) => s+r.actualAmt, 0);
+
+    // 5단: 월 누적 현황
+    const sec5 = EXEC_TEAM.map(name => {
+      const linked = (monthExecs||[]).filter((e:any) => e.team_member===name && e.channel==="하이타겟");
+      const bunyan = (monthExecs||[]).filter((e:any) => e.team_member===name && e.contract_route==="분양회" &&
+        (e.channel==="분양회 입회비"||e.channel==="분양회 월회비"));
+      const lAmt = linked.reduce((s:number,e:any) => s+effA(e)-(e.refund_amount||0), 0);
+      const bAmt = bunyan.reduce((s:number,e:any) => s+effA(e)-(e.refund_amount||0), 0);
+      const targetTotal = (kpiP[name]?.linked_revenue||0) + (kpiP[name]?.bunyanghoe_revenue||0);
+      return { name, lCnt: linked.length, lAmt, bCnt: bunyan.length, bAmt,
+        total: lAmt+bAmt, rate: targetTotal > 0 ? (lAmt+bAmt)/targetTotal : 0 };
+    });
+
+    // 6단: 당일 현황
+    const sec6 = EXEC_TEAM.map(name => {
+      const linked = todayExecs.filter((e:any) => e.team_member===name && e.channel==="하이타겟");
+      const bunyan = todayExecs.filter((e:any) => e.team_member===name && e.contract_route==="분양회" &&
+        (e.channel==="분양회 입회비"||e.channel==="분양회 월회비"));
+      const lAmt = linked.reduce((s:number,e:any) => s+effA(e)-(e.refund_amount||0), 0);
+      const bAmt = bunyan.reduce((s:number,e:any) => s+effA(e)-(e.refund_amount||0), 0);
+      return { name, lCnt: linked.length, lAmt, bCnt: bunyan.length, bAmt,
+        tCnt: linked.length+bunyan.length, total: lAmt+bAmt };
+    });
+
+    // 👑 최고 실적자 (월 누적 기준)
+    const topName = sec5.reduce((best, r) => r.total > best.total ? r : best, sec5[0])?.name;
+
+    setData({ today, sec1, sec2, sec3, execTarget, execActual, sec5, sec6, topName });
+    setLoading(false);
+  };
+
+  const handleCopy = async () => {
+    if (!reportRef.current) return;
+    setCopying(true);
+    try {
+      // html2canvas 동적 로드
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+      await new Promise<void>((res, rej) => { script.onload = () => res(); script.onerror = () => rej(); document.head.appendChild(script); });
+      const canvas = await (window as any).html2canvas(reportRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+      canvas.toBlob(async (blob: Blob | null) => {
+        if (!blob) { alert("이미지 생성 실패"); setCopying(false); return; }
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+          alert("이미지가 클립보드에 복사되었습니다!\n카카오톡/워크에 Ctrl+V로 붙여넣기 하세요.");
+        } catch { // fallback: 다운로드
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a"); a.href = url;
+          a.download = `매출일보_${data?.today||"today"}.png`;
+          a.click(); URL.revokeObjectURL(url);
+        }
+        setCopying(false);
+      }, "image/png");
+    } catch (err) {
+      console.error(err);
+      alert("이미지 복사 실패. 브라우저를 확인해주세요.");
+      setCopying(false);
+    }
+  };
+
+  if (!open) return null;
+  const f = (n: number) => n ? n.toLocaleString() : "0";
+  const fp = (n: number) => (n * 100).toFixed(1) + "%";
+  const thCls = "px-2 py-2 text-xs font-bold text-slate-600 border border-slate-200 bg-slate-100 whitespace-nowrap";
+  const tdCls = "px-2 py-2 text-xs text-slate-700 border border-slate-200 text-right whitespace-nowrap";
+  const tdL   = "px-2 py-2 text-xs text-slate-700 border border-slate-200 text-center whitespace-nowrap font-semibold";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:"rgba(0,0,0,0.5)"}} onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col" onClick={e=>e.stopPropagation()}>
+        {/* 헤더 */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
+          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FileText size={18} className="text-blue-500"/>매출일보</h3>
+          <div className="flex items-center gap-2">
+            <button onClick={handleCopy} disabled={copying || loading}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              <ClipboardCopy size={14}/>{copying ? "복사 중..." : "이미지 복사"}
+            </button>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><X size={18}/></button>
+          </div>
+        </div>
+
+        {/* 본문 */}
+        <div className="flex-1 overflow-auto p-5">
+          {loading || !data ? (
+            <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>
+          ) : (
+            <div ref={reportRef} className="bg-white p-6 space-y-5" style={{fontFamily:"'Apple SD Gothic Neo','Pretendard','Noto Sans KR',sans-serif"}}>
+              {/* 타이틀 */}
+              <div className="text-center mb-4">
+                <p className="text-xs text-slate-400 mb-1">{data.today}</p>
+                <h2 className="text-lg font-black text-slate-800">대외협력팀 매출일보</h2>
+              </div>
+
+              {/* 1단: 실행파트 연계매출 */}
+              <div>
+                <p className="text-sm font-bold text-slate-700 mb-2 pl-1">  [실행파트] 자사광고 연계 매출</p>
+                <table className="w-full border-collapse">
+                  <thead><tr><th className={thCls}>담당자</th><th className={thCls}>목표</th><th className={thCls}>달성</th><th className={thCls}>달성률</th></tr></thead>
+                  <tbody>
+                    {data.sec1.map((r:any) => (
+                      <tr key={r.name}><td className={tdL}>{r.name}</td><td className={tdCls}>{f(r.target)}</td><td className={tdCls}>{f(r.actual)}</td>
+                        <td className={`${tdCls} ${r.rate>=1?"text-emerald-600 font-bold":r.rate>=0.5?"text-blue-600 font-bold":"text-slate-500"}`}>{fp(r.rate)}</td></tr>
+                    ))}
+                    <tr className="bg-slate-50 font-bold">
+                      <td className={tdL}>합계</td><td className={tdCls}>{f(data.sec1.reduce((s:number,r:any)=>s+r.target,0))}</td>
+                      <td className={tdCls}>{f(data.sec1.reduce((s:number,r:any)=>s+r.actual,0))}</td>
+                      <td className={tdCls}>{fp(data.sec1.reduce((s:number,r:any)=>s+r.target,0)>0 ? data.sec1.reduce((s:number,r:any)=>s+r.actual,0)/data.sec1.reduce((s:number,r:any)=>s+r.target,0) : 0)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 2단: 실행파트 분양회 모집 */}
+              <div>
+                <p className="text-sm font-bold text-slate-700 mb-2 pl-1">  [실행파트] 분양회 모집 누적 매출</p>
+                <table className="w-full border-collapse">
+                  <thead><tr><th className={thCls}>담당자</th><th className={thCls}>목표</th><th className={thCls}>인원</th><th className={thCls}>달성</th><th className={thCls}>인원</th><th className={thCls}>달성률</th></tr></thead>
+                  <tbody>
+                    {data.sec2.map((r:any) => (
+                      <tr key={r.name}><td className={tdL}>{r.name}</td><td className={tdCls}>{f(r.targetAmt)}</td><td className={tdCls}>{r.targetCnt}인</td>
+                        <td className={tdCls}>{f(r.actualAmt)}</td><td className={tdCls}>{r.actualCnt}</td>
+                        <td className={`${tdCls} ${r.rate>=1?"text-emerald-600 font-bold":r.rate>=0.5?"text-blue-600 font-bold":"text-slate-500"}`}>{fp(r.rate)}</td></tr>
+                    ))}
+                    <tr className="bg-slate-50 font-bold">
+                      <td className={tdL}>합계</td><td className={tdCls}>{f(data.sec2.reduce((s:number,r:any)=>s+r.targetAmt,0))}</td><td className={tdCls}></td>
+                      <td className={tdCls}>{f(data.sec2.reduce((s:number,r:any)=>s+r.actualAmt,0))}</td><td className={tdCls}></td>
+                      <td className={tdCls}>{fp(data.sec2.reduce((s:number,r:any)=>s+r.targetAmt,0)>0 ? data.sec2.reduce((s:number,r:any)=>s+r.actualAmt,0)/data.sec2.reduce((s:number,r:any)=>s+r.targetAmt,0) : 0)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 3단: 운영파트 광고특전 */}
+              <div>
+                <p className="text-sm font-bold text-slate-700 mb-2 pl-1">  [운영파트] 분양회 광고 특전 매출</p>
+                <table className="w-full border-collapse">
+                  <thead><tr><th className={thCls}>담당자</th><th className={thCls}>목표</th><th className={thCls}>LMS</th><th className={thCls}>호갱노노</th><th className={thCls}>합산</th><th className={thCls}>달성률</th></tr></thead>
+                  <tbody>
+                    {data.sec3.map((r:any) => (
+                      <tr key={r.name}><td className={tdL}>{r.name}</td><td className={tdCls}>{f(r.target)}</td><td className={tdCls}>{f(r.lms)}</td>
+                        <td className={tdCls}>{f(r.hog)}</td><td className={tdCls + " font-semibold"}>{f(r.total)}</td>
+                        <td className={`${tdCls} ${r.rate>=1?"text-emerald-600 font-bold":r.rate>=0.5?"text-blue-600 font-bold":"text-slate-500"}`}>{fp(r.rate)}</td></tr>
+                    ))}
+                    <tr className="bg-slate-50 font-bold">
+                      <td className={tdL}>합계</td><td className={tdCls}>{f(data.sec3.reduce((s:number,r:any)=>s+r.target,0))}</td>
+                      <td className={tdCls}>{f(data.sec3.reduce((s:number,r:any)=>s+r.lms,0))}</td>
+                      <td className={tdCls}>{f(data.sec3.reduce((s:number,r:any)=>s+r.hog,0))}</td>
+                      <td className={tdCls}>{f(data.sec3.reduce((s:number,r:any)=>s+r.total,0))}</td>
+                      <td className={tdCls}>{fp(data.sec3.reduce((s:number,r:any)=>s+r.target,0)>0 ? data.sec3.reduce((s:number,r:any)=>s+r.total,0)/data.sec3.reduce((s:number,r:any)=>s+r.target,0) : 0)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 4단: 통합 매출 합계 */}
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                <p className="text-sm font-bold text-slate-700 mb-2">통합 매출 합계</p>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div><p className="text-[10px] text-slate-400">목표</p><p className="text-sm font-black text-slate-800">{f(data.execTarget)}</p></div>
+                  <div><p className="text-[10px] text-slate-400">달성</p><p className="text-sm font-black text-blue-600">{f(data.execActual)}</p></div>
+                  <div><p className="text-[10px] text-slate-400">잔여</p><p className="text-sm font-black text-red-500">{f(data.execTarget - data.execActual)}</p></div>
+                </div>
+                <div className="mt-2 text-center"><span className="text-xs text-slate-400">달성률</span> <span className="text-sm font-black text-blue-600">{fp(data.execTarget>0 ? data.execActual/data.execTarget : 0)}</span></div>
+              </div>
+
+              {/* 5단: 월 누적 */}
+              <div>
+                <p className="text-sm font-bold text-slate-700 mb-2 pl-1">  ★ 월 누적 매출 현황 ★</p>
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr><th className={thCls} rowSpan={2}>담당자</th><th className={thCls} colSpan={2}>연계 매출</th><th className={thCls} colSpan={2}>분양회 (신규+재등록)</th><th className={thCls} rowSpan={2}>달성률</th><th className={thCls} rowSpan={2}>매출액</th></tr>
+                    <tr><th className={thCls}>건</th><th className={thCls}>월 매출액</th><th className={thCls}>건</th><th className={thCls}>월 매출액</th></tr>
+                  </thead>
+                  <tbody>
+                    {data.sec5.map((r:any) => (
+                      <tr key={r.name}>
+                        <td className={tdL}>{r.name === data.topName ? `👑 ${r.name}` : r.name}</td>
+                        <td className={tdCls}>{r.lCnt}</td><td className={tdCls}>{f(r.lAmt)}</td>
+                        <td className={tdCls}>{r.bCnt}</td><td className={tdCls}>{f(r.bAmt)}</td>
+                        <td className={`${tdCls} ${r.rate>=1?"text-emerald-600 font-bold":"text-slate-500"}`}>{fp(r.rate)}</td>
+                        <td className={tdCls + " font-bold"}>{f(r.total)}</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-slate-50 font-bold">
+                      <td className={tdL}>합계</td>
+                      <td className={tdCls}>{data.sec5.reduce((s:number,r:any)=>s+r.lCnt,0)}</td><td className={tdCls}>{f(data.sec5.reduce((s:number,r:any)=>s+r.lAmt,0))}</td>
+                      <td className={tdCls}>{data.sec5.reduce((s:number,r:any)=>s+r.bCnt,0)}</td><td className={tdCls}>{f(data.sec5.reduce((s:number,r:any)=>s+r.bAmt,0))}</td>
+                      <td className={tdCls}>{fp(data.execTarget>0 ? data.execActual/data.execTarget : 0)}</td>
+                      <td className={tdCls}>{f(data.sec5.reduce((s:number,r:any)=>s+r.total,0))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 6단: 당일 현황 */}
+              <div>
+                <p className="text-sm font-bold text-slate-700 mb-2 pl-1">  ★ 당일 개인별 매출 현황 ★</p>
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr><th className={thCls} rowSpan={2}>담당자</th><th className={thCls} colSpan={2}>연계 매출</th><th className={thCls} colSpan={2}>분양회 (신규+재등록)</th><th className={thCls} colSpan={2}>합계</th></tr>
+                    <tr><th className={thCls}>건</th><th className={thCls}>일 매출액</th><th className={thCls}>건</th><th className={thCls}>일 매출액</th><th className={thCls}>건</th><th className={thCls}>매출액</th></tr>
+                  </thead>
+                  <tbody>
+                    {data.sec6.map((r:any) => {
+                      const isTop = data.sec6.reduce((best:any,x:any) => x.total > best.total ? x : best, data.sec6[0])?.name === r.name && r.total > 0;
+                      return (
+                        <tr key={r.name}>
+                          <td className={tdL}>{isTop ? `👑 ${r.name}` : r.name}</td>
+                          <td className={tdCls}>{r.lCnt}</td><td className={tdCls}>{f(r.lAmt)}</td>
+                          <td className={tdCls}>{r.bCnt}</td><td className={tdCls}>{f(r.bAmt)}</td>
+                          <td className={tdCls}>{r.tCnt}</td><td className={tdCls + " font-bold"}>{f(r.total)}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="bg-slate-50 font-bold">
+                      <td className={tdL}>합계</td>
+                      <td className={tdCls}>{data.sec6.reduce((s:number,r:any)=>s+r.lCnt,0)}</td><td className={tdCls}>{f(data.sec6.reduce((s:number,r:any)=>s+r.lAmt,0))}</td>
+                      <td className={tdCls}>{data.sec6.reduce((s:number,r:any)=>s+r.bCnt,0)}</td><td className={tdCls}>{f(data.sec6.reduce((s:number,r:any)=>s+r.bAmt,0))}</td>
+                      <td className={tdCls}>{data.sec6.reduce((s:number,r:any)=>s+r.tCnt,0)}</td><td className={tdCls}>{f(data.sec6.reduce((s:number,r:any)=>s+r.total,0))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SalesPage() {
   const [executions, setExecutions]   = useState<AdExecution[]>([]);
   const [vipMembers, setVipMembers]   = useState<VipMember[]>([]);
@@ -95,6 +428,7 @@ export default function SalesPage() {
   const [filterRefund, setFilterRefund]   = useState("");
   const [filterMonth, setFilterMonth]     = useState("");
   const [vipSearch, setVipSearch]         = useState("");
+  const [showDailyReport, setShowDailyReport] = useState(false);
 
   useEffect(() => { fetchExecutions(); }, [filterRoute, filterChannel, filterMember, filterStart, filterEnd, filterRefund, filterMonth]);
   useEffect(() => { fetchVipMembers(); }, []);
@@ -405,6 +739,10 @@ export default function SalesPage() {
             }}
             className="text-sm px-3 py-1.5 bg-white text-slate-400 border border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all font-medium whitespace-nowrap">
             ↺ 초기화
+          </button>
+          <button onClick={()=>setShowDailyReport(true)}
+            className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold whitespace-nowrap flex items-center gap-1.5">
+            <FileText size={13}/> 매출일보
           </button>
         </div>
       </div>
