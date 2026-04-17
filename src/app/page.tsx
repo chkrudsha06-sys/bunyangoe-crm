@@ -226,23 +226,23 @@ function DashCard({ icon, label, main, subs, cumLabel }: {
 // ── 바 차트 ──
 function BarChart({ data }: { data: MonthlyRevenue[] }) {
   const max = Math.max(...data.flatMap(d => [d.special, d.hightarget, d.bunyanghoe]), 1);
-  const bar = (v: number) => Math.max(6, Math.round((v / max) * 140));
+  const bar = (v: number) => Math.max(6, Math.round((v / max) * 220));
   const BARS = [
     { key: "special",    color: "#6366F1", label: "특전총매출" },
     { key: "hightarget", color: "#F59E0B", label: "하이타겟" },
     { key: "bunyanghoe", color: "#10B981", label: "분양회" },
   ];
   return (
-    <div className="flex items-end justify-around gap-4 h-44 px-4">
+    <div className="flex items-end justify-around gap-4 w-full h-full min-h-[240px] px-4 pt-2">
       {data.map((d, i) => (
         <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
-          <div className="flex items-end gap-1.5 w-full justify-center">
+          <div className="flex items-end gap-2 w-full justify-center">
             {BARS.map(b => {
               const v = (d as any)[b.key] as number;
               return (
                 <div key={b.key} className="flex flex-col items-center gap-0.5">
-                  <span className="text-[9px] font-bold" style={{color:b.color}}>{v > 0 ? v.toLocaleString() : ""}</span>
-                  <div className="w-8 rounded-t-md" style={{ height:`${bar(v)}px`, background:b.color, opacity: 0.85 }}/>
+                  <span className="text-[10px] font-bold" style={{color:b.color}}>{v > 0 ? v.toLocaleString() : ""}</span>
+                  <div className="w-10 rounded-t-md" style={{ height:`${bar(v)}px`, background:b.color, opacity: 0.85 }}/>
                 </div>
               );
             })}
@@ -250,6 +250,140 @@ function BarChart({ data }: { data: MonthlyRevenue[] }) {
           <span className="text-[11px] text-slate-400 font-medium">{d.month}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── KPI 대시보드 위젯 ──────────────────────────────────────
+interface KpiRow {
+  recruit_count: number;
+  bunyanghoe_revenue: number;
+  linked_revenue: number;
+  special_revenue: number;
+  wanpan_truck_count: number;
+  ad_operation_revenue: number;
+}
+
+function KpiItem({ label, target, actual, unit, isMoney }: {
+  label: string; target: number; actual: number; unit: string; isMoney?: boolean;
+}) {
+  const rate = target > 0 ? Math.min(999, Math.round((actual / target) * 100)) : 0;
+  const color =
+    rate >= 100 ? "#10B981" :
+    rate >= 80  ? "#3B82F6" :
+    rate >= 50  ? "#F59E0B" :
+                  "#94A3B8";
+  const fmt = (v: number) => v.toLocaleString();
+  return (
+    <div className="px-2 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[11px] font-semibold text-slate-700 truncate">{label}</span>
+        <span className="text-[10px] font-black flex-shrink-0 ml-1" style={{color}}>{rate}%</span>
+      </div>
+      <div className="text-[10px] text-slate-500 mb-1 font-mono">
+        {fmt(actual)} / <span className="text-slate-400">{target > 0 ? fmt(target) : "-"}{unit}</span>
+      </div>
+      <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all" style={{width: `${Math.min(100, rate)}%`, background: color}}/>
+      </div>
+    </div>
+  );
+}
+
+function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
+  const [team, setTeam] = useState<KpiRow | null>(null);
+  const [mine, setMine] = useState<KpiRow | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      setLoading(true);
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+
+      const { data: t } = await supabase.from("kpi_settings")
+        .select("*")
+        .eq("year", year).eq("month", month)
+        .eq("scope", "team")
+        .maybeSingle();
+      setTeam(t as KpiRow | null);
+
+      if (user.role === "exec" || user.role === "ops") {
+        const scope = user.role === "exec" ? "execution" : "operation";
+        const { data: m } = await supabase.from("kpi_settings")
+          .select("*")
+          .eq("year", year).eq("month", month)
+          .eq("scope", scope).eq("target_name", user.name)
+          .maybeSingle();
+        setMine(m as KpiRow | null);
+      } else {
+        setMine(null);
+      }
+      setLoading(false);
+    };
+    load();
+  }, [user]);
+
+  // 달성치 로직은 추후 구현 예정 → 일단 0
+  const actual = 0;
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"360px"}}>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base font-bold text-slate-700">KPI</h3>
+        <span className="text-[10px] text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100">
+          {new Date().getFullYear()}.{String(new Date().getMonth()+1).padStart(2,"0")} 기준
+        </span>
+      </div>
+
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>
+        </div>
+      ) : (
+        <div className="flex-1 grid grid-cols-2 gap-3 min-h-0 overflow-y-auto">
+          {/* ─── 왼쪽: 대협팀 전체 ─── */}
+          <div className="space-y-1.5 pr-1 border-r border-slate-100">
+            <div className="text-[10px] font-black text-amber-600 tracking-wide">■ 대협팀 전체</div>
+            <div className="text-[10px] font-bold text-slate-500 mt-1.5 mb-1">주요 KPI</div>
+            <KpiItem label="분양회 모집"       target={team?.recruit_count       ?? 0} actual={actual} unit="명"/>
+            <KpiItem label="분양회 매출(회비)"  target={team?.bunyanghoe_revenue  ?? 0} actual={actual} unit="원" isMoney/>
+            <KpiItem label="연계매출(하이타겟)" target={team?.linked_revenue      ?? 0} actual={actual} unit="원" isMoney/>
+            <KpiItem label="특전매출"           target={team?.special_revenue     ?? 0} actual={actual} unit="원" isMoney/>
+            <div className="text-[10px] font-bold text-slate-500 mt-2 mb-1">부가 KPI</div>
+            <KpiItem label="완판트럭"           target={team?.wanpan_truck_count  ?? 0} actual={actual} unit="건"/>
+          </div>
+
+          {/* ─── 오른쪽: 개인 KPI ─── */}
+          <div className="space-y-1.5 pl-1">
+            <div className="text-[10px] font-black text-blue-600 tracking-wide flex items-center gap-1">
+              ■ 내 목표
+              {user?.name && <span className="text-slate-400 font-semibold">({user.name})</span>}
+            </div>
+            <div className="text-[10px] font-bold text-slate-500 mt-1.5 mb-1">주요 KPI</div>
+
+            {user?.role === "exec" ? (
+              <>
+                <KpiItem label="분양회 모집"       target={mine?.recruit_count      ?? 0} actual={actual} unit="명"/>
+                <KpiItem label="분양회 매출(회비)"  target={mine?.bunyanghoe_revenue ?? 0} actual={actual} unit="원" isMoney/>
+                <KpiItem label="연계매출"          target={mine?.linked_revenue     ?? 0} actual={actual} unit="원" isMoney/>
+              </>
+            ) : user?.role === "ops" ? (
+              <KpiItem label="광고특전운영매출" target={mine?.ad_operation_revenue ?? 0} actual={actual} unit="원" isMoney/>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center mb-2">
+                  <span className="text-sm">👑</span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-semibold">관리자 계정</p>
+                <p className="text-[10px] text-slate-300 mt-0.5">개인 KPI 없음</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -928,24 +1062,15 @@ export default function DashboardPage() {
                 <div style={{ display:"flex", alignItems:"center", gap:"5px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#10B981" }}/><span>분양회</span></div>
               </div>
             </div>
-            {monthlyRev.length > 0 ? <BarChart data={monthlyRev}/> : (
-              <div className="h-32 flex items-center justify-center text-slate-300 text-sm">데이터 없음</div>
-            )}
+            <div className="flex-1 flex items-end min-h-0">
+              {monthlyRev.length > 0 ? <BarChart data={monthlyRev}/> : (
+                <div className="w-full h-full flex items-center justify-center text-slate-300 text-sm">데이터 없음</div>
+              )}
+            </div>
           </div>
 
           {/* KPI */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"360px"}}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-slate-700">KPI</h3>
-              <span className="text-xs text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100">설정 예정</span>
-            </div>
-            <div className="flex flex-col items-center justify-center h-28 gap-2">
-              <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center">
-                <span className="text-lg">🎯</span>
-              </div>
-              <p className="text-sm text-slate-300 font-medium">KPI 설정 후 표시됩니다</p>
-            </div>
-          </div>
+          <DashboardKpiSummary user={user}/>
         </div>
 
         {/* 업무요청 + 공지사항 */}
