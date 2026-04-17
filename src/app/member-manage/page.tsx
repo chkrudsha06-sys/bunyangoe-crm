@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Shield, Phone, Calendar, Search, CreditCard } from "lucide-react";
+import { Shield, Phone, Calendar, Search, Copy, Check } from "lucide-react";
 import BankAccountDialog from "@/components/BankAccountDialog";
 
 // 성씨 스티커 색상 — 분양회 입회자와 동일하게 통일
@@ -34,12 +34,12 @@ interface VipContact {
   bank_account: string | null;
 }
 
-// ─── 계좌 필드 셀: 회색 비활성화 표시 + 클릭 시 팝업 오픈 ───
+// 계좌 필드 셀 (예금주/은행코드/은행명): 클릭 시 팝업 오픈
 function AccountFieldCell({
   contact, field, placeholder, onSaved,
 }: {
   contact: VipContact;
-  field: "bank_holder" | "bank_code" | "bank_name" | "bank_account";
+  field: "bank_holder" | "bank_code" | "bank_name";
   placeholder: string;
   onSaved: () => void;
 }) {
@@ -58,12 +58,73 @@ function AccountFieldCell({
         }`}
         title="클릭하여 계좌정보 입력/편집"
       >
-        {hasValue
-          ? (field === "bank_account"
-              ? <span className="font-mono">{value}</span>
-              : value)
-          : placeholder}
+        {hasValue ? value : placeholder}
       </button>
+
+      <BankAccountDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        contactId={contact.id}
+        initial={{
+          bank_holder:  contact.bank_holder,
+          bank_code:    contact.bank_code,
+          bank_name:    contact.bank_name,
+          bank_account: contact.bank_account,
+        }}
+        onSaved={onSaved}
+      />
+    </>
+  );
+}
+
+// 계좌번호 셀: 클릭 시 팝업 + 복사 버튼
+function AccountNumberCell({
+  contact, onSaved,
+}: { contact: VipContact; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const value = contact.bank_account;
+  const hasValue = !!value;
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!value) return;
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-center gap-1">
+        <button
+          onClick={() => setOpen(true)}
+          className={`min-w-[110px] px-2 py-1.5 text-xs rounded-lg border text-center transition-colors font-mono ${
+            hasValue
+              ? "bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50 font-semibold"
+              : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200"
+          }`}
+          title="클릭하여 계좌정보 입력/편집"
+        >
+          {hasValue ? value : "계좌번호"}
+        </button>
+
+        {/* 복사 버튼 - 계좌번호 있을 때만 표시 */}
+        {hasValue && (
+          <button
+            onClick={handleCopy}
+            className={`flex-shrink-0 p-1.5 rounded-lg border transition-colors ${
+              copied
+                ? "bg-emerald-50 border-emerald-200 text-emerald-500"
+                : "bg-white border-slate-200 text-slate-400 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50"
+            }`}
+            title="계좌번호 복사"
+          >
+            {copied ? <Check size={11}/> : <Copy size={11}/>}
+          </button>
+        )}
+      </div>
 
       <BankAccountDialog
         open={open}
@@ -188,7 +249,6 @@ export default function MemberManagePage() {
                     </td>
                     <td className="px-3 py-3 text-center align-middle">
                       <div className="flex items-center justify-center gap-2">
-                        {/* 성씨 스티커 - vip-members와 동일한 색상 체계 */}
                         <div className={`w-7 h-7 ${getAvatarColor(c.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
                           <span className="text-white text-xs font-black">{c.name[0]}</span>
                         </div>
@@ -209,21 +269,18 @@ export default function MemberManagePage() {
                         {c.meeting_result}
                       </span>
                     </td>
-                    {/* 예금주 */}
                     <td className="px-3 py-3 text-center align-middle">
                       <AccountFieldCell contact={c} field="bank_holder" placeholder="예금주" onSaved={fetchMembers}/>
                     </td>
-                    {/* 은행코드 */}
                     <td className="px-3 py-3 text-center align-middle">
                       <AccountFieldCell contact={c} field="bank_code" placeholder="코드" onSaved={fetchMembers}/>
                     </td>
-                    {/* 은행명 */}
                     <td className="px-3 py-3 text-center align-middle">
                       <AccountFieldCell contact={c} field="bank_name" placeholder="은행명" onSaved={fetchMembers}/>
                     </td>
-                    {/* 계좌번호 */}
+                    {/* 계좌번호 + 복사 버튼 */}
                     <td className="px-3 py-3 text-center align-middle">
-                      <AccountFieldCell contact={c} field="bank_account" placeholder="계좌번호" onSaved={fetchMembers}/>
+                      <AccountNumberCell contact={c} onSaved={fetchMembers}/>
                     </td>
                     <td className="px-3 py-3 text-center align-middle">
                       <span className="text-slate-600 flex items-center justify-center gap-1 text-xs">
