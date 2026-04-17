@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -7,7 +9,7 @@ import { CRMUser, logout } from "@/lib/auth";
 import {
   LayoutDashboard, Users, Kanban, BarChart3,
   CalendarDays, Truck, Shield, Award,
-  CreditCard, LogOut, ChevronRight, FileText, Target,
+  CreditCard, LogOut, ChevronRight, FileText, Target, Moon, Sun,
 } from "lucide-react";
 
 interface NotificationItem { id: number; message: string | null; created_at: string; is_read: boolean; assignee_name?: string; title?: string; source_type?: string; source_id?: number | null; }
@@ -38,8 +40,7 @@ const OPS_MENUS = [
 ];
 
 const ADMIN_EXTRA = [
-  { href: "/reports",       label: "팀 성과 분석", icon: BarChart3 },
-  { href: "/kpi-settings",  label: "KPI 설정",    icon: Target },
+  { href: "/reports", label: "팀 성과 분석", icon: BarChart3 },
 ];
 
 // 역할 배지 스타일
@@ -54,6 +55,20 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
   const router = useRouter();
   const isAdmin = user.role === "admin";
   const roleStyle = ROLE_STYLE[user.role] || ROLE_STYLE.exec;
+
+  // 다크모드
+  const [darkMode, setDarkMode] = useState(false);
+  useEffect(() => {
+    const saved = localStorage.getItem("crm_dark_mode");
+    if (saved === "true") { setDarkMode(true); document.body.classList.add("dark-mode"); }
+  }, []);
+  const toggleDark = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    if (next) { document.body.classList.add("dark-mode"); }
+    else { document.body.classList.remove("dark-mode"); }
+    localStorage.setItem("crm_dark_mode", String(next));
+  };
 
   const handleLogout = () => { logout(); router.push("/login"); };
 
@@ -122,8 +137,12 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
         )}
       </nav>
 
-      {/* 로그아웃 */}
-      <div className="px-3 pb-4">
+      {/* 다크모드 + 로그아웃 */}
+      <div className="px-3 pb-4 space-y-1">
+        <button onClick={toggleDark} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
+          {darkMode ? <Sun size={13} className="text-amber-500"/> : <Moon size={13}/>}
+          <span>{darkMode ? "라이트 모드" : "다크 모드"}</span>
+        </button>
         <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
           <LogOut size={13} />
           <span>로그아웃</span>
