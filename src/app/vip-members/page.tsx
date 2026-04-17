@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Award, Phone, Calendar, Search, CreditCard } from "lucide-react";
+import { Award, Phone, Calendar, Search, CreditCard, Copy, Check } from "lucide-react";
 import BankAccountDialog from "@/components/BankAccountDialog";
-import { findBankByCode } from "@/lib/banks";
 
 const SURNAME_COLORS: Record<string,string> = {
   "김":"bg-blue-500","이":"bg-violet-500","박":"bg-emerald-500","최":"bg-rose-500","정":"bg-amber-500","강":"bg-cyan-500",
@@ -34,39 +33,67 @@ interface VipContact {
   bank_account: string | null;
 }
 
-// 계좌정보 셀 — 클릭 시 팝업 오픈
+// 계좌정보 셀 — 클릭 시 팝업 오픈 + 복사 버튼
 function AccountInfoCell({ contact, onSaved }: { contact: VipContact; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const hasAccount = !!(contact.bank_holder || contact.bank_name || contact.bank_account);
+
+  // 계좌번호 복사 (상위 버튼 클릭 이벤트 전파 차단)
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!contact.bank_account) return;
+    navigator.clipboard.writeText(contact.bank_account).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className={`w-full min-w-[150px] max-w-[220px] px-3 py-2 text-xs rounded-lg border text-left transition-colors ${
-          hasAccount
-            ? "bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50"
-            : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200"
-        }`}
-        title="클릭하여 계좌정보 입력/편집"
-      >
-        {hasAccount ? (
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-1 font-semibold text-slate-700">
-              <CreditCard size={11} className="text-blue-500"/>
-              <span>{contact.bank_holder || "예금주 미입력"}</span>
+      <div className="flex items-center justify-center gap-1.5">
+        <button
+          onClick={() => setOpen(true)}
+          className={`min-w-[170px] max-w-[240px] px-3 py-2 text-xs rounded-lg border text-left transition-colors ${
+            hasAccount
+              ? "bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50"
+              : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200"
+          }`}
+          title="클릭하여 계좌정보 입력/편집"
+        >
+          {hasAccount ? (
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1 font-semibold text-slate-700">
+                <CreditCard size={11} className="text-blue-500"/>
+                <span>{contact.bank_holder || "예금주 미입력"}</span>
+              </div>
+              <div className="text-[11px] text-slate-500 font-mono truncate">
+                {contact.bank_name || "-"} {contact.bank_account || ""}
+              </div>
             </div>
-            <div className="text-[11px] text-slate-500 font-mono truncate">
-              {contact.bank_name || "-"} {contact.bank_account || ""}
+          ) : (
+            <div className="flex items-center justify-center gap-1.5 text-slate-400">
+              <CreditCard size={12}/>
+              <span>계좌정보 입력</span>
             </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center gap-1.5 text-slate-400">
-            <CreditCard size={12}/>
-            <span>계좌정보 입력</span>
-          </div>
+          )}
+        </button>
+
+        {/* 계좌번호 복사 버튼 — 계좌번호 있을 때만 표시 */}
+        {contact.bank_account && (
+          <button
+            onClick={handleCopy}
+            className={`flex-shrink-0 p-1.5 rounded-lg border transition-colors ${
+              copied
+                ? "bg-emerald-50 border-emerald-200 text-emerald-500"
+                : "bg-white border-slate-200 text-slate-400 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50"
+            }`}
+            title="계좌번호 복사"
+          >
+            {copied ? <Check size={13}/> : <Copy size={13}/>}
+          </button>
         )}
-      </button>
+      </div>
 
       <BankAccountDialog
         open={open}
@@ -103,7 +130,6 @@ function VipTable({ title, color, rows, onSaved, fmtBun }: {
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-      {/* 섹션 헤더 */}
       <div className={`flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 ${cc.header}`}>
         <div className="flex items-center gap-2">
           <div className={`w-2.5 h-2.5 rounded-full ${cc.dot}`}/>
@@ -158,11 +184,9 @@ function VipTable({ title, color, rows, onSaved, fmtBun }: {
                       : "-"}
                   </span>
                 </td>
-                {/* 계좌정보 — 통합 셀 (클릭 시 팝업) */}
+                {/* 계좌정보 통합 셀 + 복사 버튼 */}
                 <td className="px-3 py-3 text-center align-middle">
-                  <div className="flex justify-center">
-                    <AccountInfoCell contact={c} onSaved={onSaved}/>
-                  </div>
+                  <AccountInfoCell contact={c} onSaved={onSaved}/>
                 </td>
                 <td className="px-3 py-3 text-center align-middle max-w-[160px]">
                   <p className="text-sm text-slate-500 truncate">{c.memo||"-"}</p>
@@ -262,12 +286,10 @@ export default function VipMembersPage() {
           </div>
         ) : (
           <>
-            {/* ── 계약완료 ── */}
             <VipTable
               title="계약완료" color="emerald" rows={contracts}
               onSaved={fetchVipMembers} fmtBun={fmtBun}
             />
-            {/* ── 예약완료 ── */}
             <VipTable
               title="예약완료" color="blue" rows={reservations}
               onSaved={fetchVipMembers} fmtBun={fmtBun}
