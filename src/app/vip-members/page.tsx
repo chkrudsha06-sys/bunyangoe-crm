@@ -123,11 +123,6 @@ function VipTable({ title, color, rows, onSaved, fmtBun }: {
   title: string; color: "emerald"|"blue";
   rows: VipContact[]; onSaved: ()=>void; fmtBun: (n:string|null)=>string;
 }) {
-  const PAGE = 8;
-  const [page, setPage] = useState(1);
-  const totalPages = Math.ceil(rows.length / PAGE);
-  const paged = rows.slice((page-1)*PAGE, page*PAGE);
-
   const colorMap = {
     emerald: { dot:"bg-emerald-500", badge:"bg-emerald-100 text-emerald-700", header:"border-l-4 border-emerald-500" },
     blue:    { dot:"bg-blue-500",    badge:"bg-blue-100 text-blue-700",       header:"border-l-4 border-blue-500" },
@@ -135,71 +130,67 @@ function VipTable({ title, color, rows, onSaved, fmtBun }: {
   const cc = colorMap[color];
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-      <div className={`flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 ${cc.header}`}>
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
+      {/* 섹션 헤더 */}
+      <div className={`flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 ${cc.header} flex-shrink-0`}>
         <div className="flex items-center gap-2">
           <div className={`w-2.5 h-2.5 rounded-full ${cc.dot}`}/>
           <span className="text-sm font-bold text-slate-700">{title}</span>
           <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${cc.badge}`}>{rows.length}명</span>
         </div>
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1">
-            <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}
-              className="px-2 py-1 text-xs text-slate-500 hover:text-blue-600 disabled:opacity-30">◀</button>
-            <span className="text-xs text-slate-500">{page}/{totalPages}</span>
-            <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages}
-              className="px-2 py-1 text-xs text-slate-500 hover:text-blue-600 disabled:opacity-30">▶</button>
-          </div>
-        )}
       </div>
+
+      {/* 테이블 본문 - 내부 스크롤 */}
       {rows.length === 0 ? (
         <div className="py-8 text-center text-slate-300 text-sm">데이터가 없습니다</div>
       ) : (
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>{TH_COLS.map(h=><th key={h} className="text-center px-3 py-3 text-slate-600 text-sm font-semibold whitespace-nowrap">{h}</th>)}</tr>
-          </thead>
-          <tbody>
-            {paged.map(c=>(
-              <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                <td className="px-3 py-3 text-center align-middle">
-                  <span className="text-sm font-black text-amber-600">{fmtBun(c.bunyanghoe_number)}</span>
-                </td>
-                <td className="px-3 py-3 text-center align-middle">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className={`w-9 h-9 ${getAvatarColor(c.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
-                      <span className="text-white text-sm font-black">{c.name[0]}</span>
+        <div className="overflow-auto max-h-[480px]">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+              <tr>{TH_COLS.map(h=><th key={h} className="text-center px-3 py-3 text-slate-600 text-sm font-semibold whitespace-nowrap">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {rows.map(c=>(
+                <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className="text-sm font-black text-amber-600">{fmtBun(c.bunyanghoe_number)}</span>
+                  </td>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className={`w-9 h-9 ${getAvatarColor(c.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
+                        <span className="text-white text-sm font-black">{c.name[0]}</span>
+                      </div>
+                      <span className="font-bold text-slate-800 text-sm">{c.name}</span>
                     </div>
-                    <span className="font-bold text-slate-800 text-sm">{c.name}</span>
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-center align-middle">
-                  <span className="text-slate-600 flex items-center justify-center gap-1 text-sm">
-                    <Phone size={13}/>{c.phone||"-"}
-                  </span>
-                </td>
-                <td className="px-3 py-3 text-center align-middle text-sm text-slate-600">{c.consultant||"-"}</td>
-                <td className="px-3 py-3 text-center align-middle text-sm text-slate-700">{c.assigned_to}</td>
-                <td className="px-3 py-3 text-center align-middle">
-                  <span className="text-slate-600 flex items-center justify-center gap-1 text-sm">
-                    <Calendar size={13}/>
-                    {c.meeting_result==="계약완료"&&c.contract_date
-                      ? new Date(c.contract_date).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"})
-                      : c.meeting_result==="예약완료"&&c.reservation_date
-                      ? new Date(c.reservation_date).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"})
-                      : "-"}
-                  </span>
-                </td>
-                <td className="px-3 py-3 text-center align-middle">
-                  <AccountInfoCell contact={c} onSaved={onSaved}/>
-                </td>
-                <td className="px-3 py-3 text-center align-middle max-w-[160px]">
-                  <p className="text-sm text-slate-500 truncate">{c.memo||"-"}</p>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </td>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className="text-slate-600 flex items-center justify-center gap-1 text-sm">
+                      <Phone size={13}/>{c.phone||"-"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-center align-middle text-sm text-slate-600">{c.consultant||"-"}</td>
+                  <td className="px-3 py-3 text-center align-middle text-sm text-slate-700">{c.assigned_to}</td>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className="text-slate-600 flex items-center justify-center gap-1 text-sm">
+                      <Calendar size={13}/>
+                      {c.meeting_result==="계약완료"&&c.contract_date
+                        ? new Date(c.contract_date).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"})
+                        : c.meeting_result==="예약완료"&&c.reservation_date
+                        ? new Date(c.reservation_date).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"})
+                        : "-"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <AccountInfoCell contact={c} onSaved={onSaved}/>
+                  </td>
+                  <td className="px-3 py-3 text-center align-middle max-w-[160px]">
+                    <p className="text-sm text-slate-500 truncate">{c.memo||"-"}</p>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
