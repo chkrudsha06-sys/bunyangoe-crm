@@ -264,6 +264,20 @@ interface KpiRow {
   ad_operation_revenue: number;
 }
 
+// 금액 축약 (만/억 단위) - 가독성 UP
+function fmtMoney(v: number): string {
+  if (!v || v === 0) return "0";
+  if (v >= 100_000_000) {
+    const uk = v / 100_000_000;
+    return uk % 1 === 0 ? `${uk}억` : `${uk.toFixed(1)}억`;
+  }
+  if (v >= 10_000) {
+    const man = Math.floor(v / 10_000);
+    return `${man.toLocaleString()}만`;
+  }
+  return v.toLocaleString();
+}
+
 function KpiItem({ label, target, actual, unit, isMoney }: {
   label: string; target: number; actual: number; unit: string; isMoney?: boolean;
 }) {
@@ -273,17 +287,23 @@ function KpiItem({ label, target, actual, unit, isMoney }: {
     rate >= 80  ? "#3B82F6" :
     rate >= 50  ? "#F59E0B" :
                   "#94A3B8";
-  const fmt = (v: number) => v.toLocaleString();
+  const bgColor =
+    rate >= 100 ? "bg-emerald-50 border-emerald-200" :
+    rate >= 80  ? "bg-blue-50 border-blue-200" :
+    rate >= 50  ? "bg-amber-50 border-amber-200" :
+                  "bg-slate-50 border-slate-200";
+  const fmt = (v: number) => isMoney ? fmtMoney(v) : v.toLocaleString();
   return (
-    <div className="px-2 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[11px] font-semibold text-slate-700 truncate">{label}</span>
-        <span className="text-[10px] font-black flex-shrink-0 ml-1" style={{color}}>{rate}%</span>
+    <div className={`px-3 py-2.5 rounded-xl border ${bgColor}`}>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-sm font-bold text-slate-800 truncate">{label}</span>
+        <span className="text-base font-black flex-shrink-0 ml-2" style={{color}}>{rate}%</span>
       </div>
-      <div className="text-[10px] text-slate-500 mb-1 font-mono">
-        {fmt(actual)} / <span className="text-slate-400">{target > 0 ? fmt(target) : "-"}{unit}</span>
+      <div className="flex items-baseline gap-1 mb-2">
+        <span className="text-base font-black text-slate-800 font-mono">{fmt(actual)}</span>
+        <span className="text-xs text-slate-400 font-semibold">/ {target > 0 ? fmt(target) : "-"}{unit}</span>
       </div>
-      <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
+      <div className="w-full h-2 bg-white rounded-full overflow-hidden border border-slate-100">
         <div className="h-full rounded-full transition-all" style={{width: `${Math.min(100, rate)}%`, background: color}}/>
       </div>
     </div>
@@ -326,14 +346,14 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
     load();
   }, [user]);
 
-  // 달성치 로직은 추후 구현 예정 → 일단 0
+  // 달성치 로직은 추후 구현 예정
   const actual = 0;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"360px"}}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-bold text-slate-700">KPI</h3>
-        <span className="text-[10px] text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100">
+        <span className="text-xs text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100 font-semibold">
           {new Date().getFullYear()}.{String(new Date().getMonth()+1).padStart(2,"0")} 기준
         </span>
       </div>
@@ -343,42 +363,52 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
           <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>
         </div>
       ) : (
-        <div className="flex-1 grid grid-cols-2 gap-3 min-h-0 overflow-y-auto">
-          {/* ─── 왼쪽: 대협팀 전체 ─── */}
-          <div className="space-y-1.5 pr-1 border-r border-slate-100">
-            <div className="text-[10px] font-black text-amber-600 tracking-wide">■ 대협팀 전체</div>
-            <div className="text-[10px] font-bold text-slate-500 mt-1.5 mb-1">주요 KPI</div>
-            <KpiItem label="분양회 모집"       target={team?.recruit_count       ?? 0} actual={actual} unit="명"/>
-            <KpiItem label="분양회 매출(회비)"  target={team?.bunyanghoe_revenue  ?? 0} actual={actual} unit="원" isMoney/>
-            <KpiItem label="연계매출(하이타겟)" target={team?.linked_revenue      ?? 0} actual={actual} unit="원" isMoney/>
-            <KpiItem label="특전매출"           target={team?.special_revenue     ?? 0} actual={actual} unit="원" isMoney/>
-            <div className="text-[10px] font-bold text-slate-500 mt-2 mb-1">부가 KPI</div>
-            <KpiItem label="완판트럭"           target={team?.wanpan_truck_count  ?? 0} actual={actual} unit="건"/>
+        <div className="flex-1 grid grid-cols-2 gap-4 min-h-0 overflow-y-auto">
+          {/* ═══ 왼쪽: 대협팀 전체 ═══ */}
+          <div className="flex flex-col pr-3 border-r border-slate-100">
+            <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-amber-100">
+              <span className="w-2 h-2 rounded-full bg-amber-500"/>
+              <span className="text-sm font-black text-amber-700 tracking-tight">대협팀 전체</span>
+            </div>
+            <div className="text-xs font-bold text-slate-500 mb-2">주요 KPI</div>
+            <div className="space-y-2">
+              <KpiItem label="분양회 모집"       target={team?.recruit_count       ?? 0} actual={actual} unit="명"/>
+              <KpiItem label="분양회 매출(회비)"  target={team?.bunyanghoe_revenue  ?? 0} actual={actual} unit="원" isMoney/>
+              <KpiItem label="연계매출(하이타겟)" target={team?.linked_revenue      ?? 0} actual={actual} unit="원" isMoney/>
+              <KpiItem label="특전매출"           target={team?.special_revenue     ?? 0} actual={actual} unit="원" isMoney/>
+            </div>
+            <div className="text-xs font-bold text-slate-500 mt-3 mb-2">부가 KPI</div>
+            <div className="space-y-2">
+              <KpiItem label="완판트럭"           target={team?.wanpan_truck_count  ?? 0} actual={actual} unit="건"/>
+            </div>
           </div>
 
-          {/* ─── 오른쪽: 개인 KPI ─── */}
-          <div className="space-y-1.5 pl-1">
-            <div className="text-[10px] font-black text-blue-600 tracking-wide flex items-center gap-1">
-              ■ 내 목표
-              {user?.name && <span className="text-slate-400 font-semibold">({user.name})</span>}
+          {/* ═══ 오른쪽: 개인 KPI ═══ */}
+          <div className="flex flex-col pl-1">
+            <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-blue-100">
+              <span className="w-2 h-2 rounded-full bg-blue-500"/>
+              <span className="text-sm font-black text-blue-700 tracking-tight">내 목표</span>
+              {user?.name && <span className="text-xs text-slate-400 font-semibold">({user.name})</span>}
             </div>
-            <div className="text-[10px] font-bold text-slate-500 mt-1.5 mb-1">주요 KPI</div>
+            <div className="text-xs font-bold text-slate-500 mb-2">주요 KPI</div>
 
             {user?.role === "exec" ? (
-              <>
+              <div className="space-y-2">
                 <KpiItem label="분양회 모집"       target={mine?.recruit_count      ?? 0} actual={actual} unit="명"/>
                 <KpiItem label="분양회 매출(회비)"  target={mine?.bunyanghoe_revenue ?? 0} actual={actual} unit="원" isMoney/>
                 <KpiItem label="연계매출"          target={mine?.linked_revenue     ?? 0} actual={actual} unit="원" isMoney/>
-              </>
+              </div>
             ) : user?.role === "ops" ? (
-              <KpiItem label="광고특전운영매출" target={mine?.ad_operation_revenue ?? 0} actual={actual} unit="원" isMoney/>
+              <div className="space-y-2">
+                <KpiItem label="광고특전운영매출" target={mine?.ad_operation_revenue ?? 0} actual={actual} unit="원" isMoney/>
+              </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center mb-2">
-                  <span className="text-sm">👑</span>
+              <div className="flex-1 flex flex-col items-center justify-center py-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-3 border-2 border-amber-200">
+                  <span className="text-xl">👑</span>
                 </div>
-                <p className="text-[11px] text-slate-400 font-semibold">관리자 계정</p>
-                <p className="text-[10px] text-slate-300 mt-0.5">개인 KPI 없음</p>
+                <p className="text-sm text-slate-700 font-bold">관리자 계정</p>
+                <p className="text-xs text-slate-400 mt-1">개인 KPI 없음</p>
               </div>
             )}
           </div>
