@@ -62,33 +62,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "CLOUDCONVERT_API_KEY 환경변수가 없습니다" }, { status: 500 });
     }
 
-    // 4. Job 생성 (synchronous 방식으로 변경)
+    // 4. 맑은 고딕 폰트 파일 Base64 인코딩
+    const fontPath = path.join(process.cwd(), "public", "malgun.ttf");
+    let fontBase64 = "";
+    if (fs.existsSync(fontPath)) {
+      fontBase64 = fs.readFileSync(fontPath).toString("base64");
+    }
+
+    // 5. Job 생성 (synchronous 방식 + 폰트 업로드)
+    const tasks: Record<string, any> = {
+      "upload-file": {
+        operation: "import/base64",
+        file: excelBase64,
+        filename: "quote.xlsx",
+      },
+      "convert-file": {
+        operation: "convert",
+        input: ["upload-file"],
+        input_format: "xlsx",
+        output_format: "pdf",
+        engine: "libreoffice",
+      },
+      "export-file": {
+        operation: "export/url",
+        input: "convert-file",
+      },
+    };
+
+    // 폰트 파일이 있으면 함께 업로드
+    if (fontBase64) {
+      tasks["upload-font"] = {
+        operation: "import/base64",
+        file: fontBase64,
+        filename: "malgun.ttf",
+      };
+      tasks["convert-file"].input = ["upload-file", "upload-font"];
+    }
+
     const jobRes = await fetch("https://sync.api.cloudconvert.com/v2/jobs", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        tasks: {
-          "upload-file": {
-            operation: "import/base64",
-            file: excelBase64,
-            filename: "quote.xlsx",
-          },
-          "convert-file": {
-            operation: "convert",
-            input: "upload-file",
-            input_format: "xlsx",
-            output_format: "pdf",
-            engine: "libreoffice",
-          },
-          "export-file": {
-            operation: "export/url",
-            input: "convert-file",
-          },
-        },
-      }),
+      body: JSON.stringify({ tasks }),
     });
 
     if (!jobRes.ok) {
