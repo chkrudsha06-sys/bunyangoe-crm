@@ -7,7 +7,7 @@ import { CRMUser, logout } from "@/lib/auth";
 import {
   LayoutDashboard, Users, Kanban, BarChart3,
   CalendarDays, Truck, Shield, Award,
-  CreditCard, LogOut, ChevronRight, FileText,
+  CreditCard, LogOut, ChevronRight, FileText, Target,
 } from "lucide-react";
 
 interface NotificationItem { id: number; message: string | null; created_at: string; is_read: boolean; assignee_name?: string; title?: string; source_type?: string; source_id?: number | null; }
@@ -38,7 +38,8 @@ const OPS_MENUS = [
 ];
 
 const ADMIN_EXTRA = [
-  { href: "/reports", label: "팀 성과 분석", icon: BarChart3 },
+  { href: "/reports",       label: "팀 성과 분석", icon: BarChart3 },
+  { href: "/kpi-settings",  label: "KPI 설정",    icon: Target },
 ];
 
 // 역할 배지 스타일
