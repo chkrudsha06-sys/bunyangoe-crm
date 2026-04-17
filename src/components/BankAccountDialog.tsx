@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Search, Check } from "lucide-react";
+import { X, Search, Check, RotateCcw } from "lucide-react";
 import { BANK_LIST, GROUP_LABELS, searchBanks, findBankByCode, findBankByName, Bank } from "@/lib/banks";
 import { supabase } from "@/lib/supabase";
 
@@ -28,9 +28,9 @@ export default function BankAccountDialog({
   const [query, setQuery]         = useState("");
   const [showList, setShowList]   = useState(false);
   const [saving, setSaving]       = useState(false);
+  const [resetting, setResetting] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // 팝업 열릴 때 기존값 로드
   useEffect(() => {
     if (open) {
       setHolder(initial.bank_holder || "");
@@ -42,7 +42,6 @@ export default function BankAccountDialog({
     }
   }, [open, initial]);
 
-  // 바깥 클릭 시 리스트 닫기
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (listRef.current && !listRef.current.contains(e.target as Node)) {
@@ -57,7 +56,6 @@ export default function BankAccountDialog({
 
   const filtered = searchBanks(query);
 
-  // 그룹별로 묶기
   const grouped: Record<string, Bank[]> = {};
   filtered.forEach(b => {
     if (!grouped[b.group]) grouped[b.group] = [];
@@ -84,11 +82,25 @@ export default function BankAccountDialog({
     onClose();
   };
 
+  // 초기화: DB에서 계좌정보 전부 삭제
+  const handleReset = async () => {
+    if (!confirm("계좌정보를 모두 삭제하시겠습니까?")) return;
+    setResetting(true);
+    await supabase.from("contacts").update({
+      bank_holder: null,
+      bank_code:   null,
+      bank_name:   null,
+      bank_account: null,
+    }).eq("id", contactId);
+    setResetting(false);
+    onSaved();
+    onClose();
+  };
+
   const groupOrder: Bank["group"][] = ["major","local","foreign","saving","securities"];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-      {/* 팝업 크기 확대: max-w-3xl (768px), 높이 최대 90vh */}
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
@@ -98,7 +110,7 @@ export default function BankAccountDialog({
           </button>
         </div>
 
-        {/* 본문 - 스크롤 가능 */}
+        {/* 본문 */}
         <div className="p-6 space-y-5 overflow-y-auto flex-1">
           {/* 예금주 */}
           <div>
@@ -108,7 +120,7 @@ export default function BankAccountDialog({
               className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
           </div>
 
-          {/* 은행코드 + 은행명 + 은행 검색창 */}
+          {/* 은행코드 + 은행명 검색 */}
           <div className="grid grid-cols-6 gap-3">
             <div className="col-span-2">
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">은행코드</label>
@@ -135,7 +147,7 @@ export default function BankAccountDialog({
             </div>
           </div>
 
-          {/* 은행 리스트 - 2열 그리드로 많이 보이도록 */}
+          {/* 은행 리스트 */}
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">
               은행 선택 {filtered.length > 0 && <span className="text-slate-400 font-normal">({filtered.length}개)</span>}
@@ -149,7 +161,6 @@ export default function BankAccountDialog({
                   if (!list || list.length === 0) return null;
                   return (
                     <div key={g}>
-                      {/* 그룹 타이틀: 글씨 크기 키움 + 검정색 */}
                       <div className="px-3 py-2 text-sm font-bold text-slate-800 bg-slate-50 sticky top-0 border-b border-slate-100">
                         {GROUP_LABELS[g]}
                       </div>
@@ -163,7 +174,7 @@ export default function BankAccountDialog({
                                 : "hover:bg-slate-50 text-slate-700"
                             }`}>
                             <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-mono text-slate-400 w-8">{b.code}</span>
+                              <span className="text-[11px] text-slate-400 w-8">{b.code}</span>
                               <span>{b.name}</span>
                             </div>
                             {bankCode === b.code && <Check size={14} className="text-blue-500 flex-shrink-0"/>}
@@ -182,20 +193,29 @@ export default function BankAccountDialog({
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">계좌번호</label>
             <input value={account} onChange={e=>setAccount(e.target.value)}
               placeholder="예: 123-456-789012"
-              className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 font-mono"/>
+              className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
           </div>
         </div>
 
-        {/* 푸터 */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 bg-slate-50 border-t border-slate-100 flex-shrink-0">
-          <button onClick={onClose}
-            className="px-5 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100">
-            취소
+        {/* 푸터: 초기화 / 취소 / 완료 */}
+        <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-t border-slate-100 flex-shrink-0">
+          {/* 왼쪽: 초기화 */}
+          <button onClick={handleReset} disabled={resetting}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-red-500 bg-white border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50">
+            <RotateCcw size={13}/> {resetting ? "삭제 중..." : "초기화"}
           </button>
-          <button onClick={handleSave} disabled={saving}
-            className="px-6 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
-            {saving ? "저장 중..." : "완료"}
-          </button>
+
+          {/* 오른쪽: 취소 + 완료 */}
+          <div className="flex items-center gap-2">
+            <button onClick={onClose}
+              className="px-5 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100">
+              취소
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              className="px-6 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              {saving ? "저장 중..." : "완료"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
