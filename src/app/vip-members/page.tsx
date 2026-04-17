@@ -33,13 +33,20 @@ interface VipContact {
   bank_account: string | null;
 }
 
+// ─── 넘버링 숫자 추출 (정렬용) ───
+function bunNumValue(n: string | null): number {
+  if (!n) return Infinity;
+  const m = n.match(/\d+/);
+  if (!m) return Infinity;
+  return parseInt(m[0], 10);
+}
+
 // 계좌정보 셀 — 클릭 시 팝업 오픈 + 복사 버튼
 function AccountInfoCell({ contact, onSaved }: { contact: VipContact; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const hasAccount = !!(contact.bank_holder || contact.bank_name || contact.bank_account);
 
-  // 계좌번호 복사 (상위 버튼 클릭 이벤트 전파 차단)
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!contact.bank_account) return;
@@ -79,7 +86,6 @@ function AccountInfoCell({ contact, onSaved }: { contact: VipContact; onSaved: (
           )}
         </button>
 
-        {/* 계좌번호 복사 버튼 — 계좌번호 있을 때만 표시 */}
         {contact.bank_account && (
           <button
             onClick={handleCopy}
@@ -184,7 +190,6 @@ function VipTable({ title, color, rows, onSaved, fmtBun }: {
                       : "-"}
                   </span>
                 </td>
-                {/* 계좌정보 통합 셀 + 복사 버튼 */}
                 <td className="px-3 py-3 text-center align-middle">
                   <AccountInfoCell contact={c} onSaved={onSaved}/>
                 </td>
@@ -221,12 +226,16 @@ export default function VipMembersPage() {
     setLoading(true);
     let q = supabase.from("contacts")
       .select("id,name,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_code,bank_name,bank_account")
-      .in("meeting_result",["계약완료","예약완료"])
-      .order("created_at",{ascending:false});
+      .in("meeting_result",["계약완료","예약완료"]);
     if (filterMember) q = q.eq("assigned_to", filterMember);
     if (filterStatus) q = q.eq("meeting_result", filterStatus);
     const { data } = await q;
-    setContacts((data as VipContact[])||[]);
+
+    // 무조건 넘버링 오름차순 정렬 (1번부터 → 미입력은 맨 뒤)
+    const sorted = ((data as VipContact[]) || []).sort((a, b) =>
+      bunNumValue(a.bunyanghoe_number) - bunNumValue(b.bunyanghoe_number)
+    );
+    setContacts(sorted);
     setLoading(false);
   };
 
