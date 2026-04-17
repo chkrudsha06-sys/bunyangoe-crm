@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { X, Search, Copy, Check } from "lucide-react";
+import { X, Search, Copy, Check, FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx";
 
 // ── 타입 ──────────────────────────────────────────────────
 interface VipContact {
@@ -10,7 +11,7 @@ interface VipContact {
   bunyanghoe_number: string | null;
   assigned_to: string; consultant: string | null;
   meeting_result: string;
-  bank_holder: string | null; bank_name: string | null; bank_account: string | null;
+  bank_holder: string | null; bank_code: string | null; bank_name: string | null; bank_account: string | null;
 }
 interface AdExecution {
   id: number; member_name: string; bunyanghoe_number: string | null;
@@ -107,7 +108,7 @@ export default function RewardsPage() {
     setLoading(true);
     const [{ data:c },{ data:e },{ data:p },{ data:m }] = await Promise.all([
       supabase.from("contacts")
-        .select("id,name,title,bunyanghoe_number,assigned_to,consultant,meeting_result,bank_holder,bank_name,bank_account")
+        .select("id,name,title,bunyanghoe_number,assigned_to,consultant,meeting_result,bank_holder,bank_code,bank_name,bank_account")
         .in("meeting_result",["계약완료","예약완료"]),
       supabase.from("ad_executions")
         .select("id,member_name,bunyanghoe_number,hightarget_mileage,hightarget_reward,hogaengnono_reward,lms_reward,payment_date,contract_route")
@@ -247,6 +248,83 @@ export default function RewardsPage() {
   const totalPaidSum = allRows.reduce((s,d)=>s+d.totalPaid,0);
   const totalPayable = allRows.reduce((s,d)=>s+d.afterBalance,0);
 
+  // ── 누적 집계 (전체 분기 합산) ──
+  const allQUpTo = quarters.filter(qq => quarterOrder(qq) <= quarterOrder(q));
+  let cumRewardAll = 0, qMileageAll = 0;
+  // 선택분기 마일리지 + 누적 리워드
+  for (const c of contacts) {
+    const thisExec = getExecByQ(c, q);
+    qMileageAll += thisExec.mileage;
+    for (const qq of allQUpTo) {
+      const exec = getExecByQ(c, qq);
+      cumRewardAll += exec.htReward + exec.hogReward + exec.lmsReward;
+    }
+  }
+  const cumPaidAll = payments.reduce((s,p) => s + (p.paid_amount||0), 0);
+  const { start: qStart, end: qEnd } = getQuarterDateRange(q);
+  const qMileUsedAll = mileageUsages
+    .filter(m => m.usage_date >= qStart && m.usage_date <= qEnd)
+    .reduce((s,m) => s + (m.usage_amount||0), 0);
+  const cumMileUsedAll = mileageUsages.reduce((s,m) => s + (m.usage_amount||0), 0);
+
+  // ── 엑셀 다운로드 함수 ──────────────────────────────────
+  const downloadDataXLS = () => {
+    const rows = filteredContacts.map(c => {
+      const d = getQuarterData(c, q);
+      return {
+        "넘버링": fmtBun(c.bunyanghoe_number),
+        "고객명": c.name,
+        "분기": q,
+        "대협팀": c.assigned_to||"",
+        "컨설턴트": c.consultant||"",
+        "마일리지": d.cumMileage,
+        "잔여마일리지": d.mileBalance,
+        "하이타겟(5%)": d.htReward,
+        "호갱노노(5%)": d.hogReward,
+        "LMS(15%)": d.lmsReward,
+        "발생리워드": d.reward,
+        "전분기이월": d.carriedOver,
+        "소득세(3.3%)": d.incomeTax,
+        "지급가능액": d.payable,
+        "지급완료액": d.totalPaid,
+        "지급후잔액": d.afterBalance,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "리워드데이터");
+    XLSX.writeFile(wb, `리워드_데이터_${q}.xls`);
+  };
+
+  const downloadPaymentXLS = () => {
+    // 지급처리 완료된 고객(isPaid=true, totalPaid>0)만 대상
+    const paidContacts = contacts.filter(c => {
+      const d = getQuarterData(c, q);
+      return d.totalPaid > 0;
+    });
+    // 분기 → 익월 매핑
+    const [,qn] = q.split("-");
+    const monthMap: Record<string,string> = { Q1:"4", Q2:"7", Q3:"10", Q4:"1" };
+    const payMonth = monthMap[qn] || "1";
+    const payLabel = `${payMonth}월프리이화원`;
+
+    const rows = paidContacts.map(c => {
+      const d = getQuarterData(c, q);
+      return [
+        c.bank_code || "",           // A: 은행코드
+        c.bank_account || "",        // B: 계좌번호
+        c.bank_holder || c.name,     // C: 예금주
+        d.totalPaid,                 // D: 지급금액
+        payLabel,                    // E: 월프리이화원
+        "(주)광고인",                // F: 고정
+      ];
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "입력정보");
+    XLSX.writeFile(wb, `리워드_지급정보_${q}.xls`);
+  };
+
   // 검색+필터
   const filteredContacts = contacts.filter(c => {
     const d = getQuarterData(c, q);
@@ -272,19 +350,44 @@ export default function RewardsPage() {
             <p className="text-xs text-slate-500 mt-0.5">분기별 리워드 지급 및 이월 관리</p>
           </div>
         </div>
-        {/* 대시보드 */}
+        {/* 대시보드 — 분기별 + 누적 */}
         <div className="grid grid-cols-4 gap-3 mb-3">
-          {[
-            {label:`${q} 발생리워드`,    value:fw(totalReward),  color:"text-amber-600",  bg:"bg-amber-50"},
-            {label:"누적 마일리지",      value:fw(totalMileage), color:"text-blue-600",   bg:"bg-blue-50"},
-            {label:"지급 완료",         value:fw(totalPaidSum), color:"text-emerald-600",bg:"bg-emerald-50"},
-            {label:"지급 후 잔액(이월)", value:fw(totalPayable), color:"text-amber-600",  bg:"bg-amber-50"},
-          ].map(({label,value,color,bg})=>(
-            <div key={label} className={`${bg} rounded-xl px-4 py-3 border border-slate-100`}>
-              <p className="text-xs text-slate-500 mb-1">{label}</p>
-              <p className={`text-base font-bold ${color}`}>{value}</p>
+          {/* 발생리워드 */}
+          <div className="bg-amber-50 rounded-xl px-4 py-3 border border-amber-100">
+            <p className="text-xs text-slate-500 mb-0.5">{q} 발생리워드</p>
+            <p className="text-base font-bold text-amber-600">{fw(totalReward)}</p>
+            <div className="border-t border-amber-200 mt-2 pt-1.5">
+              <p className="text-[10px] text-slate-400">누적</p>
+              <p className="text-sm font-bold text-amber-700">{fw(cumRewardAll)}</p>
             </div>
-          ))}
+          </div>
+          {/* 발생마일리지(하이타겟) */}
+          <div className="bg-blue-50 rounded-xl px-4 py-3 border border-blue-100">
+            <p className="text-xs text-slate-500 mb-0.5">{q} 발생마일리지 (하이타겟)</p>
+            <p className="text-base font-bold text-blue-600">{fw(qMileageAll)}</p>
+            <div className="border-t border-blue-200 mt-2 pt-1.5">
+              <p className="text-[10px] text-slate-400">누적</p>
+              <p className="text-sm font-bold text-blue-700">{fw(totalMileage)}</p>
+            </div>
+          </div>
+          {/* 리워드 지급금액 */}
+          <div className="bg-emerald-50 rounded-xl px-4 py-3 border border-emerald-100">
+            <p className="text-xs text-slate-500 mb-0.5">{q} 리워드지급금액</p>
+            <p className="text-base font-bold text-emerald-600">{fw(totalPaidSum)}</p>
+            <div className="border-t border-emerald-200 mt-2 pt-1.5">
+              <p className="text-[10px] text-slate-400">누적</p>
+              <p className="text-sm font-bold text-emerald-700">{fw(cumPaidAll)}</p>
+            </div>
+          </div>
+          {/* 사용 마일리지(하이타겟) */}
+          <div className="bg-violet-50 rounded-xl px-4 py-3 border border-violet-100">
+            <p className="text-xs text-slate-500 mb-0.5">{q} 사용마일리지 (하이타겟)</p>
+            <p className="text-base font-bold text-violet-600">{fw(qMileUsedAll)}</p>
+            <div className="border-t border-violet-200 mt-2 pt-1.5">
+              <p className="text-[10px] text-slate-400">누적</p>
+              <p className="text-sm font-bold text-violet-700">{fw(cumMileUsedAll)}</p>
+            </div>
+          </div>
         </div>
         {/* 필터 */}
         <div className="flex gap-2 items-center">
@@ -304,6 +407,16 @@ export default function RewardsPage() {
             <option value="unpaid">미지급</option>
             <option value="paid">지급완료</option>
           </select>
+          <div className="flex items-center gap-1.5 ml-auto">
+            <button onClick={downloadDataXLS}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 hover:bg-emerald-100">
+              <FileSpreadsheet size={14}/> 데이터다운(XLS)
+            </button>
+            <button onClick={downloadPaymentXLS}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100">
+              <FileSpreadsheet size={14}/> 지급정보(XLS)
+            </button>
+          </div>
         </div>
       </div>
 
