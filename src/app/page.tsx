@@ -163,8 +163,8 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
 
 async function fetchMonthlyRevenue(user: CRMUser, year: number, month: number): Promise<MonthlyRevenue[]> {
   const isExec = user.role === "exec";
-  // 당월 포함 직전 6개월
-  const offsets = Array.from({length: 6}, (_, i) => i - 5);  // [-5, -4, ..., -1, 0]
+  // 당월 포함 직전 3개월
+  const offsets = Array.from({length: 3}, (_, i) => i - 2);  // [-2, -1, 0]
   const months = offsets.map(offset => {
     const d = new Date(year, month - 1 + offset, 1);
     const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0];
@@ -228,7 +228,7 @@ function DashCard({ icon, label, main, subs, cumLabel }: {
 // ── 바 차트 ──
 function BarChart({ data }: { data: MonthlyRevenue[] }) {
   const max = Math.max(...data.flatMap(d => [d.special, d.hightarget, d.bunyanghoe]), 1);
-  const bar = (v: number) => Math.max(3, Math.round((v / max) * 140));
+  const bar = (v: number) => Math.max(6, Math.round((v / max) * 160));
   const BARS = [
     { key: "special",    color: "#6366F1", label: "특전총매출" },
     { key: "hightarget", color: "#F59E0B", label: "하이타겟" },
@@ -247,21 +247,21 @@ function BarChart({ data }: { data: MonthlyRevenue[] }) {
   };
 
   return (
-    <div className="flex items-end justify-around gap-1 w-full h-full min-h-[160px] px-2 pt-2">
+    <div className="flex items-end justify-around gap-3 w-full h-full min-h-[200px] px-3 pt-2">
       {data.map((d, i) => (
-        <div key={i} className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
-          <div className="flex items-end gap-0.5 w-full justify-center">
+        <div key={i} className="flex flex-col items-center gap-2 flex-1 min-w-0">
+          <div className="flex items-end gap-1.5 w-full justify-center">
             {BARS.map(b => {
               const v = (d as any)[b.key] as number;
               return (
-                <div key={b.key} className="flex flex-col items-center gap-0.5">
-                  <span className="text-[8px] font-bold whitespace-nowrap" style={{color:b.color}}>{fmt(v)}</span>
-                  <div className="rounded-t-md" style={{ width:"12px", height:`${bar(v)}px`, background:b.color, opacity: 0.85 }}/>
+                <div key={b.key} className="flex flex-col items-center gap-1">
+                  <span className="text-xs font-black whitespace-nowrap" style={{color:b.color}}>{fmt(v)}</span>
+                  <div className="rounded-t-md" style={{ width:"26px", height:`${bar(v)}px`, background:b.color, opacity: 0.9 }}/>
                 </div>
               );
             })}
           </div>
-          <span className="text-[10px] text-slate-500 font-semibold whitespace-nowrap">{d.month}</span>
+          <span className="text-sm text-slate-600 font-bold whitespace-nowrap">{d.month}</span>
         </div>
       ))}
     </div>
@@ -441,7 +441,7 @@ function RevenueTrendCard({ monthlyRev }: { monthlyRev: MonthlyRevenue[] }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-baseline gap-2">
           <h3 className="text-base font-bold text-slate-700">매출실적 추이</h3>
-          <span className="text-[10px] text-slate-400 font-semibold">최근 6개월</span>
+          <span className="text-[10px] text-slate-400 font-semibold">최근 3개월</span>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-slate-400">
           <div style={{ display:"flex", alignItems:"center", gap:"4px" }}><div style={{ width:"8px", height:"8px", borderRadius:"2px", background:"#6366F1" }}/><span>특전</span></div>
