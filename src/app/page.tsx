@@ -1076,9 +1076,9 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="grid grid-rows-3 gap-4">
+            <RevenueTrendCard monthlyRev={monthlyRev}/>
             <WorkRequestBoard user={user}/>
             <NoticeBoard user={user}/>
-            <RevenueTrendCard monthlyRev={monthlyRev}/>
           </div>
           <DashboardKpiSummary user={user}/>
         </div>
