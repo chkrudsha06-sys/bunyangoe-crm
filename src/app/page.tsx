@@ -32,16 +32,19 @@ function fw(n: number) {
 }
 
 async function fetchStats(user: CRMUser, start: string, end: string, isAll = false): Promise<Stats> {
+  // exec=개인별, admin/ops=팀전체
   const isExec = user.role === "exec";
   const today  = new Date().toISOString().split("T")[0];
   const monthStart = start;
   const monthEnd   = end;
 
+  // ── 1. 분양회 입회 (계약/예약완료, 완료일 기준) ──────────────
   let joinQ = supabase.from("contacts")
     .select("meeting_result,tm_sensitivity,contract_date,reservation_date,meeting_date,assigned_to");
   if (isExec) joinQ = joinQ.eq("assigned_to", user.name);
   const { data: allContacts = [] } = await joinQ;
 
+  // 당월 계약/예약완료 (완료일 기준)
   const monthJoined = (allContacts||[]).filter((x:any) => {
     const d = x.meeting_result === "계약완료" ? x.contract_date : x.reservation_date;
     if (!d) return false;
@@ -51,17 +54,21 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     ["계약완료","예약완료"].includes(x.meeting_result||"")
   );
 
+  // 가망고객 (파이프라인 - 계약/예약완료 제외)
   const prospects = (allContacts||[]).filter((x:any) =>
     !["계약완료","예약완료"].includes(x.meeting_result||"")
   );
 
+  // 당월 미팅예정 (미팅일정이 당월, 계약/예약완료 제외)
   const monthMeetings = (allContacts||[]).filter((x:any) => {
     if (["계약완료","예약완료"].includes(x.meeting_result||"")) return false;
     if (!x.meeting_date) return false;
     return !isAll && x.meeting_date >= monthStart && x.meeting_date <= monthEnd;
   });
+  // 누적 총미팅 (계약/예약완료 포함 전체)
   const totalMeetings = (allContacts||[]).filter((x:any) => x.meeting_date).length;
 
+  // ── 2. 광고 집행 (VAT 포함 실효금액) ──────────────────────────
   let adQ = supabase.from("ad_executions")
     .select("execution_amount,vat_amount,channel,team_member,refund_amount,contract_route,payment_date");
   if (isExec) adQ = adQ.eq("team_member", user.name);
@@ -69,17 +76,20 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
 
   const effAmt = (x:any) => (x.vat_amount && x.vat_amount !== x.execution_amount) ? (x.vat_amount||0) : (x.execution_amount||0);
 
-  const AD_CHANNELS = ["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
+  // 당월 광고 (분양회, 광고채널 하이타겟+호갱노노+LMS)
+  const AD_CHANNELS = ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
   const monthAd = (allAd||[]).filter((x:any) => {
     if (isAll) return false;
     return x.payment_date >= monthStart && x.payment_date <= monthEnd;
   });
 
+  // 당월 총매출 (광고특전 = 분양회의 AD_CHANNELS)
   const monthAdSpecial = monthAd.filter((x:any) =>
     x.contract_route === "분양회" && AD_CHANNELS.includes(x.channel)
   );
   const totalRevenue = monthAdSpecial.reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
 
+  // 당월 입회비 / 월회비
   const membershipFeeAmt = monthAd
     .filter((x:any) => x.channel === "분양회 입회비")
     .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
@@ -87,6 +97,7 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     .filter((x:any) => x.channel === "분양회 월회비")
     .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
 
+  // 누적 입회비 / 월회비
   const cumMembershipFee = (allAd||[])
     .filter((x:any) => x.channel === "분양회 입회비")
     .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
@@ -94,14 +105,17 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     .filter((x:any) => x.channel === "분양회 월회비")
     .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
 
+  // 당월 하이타겟 연계매출 (환불 차감)
   const linkedRevenue = monthAd
     .filter((x:any) => x.channel === "하이타겟")
     .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
 
+  // 누적 하이타겟
   const cumLinkedRevenue = (allAd||[])
     .filter((x:any) => x.channel === "하이타겟")
     .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
 
+  // 미팅완료 = 계약완료/예약완료 중 미팅일정 있는 건 (당월)
   const monthMeetingDone = (allContacts||[]).filter((x:any) => {
     if (!["계약완료","예약완료"].includes(x.meeting_result||"")) return false;
     if (!x.meeting_date) return false;
@@ -111,6 +125,7 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     ["계약완료","예약완료"].includes(x.meeting_result||"") && x.meeting_date
   ).length;
 
+  // 입회비/월회비 건수
   const membershipCount = (isAll
     ? (allAd||[]).filter((x:any)=>x.channel==="분양회 입회비")
     : monthAd.filter((x:any)=>x.channel==="분양회 입회비")).length;
@@ -118,6 +133,7 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     ? (allAd||[]).filter((x:any)=>x.channel==="분양회 월회비")
     : monthAd.filter((x:any)=>x.channel==="분양회 월회비")).length;
 
+  // 하이타겟 건수
   const linkedCount = (isAll
     ? (allAd||[]).filter((x:any)=>x.channel==="하이타겟")
     : monthAd.filter((x:any)=>x.channel==="하이타겟")).length;
@@ -147,12 +163,11 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
 
 async function fetchMonthlyRevenue(user: CRMUser, year: number, month: number): Promise<MonthlyRevenue[]> {
   const isExec = user.role === "exec";
-  const offsets = Array.from({length: 3}, (_, i) => i - 2);
-  const months = offsets.map(offset => {
+  const months = [-2,-1,0].map(offset => {
     const d = new Date(year, month - 1 + offset, 1);
     const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0];
     const e = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().split("T")[0];
-    return { label: `${String(d.getFullYear()).slice(2)}.${String(d.getMonth()+1).padStart(2,"0")}`, s, e };
+    return { label: `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}`, s, e };
   });
   const results: MonthlyRevenue[] = [];
   for (const m of months) {
@@ -163,7 +178,7 @@ async function fetchMonthlyRevenue(user: CRMUser, year: number, month: number): 
     results.push({
       month: m.label,
       hightarget: (a||[]).filter((x:any)=>x.channel==="하이타겟").reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
-      special: (a||[]).filter((x:any)=>["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"].includes(x.channel)).reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
+      special: (a||[]).reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
       bunyanghoe: (a||[]).filter((x:any)=>["분양회 입회비","분양회 월회비"].includes(x.channel)).reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
     });
   }
@@ -208,309 +223,33 @@ function DashCard({ icon, label, main, subs, cumLabel }: {
   );
 }
 
-// ── 바 차트 (색상: 특전=#F59E0B, 하이타겟=#6366F1, 분양회=#10B981) ──
+// ── 바 차트 ──
 function BarChart({ data }: { data: MonthlyRevenue[] }) {
   const max = Math.max(...data.flatMap(d => [d.special, d.hightarget, d.bunyanghoe]), 1);
-  const bar = (v: number) => Math.max(6, Math.round((v / max) * 160));
+  const bar = (v: number) => Math.max(6, Math.round((v / max) * 140));
   const BARS = [
-    { key: "special",    color: "#F59E0B", label: "특전총매출" },
-    { key: "hightarget", color: "#6366F1", label: "하이타겟" },
+    { key: "special",    color: "#6366F1", label: "특전총매출" },
+    { key: "hightarget", color: "#F59E0B", label: "하이타겟" },
     { key: "bunyanghoe", color: "#10B981", label: "분양회" },
   ];
-
-  const fmt = (v: number): string => {
-    if (!v) return "";
-    if (v >= 100_000_000) {
-      const uk = v / 100_000_000;
-      return uk % 1 === 0 ? `${uk}억` : `${uk.toFixed(1)}억`;
-    }
-    if (v >= 10_000) return `${Math.floor(v / 10_000).toLocaleString()}만`;
-    return v.toLocaleString();
-  };
-
   return (
-    <div className="flex items-end justify-around gap-3 w-full h-full min-h-[200px] px-3 pt-2">
+    <div className="flex items-end justify-around gap-4 h-44 px-4">
       {data.map((d, i) => (
-        <div key={i} className="flex flex-col items-center gap-2 flex-1 min-w-0">
+        <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
           <div className="flex items-end gap-1.5 w-full justify-center">
             {BARS.map(b => {
               const v = (d as any)[b.key] as number;
               return (
-                <div key={b.key} className="flex flex-col items-center gap-1">
-                  <span className="text-xs font-black whitespace-nowrap" style={{color:b.color}}>{fmt(v)}</span>
-                  <div className="rounded-t-md" style={{ width:"26px", height:`${bar(v)}px`, background:b.color, opacity: 0.9 }}/>
+                <div key={b.key} className="flex flex-col items-center gap-0.5">
+                  <span className="text-[9px] font-bold" style={{color:b.color}}>{v > 0 ? v.toLocaleString() : ""}</span>
+                  <div className="w-8 rounded-t-md" style={{ height:`${bar(v)}px`, background:b.color, opacity: 0.85 }}/>
                 </div>
               );
             })}
           </div>
-          <span className="text-sm text-slate-600 font-bold whitespace-nowrap">{d.month}</span>
+          <span className="text-[11px] text-slate-400 font-medium">{d.month}</span>
         </div>
       ))}
-    </div>
-  );
-}
-
-// ── KPI 대시보드 위젯 ──────────────────────────────────────
-interface KpiRow {
-  recruit_count: number;
-  bunyanghoe_revenue: number;
-  linked_revenue: number;
-  special_revenue: number;
-  wanpan_truck_count: number;
-  ad_operation_revenue: number;
-}
-
-function fmtMoney(v: number): string {
-  if (!v || v === 0) return "0";
-  if (v >= 100_000_000) {
-    const uk = v / 100_000_000;
-    return uk % 1 === 0 ? `${uk}억` : `${uk.toFixed(1)}억`;
-  }
-  if (v >= 10_000) {
-    const man = Math.floor(v / 10_000);
-    return `${man.toLocaleString()}만`;
-  }
-  return v.toLocaleString();
-}
-
-function KpiItem({ label, target, actual, unit, isMoney, accentColor }: {
-  label: string; target: number; actual: number; unit: string; isMoney?: boolean; accentColor?: string;
-}) {
-  const rate = target > 0 ? Math.min(999, Math.round((actual / target) * 100)) : 0;
-  const color = accentColor || (
-    rate >= 100 ? "#10B981" :
-    rate >= 80  ? "#3B82F6" :
-    rate >= 50  ? "#F59E0B" :
-                  "#94A3B8");
-  const fmt = (v: number) => isMoney ? fmtMoney(v) : v.toLocaleString();
-  return (
-    <div className="px-3 py-2.5 rounded-xl border bg-slate-50 border-slate-200" style={accentColor ? {borderLeftWidth:"3px", borderLeftColor: accentColor} : {}}>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-sm font-bold text-slate-800 truncate">{label}</span>
-        <span className="text-base font-black flex-shrink-0 ml-2" style={{color}}>{rate}%</span>
-      </div>
-      <div className="flex items-baseline gap-1 mb-2">
-        <span className="text-base font-black text-slate-800 font-mono">{fmt(actual)}</span>
-        <span className="text-xs text-slate-400 font-semibold">/ {target > 0 ? fmt(target) : "-"}{unit}</span>
-      </div>
-      <div className="w-full h-2 bg-white rounded-full overflow-hidden border border-slate-100">
-        <div className="h-full rounded-full transition-all" style={{width: `${Math.min(100, rate)}%`, background: color}}/>
-      </div>
-    </div>
-  );
-}
-
-// ── 당월 KPI 달성치 계산에 사용할 상수 ──
-const SPECIAL_CHANNELS = ["LMS", "호갱노노_채널톡", "호갱노노_단지마커", "호갱노노_기타", "호갱노노"];
-const OPS_MAPPING: Record<string, string[]> = {
-  "김재영": ["이세호", "기여운"],
-  "최은정": ["조계현", "최연전"],
-};
-
-function effAmtKpi(e: { vat_amount: number | null; execution_amount: number | null }): number {
-  if (e.vat_amount && e.vat_amount > 0) return e.vat_amount;
-  return e.execution_amount || 0;
-}
-
-interface Actuals {
-  teamRecruit: number;
-  teamBunyanghoeRev: number;
-  teamLinkedRev: number;
-  teamSpecialRev: number;
-  teamWanpan: number;
-  myRecruit: number;
-  myBunyanghoeRev: number;
-  myLinkedRev: number;
-  myAdOperationRev: number;
-}
-
-function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
-  const [team, setTeam] = useState<KpiRow | null>(null);
-  const [mine, setMine] = useState<KpiRow | null>(null);
-  const [actuals, setActuals] = useState<Actuals>({
-    teamRecruit: 0, teamBunyanghoeRev: 0, teamLinkedRev: 0,
-    teamSpecialRev: 0, teamWanpan: 0,
-    myRecruit: 0, myBunyanghoeRev: 0, myLinkedRev: 0,
-    myAdOperationRev: 0,
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      setLoading(true);
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth() + 1;
-      const monthStr = String(month).padStart(2,"0");
-      const lastDay = new Date(year, month, 0).getDate();
-      const monthStart = `${year}-${monthStr}-01`;
-      const monthEnd   = `${year}-${monthStr}-${String(lastDay).padStart(2,"0")}`;
-
-      const { data: t } = await supabase.from("kpi_settings")
-        .select("*")
-        .eq("year", year).eq("month", month)
-        .eq("scope", "team")
-        .maybeSingle();
-      setTeam(t as KpiRow | null);
-
-      if (user.role === "exec" || user.role === "ops") {
-        const scope = user.role === "exec" ? "execution" : "operation";
-        const { data: m } = await supabase.from("kpi_settings")
-          .select("*")
-          .eq("year", year).eq("month", month)
-          .eq("scope", scope).eq("target_name", user.name)
-          .maybeSingle();
-        setMine(m as KpiRow | null);
-      } else {
-        setMine(null);
-      }
-
-      const { data: execRows = [] } = await supabase.from("ad_executions")
-        .select("id,execution_amount,vat_amount,channel,contract_route,payment_date,team_member")
-        .gte("payment_date", monthStart)
-        .lte("payment_date", monthEnd);
-      const execs = (execRows || []) as any[];
-
-      const { data: contactRows = [] } = await supabase.from("contacts")
-        .select("id,assigned_to,meeting_result,contract_date,reservation_date")
-        .in("meeting_result", ["계약완료","예약완료"]);
-      const contacts = (contactRows || []) as any[];
-
-      const inMonth = (c: any): boolean => {
-        const date = c.meeting_result === "계약완료" ? c.contract_date : c.reservation_date;
-        if (!date) return false;
-        return date >= monthStart && date <= monthEnd;
-      };
-
-      const teamRecruit = contacts.filter(inMonth).length;
-
-      const teamBunyanghoeRev = execs
-        .filter(e => e.contract_route === "분양회")
-        .filter(e => e.channel === "분양회 입회비" || e.channel === "분양회 월회비")
-        .reduce((s, e) => s + effAmtKpi(e), 0);
-
-      const teamLinkedRev = execs
-        .filter(e => e.channel === "하이타겟")
-        .reduce((s, e) => s + effAmtKpi(e), 0);
-
-      const teamSpecialRev = execs
-        .filter(e => e.contract_route === "분양회")
-        .filter(e => SPECIAL_CHANNELS.includes(e.channel))
-        .reduce((s, e) => s + effAmtKpi(e), 0);
-
-      // 팀 전체 - 완판트럭 (발송일이 당월인 건수)
-      const { data: wanpanRows = [] } = await supabase.from("wanpan_trucks")
-        .select("id,dispatch_date")
-        .gte("dispatch_date", monthStart)
-        .lte("dispatch_date", monthEnd);
-      const teamWanpan = (wanpanRows || []).length;
-
-      let myRecruit = 0, myBunyanghoeRev = 0, myLinkedRev = 0, myAdOperationRev = 0;
-      if (user.role === "exec") {
-        myRecruit = contacts.filter(c => c.assigned_to === user.name).filter(inMonth).length;
-        myBunyanghoeRev = execs.filter(e => e.team_member === user.name).filter(e => e.contract_route === "분양회").filter(e => e.channel === "분양회 입회비" || e.channel === "분양회 월회비").reduce((s, e) => s + effAmtKpi(e), 0);
-        myLinkedRev = execs.filter(e => e.team_member === user.name).filter(e => e.channel === "하이타겟").reduce((s, e) => s + effAmtKpi(e), 0);
-      }
-
-      if (user.role === "ops") {
-        const targetMembers = OPS_MAPPING[user.name] || [];
-        myAdOperationRev = execs.filter(e => targetMembers.includes(e.team_member)).filter(e => e.contract_route === "분양회").filter(e => SPECIAL_CHANNELS.includes(e.channel)).reduce((s, e) => s + effAmtKpi(e), 0);
-      }
-
-      setActuals({ teamRecruit, teamBunyanghoeRev, teamLinkedRev, teamSpecialRev, teamWanpan, myRecruit, myBunyanghoeRev, myLinkedRev, myAdOperationRev });
-      setLoading(false);
-    };
-    load();
-  }, [user]);
-
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-bold text-slate-700">KPI</h3>
-        <span className="text-xs text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100 font-semibold">
-          {new Date().getFullYear()}.{String(new Date().getMonth()+1).padStart(2,"0")} 기준
-        </span>
-      </div>
-
-      {loading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-y-auto">
-          <div>
-            <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-amber-200">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500"/>
-              <span className="text-base font-black text-amber-700 tracking-tight">대협팀 전체</span>
-            </div>
-            <div className="text-xs font-bold text-slate-500 mb-2">주요 KPI</div>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <KpiItem label="분양회 모집"       target={team?.recruit_count       ?? 0} actual={actuals.teamRecruit}       unit="명" accentColor="#EC4899"/>
-              <KpiItem label="분양회 매출(회비)"  target={team?.bunyanghoe_revenue  ?? 0} actual={actuals.teamBunyanghoeRev} unit="원" isMoney accentColor="#10B981"/>
-              <KpiItem label="연계매출(하이타겟)" target={team?.linked_revenue      ?? 0} actual={actuals.teamLinkedRev}     unit="원" isMoney accentColor="#6366F1"/>
-              <KpiItem label="특전매출"           target={team?.special_revenue     ?? 0} actual={actuals.teamSpecialRev}    unit="원" isMoney accentColor="#F59E0B"/>
-            </div>
-            <div className="text-xs font-bold text-slate-500 mb-2">부가 KPI</div>
-            <div className="grid grid-cols-2 gap-2">
-              <KpiItem label="완판트럭"           target={team?.wanpan_truck_count  ?? 0} actual={actuals.teamWanpan}        unit="건" accentColor="#8B5CF6"/>
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-slate-100">
-            <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-blue-200">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500"/>
-              <span className="text-base font-black text-blue-700 tracking-tight">내 목표</span>
-              {user?.name && <span className="text-xs text-slate-400 font-semibold">({user.name})</span>}
-            </div>
-            <div className="text-xs font-bold text-slate-500 mb-2">주요 KPI</div>
-
-            {user?.role === "exec" ? (
-              <div className="grid grid-cols-2 gap-2">
-                <KpiItem label="분양회 모집"       target={mine?.recruit_count      ?? 0} actual={actuals.myRecruit}         unit="명" accentColor="#EC4899"/>
-                <KpiItem label="분양회 매출(회비)"  target={mine?.bunyanghoe_revenue ?? 0} actual={actuals.myBunyanghoeRev}   unit="원" isMoney accentColor="#10B981"/>
-                <KpiItem label="연계매출"          target={mine?.linked_revenue     ?? 0} actual={actuals.myLinkedRev}       unit="원" isMoney accentColor="#6366F1"/>
-              </div>
-            ) : user?.role === "ops" ? (
-              <div className="grid grid-cols-2 gap-2">
-                <KpiItem label="광고특전운영매출" target={mine?.ad_operation_revenue ?? 0} actual={actuals.myAdOperationRev} unit="원" isMoney accentColor="#F59E0B"/>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-3 border-2 border-amber-200">
-                  <span className="text-xl">👑</span>
-                </div>
-                <p className="text-sm text-slate-700 font-bold">관리자 계정</p>
-                <p className="text-xs text-slate-400 mt-1">개인 KPI 없음</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// 매출실적 추이 카드 (색상: 특전=#F59E0B, 하이타겟=#6366F1, 분양회=#10B981)
-function RevenueTrendCard({ monthlyRev }: { monthlyRev: MonthlyRevenue[] }) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{minHeight:"200px"}}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-baseline gap-2">
-          <h3 className="text-base font-bold text-slate-700">매출실적 추이</h3>
-          <span className="text-[10px] text-slate-400 font-semibold">최근 3개월</span>
-        </div>
-        <div className="flex items-center gap-2 text-[10px] text-slate-400">
-          <div style={{ display:"flex", alignItems:"center", gap:"4px" }}><div style={{ width:"8px", height:"8px", borderRadius:"2px", background:"#F59E0B" }}/><span>특전</span></div>
-          <div style={{ display:"flex", alignItems:"center", gap:"4px" }}><div style={{ width:"8px", height:"8px", borderRadius:"2px", background:"#6366F1" }}/><span>하이타겟</span></div>
-          <div style={{ display:"flex", alignItems:"center", gap:"4px" }}><div style={{ width:"8px", height:"8px", borderRadius:"2px", background:"#10B981" }}/><span>분양회</span></div>
-        </div>
-      </div>
-      <div className="flex-1 flex items-end min-h-0">
-        {monthlyRev.length > 0 ? <BarChart data={monthlyRev}/> : (
-          <div className="w-full h-full flex items-center justify-center text-slate-300 text-sm">데이터 없음</div>
-        )}
-      </div>
     </div>
   );
 }
@@ -521,6 +260,7 @@ const EV_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   반차:   { bg: "bg-orange-50", text: "text-orange-600", dot: "bg-orange-400" },
   미팅:   { bg: "bg-blue-50",   text: "text-blue-600",   dot: "bg-blue-400" },
   기타:   { bg: "bg-slate-50",  text: "text-slate-500",  dot: "bg-slate-400" },
+  // 자동 표시용
   미팅일정:   { bg: "bg-violet-50", text: "text-violet-600", dot: "bg-violet-400" },
 };
 
@@ -575,7 +315,7 @@ function WorkRequestBoard({ user }: { user: CRMUser | null }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{minHeight:"200px"}}>
+    <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"260px"}}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-slate-700">업무요청</h3>
         <button onClick={()=>setShowForm(v=>!v)}
@@ -673,7 +413,7 @@ function NoticeBoard({ user }: { user: CRMUser | null }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{minHeight:"200px"}}>
+    <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"260px"}}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-slate-700">공지사항</h3>
         {isAdmin && (
@@ -750,6 +490,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
   const [form, setForm] = useState({ event_type: "미팅", content: "" });
   const [saving, setSaving] = useState(false);
 
+  // localStorage에서 직접 유저명 가져오기
   const getAuthorName = (): string => {
     try {
       const raw = localStorage.getItem("crm_user");
@@ -775,9 +516,11 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
       .eq("assigned_to", authorName);
     setMeetings(mt || []);
 
+    // 완판트럭 (본인이 포함된 것)
     const { data: wp } = await supabase.from("wanpan_trucks")
       .select("id,dispatch_date,location,staff_members")
       .not("dispatch_date","is",null).gte("dispatch_date",start).lte("dispatch_date",end);
+    // staff_members에 본인 이름이 포함된 것만 필터
     const wpFiltered = (wp || []).filter((w: any) => {
       try { return JSON.parse(w.staff_members || "[]").includes(authorName); } catch { return false; }
     });
@@ -792,8 +535,11 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
     if (!authorName) { alert("로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요."); return; }
     setSaving(true);
     const { error } = await supabase.from("calendar_events").insert({
-      date: selDate, title: form.event_type, content: form.content || null,
-      author: authorName, event_type: form.event_type,
+      date: selDate,
+      title: form.event_type,
+      content: form.content || null,
+      author: authorName,
+      event_type: form.event_type,
     });
     setSaving(false);
     if (error) { alert("저장 실패: " + error.message); return; }
@@ -803,6 +549,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
   };
 
   const handleDelete = async (id: number) => {
+    const authorName = getAuthorName();
     await supabase.from("calendar_events").delete().eq("id", id);
     setRefreshKey(k => k + 1);
   };
@@ -831,6 +578,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
   return (
     <>
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      {/* 헤더 */}
       <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button onClick={()=>{ if(calMonth===1){setCalMonth(12);setCalYear(y=>y-1);}else setCalMonth(m=>m-1);}}
@@ -839,18 +587,25 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
           <button onClick={()=>{ if(calMonth===12){setCalMonth(1);setCalYear(y=>y+1);}else setCalMonth(m=>m+1);}}
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronRight size={13}/></button>
         </div>
-        <button onClick={()=>{ setSelDate(today); setShowAdd(true); }}
+        <button
+          onClick={()=>{
+            const ds = today;
+            setSelDate(ds);
+            setShowAdd(true);
+          }}
           className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">
           <Plus size={11}/> 일정 추가
         </button>
       </div>
 
+      {/* 요일 */}
       <div className="grid grid-cols-7 border border-slate-200 divide-x divide-slate-200">
         {days.map((d,i)=>(
           <div key={d} className={`text-center py-3 text-sm font-bold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
         ))}
       </div>
 
+      {/* 날짜 */}
       <div className="grid grid-cols-7 border border-slate-200 divide-x divide-y divide-slate-200">
         {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`} className="min-h-[96px] bg-slate-50/30"/>)}
         {Array.from({length:daysInMonth}).map((_,i)=>{
@@ -867,8 +622,12 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
               title="더블클릭: 일정 추가">
               <div className={`w-8 h-8 flex items-center justify-center rounded-full text-base font-bold mb-1 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-600"}`}>{d}</div>
               <div className="space-y-0.5">
-                {wp.map(w=>(<div key={`w${w.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-amber-100 text-amber-700">🚚 완판트럭</div>))}
-                {mt.slice(0,1).map(m=>(<div key={`m${m.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-violet-50 text-violet-600">미팅 - {m.assigned_to}</div>))}
+                {wp.map(w=>(
+                  <div key={`w${w.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-amber-100 text-amber-700">🚚 완판트럭</div>
+                ))}
+                {mt.slice(0,1).map(m=>(
+                  <div key={`m${m.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-violet-50 text-violet-600">미팅 - {m.assigned_to}</div>
+                ))}
                 {ev.slice(0,2).map(e=>{
                   const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
                   return <div key={e.id} className={`text-[9px] px-1 py-0.5 rounded truncate font-semibold ${c.bg} ${c.text}`}>{e.event_type}</div>;
@@ -878,15 +637,23 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
             </div>
           );
         })}
+        {/* 마지막 줄 빈 셀 채우기 */}
         {Array.from({length: (7 - (firstDay + daysInMonth) % 7) % 7}).map((_,i)=>(
           <div key={`t${i}`} className="min-h-[96px] bg-slate-50/30"/>
         ))}
       </div>
+
+
+
     </div>
 
+    {/* 날짜 일정 팝업 */}
     {showDayPopup && selDate && !showAdd && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:"rgba(0,0,0,0.35)"}} onClick={()=>setShowDayPopup(false)}>
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[70vh] flex flex-col" onClick={e=>e.stopPropagation()}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{background:"rgba(0,0,0,0.35)"}}
+        onClick={()=>setShowDayPopup(false)}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[70vh] flex flex-col"
+          onClick={e=>e.stopPropagation()}>
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
             <h3 className="font-bold text-slate-800 text-sm">
               {new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"})}
@@ -903,15 +670,28 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
             {selItems.wp.length===0 && selItems.mt.length===0 && selItems.ev.length===0 && (
               <p className="text-center py-6 text-slate-300 text-sm">일정이 없습니다</p>
             )}
-            {selItems.wp.map(w=>(<div key={`w${w.id}`} className="rounded-xl p-3 bg-amber-50 border border-amber-100"><p className="text-xs font-bold text-amber-700 mb-1">🚚 완판트럭</p><p className="text-sm font-bold text-slate-800">{w.location||"-"}</p></div>))}
-            {selItems.mt.map(m=>(<div key={`m${m.id}`} className="rounded-xl p-3 bg-violet-50 border border-violet-100"><p className="text-xs font-bold text-violet-700 mb-1">미팅일정</p><p className="text-sm font-bold text-slate-800">{m.name}</p></div>))}
+            {selItems.wp.map(w=>(
+              <div key={`w${w.id}`} className="rounded-xl p-3 bg-amber-50 border border-amber-100">
+                <p className="text-xs font-bold text-amber-700 mb-1">🚚 완판트럭</p>
+                <p className="text-sm font-bold text-slate-800">{w.location||"-"}</p>
+              </div>
+            ))}
+            {selItems.mt.map(m=>(
+              <div key={`m${m.id}`} className="rounded-xl p-3 bg-violet-50 border border-violet-100">
+                <p className="text-xs font-bold text-violet-700 mb-1">미팅일정</p>
+                <p className="text-sm font-bold text-slate-800">{m.name}</p>
+              </div>
+            ))}
             {selItems.ev.map(e=>{
               const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
               return (
                 <div key={e.id} className={`rounded-xl p-3 border ${c.bg} border-slate-100`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className={`text-xs font-bold ${c.text}`}>{e.event_type}</span>
-                    <button onClick={()=>{handleDelete(e.id);}} className="text-slate-300 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-50"><Trash2 size={13}/></button>
+                    <button onClick={()=>{handleDelete(e.id);}}
+                      className="text-slate-300 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-50">
+                      <Trash2 size={13}/>
+                    </button>
                   </div>
                   {e.content&&<p className="text-sm text-slate-600 leading-relaxed">{e.content}</p>}
                 </div>
@@ -922,9 +702,17 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
       </div>
     )}
 
+    {/* 일정 추가 모달 - fixed로 항상 화면 중앙에 */}
     {showAdd && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }} onClick={()=>setShowAdd(false)}>
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e=>e.stopPropagation()}>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}
+        onClick={()=>setShowAdd(false)}
+      >
+        <div
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-sm"
+          onClick={e=>e.stopPropagation()}
+        >
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
             <h3 className="font-bold text-slate-800 text-sm">일정 추가</h3>
             <button onClick={()=>setShowAdd(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
@@ -982,6 +770,7 @@ export default function DashboardPage() {
   const [now, setNow] = useState(new Date());
   const [eventDate, setEventDate] = useState(new Date().toISOString().split("T")[0]);
 
+  // 기간 필터
   const initStart = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`;
@@ -1021,16 +810,58 @@ export default function DashboardPage() {
   const isExec = user?.role === "exec";
 
   const CARDS = [
-    { icon:"💰", label:"총매출(광고특전)", main: current.totalRevenue.toLocaleString()+"원", subs: undefined, cumLabel: cumulative.totalRevenue.toLocaleString()+"원" },
-    { icon:"⚡", label:"연계매출(하이타겟)", main: current.linkedRevenue.toLocaleString()+"원", subs: undefined, cumLabel: cumulative.linkedRevenue.toLocaleString()+"원" },
-    { icon:"💳", label:"분양회 입회비", main: current.membershipFeeAmt.toLocaleString()+"원", subs:[{label:"당월", value:`${current.membershipCount}건`, color:"text-slate-600"}], cumLabel: cumulative.membershipFeeAmt.toLocaleString()+"원" },
-    { icon:"🔄", label:"분양회 월회비", main: current.monthlyFeeAmt.toLocaleString()+"원", subs:[{label:"당월", value:`${current.monthlyFeeCount}건`, color:"text-slate-600"}], cumLabel: cumulative.monthlyFeeAmt.toLocaleString()+"원" },
-    { icon:"🎯", label:"가망고객", main:`${current.hotProspect+current.meetingProspect+current.linkedProspect}명`, subs:[{label:"즉가입가망", value:`${current.hotProspect}명`, color:"text-red-500"},{label:"미팅예정가망", value:`${current.meetingProspect}명`, color:"text-amber-500"},{label:"연계매출가망", value:`${current.linkedProspect}명`, color:"text-slate-500"}], cumLabel:`${cumulative.hotProspect+cumulative.meetingProspect+cumulative.linkedProspect}명` },
-    { icon:"📅", label:"미팅", main:`${current.upcomingMeetings}건`, subs:[{label:"미팅예정", value:`${current.upcomingMeetings}건`, color:"text-blue-500"},{label:"미팅완료", value:`${current.meetingDone}건`, color:"text-emerald-500"}], cumLabel:`${cumulative.upcomingMeetings + cumulative.meetingDone}건` },
+    {
+      icon:"💰", label:"총매출(광고특전)",
+      main: current.totalRevenue.toLocaleString()+"원",
+      subs: undefined,
+      cumLabel: cumulative.totalRevenue.toLocaleString()+"원",
+    },
+    {
+      icon:"⚡", label:"연계매출(하이타겟)",
+      main: current.linkedRevenue.toLocaleString()+"원",
+      subs: undefined,
+      cumLabel: cumulative.linkedRevenue.toLocaleString()+"원",
+    },
+    {
+      icon:"💳", label:"분양회 입회비",
+      main: current.membershipFeeAmt.toLocaleString()+"원",
+      subs:[
+        {label:"당월", value:`${current.membershipCount}건`, color:"text-slate-600"},
+      ],
+      cumLabel: cumulative.membershipFeeAmt.toLocaleString()+"원",
+    },
+    {
+      icon:"🔄", label:"분양회 월회비",
+      main: current.monthlyFeeAmt.toLocaleString()+"원",
+      subs:[
+        {label:"당월", value:`${current.monthlyFeeCount}건`, color:"text-slate-600"},
+      ],
+      cumLabel: cumulative.monthlyFeeAmt.toLocaleString()+"원",
+    },
+    {
+      icon:"🎯", label:"가망고객",
+      main:`${current.hotProspect+current.meetingProspect+current.linkedProspect}명`,
+      subs:[
+        {label:"즉가입가망",   value:`${current.hotProspect}명`,    color:"text-red-500"},
+        {label:"미팅예정가망", value:`${current.meetingProspect}명`, color:"text-amber-500"},
+        {label:"연계매출가망", value:`${current.linkedProspect}명`,  color:"text-slate-500"},
+      ],
+      cumLabel:`${cumulative.hotProspect+cumulative.meetingProspect+cumulative.linkedProspect}명`,
+    },
+    {
+      icon:"📅", label:"미팅",
+      main:`${current.upcomingMeetings}건`,
+      subs:[
+        {label:"미팅예정", value:`${current.upcomingMeetings}건`,  color:"text-blue-500"},
+        {label:"미팅완료", value:`${current.meetingDone}건`,        color:"text-emerald-500"},
+      ],
+      cumLabel:`${cumulative.upcomingMeetings + cumulative.meetingDone}건`,
+    },
   ];
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
+      {/* 헤더 */}
       <div className="bg-white border-b border-slate-200 px-8 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
@@ -1043,11 +874,16 @@ export default function DashboardPage() {
               <b style={{ fontSize:"16px", fontFamily:"'Montserrat', 'Arial Black', sans-serif", fontWeight:900, color: isExec ? "#1D4ED8" : "#334155", fontVariantNumeric:"tabular-nums", letterSpacing:"0.04em", WebkitTextStroke:"0.3px currentColor" }}>{timeStr}</b>
             </div>
           </div>
+          {/* 기간 필터 */}
           <div className="flex items-center gap-2">
+            {/* 월 빠른 선택 */}
             <select value={selMonth} onChange={e=>applyMonth(Number(e.target.value))}
               className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold outline-none cursor-pointer">
-              {Array.from({length:12},(_,i)=>(<option key={i+1} value={i+1}>{i+1}월</option>))}
+              {Array.from({length:12},(_,i)=>(
+                <option key={i+1} value={i+1}>{i+1}월</option>
+              ))}
             </select>
+            {/* 날짜 직접 입력 */}
             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
               <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}
                 className="text-xs text-slate-600 bg-transparent outline-none"/>
@@ -1059,7 +895,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* 본문 */}
       <div className="flex-1 overflow-auto p-6 space-y-5">
+
+        {/* 당월 현황 카드 */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1070,20 +909,55 @@ export default function DashboardPage() {
             {loading && <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>}
           </div>
           <div className="p-5 flex gap-4 overflow-x-auto">
-            {CARDS.map(card=>(<DashCard key={card.label} icon={card.icon} label={card.label} main={card.main} subs={card.subs} cumLabel={card.cumLabel}/>))}
+            {CARDS.map(card=>(
+              <DashCard key={card.label} icon={card.icon} label={card.label}
+                main={card.main} subs={card.subs} cumLabel={card.cumLabel}/>
+            ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="grid grid-rows-3 gap-4">
+        {/* 좌(매출실적→업무요청→공지사항) + 우(KPI) */}
+        <div className="grid grid-cols-5 gap-4">
+          {/* 좌측 col-span-3 */}
+          <div className="col-span-3 flex flex-col gap-4">
+            {/* 매출실적추이 */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"260px"}}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-bold text-slate-700">매출실적</h3>
+                <div className="flex items-center gap-3 text-xs text-slate-400">
+                  <div style={{ display:"flex", alignItems:"center", gap:"5px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#6366F1" }}/><span>특전총매출</span></div>
+                  <div style={{ display:"flex", alignItems:"center", gap:"5px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#F59E0B" }}/><span>하이타겟</span></div>
+                  <div style={{ display:"flex", alignItems:"center", gap:"5px" }}><div style={{ width:"10px", height:"10px", borderRadius:"3px", background:"#10B981" }}/><span>분양회</span></div>
+                </div>
+              </div>
+              {monthlyRev.length > 0 ? <BarChart data={monthlyRev}/> : (
+                <div className="h-32 flex items-center justify-center text-slate-300 text-sm">데이터 없음</div>
+              )}
+            </div>
+            {/* 업무요청 */}
             <WorkRequestBoard user={user}/>
+            {/* 공지사항 */}
             <NoticeBoard user={user}/>
-            <RevenueTrendCard monthlyRev={monthlyRev}/>
           </div>
-          <DashboardKpiSummary user={user}/>
+
+          {/* 우측 KPI — 기존 그대로 */}
+          <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{minHeight:"260px"}}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-slate-700">KPI</h3>
+              <span className="text-xs text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100">설정 예정</span>
+            </div>
+            <div className="flex flex-col items-center justify-center h-28 gap-2">
+              <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center">
+                <span className="text-lg">🎯</span>
+              </div>
+              <p className="text-sm text-slate-300 font-medium">KPI 설정 후 표시됩니다</p>
+            </div>
+          </div>
         </div>
 
+        {/* 캘린더 */}
         <DashCalendar user={user} />
+
       </div>
     </div>
   );
