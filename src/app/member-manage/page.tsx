@@ -5,7 +5,6 @@ import { supabase } from "@/lib/supabase";
 import { Shield, Phone, Calendar, Search, Copy, Check, Edit3 } from "lucide-react";
 import BankAccountDialog from "@/components/BankAccountDialog";
 
-// 성씨 스티커 색상
 const SURNAME_COLORS: Record<string,string> = {
   "김":"bg-blue-500","이":"bg-violet-500","박":"bg-emerald-500","최":"bg-rose-500","정":"bg-amber-500","강":"bg-cyan-500",
   "조":"bg-indigo-500","윤":"bg-pink-500","장":"bg-orange-500","임":"bg-teal-500","한":"bg-sky-500","오":"bg-purple-500",
@@ -25,6 +24,7 @@ interface VipContact {
   bunyanghoe_number: string | null;
   bank_holder: string | null; bank_code: string | null;
   bank_name: string | null; bank_account: string | null;
+  regular_payment_date: string | null;
 }
 
 // ─── 넘버링 편집 셀 ───
@@ -36,32 +36,26 @@ function NumberingCell({ value, contactId, onSaved }: {
   const inputRef = useRef<HTMLInputElement>(null);
   const stripPrefix = (v: string | null): string => v ? (v.startsWith("B-") ? v.slice(2) : v) : "";
   const displayValue = value ? (value.startsWith("B-") ? value : `B-${value}`) : null;
-
   useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
-
   const save = async () => {
     const clean = val.trim().replace(/[^0-9]/g, "");
-    const saveVal = clean ? `B-${clean}` : null;
-    await supabase.from("contacts").update({ bunyanghoe_number: saveVal }).eq("id", contactId);
+    await supabase.from("contacts").update({ bunyanghoe_number: clean ? `B-${clean}` : null }).eq("id", contactId);
     setEditing(false); onSaved();
   };
-  const cancel = () => { setVal(stripPrefix(value)); setEditing(false); };
-
   if (editing) {
     return (
       <div className="flex items-center justify-center gap-0.5">
         <span className="text-sm font-black text-amber-600 flex-shrink-0">B-</span>
         <input ref={inputRef} value={val}
           onChange={e => setVal(e.target.value.replace(/[^0-9]/g, ""))}
-          onBlur={save} onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") cancel(); }}
+          onBlur={save} onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") { setVal(stripPrefix(value)); setEditing(false); } }}
           placeholder="001" className="w-14 px-1 py-0.5 text-sm font-black text-amber-600 border border-amber-400 rounded outline-none bg-white text-center"/>
       </div>
     );
   }
   return (
     <button onClick={() => { setVal(stripPrefix(value)); setEditing(true); }}
-      className={`group inline-flex items-center gap-1 px-2 py-0.5 rounded hover:bg-amber-50 transition-colors ${!displayValue ? "border border-dashed border-slate-300" : ""}`}
-      title="클릭하여 넘버링 편집">
+      className={`group inline-flex items-center gap-1 px-2 py-0.5 rounded hover:bg-amber-50 transition-colors ${!displayValue ? "border border-dashed border-slate-300" : ""}`}>
       <span className={`text-sm font-black ${displayValue ? "text-amber-600" : "text-slate-300"}`}>{displayValue || "B-___"}</span>
       <Edit3 size={10} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"/>
     </button>
@@ -79,8 +73,7 @@ function AccountFieldCell({ contact, field, placeholder, onSaved }: {
       <button onClick={() => setOpen(true)}
         className={`w-full min-w-[80px] px-2 py-1.5 text-xs rounded-lg border text-center transition-colors ${
           value ? "bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50 font-semibold"
-                : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200"}`}
-        title="클릭하여 계좌정보 입력/편집">
+                : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200"}`}>
         {value || placeholder}
       </button>
       <BankAccountDialog open={open} onClose={() => setOpen(false)} contactId={contact.id}
@@ -123,11 +116,40 @@ function AccountNumberCell({ contact, onSaved }: { contact: VipContact; onSaved:
   );
 }
 
-// ─── 넘버링 숫자 추출 (정렬용) ───
 function bunNumValue(n: string | null): number {
   if (!n) return Infinity;
   const m = n.match(/\d+/);
   return m ? parseInt(m[0], 10) : Infinity;
+}
+
+// ─── 납부 상태 판정 ───
+// 계약완료 시점 ~ 현재까지 매월 납부해야 할 횟수 vs 실제 납부 횟수
+function calcPaymentStatus(c: VipContact, feeCnt: number): "정상"|"이상"|"예약" {
+  if (c.meeting_result === "예약완료") return "예약";
+  if (!c.contract_date) return "이상";
+
+  const contractDate = new Date(c.contract_date);
+  const now = new Date();
+
+  // 계약월 다음달부터 현재월까지 몇 개월인지 계산
+  const contractY = contractDate.getFullYear();
+  const contractM = contractDate.getMonth(); // 0-based
+  const nowY = now.getFullYear();
+  const nowM = now.getMonth();
+
+  // 정기출금일 기준: 현재일이 출금일 이전이면 이번 달은 아직 미도래
+  const payDay = parseInt(c.regular_payment_date || "0") || 0;
+  const todayDay = now.getDate();
+
+  // 예상 납부 횟수 = (현재년월 - 계약년월) 개월 수
+  // 단, 이번 달 출금일이 아직 안 지났으면 이번 달은 제외
+  let expectedMonths = (nowY - contractY) * 12 + (nowM - contractM);
+  if (payDay > 0 && todayDay < payDay) expectedMonths -= 1;
+  if (expectedMonths < 0) expectedMonths = 0;
+
+  // 계약 당월은 입회비이므로 월회비 카운트에서 제외 (다음달부터)
+  if (feeCnt >= expectedMonths) return "정상";
+  return "이상";
 }
 
 export default function MemberManagePage() {
@@ -145,19 +167,17 @@ export default function MemberManagePage() {
   const fetchMembers = async () => {
     setLoading(true);
     let q = supabase.from("contacts")
-      .select("id,name,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_code,bank_name,bank_account")
+      .select("id,name,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_code,bank_name,bank_account,regular_payment_date")
       .in("meeting_result",["계약완료","예약완료"]);
     if (filterMember) q = q.eq("assigned_to", filterMember);
     if (filterStatus) q = q.eq("meeting_result", filterStatus);
     const { data } = await q;
 
-    // 넘버링 오름차순 정렬
     const sorted = ((data as VipContact[]) || []).sort((a, b) =>
       bunNumValue(a.bunyanghoe_number) - bunNumValue(b.bunyanghoe_number)
     );
     setContacts(sorted);
 
-    // 분양회 월회비 납부 횟수 조회
     const { data: feeData } = await supabase.from("ad_executions")
       .select("member_name,bunyanghoe_number")
       .eq("channel", "분양회 월회비");
@@ -167,7 +187,6 @@ export default function MemberManagePage() {
       if (e.bunyanghoe_number) counts[`num:${e.bunyanghoe_number}`] = (counts[`num:${e.bunyanghoe_number}`] || 0) + 1;
     });
     setFeeCount(counts);
-
     setLoading(false);
   };
 
@@ -239,7 +258,7 @@ export default function MemberManagePage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {["넘버링","회차","고객명","연락처","담당컨설턴트","대협팀","상태","예금주","은행코드","은행명","계좌번호","계약/예약일","메모"].map(h=>(
+                  {["넘버링","회차","상태","고객명","연락처","담당컨설턴트","대협팀","계약상태","예금주","은행코드","은행명","계좌번호","정기출금일","계약/예약일","메모"].map(h=>(
                     <th key={h} className="text-center px-3 py-3 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -247,19 +266,25 @@ export default function MemberManagePage() {
               <tbody>
                 {filtered.map((c) => {
                   const feeCnt = feeCount[c.name] || (c.bunyanghoe_number ? feeCount[`num:${c.bunyanghoe_number}`] : 0) || 0;
+                  const payStatus = calcPaymentStatus(c, feeCnt);
+                  const statusStyle = payStatus === "정상"
+                    ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                    : payStatus === "이상"
+                    ? "bg-red-100 text-red-700 border-red-200"
+                    : "bg-blue-100 text-blue-700 border-blue-200";
                   return (
                   <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                    {/* 넘버링 (편집 가능) */}
                     <td className="px-3 py-3 text-center align-middle">
                       <NumberingCell value={c.bunyanghoe_number} contactId={c.id} onSaved={fetchMembers}/>
                     </td>
-                    {/* 회차 */}
                     <td className="px-3 py-3 text-center align-middle">
                       {feeCnt > 0
                         ? <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">{feeCnt}회차</span>
                         : <span className="text-xs text-slate-300">-</span>}
                     </td>
-                    {/* 고객명 (성씨 아바타) */}
+                    <td className="px-3 py-3 text-center align-middle">
+                      <span className={`text-xs px-2 py-1 rounded-full font-bold border ${statusStyle}`}>{payStatus}</span>
+                    </td>
                     <td className="px-3 py-3 text-center align-middle">
                       <div className="flex items-center justify-center gap-2">
                         <div className={`w-7 h-7 ${getAvatarColor(c.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
@@ -291,6 +316,11 @@ export default function MemberManagePage() {
                     </td>
                     <td className="px-3 py-3 text-center align-middle">
                       <AccountNumberCell contact={c} onSaved={fetchMembers}/>
+                    </td>
+                    <td className="px-3 py-3 text-center align-middle">
+                      {c.regular_payment_date
+                        ? <span className="text-xs font-semibold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">매월 {c.regular_payment_date}일</span>
+                        : <span className="text-xs text-slate-300">-</span>}
                     </td>
                     <td className="px-3 py-3 text-center align-middle">
                       <span className="text-slate-600 flex items-center justify-center gap-1 text-xs">
