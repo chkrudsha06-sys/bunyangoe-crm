@@ -48,19 +48,29 @@ const EMPTY_FORM = {
 };
 
 // ── 리워드 계산 (집행금액 기준) ──────────────────────────────
+// rewardType: "마일리지10%", "마일리지5%", "마일리지15%", "리워드5%" 등
 function calcRewards(channel: string, amount: number, rewardType: string) {
   let hightarget_mileage = 0, hightarget_reward = 0, hogaengnono_reward = 0, lms_reward = 0;
+
   if (channel === "하이타겟") {
     if (rewardType === "마일리지10%") hightarget_mileage = Math.floor(amount * 0.10);
     else if (rewardType === "리워드5%") hightarget_reward = Math.floor(amount * 0.05);
+
   } else if (channel === "호갱노노_채널톡") {
-    // (집행금액 / 150) * 200 * 5%
-    hogaengnono_reward = Math.floor((amount / 150) * 200 * 0.05);
+    const base = Math.floor((amount / 150) * 200);
+    if (rewardType === "마일리지5%") hightarget_mileage = Math.floor(base * 0.05);
+    else hogaengnono_reward = Math.floor(base * 0.05); // 기본: 리워드5%
+
   } else if (channel === "호갱노노_단지마커" || channel === "호갱노노_기타") {
-    hogaengnono_reward = Math.floor(amount * 0.05);
+    if (rewardType === "마일리지5%") hightarget_mileage = Math.floor(amount * 0.05);
+    else hogaengnono_reward = Math.floor(amount * 0.05); // 기본: 리워드5%
+
   } else if (channel === "LMS") {
-    lms_reward = Math.floor(amount * 0.15);
+    if (rewardType === "마일리지15%") hightarget_mileage = Math.floor(amount * 0.15);
+    else if (rewardType === "리워드5%") lms_reward = Math.floor(amount * 0.05);
+    else lms_reward = Math.floor(amount * 0.15); // 기본: 리워드15% (미선택 시)
   }
+
   return { hightarget_mileage, hightarget_reward, hogaengnono_reward, lms_reward };
 }
 
@@ -105,7 +115,6 @@ function DailyReportModal({ onClose }: { onClose: () => void }) {
     const mS = `${y}-${ms}-01`, mE = `${y}-${ms}-${String(ld).padStart(2,"0")}`;
     const td = now.toISOString().split("T")[0];
 
-    // KPI 목표
     const kpi: any = {};
     for (const n of [...EXEC_MEMBERS, ...OPS_MEMBERS]) {
       const scope = EXEC_MEMBERS.includes(n) ? "execution" : "operation";
@@ -113,30 +122,25 @@ function DailyReportModal({ onClose }: { onClose: () => void }) {
         .eq("year",y).eq("month",m).eq("scope",scope).eq("target_name",n).maybeSingle();
       kpi[n] = k || {};
     }
-    // 당월 매출
     const { data: mExecs = [] } = await supabase.from("ad_executions").select("*").gte("payment_date",mS).lte("payment_date",mE);
     const me = mExecs || [];
     const te = me.filter((e:any) => e.payment_date === td);
-    // 모집
     const { data: cts = [] } = await supabase.from("contacts")
       .select("id,assigned_to,meeting_result,contract_date,reservation_date")
       .in("meeting_result",["계약완료","예약완료"]);
     const inM = (c:any) => { const d = c.meeting_result==="계약완료"?c.contract_date:c.reservation_date; return d && d>=mS && d<=mE; };
 
-    // 1단
     const s1 = EXEC_MEMBERS.map(n => {
       const tgt = kpi[n]?.linked_revenue||0;
       const act = me.filter((e:any)=>e.team_member===n&&e.channel==="하이타겟").reduce((s:number,e:any)=>s+eff(e)-(e.refund_amount||0),0);
       return { n, tgt, act, r: tgt>0?act/tgt:0 };
     });
-    // 2단
     const s2 = EXEC_MEMBERS.map(n => {
       const tA = kpi[n]?.bunyanghoe_revenue||0, tC = kpi[n]?.recruit_count||0;
       const aA = me.filter((e:any)=>e.team_member===n&&e.contract_route==="분양회"&&(e.channel==="분양회 입회비"||e.channel==="분양회 월회비")).reduce((s:number,e:any)=>s+eff(e)-(e.refund_amount||0),0);
       const aC = (cts||[]).filter((c:any)=>c.assigned_to===n&&inM(c)).length;
       return { n, tA, tC, aA, aC, r: tA>0?aA/tA:0 };
     });
-    // 3단
     const s3 = OPS_MEMBERS.map(n => {
       const tgt = kpi[n]?.ad_operation_revenue||0;
       const mem = OPS_EXEC_MAP[n]||[];
@@ -144,10 +148,8 @@ function DailyReportModal({ onClose }: { onClose: () => void }) {
       const hog = me.filter((e:any)=>mem.includes(e.team_member)&&e.contract_route==="분양회"&&HOG_CHS.includes(e.channel)).reduce((s:number,e:any)=>s+eff(e),0);
       return { n, tgt, lms, hog, tot:lms+hog, r: tgt>0?(lms+hog)/tgt:0 };
     });
-    // 4단
     const eT = s1.reduce((s,r)=>s+r.tgt,0)+s2.reduce((s,r)=>s+r.tA,0);
     const eA = s1.reduce((s,r)=>s+r.act,0)+s2.reduce((s,r)=>s+r.aA,0);
-    // 5단
     const s5 = EXEC_MEMBERS.map(n => {
       const lk = me.filter((e:any)=>e.team_member===n&&e.channel==="하이타겟");
       const by = me.filter((e:any)=>e.team_member===n&&e.contract_route==="분양회"&&(e.channel==="분양회 입회비"||e.channel==="분양회 월회비"));
@@ -156,7 +158,6 @@ function DailyReportModal({ onClose }: { onClose: () => void }) {
       const tt = (kpi[n]?.linked_revenue||0)+(kpi[n]?.bunyanghoe_revenue||0);
       return { n, lC:lk.length, la, bC:by.length, ba, tot:la+ba, r:tt>0?(la+ba)/tt:0 };
     });
-    // 6단
     const s6 = EXEC_MEMBERS.map(n => {
       const lk = te.filter((e:any)=>e.team_member===n&&e.channel==="하이타겟");
       const by = te.filter((e:any)=>e.team_member===n&&e.contract_route==="분양회"&&(e.channel==="분양회 입회비"||e.channel==="분양회 월회비"));
@@ -166,7 +167,6 @@ function DailyReportModal({ onClose }: { onClose: () => void }) {
     });
     const topM = s5.reduce((b,r)=>r.tot>b.tot?r:b,s5[0])?.n;
     const topD = s6.filter(r=>r.tot>0).reduce((b:any,r)=>(!b||r.tot>b.tot)?r:b,null as any)?.n||"";
-
     setRData({ td, s1, s2, s3, eT, eA, s5, s6, topM, topD });
     setRLoading(false);
   };
@@ -181,13 +181,8 @@ function DailyReportModal({ onClose }: { onClose: () => void }) {
       const cv = await (window as any).html2canvas(reportRef.current, { scale:2, backgroundColor:"#fff" });
       cv.toBlob(async (blob:any) => {
         if (!blob) { alert("이미지 생성 실패"); setCopying(false); return; }
-        try {
-          await navigator.clipboard.write([new (window as any).ClipboardItem({"image/png":blob})]);
-          alert("이미지가 클립보드에 복사되었습니다!\n카카오톡/워크에 Ctrl+V로 붙여넣기 하세요.");
-        } catch {
-          const u = URL.createObjectURL(blob); const a = document.createElement("a");
-          a.href=u; a.download=`매출일보_${rData?.td||"today"}.png`; a.click(); URL.revokeObjectURL(u);
-        }
+        try { await navigator.clipboard.write([new (window as any).ClipboardItem({"image/png":blob})]); alert("이미지가 클립보드에 복사되었습니다!\n카카오톡/워크에 Ctrl+V로 붙여넣기 하세요."); }
+        catch { const u = URL.createObjectURL(blob); const a = document.createElement("a"); a.href=u; a.download=`매출일보_${rData?.td||"today"}.png`; a.click(); URL.revokeObjectURL(u); }
         setCopying(false);
       },"image/png");
     } catch(err) { console.error(err); alert("이미지 복사 실패"); setCopying(false); }
@@ -206,87 +201,21 @@ function DailyReportModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FileText size={18} className="text-blue-500"/>매출일보</h3>
           <div className="flex items-center gap-2">
-            <button onClick={copyImage} disabled={copying||rLoading}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              {copying?"복사 중...":"📋 이미지 복사"}
-            </button>
+            <button onClick={copyImage} disabled={copying||rLoading} className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{copying?"복사 중...":"📋 이미지 복사"}</button>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><X size={18}/></button>
           </div>
         </div>
         <div className="flex-1 overflow-auto p-5">
-          {rLoading||!rData ? (
-            <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>
+          {rLoading||!rData ? (<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>
           ) : (
             <div ref={reportRef} className="bg-white p-6 space-y-5" style={{fontFamily:"'Pretendard','Noto Sans KR',sans-serif"}}>
-              <div className="text-center mb-4">
-                <p className="text-xs text-slate-400 mb-1">{rData.td}</p>
-                <h2 className="text-lg font-black text-slate-800">대외협력팀 매출일보</h2>
-              </div>
-
-              {/* 1단: 실행파트 연계매출 */}
-              <div>
-                <p className="text-sm font-bold text-slate-700 mb-2">  [실행파트] 자사광고 연계 매출</p>
-                <table className="w-full border-collapse"><thead><tr><th className={th}>담당자</th><th className={th}>목표</th><th className={th}>달성</th><th className={th}>달성률</th></tr></thead>
-                <tbody>
-                  {rData.s1.map((r:any)=><tr key={r.n}><td className={tc}>{r.n}</td><td className={td}>{f(r.tgt)}</td><td className={td}>{f(r.act)}</td><td className={`${td} ${rc(r.r)}`}>{fp(r.r)}</td></tr>)}
-                  <tr className="bg-slate-50 font-bold"><td className={tc}>합계</td><td className={td}>{f(rData.s1.reduce((s:number,r:any)=>s+r.tgt,0))}</td><td className={td}>{f(rData.s1.reduce((s:number,r:any)=>s+r.act,0))}</td><td className={td}>{fp(rData.s1.reduce((s:number,r:any)=>s+r.tgt,0)>0?rData.s1.reduce((s:number,r:any)=>s+r.act,0)/rData.s1.reduce((s:number,r:any)=>s+r.tgt,0):0)}</td></tr>
-                </tbody></table>
-              </div>
-
-              {/* 2단: 분양회 모집 */}
-              <div>
-                <p className="text-sm font-bold text-slate-700 mb-2">  [실행파트] 분양회 모집 누적 매출</p>
-                <table className="w-full border-collapse"><thead><tr><th className={th}>담당자</th><th className={th}>목표</th><th className={th}>인원</th><th className={th}>달성</th><th className={th}>인원</th><th className={th}>달성률</th></tr></thead>
-                <tbody>
-                  {rData.s2.map((r:any)=><tr key={r.n}><td className={tc}>{r.n}</td><td className={td}>{f(r.tA)}</td><td className={tc}>{r.tC}인</td><td className={td}>{f(r.aA)}</td><td className={tc}>{r.aC}</td><td className={`${td} ${rc(r.r)}`}>{fp(r.r)}</td></tr>)}
-                  <tr className="bg-slate-50 font-bold"><td className={tc}>합계</td><td className={td}>{f(rData.s2.reduce((s:number,r:any)=>s+r.tA,0))}</td><td className={tc}></td><td className={td}>{f(rData.s2.reduce((s:number,r:any)=>s+r.aA,0))}</td><td className={tc}></td><td className={td}>{fp(rData.s2.reduce((s:number,r:any)=>s+r.tA,0)>0?rData.s2.reduce((s:number,r:any)=>s+r.aA,0)/rData.s2.reduce((s:number,r:any)=>s+r.tA,0):0)}</td></tr>
-                </tbody></table>
-              </div>
-
-              {/* 3단: 운영파트 */}
-              <div>
-                <p className="text-sm font-bold text-slate-700 mb-2">  [운영파트] 분양회 광고 특전 매출</p>
-                <table className="w-full border-collapse"><thead><tr><th className={th}>담당자</th><th className={th}>목표</th><th className={th}>LMS</th><th className={th}>호갱노노</th><th className={th}>합산</th><th className={th}>달성률</th></tr></thead>
-                <tbody>
-                  {rData.s3.map((r:any)=><tr key={r.n}><td className={tc}>{r.n}</td><td className={td}>{f(r.tgt)}</td><td className={td}>{f(r.lms)}</td><td className={td}>{f(r.hog)}</td><td className={td+" font-semibold"}>{f(r.tot)}</td><td className={`${td} ${rc(r.r)}`}>{fp(r.r)}</td></tr>)}
-                  <tr className="bg-slate-50 font-bold"><td className={tc}>합계</td><td className={td}>{f(rData.s3.reduce((s:number,r:any)=>s+r.tgt,0))}</td><td className={td}>{f(rData.s3.reduce((s:number,r:any)=>s+r.lms,0))}</td><td className={td}>{f(rData.s3.reduce((s:number,r:any)=>s+r.hog,0))}</td><td className={td}>{f(rData.s3.reduce((s:number,r:any)=>s+r.tot,0))}</td><td className={td}>{fp(rData.s3.reduce((s:number,r:any)=>s+r.tgt,0)>0?rData.s3.reduce((s:number,r:any)=>s+r.tot,0)/rData.s3.reduce((s:number,r:any)=>s+r.tgt,0):0)}</td></tr>
-                </tbody></table>
-              </div>
-
-              {/* 4단: 통합 */}
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                <p className="text-sm font-bold text-slate-700 mb-2">통합 매출 합계</p>
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div><p className="text-[10px] text-slate-400">목표</p><p className="text-sm font-black text-slate-800">{f(rData.eT)}</p></div>
-                  <div><p className="text-[10px] text-slate-400">달성</p><p className="text-sm font-black text-blue-600">{f(rData.eA)}</p></div>
-                  <div><p className="text-[10px] text-slate-400">잔여</p><p className="text-sm font-black text-red-500">{f(rData.eT-rData.eA)}</p></div>
-                </div>
-                <div className="mt-2 text-center"><span className="text-xs text-slate-400">달성률 </span><span className="text-sm font-black text-blue-600">{fp(rData.eT>0?rData.eA/rData.eT:0)}</span></div>
-              </div>
-
-              {/* 5단: 월 누적 */}
-              <div>
-                <p className="text-sm font-bold text-slate-700 mb-2">  ★ 월 누적 매출 현황 ★</p>
-                <table className="w-full border-collapse">
-                <thead><tr><th className={th} rowSpan={2}>담당자</th><th className={th} colSpan={2}>연계 매출</th><th className={th} colSpan={2}>분양회</th><th className={th} rowSpan={2}>달성률</th><th className={th} rowSpan={2}>매출액</th></tr>
-                <tr><th className={th}>건</th><th className={th}>월 매출액</th><th className={th}>건</th><th className={th}>월 매출액</th></tr></thead>
-                <tbody>
-                  {rData.s5.map((r:any)=><tr key={r.n}><td className={tc}>{r.n===rData.topM?`👑 ${r.n}`:r.n}</td><td className={td}>{r.lC}</td><td className={td}>{f(r.la)}</td><td className={td}>{r.bC}</td><td className={td}>{f(r.ba)}</td><td className={`${td} ${rc(r.r)}`}>{fp(r.r)}</td><td className={td+" font-bold"}>{f(r.tot)}</td></tr>)}
-                  <tr className="bg-slate-50 font-bold"><td className={tc}>합계</td><td className={td}>{rData.s5.reduce((s:number,r:any)=>s+r.lC,0)}</td><td className={td}>{f(rData.s5.reduce((s:number,r:any)=>s+r.la,0))}</td><td className={td}>{rData.s5.reduce((s:number,r:any)=>s+r.bC,0)}</td><td className={td}>{f(rData.s5.reduce((s:number,r:any)=>s+r.ba,0))}</td><td className={td}>{fp(rData.eT>0?rData.eA/rData.eT:0)}</td><td className={td}>{f(rData.s5.reduce((s:number,r:any)=>s+r.tot,0))}</td></tr>
-                </tbody></table>
-              </div>
-
-              {/* 6단: 당일 */}
-              <div>
-                <p className="text-sm font-bold text-slate-700 mb-2">  ★ 당일 개인별 매출 현황 ★</p>
-                <table className="w-full border-collapse">
-                <thead><tr><th className={th} rowSpan={2}>담당자</th><th className={th} colSpan={2}>연계 매출</th><th className={th} colSpan={2}>분양회</th><th className={th} colSpan={2}>합계</th></tr>
-                <tr><th className={th}>건</th><th className={th}>일 매출액</th><th className={th}>건</th><th className={th}>일 매출액</th><th className={th}>건</th><th className={th}>매출액</th></tr></thead>
-                <tbody>
-                  {rData.s6.map((r:any)=><tr key={r.n}><td className={tc}>{r.n===rData.topD&&r.tot>0?`👑 ${r.n}`:r.n}</td><td className={td}>{r.lC}</td><td className={td}>{f(r.la)}</td><td className={td}>{r.bC}</td><td className={td}>{f(r.ba)}</td><td className={td}>{r.tC}</td><td className={td+" font-bold"}>{f(r.tot)}</td></tr>)}
-                  <tr className="bg-slate-50 font-bold"><td className={tc}>합계</td><td className={td}>{rData.s6.reduce((s:number,r:any)=>s+r.lC,0)}</td><td className={td}>{f(rData.s6.reduce((s:number,r:any)=>s+r.la,0))}</td><td className={td}>{rData.s6.reduce((s:number,r:any)=>s+r.bC,0)}</td><td className={td}>{f(rData.s6.reduce((s:number,r:any)=>s+r.ba,0))}</td><td className={td}>{rData.s6.reduce((s:number,r:any)=>s+r.tC,0)}</td><td className={td}>{f(rData.s6.reduce((s:number,r:any)=>s+r.tot,0))}</td></tr>
-                </tbody></table>
-              </div>
+              <div className="text-center mb-4"><p className="text-xs text-slate-400 mb-1">{rData.td}</p><h2 className="text-lg font-black text-slate-800">대외협력팀 매출일보</h2></div>
+              <div><p className="text-sm font-bold text-slate-700 mb-2">  [실행파트] 자사광고 연계 매출</p><table className="w-full border-collapse"><thead><tr><th className={th}>담당자</th><th className={th}>목표</th><th className={th}>달성</th><th className={th}>달성률</th></tr></thead><tbody>{rData.s1.map((r:any)=><tr key={r.n}><td className={tc}>{r.n}</td><td className={td}>{f(r.tgt)}</td><td className={td}>{f(r.act)}</td><td className={`${td} ${rc(r.r)}`}>{fp(r.r)}</td></tr>)}<tr className="bg-slate-50 font-bold"><td className={tc}>합계</td><td className={td}>{f(rData.s1.reduce((s:number,r:any)=>s+r.tgt,0))}</td><td className={td}>{f(rData.s1.reduce((s:number,r:any)=>s+r.act,0))}</td><td className={td}>{fp(rData.s1.reduce((s:number,r:any)=>s+r.tgt,0)>0?rData.s1.reduce((s:number,r:any)=>s+r.act,0)/rData.s1.reduce((s:number,r:any)=>s+r.tgt,0):0)}</td></tr></tbody></table></div>
+              <div><p className="text-sm font-bold text-slate-700 mb-2">  [실행파트] 분양회 모집 누적 매출</p><table className="w-full border-collapse"><thead><tr><th className={th}>담당자</th><th className={th}>목표</th><th className={th}>인원</th><th className={th}>달성</th><th className={th}>인원</th><th className={th}>달성률</th></tr></thead><tbody>{rData.s2.map((r:any)=><tr key={r.n}><td className={tc}>{r.n}</td><td className={td}>{f(r.tA)}</td><td className={tc}>{r.tC}인</td><td className={td}>{f(r.aA)}</td><td className={tc}>{r.aC}</td><td className={`${td} ${rc(r.r)}`}>{fp(r.r)}</td></tr>)}<tr className="bg-slate-50 font-bold"><td className={tc}>합계</td><td className={td}>{f(rData.s2.reduce((s:number,r:any)=>s+r.tA,0))}</td><td className={tc}></td><td className={td}>{f(rData.s2.reduce((s:number,r:any)=>s+r.aA,0))}</td><td className={tc}></td><td className={td}>{fp(rData.s2.reduce((s:number,r:any)=>s+r.tA,0)>0?rData.s2.reduce((s:number,r:any)=>s+r.aA,0)/rData.s2.reduce((s:number,r:any)=>s+r.tA,0):0)}</td></tr></tbody></table></div>
+              <div><p className="text-sm font-bold text-slate-700 mb-2">  [운영파트] 분양회 광고 특전 매출</p><table className="w-full border-collapse"><thead><tr><th className={th}>담당자</th><th className={th}>목표</th><th className={th}>LMS</th><th className={th}>호갱노노</th><th className={th}>합산</th><th className={th}>달성률</th></tr></thead><tbody>{rData.s3.map((r:any)=><tr key={r.n}><td className={tc}>{r.n}</td><td className={td}>{f(r.tgt)}</td><td className={td}>{f(r.lms)}</td><td className={td}>{f(r.hog)}</td><td className={td+" font-semibold"}>{f(r.tot)}</td><td className={`${td} ${rc(r.r)}`}>{fp(r.r)}</td></tr>)}<tr className="bg-slate-50 font-bold"><td className={tc}>합계</td><td className={td}>{f(rData.s3.reduce((s:number,r:any)=>s+r.tgt,0))}</td><td className={td}>{f(rData.s3.reduce((s:number,r:any)=>s+r.lms,0))}</td><td className={td}>{f(rData.s3.reduce((s:number,r:any)=>s+r.hog,0))}</td><td className={td}>{f(rData.s3.reduce((s:number,r:any)=>s+r.tot,0))}</td><td className={td}>{fp(rData.s3.reduce((s:number,r:any)=>s+r.tgt,0)>0?rData.s3.reduce((s:number,r:any)=>s+r.tot,0)/rData.s3.reduce((s:number,r:any)=>s+r.tgt,0):0)}</td></tr></tbody></table></div>
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200"><p className="text-sm font-bold text-slate-700 mb-2">통합 매출 합계</p><div className="grid grid-cols-3 gap-3 text-center"><div><p className="text-[10px] text-slate-400">목표</p><p className="text-sm font-black text-slate-800">{f(rData.eT)}</p></div><div><p className="text-[10px] text-slate-400">달성</p><p className="text-sm font-black text-blue-600">{f(rData.eA)}</p></div><div><p className="text-[10px] text-slate-400">잔여</p><p className="text-sm font-black text-red-500">{f(rData.eT-rData.eA)}</p></div></div><div className="mt-2 text-center"><span className="text-xs text-slate-400">달성률 </span><span className="text-sm font-black text-blue-600">{fp(rData.eT>0?rData.eA/rData.eT:0)}</span></div></div>
+              <div><p className="text-sm font-bold text-slate-700 mb-2">  ★ 월 누적 매출 현황 ★</p><table className="w-full border-collapse"><thead><tr><th className={th} rowSpan={2}>담당자</th><th className={th} colSpan={2}>연계 매출</th><th className={th} colSpan={2}>분양회</th><th className={th} rowSpan={2}>달성률</th><th className={th} rowSpan={2}>매출액</th></tr><tr><th className={th}>건</th><th className={th}>월 매출액</th><th className={th}>건</th><th className={th}>월 매출액</th></tr></thead><tbody>{rData.s5.map((r:any)=><tr key={r.n}><td className={tc}>{r.n===rData.topM?`👑 ${r.n}`:r.n}</td><td className={td}>{r.lC}</td><td className={td}>{f(r.la)}</td><td className={td}>{r.bC}</td><td className={td}>{f(r.ba)}</td><td className={`${td} ${rc(r.r)}`}>{fp(r.r)}</td><td className={td+" font-bold"}>{f(r.tot)}</td></tr>)}<tr className="bg-slate-50 font-bold"><td className={tc}>합계</td><td className={td}>{rData.s5.reduce((s:number,r:any)=>s+r.lC,0)}</td><td className={td}>{f(rData.s5.reduce((s:number,r:any)=>s+r.la,0))}</td><td className={td}>{rData.s5.reduce((s:number,r:any)=>s+r.bC,0)}</td><td className={td}>{f(rData.s5.reduce((s:number,r:any)=>s+r.ba,0))}</td><td className={td}>{fp(rData.eT>0?rData.eA/rData.eT:0)}</td><td className={td}>{f(rData.s5.reduce((s:number,r:any)=>s+r.tot,0))}</td></tr></tbody></table></div>
+              <div><p className="text-sm font-bold text-slate-700 mb-2">  ★ 당일 개인별 매출 현황 ★</p><table className="w-full border-collapse"><thead><tr><th className={th} rowSpan={2}>담당자</th><th className={th} colSpan={2}>연계 매출</th><th className={th} colSpan={2}>분양회</th><th className={th} colSpan={2}>합계</th></tr><tr><th className={th}>건</th><th className={th}>일 매출액</th><th className={th}>건</th><th className={th}>일 매출액</th><th className={th}>건</th><th className={th}>매출액</th></tr></thead><tbody>{rData.s6.map((r:any)=><tr key={r.n}><td className={tc}>{r.n===rData.topD&&r.tot>0?`👑 ${r.n}`:r.n}</td><td className={td}>{r.lC}</td><td className={td}>{f(r.la)}</td><td className={td}>{r.bC}</td><td className={td}>{f(r.ba)}</td><td className={td}>{r.tC}</td><td className={td+" font-bold"}>{f(r.tot)}</td></tr>)}<tr className="bg-slate-50 font-bold"><td className={tc}>합계</td><td className={td}>{rData.s6.reduce((s:number,r:any)=>s+r.lC,0)}</td><td className={td}>{f(rData.s6.reduce((s:number,r:any)=>s+r.la,0))}</td><td className={td}>{rData.s6.reduce((s:number,r:any)=>s+r.bC,0)}</td><td className={td}>{f(rData.s6.reduce((s:number,r:any)=>s+r.ba,0))}</td><td className={td}>{rData.s6.reduce((s:number,r:any)=>s+r.tC,0)}</td><td className={td}>{f(rData.s6.reduce((s:number,r:any)=>s+r.tot,0))}</td></tr></tbody></table></div>
             </div>
           )}
         </div>
@@ -832,6 +761,26 @@ export default function SalesPage() {
                         <select className={inp} value={form.hightarget_reward_type} onChange={e=>setForm({...form,hightarget_reward_type:e.target.value})}>
                           <option value="">선택</option>
                           <option value="마일리지10%">마일리지 10%</option>
+                          <option value="리워드5%">리워드 5%</option>
+                        </select>
+                      </div>
+                    )}
+                    {(form.channel==="호갱노노_채널톡"||form.channel==="호갱노노_단지마커"||form.channel==="호갱노노_기타") && (
+                      <div>
+                        <label className={lbl}>마일리지/리워드</label>
+                        <select className={inp} value={form.hightarget_reward_type} onChange={e=>setForm({...form,hightarget_reward_type:e.target.value})}>
+                          <option value="">선택</option>
+                          <option value="마일리지5%">하이타겟 마일리지 5%</option>
+                          <option value="리워드5%">리워드 5%</option>
+                        </select>
+                      </div>
+                    )}
+                    {form.channel==="LMS" && (
+                      <div>
+                        <label className={lbl}>마일리지/리워드</label>
+                        <select className={inp} value={form.hightarget_reward_type} onChange={e=>setForm({...form,hightarget_reward_type:e.target.value})}>
+                          <option value="">선택</option>
+                          <option value="마일리지15%">하이타겟 마일리지 15%</option>
                           <option value="리워드5%">리워드 5%</option>
                         </select>
                       </div>
