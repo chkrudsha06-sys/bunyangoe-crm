@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     const {
       property, quoteDate,
       clientAddr, clientName, clientBizNo, clientCeo, clientMgr, clientPhone,
+      supplierMgr, supplierPhone,
       items,
     } = body;
 
@@ -37,8 +38,8 @@ export async function POST(req: NextRequest) {
     set(6, 3, clientMgr);
     set(6, 7, clientPhone);
     // 수급인(을) 담당자 / HP
-    if (clientMgr) set(9, 3, clientMgr);
-    if (clientPhone) set(9, 7, clientPhone);
+    if (supplierMgr) set(9, 3, supplierMgr);
+    if (supplierPhone) set(9, 7, supplierPhone);
 
     set(10, 7, quoteDate);
 
