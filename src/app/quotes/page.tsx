@@ -88,8 +88,10 @@ export default function QuotePage() {
   const [clientName,  setClientName]  = useState("");
   const [clientBizNo, setClientBizNo] = useState("");
   const [clientCeo,   setClientCeo]   = useState("");
-  const [clientMgr,   setClientMgr]   = useState("");
-  const [clientPhone, setClientPhone] = useState("");
+  const [clientMgr,   setClientMgr]   = useState("");   // 위탁인(갑) 담당자
+  const [clientPhone, setClientPhone] = useState("");   // 위탁인(갑) HP
+  const [supplierMgr,  setSupplierMgr]  = useState("");   // 수급인(을) 담당자
+  const [supplierPhone,setSupplierPhone]= useState("");   // 수급인(을) HP
   const [items, setItems] = useState<AdItem[]>([newItem(1)]);
   const [saving,      setSaving]      = useState(false);
   const [saved,       setSaved]       = useState(false);
@@ -145,14 +147,15 @@ export default function QuotePage() {
       client_addr:clientAddr, client_name:clientName,
       client_biz_no:clientBizNo, client_ceo:clientCeo,
       client_manager:clientMgr, client_phone:clientPhone,
+      supplier_manager:supplierMgr, supplier_phone:supplierPhone,
       items:JSON.stringify(items), total_amount:total, total_vat:totalVat,
     });
     setSaving(false); setSaved(true); setTimeout(()=>setSaved(false),2000);
   };
 
 
-  // ── 저장된 견적서 목록 ──────────────────────────────
-  type SavedQuote = { id: number; property: string; quote_date: string; client_name: string; total_amount: number; total_vat: number; items: string; client_addr: string; client_biz_no: string; client_ceo: string; client_manager: string; client_phone: string; created_at: string; };
+  // ── 저장된 견적서 목록 ──
+  type SavedQuote = { id: number; property: string; quote_date: string; client_name: string; total_amount: number; total_vat: number; items: string; client_addr: string; client_biz_no: string; client_ceo: string; client_manager: string; client_phone: string; supplier_manager: string; supplier_phone: string; created_at: string; };
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
   const [dlId, setDlId] = useState<number|null>(null);
@@ -165,71 +168,40 @@ export default function QuotePage() {
   };
   useEffect(() => { fetchSavedQuotes(); }, []);
 
-  // 저장 후 목록 새로고침
-  const handleSaveAndRefresh = async () => {
-    await handleSave();
-    fetchSavedQuotes();
-  };
+  const handleSaveAndRefresh = async () => { await handleSave(); fetchSavedQuotes(); };
 
-  // 저장된 견적서 불러오기
   const loadQuote = (q: SavedQuote) => {
     setProperty(q.property);
     setQuoteDate(q.quote_date || new Date().toISOString().split("T")[0]);
-    setClientAddr(q.client_addr || "");
-    setClientName(q.client_name || "");
-    setClientBizNo(q.client_biz_no || "");
-    setClientCeo(q.client_ceo || "");
-    setClientMgr(q.client_manager || "");
-    setClientPhone(q.client_phone || "");
-    try {
-      const parsed = JSON.parse(q.items || "[]");
-      setItems(parsed.length > 0 ? parsed : [newItem(1)]);
-    } catch { setItems([newItem(1)]); }
+    setClientAddr(q.client_addr || ""); setClientName(q.client_name || "");
+    setClientBizNo(q.client_biz_no || ""); setClientCeo(q.client_ceo || "");
+    setClientMgr(q.client_manager || ""); setClientPhone(q.client_phone || "");
+    setSupplierMgr(q.supplier_manager || ""); setSupplierPhone(q.supplier_phone || "");
+    try { const p = JSON.parse(q.items || "[]"); setItems(p.length > 0 ? p : [newItem(1)]); } catch { setItems([newItem(1)]); }
   };
 
-  // 저장된 견적서 PDF 다운로드
   const downloadSavedPdf = async (q: SavedQuote) => {
     setDlId(q.id);
     try {
-      let parsedItems: any[];
-      try { parsedItems = JSON.parse(q.items || "[]"); } catch { parsedItems = []; }
+      let pi: any[]; try { pi = JSON.parse(q.items || "[]"); } catch { pi = []; }
       const res = await fetch("/api/generate-quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          property: q.property, quoteDate: q.quote_date,
-          clientAddr: q.client_addr, clientName: q.client_name,
-          clientBizNo: q.client_biz_no, clientCeo: q.client_ceo,
-          clientMgr: q.client_manager, clientPhone: q.client_phone,
-          items: parsedItems,
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ property:q.property, quoteDate:q.quote_date, clientAddr:q.client_addr, clientName:q.client_name, clientBizNo:q.client_biz_no, clientCeo:q.client_ceo, clientMgr:q.client_manager, clientPhone:q.client_phone, supplierMgr:q.supplier_manager||"", supplierPhone:q.supplier_phone||"", items:pi }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || "오류");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      const _m = parsedItems[0]?.media || "";
-      const _t = parsedItems[0]?.type || "";
-      const _d = (q.quote_date||"").replace(/-/g,"");
-      const _v = (q.total_vat||0) >= 10000 ? `${Math.floor((q.total_vat||0)/10000).toLocaleString()}만` : (q.total_vat||0).toLocaleString();
-      a.href = url; a.download = `(주)광고인_${_m}_${_t}_${_d}_${_v}(VAT포함).pdf`;
-      a.click(); URL.revokeObjectURL(url);
-    } catch(e: any) { alert("PDF 생성 오류: " + e.message); }
-    finally { setDlId(null); }
+      if (!res.ok) throw new Error((await res.json()).error||"오류");
+      const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement("a");
+      const _m=pi[0]?.media||"",_t=pi[0]?.type||"",_d=(q.quote_date||"").replace(/-/g,"");
+      const _v=(q.total_vat||0)>=10000?`${Math.floor((q.total_vat||0)/10000).toLocaleString()}만`:(q.total_vat||0).toLocaleString();
+      a.href=url; a.download=`(주)광고인_${_m}_${_t}_${_d}_${_v}(VAT포함).pdf`; a.click(); URL.revokeObjectURL(url);
+    } catch(e:any) { alert("PDF 생성 오류: "+e.message); } finally { setDlId(null); }
   };
 
-  // 저장된 견적서 삭제
   const deleteSavedQuote = async (id: number) => {
     if (!confirm("이 견적서를 삭제하시겠습니까?")) return;
-    await supabase.from("quotes").delete().eq("id", id);
-    fetchSavedQuotes();
+    await supabase.from("quotes").delete().eq("id", id); fetchSavedQuotes();
   };
 
-  const fmtAmt = (n: number) => {
-    if (!n) return "0원";
-    if (n >= 10000) return `${Math.floor(n/10000).toLocaleString()}만원`;
-    return n.toLocaleString() + "원";
-  };
+  const fmtAmt = (n: number) => { if (!n) return "0원"; if (n>=10000) return `${Math.floor(n/10000).toLocaleString()}만원`; return n.toLocaleString()+"원"; };
 
   const handleDownload = async () => {
     if (!property) return alert("대상물건을 입력하세요.");
@@ -238,7 +210,7 @@ export default function QuotePage() {
       const res = await fetch("/api/generate-quote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ property, quoteDate, clientAddr, clientName, clientBizNo, clientCeo, clientMgr, clientPhone, items }),
+        body: JSON.stringify({ property, quoteDate, clientAddr, clientName, clientBizNo, clientCeo, clientMgr, clientPhone, supplierMgr, supplierPhone, items }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -285,7 +257,6 @@ export default function QuotePage() {
 
       <div className="flex-1 overflow-auto p-6">
         <div className="flex gap-5">
-        {/* 왼쪽: 견적서 작성 */}
         <div className="flex-1 min-w-0 space-y-4">
 
         {/* 기본 정보 */}
@@ -304,9 +275,9 @@ export default function QuotePage() {
           <h2 className="text-sm font-bold text-slate-700 mb-4 pb-2 border-b border-slate-100">수급인(을) 담당자 정보</h2>
           <div className="grid grid-cols-2 gap-3">
             <div><label className={lbl}>담당자</label>
-              <input className={inp} value={clientMgr} onChange={e=>setClientMgr(e.target.value)} placeholder="예: 기여운"/></div>
+              <input className={inp} value={supplierMgr} onChange={e=>setSupplierMgr(e.target.value)} placeholder="예: 기여운"/></div>
             <div><label className={lbl}>HP</label>
-              <input className={inp} value={clientPhone} onChange={e=>setClientPhone(e.target.value)} placeholder="010-0000-0000"/></div>
+              <input className={inp} value={supplierPhone} onChange={e=>setSupplierPhone(e.target.value)} placeholder="010-0000-0000"/></div>
           </div>
         </div>
 
@@ -316,14 +287,16 @@ export default function QuotePage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2"><label className={lbl}>주소</label>
               <input className={inp} value={clientAddr} onChange={e=>setClientAddr(e.target.value)} placeholder="주소"/></div>
-            <div><label className={lbl}>계약자(담당자)</label>
-              <input className={inp} value={clientName} onChange={e=>setClientName(e.target.value)} placeholder="담당자명"/></div>
-            <div><label className={lbl}>HP</label>
-              <input className={inp} value={clientPhone} onChange={e=>setClientPhone(e.target.value)} placeholder="010-0000-0000"/></div>
+            <div><label className={lbl}>계약자</label>
+              <input className={inp} value={clientName} onChange={e=>setClientName(e.target.value)} placeholder="계약자명"/></div>
             <div><label className={lbl}>사업자번호</label>
               <input className={inp} value={clientBizNo} onChange={e=>setClientBizNo(e.target.value)} placeholder="000-00-00000"/></div>
             <div><label className={lbl}>대표자</label>
               <input className={inp} value={clientCeo} onChange={e=>setClientCeo(e.target.value)} placeholder="대표자명"/></div>
+            <div><label className={lbl}>담당자</label>
+              <input className={inp} value={clientMgr} onChange={e=>setClientMgr(e.target.value)} placeholder="담당자명"/></div>
+            <div><label className={lbl}>HP</label>
+              <input className={inp} value={clientPhone} onChange={e=>setClientPhone(e.target.value)} placeholder="010-0000-0000"/></div>
           </div>
         </div>
 
@@ -468,26 +441,18 @@ export default function QuotePage() {
         <div className="w-80 flex-shrink-0">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm sticky top-20">
             <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <List size={15} className="text-blue-500"/>
-                <h3 className="text-sm font-bold text-slate-700">저장된 견적서</h3>
-              </div>
+              <div className="flex items-center gap-2"><List size={15} className="text-blue-500"/><h3 className="text-sm font-bold text-slate-700">저장된 견적서</h3></div>
               <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">{savedQuotes.length}건</span>
             </div>
             <div className="max-h-[calc(100vh-180px)] overflow-y-auto">
               {loadingQuotes ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>
-                </div>
+                <div className="flex items-center justify-center py-12"><div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/></div>
               ) : savedQuotes.length === 0 ? (
                 <div className="text-center py-12 text-slate-300 text-sm">저장된 견적서가 없습니다</div>
               ) : (
                 <div className="divide-y divide-slate-100">
                   {savedQuotes.map(q => {
-                    let parsedItems: any[] = [];
-                    try { parsedItems = JSON.parse(q.items || "[]"); } catch {}
-                    const mediaLabel = parsedItems[0]?.media || "-";
-                    const typeLabel = parsedItems[0]?.type || "";
+                    let pi: any[] = []; try { pi = JSON.parse(q.items || "[]"); } catch {}
                     const isDl = dlId === q.id;
                     return (
                       <div key={q.id} className="px-4 py-3 hover:bg-slate-50 transition-colors">
@@ -496,26 +461,17 @@ export default function QuotePage() {
                             <p className="text-sm font-bold text-slate-800 truncate">{q.property}</p>
                             <p className="text-xs text-slate-500 mt-0.5">{q.client_name || "미입력"}</p>
                           </div>
-                          <span className="text-xs font-black text-blue-600 flex-shrink-0 whitespace-nowrap">{fmtAmt(q.total_vat)}</span>
+                          <span className="text-xs font-black text-blue-600 flex-shrink-0">{fmtAmt(q.total_vat)}</span>
                         </div>
                         <div className="flex items-center gap-1.5 mb-2">
-                          <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100 font-semibold">{mediaLabel}</span>
-                          {typeLabel && <span className="text-[10px] px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded border border-slate-200">{typeLabel}</span>}
+                          <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100 font-semibold">{pi[0]?.media||"-"}</span>
+                          {pi[0]?.type && <span className="text-[10px] px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded border border-slate-200">{pi[0].type}</span>}
                           <span className="text-[10px] text-slate-400 ml-auto flex items-center gap-0.5"><Clock size={9}/>{q.quote_date}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <button onClick={()=>loadQuote(q)}
-                            className="flex-1 text-[11px] py-1.5 bg-slate-50 text-slate-600 rounded-lg border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 font-semibold transition-colors">
-                            불러오기
-                          </button>
-                          <button onClick={()=>downloadSavedPdf(q)} disabled={isDl}
-                            className="flex-1 text-[11px] py-1.5 bg-blue-50 text-blue-600 rounded-lg border border-blue-200 hover:bg-blue-100 font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-1">
-                            <Download size={10}/>{isDl ? "변환중..." : "PDF"}
-                          </button>
-                          <button onClick={()=>deleteSavedQuote(q.id)}
-                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                            <Trash2 size={12}/>
-                          </button>
+                          <button onClick={()=>loadQuote(q)} className="flex-1 text-[11px] py-1.5 bg-slate-50 text-slate-600 rounded-lg border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 font-semibold transition-colors">불러오기</button>
+                          <button onClick={()=>downloadSavedPdf(q)} disabled={isDl} className="flex-1 text-[11px] py-1.5 bg-blue-50 text-blue-600 rounded-lg border border-blue-200 hover:bg-blue-100 font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-1"><Download size={10}/>{isDl?"변환중...":"PDF"}</button>
+                          <button onClick={()=>deleteSavedQuote(q.id)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={12}/></button>
                         </div>
                       </div>
                     );
