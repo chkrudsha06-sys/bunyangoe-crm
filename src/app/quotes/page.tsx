@@ -299,6 +299,17 @@ export default function QuotePage() {
           </div>
         </div>
 
+        {/* 수급인(을) 담당자 */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <h2 className="text-sm font-bold text-slate-700 mb-4 pb-2 border-b border-slate-100">수급인(을) 담당자 정보</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={lbl}>담당자</label>
+              <input className={inp} value={clientMgr} onChange={e=>setClientMgr(e.target.value)} placeholder="예: 기여운"/></div>
+            <div><label className={lbl}>HP</label>
+              <input className={inp} value={clientPhone} onChange={e=>setClientPhone(e.target.value)} placeholder="010-0000-0000"/></div>
+          </div>
+        </div>
+
         {/* 위탁인(갑) */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <h2 className="text-sm font-bold text-slate-700 mb-4 pb-2 border-b border-slate-100">위탁인(갑) 정보</h2>
@@ -313,10 +324,6 @@ export default function QuotePage() {
               <input className={inp} value={clientBizNo} onChange={e=>setClientBizNo(e.target.value)} placeholder="000-00-00000"/></div>
             <div><label className={lbl}>대표자</label>
               <input className={inp} value={clientCeo} onChange={e=>setClientCeo(e.target.value)} placeholder="대표자명"/></div>
-            <div><label className={lbl}>담당자</label>
-              <input className={inp} value={clientMgr} onChange={e=>setClientMgr(e.target.value)} placeholder="담당자명"/></div>
-            <div><label className={lbl}>HP</label>
-              <input className={inp} value={clientPhone} onChange={e=>setClientPhone(e.target.value)} placeholder="010-0000-0000"/></div>
           </div>
         </div>
 
