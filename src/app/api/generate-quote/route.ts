@@ -36,6 +36,10 @@ export async function POST(req: NextRequest) {
     set(5, 7, clientCeo);
     set(6, 3, clientMgr);
     set(6, 7, clientPhone);
+    // 수급인(을) 담당자 / HP
+    if (clientMgr) set(9, 3, clientMgr);
+    if (clientPhone) set(9, 7, clientPhone);
+
     set(10, 7, quoteDate);
 
     if (items && items.length > 0) {
