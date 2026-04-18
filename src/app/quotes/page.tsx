@@ -313,8 +313,10 @@ export default function QuotePage() {
               <input className={inp} value={clientBizNo} onChange={e=>setClientBizNo(e.target.value)} placeholder="000-00-00000"/></div>
             <div><label className={lbl}>대표자</label>
               <input className={inp} value={clientCeo} onChange={e=>setClientCeo(e.target.value)} placeholder="대표자명"/></div>
-            <div className="col-span-2"><label className={lbl}>담당자</label>
+            <div><label className={lbl}>담당자</label>
               <input className={inp} value={clientMgr} onChange={e=>setClientMgr(e.target.value)} placeholder="담당자명"/></div>
+            <div><label className={lbl}>HP</label>
+              <input className={inp} value={clientPhone} onChange={e=>setClientPhone(e.target.value)} placeholder="010-0000-0000"/></div>
           </div>
         </div>
 
