@@ -2,83 +2,132 @@
 
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { Shield, Phone, Calendar, Search, Copy, Check } from "lucide-react";
+import { Shield, Phone, Calendar, Search, Copy, Check, Edit3 } from "lucide-react";
+import BankAccountDialog from "@/components/BankAccountDialog";
 
-interface VipContact {
-  id: number;
-  name: string;
-  phone: string | null;
-  assigned_to: string;
-  meeting_result: string;
-  contract_date: string | null;
-  reservation_date: string | null;
-  consultant: string | null;
-  memo: string | null;
-  bunyanghoe_number: string | null;
-  bank_holder: string | null;
-  bank_name: string | null;
-  bank_account: string | null;
+// 성씨 스티커 색상
+const SURNAME_COLORS: Record<string,string> = {
+  "김":"bg-blue-500","이":"bg-violet-500","박":"bg-emerald-500","최":"bg-rose-500","정":"bg-amber-500","강":"bg-cyan-500",
+  "조":"bg-indigo-500","윤":"bg-pink-500","장":"bg-orange-500","임":"bg-teal-500","한":"bg-sky-500","오":"bg-purple-500",
+  "서":"bg-red-500","신":"bg-lime-600","권":"bg-fuchsia-500","황":"bg-yellow-600","안":"bg-blue-600","송":"bg-green-600",
+  "류":"bg-indigo-600","전":"bg-rose-600","홍":"bg-red-400","고":"bg-cyan-600","문":"bg-violet-600","양":"bg-amber-600",
+  "손":"bg-emerald-600","배":"bg-sky-600","백":"bg-slate-500","허":"bg-pink-600","남":"bg-teal-600","유":"bg-orange-600",
+};
+function getAvatarColor(n: string): string {
+  return (n && SURNAME_COLORS[n[0]]) ? SURNAME_COLORS[n[0]] : "bg-slate-400";
 }
 
-// 인라인 편집 셀
-function EditableCell({ value, contactId, field, placeholder, onSaved }: {
-  value: string | null; contactId: number; field: string;
-  placeholder: string; onSaved: () => void;
+interface VipContact {
+  id: number; name: string; phone: string | null;
+  assigned_to: string; meeting_result: string;
+  contract_date: string | null; reservation_date: string | null;
+  consultant: string | null; memo: string | null;
+  bunyanghoe_number: string | null;
+  bank_holder: string | null; bank_code: string | null;
+  bank_name: string | null; bank_account: string | null;
+}
+
+// ─── 넘버링 편집 셀 ───
+function NumberingCell({ value, contactId, onSaved }: {
+  value: string | null; contactId: number; onSaved: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(value || "");
+  const [val, setVal] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const stripPrefix = (v: string | null): string => v ? (v.startsWith("B-") ? v.slice(2) : v) : "";
+  const displayValue = value ? (value.startsWith("B-") ? value : `B-${value}`) : null;
 
   useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
 
   const save = async () => {
-    await supabase.from("contacts").update({ [field]: val || null }).eq("id", contactId);
-    setEditing(false);
-    onSaved();
+    const clean = val.trim().replace(/[^0-9]/g, "");
+    const saveVal = clean ? `B-${clean}` : null;
+    await supabase.from("contacts").update({ bunyanghoe_number: saveVal }).eq("id", contactId);
+    setEditing(false); onSaved();
   };
+  const cancel = () => { setVal(stripPrefix(value)); setEditing(false); };
 
   if (editing) {
     return (
-      <input ref={inputRef} value={val}
-        onChange={e => setVal(e.target.value)}
-        onBlur={save}
-        onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
-        placeholder={placeholder}
-        className="w-full min-w-[80px] px-2 py-1 text-xs border border-blue-400 rounded-lg outline-none bg-white text-slate-800"/>
+      <div className="flex items-center justify-center gap-0.5">
+        <span className="text-sm font-black text-amber-600 flex-shrink-0">B-</span>
+        <input ref={inputRef} value={val}
+          onChange={e => setVal(e.target.value.replace(/[^0-9]/g, ""))}
+          onBlur={save} onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") cancel(); }}
+          placeholder="001" className="w-14 px-1 py-0.5 text-sm font-black text-amber-600 border border-amber-400 rounded outline-none bg-white text-center"/>
+      </div>
     );
   }
   return (
-    <span onClick={() => { setVal(value || ""); setEditing(true); }}
-      className={`text-xs cursor-pointer px-1 py-0.5 rounded hover:bg-slate-100 transition-colors ${value ? "text-slate-700" : "text-slate-300"}`}
-      title="클릭하여 편집">
-      {value || placeholder}
-    </span>
+    <button onClick={() => { setVal(stripPrefix(value)); setEditing(true); }}
+      className={`group inline-flex items-center gap-1 px-2 py-0.5 rounded hover:bg-amber-50 transition-colors ${!displayValue ? "border border-dashed border-slate-300" : ""}`}
+      title="클릭하여 넘버링 편집">
+      <span className={`text-sm font-black ${displayValue ? "text-amber-600" : "text-slate-300"}`}>{displayValue || "B-___"}</span>
+      <Edit3 size={10} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"/>
+    </button>
   );
 }
 
-// 계좌번호 + 복사
-function AccountCell({ value, contactId, onSaved }: {
-  value: string | null; contactId: number; onSaved: () => void;
+// ─── 계좌 필드 셀 ───
+function AccountFieldCell({ contact, field, placeholder, onSaved }: {
+  contact: VipContact; field: "bank_holder"|"bank_code"|"bank_name"; placeholder: string; onSaved: () => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const value = contact[field];
+  return (
+    <>
+      <button onClick={() => setOpen(true)}
+        className={`w-full min-w-[80px] px-2 py-1.5 text-xs rounded-lg border text-center transition-colors ${
+          value ? "bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50 font-semibold"
+                : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200"}`}
+        title="클릭하여 계좌정보 입력/편집">
+        {value || placeholder}
+      </button>
+      <BankAccountDialog open={open} onClose={() => setOpen(false)} contactId={contact.id}
+        initial={{ bank_holder: contact.bank_holder, bank_code: contact.bank_code, bank_name: contact.bank_name, bank_account: contact.bank_account }}
+        onSaved={onSaved}/>
+    </>
+  );
+}
+
+// ─── 계좌번호 셀 + 복사 ───
+function AccountNumberCell({ contact, onSaved }: { contact: VipContact; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const value = contact.bank_account;
   const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!value) return;
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true); setTimeout(() => setCopied(false), 1500);
-    });
+    e.stopPropagation(); if (!value) return;
+    navigator.clipboard.writeText(value).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
   };
   return (
-    <div className="flex items-center justify-center gap-1">
-      <EditableCell value={value} contactId={contactId} field="bank_account" placeholder="계좌번호" onSaved={onSaved}/>
-      {value && (
-        <button onClick={handleCopy}
-          className={`flex-shrink-0 p-1 rounded transition-colors ${copied ? "text-emerald-500" : "text-slate-400 hover:text-blue-500 hover:bg-blue-50"}`}>
-          {copied ? <Check size={11}/> : <Copy size={11}/>}
+    <>
+      <div className="flex items-center justify-center gap-1">
+        <button onClick={() => setOpen(true)}
+          className={`min-w-[110px] px-2 py-1.5 text-xs rounded-lg border text-center transition-colors ${
+            value ? "bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50 font-semibold"
+                  : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200"}`}>
+          {value || "계좌번호"}
         </button>
-      )}
-    </div>
+        {value && (
+          <button onClick={handleCopy}
+            className={`flex-shrink-0 p-1.5 rounded-lg border transition-colors ${
+              copied ? "bg-emerald-50 border-emerald-200 text-emerald-500" : "bg-white border-slate-200 text-slate-400 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50"}`}>
+            {copied ? <Check size={11}/> : <Copy size={11}/>}
+          </button>
+        )}
+      </div>
+      <BankAccountDialog open={open} onClose={() => setOpen(false)} contactId={contact.id}
+        initial={{ bank_holder: contact.bank_holder, bank_code: contact.bank_code, bank_name: contact.bank_name, bank_account: contact.bank_account }}
+        onSaved={onSaved}/>
+    </>
   );
+}
+
+// ─── 넘버링 숫자 추출 (정렬용) ───
+function bunNumValue(n: string | null): number {
+  if (!n) return Infinity;
+  const m = n.match(/\d+/);
+  return m ? parseInt(m[0], 10) : Infinity;
 }
 
 export default function MemberManagePage() {
@@ -87,7 +136,6 @@ export default function MemberManagePage() {
   const [search, setSearch]     = useState("");
   const [filterMember, setFilterMember] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  // 회차: 고객별 분양회 월회비 납부 횟수
   const [feeCount, setFeeCount] = useState<Record<string, number>>({});
 
   const TEAM = ["조계현","이세호","기여운","최연전"];
@@ -97,13 +145,17 @@ export default function MemberManagePage() {
   const fetchMembers = async () => {
     setLoading(true);
     let q = supabase.from("contacts")
-      .select("id,name,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_name,bank_account")
-      .in("meeting_result",["계약완료","예약완료"])
-      .order("bunyanghoe_number",{ascending:true});
+      .select("id,name,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_code,bank_name,bank_account")
+      .in("meeting_result",["계약완료","예약완료"]);
     if (filterMember) q = q.eq("assigned_to", filterMember);
     if (filterStatus) q = q.eq("meeting_result", filterStatus);
     const { data } = await q;
-    setContacts((data as VipContact[]) || []);
+
+    // 넘버링 오름차순 정렬
+    const sorted = ((data as VipContact[]) || []).sort((a, b) =>
+      bunNumValue(a.bunyanghoe_number) - bunNumValue(b.bunyanghoe_number)
+    );
+    setContacts(sorted);
 
     // 분양회 월회비 납부 횟수 조회
     const { data: feeData } = await supabase.from("ad_executions")
@@ -111,9 +163,7 @@ export default function MemberManagePage() {
       .eq("channel", "분양회 월회비");
     const counts: Record<string, number> = {};
     ((feeData || []) as any[]).forEach(e => {
-      // 이름 기준 카운트
       if (e.member_name) counts[e.member_name] = (counts[e.member_name] || 0) + 1;
-      // 넘버링 기준도 카운트 (이름 없을 때 백업)
       if (e.bunyanghoe_number) counts[`num:${e.bunyanghoe_number}`] = (counts[`num:${e.bunyanghoe_number}`] || 0) + 1;
     });
     setFeeCount(counts);
@@ -189,40 +239,37 @@ export default function MemberManagePage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {["넘버링","회차","고객명","연락처","담당컨설턴트","대협팀","상태","예금주","은행명","계좌번호","계약/예약일","메모"].map(h=>(
+                  {["넘버링","회차","고객명","연락처","담당컨설턴트","대협팀","상태","예금주","은행코드","은행명","계좌번호","계약/예약일","메모"].map(h=>(
                     <th key={h} className="text-center px-3 py-3 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((c) => (
+                {filtered.map((c) => {
+                  const feeCnt = feeCount[c.name] || (c.bunyanghoe_number ? feeCount[`num:${c.bunyanghoe_number}`] : 0) || 0;
+                  return (
                   <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    {/* 넘버링 (편집 가능) */}
                     <td className="px-3 py-3 text-center align-middle">
-                      <span className="text-sm font-black text-amber-600">
-                        {c.bunyanghoe_number ? (c.bunyanghoe_number.startsWith("B-") ? c.bunyanghoe_number : `B-${c.bunyanghoe_number}`) : "-"}
-                      </span>
+                      <NumberingCell value={c.bunyanghoe_number} contactId={c.id} onSaved={fetchMembers}/>
                     </td>
                     {/* 회차 */}
                     <td className="px-3 py-3 text-center align-middle">
-                      {(() => {
-                        const cnt = feeCount[c.name] || (c.bunyanghoe_number ? feeCount[`num:${c.bunyanghoe_number}`] : 0) || 0;
-                        return cnt > 0
-                          ? <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">{cnt}회차</span>
-                          : <span className="text-xs text-slate-300">-</span>;
-                      })()}
+                      {feeCnt > 0
+                        ? <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">{feeCnt}회차</span>
+                        : <span className="text-xs text-slate-300">-</span>}
                     </td>
+                    {/* 고객명 (성씨 아바타) */}
                     <td className="px-3 py-3 text-center align-middle">
                       <div className="flex items-center justify-center gap-2">
-                        <div className="w-7 h-7 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center flex-shrink-0">
-                          <span className="text-white text-xs font-bold">{c.name[0]}</span>
+                        <div className={`w-7 h-7 ${getAvatarColor(c.name)} rounded-full flex items-center justify-center flex-shrink-0`}>
+                          <span className="text-white text-xs font-black">{c.name[0]}</span>
                         </div>
                         <span className="font-semibold text-slate-800">{c.name}</span>
                       </div>
                     </td>
                     <td className="px-3 py-3 text-center align-middle">
-                      <span className="text-slate-600 flex items-center justify-center gap-1 text-xs">
-                        <Phone size={11}/>{c.phone||"-"}
-                      </span>
+                      <span className="text-slate-600 flex items-center justify-center gap-1 text-xs"><Phone size={11}/>{c.phone||"-"}</span>
                     </td>
                     <td className="px-3 py-3 text-center align-middle text-xs text-slate-600">{c.consultant||"-"}</td>
                     <td className="px-3 py-3 text-center align-middle">
@@ -233,17 +280,17 @@ export default function MemberManagePage() {
                         {c.meeting_result}
                       </span>
                     </td>
-                    {/* 예금주 */}
                     <td className="px-3 py-3 text-center align-middle">
-                      <EditableCell value={c.bank_holder} contactId={c.id} field="bank_holder" placeholder="예금주" onSaved={fetchMembers}/>
+                      <AccountFieldCell contact={c} field="bank_holder" placeholder="예금주" onSaved={fetchMembers}/>
                     </td>
-                    {/* 은행명 */}
                     <td className="px-3 py-3 text-center align-middle">
-                      <EditableCell value={c.bank_name} contactId={c.id} field="bank_name" placeholder="은행명" onSaved={fetchMembers}/>
+                      <AccountFieldCell contact={c} field="bank_code" placeholder="코드" onSaved={fetchMembers}/>
                     </td>
-                    {/* 계좌번호 + 복사 */}
                     <td className="px-3 py-3 text-center align-middle">
-                      <AccountCell value={c.bank_account} contactId={c.id} onSaved={fetchMembers}/>
+                      <AccountFieldCell contact={c} field="bank_name" placeholder="은행명" onSaved={fetchMembers}/>
+                    </td>
+                    <td className="px-3 py-3 text-center align-middle">
+                      <AccountNumberCell contact={c} onSaved={fetchMembers}/>
                     </td>
                     <td className="px-3 py-3 text-center align-middle">
                       <span className="text-slate-600 flex items-center justify-center gap-1 text-xs">
@@ -259,7 +306,8 @@ export default function MemberManagePage() {
                       <p className="text-xs text-slate-500 truncate">{c.memo||"-"}</p>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
