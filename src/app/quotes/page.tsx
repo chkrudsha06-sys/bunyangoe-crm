@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { FileText, Trash2, FileDown, Edit3, Download, Clock, List } from "lucide-react";
+import { useState, useEffect } from "react";
+import { FileText, Trash2, FileDown, Edit3, Download, Clock, List, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface AdItem {
@@ -79,14 +79,31 @@ export default function QuotePage() {
   const [downloading, setDownloading] = useState(false);
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [qSearch, setQSearch] = useState("");
+  const [qDateFrom, setQDateFrom] = useState("");
+  const [qDateTo, setQDateTo] = useState("");
 
   const fetchSavedQuotes = async () => {
     setLoadingQuotes(true);
-    const { data } = await supabase.from("quotes").select("*").order("created_at",{ascending:false}).limit(50);
+    const { data } = await supabase.from("quotes").select("*").order("created_at",{ascending:false}).limit(100);
     setSavedQuotes((data || []) as SavedQuote[]);
     setLoadingQuotes(false);
   };
   useEffect(() => { fetchSavedQuotes(); }, []);
+
+  // 검색 + 날짜 필터
+  const filteredQuotes = savedQuotes.filter(q => {
+    if (qSearch.trim()) {
+      const s = qSearch.trim().toLowerCase();
+      const pi = (() => { try { return JSON.parse(q.items||"[]"); } catch { return []; } })();
+      const searchable = [q.property, q.client_name, q.client_manager, q.supplier_manager, pi[0]?.media, pi[0]?.type].filter(Boolean).join(" ").toLowerCase();
+      if (!searchable.includes(s)) return false;
+    }
+    if (qDateFrom && q.quote_date && q.quote_date < qDateFrom) return false;
+    if (qDateTo && q.quote_date && q.quote_date > qDateTo) return false;
+    return true;
+  });
 
   const updateItem = (id: number, field: keyof AdItem, val: string) => {
     setItems(p => p.map(it => {
@@ -147,6 +164,8 @@ export default function QuotePage() {
     try { const p = JSON.parse(q.items||"[]"); setItems(p.length>0?p:[newItem(1)]); } catch { setItems([newItem(1)]); }
   };
 
+  const fmtV = (n: number) => n >= 10000 ? `${Math.floor(n/10000).toLocaleString()}만원` : `${n.toLocaleString()}원`;
+
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
@@ -163,7 +182,9 @@ export default function QuotePage() {
       </div>
 
       <div className="flex-1 overflow-auto p-6">
-        <div className="flex gap-5">
+        <div className="flex gap-5 items-start">
+
+        {/* ═══ 왼쪽: 견적서 작성 ═══ */}
         <div className="flex-[3] min-w-0 space-y-4">
 
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
@@ -194,7 +215,7 @@ export default function QuotePage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5" id="ad-items-section">
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
             <h2 className="text-sm font-bold text-slate-700">광고 항목</h2>
             <button onClick={addManual} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-50 text-amber-600 rounded-lg border border-amber-200 hover:bg-amber-100"><Edit3 size={12}/> 수기입력</button>
@@ -241,42 +262,116 @@ export default function QuotePage() {
         </div>
         </div>
 
-        <div className="flex-[2] min-w-0">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm sticky top-20">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2"><List size={16} className="text-blue-500"/><h3 className="text-base font-bold text-slate-700">저장된 견적서</h3></div>
-              <span className="text-xs text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100 font-semibold">{savedQuotes.length}건</span>
+        {/* ═══ 오른쪽: 저장된 견적서 ═══ */}
+        <div className="flex-[2] min-w-0 self-stretch">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col h-full">
+            {/* 헤더 */}
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2"><List size={15} className="text-blue-500"/><h3 className="text-sm font-bold text-slate-700">저장된 견적서</h3></div>
+              <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 font-semibold">{filteredQuotes.length}건</span>
             </div>
-            <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
+
+            {/* 검색 + 날짜 필터 */}
+            <div className="px-4 py-3 border-b border-slate-100 space-y-2 flex-shrink-0">
+              <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                <input value={qSearch} onChange={e=>setQSearch(e.target.value)}
+                  placeholder="물건명, 계약자, 담당자, 매체..."
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input type="date" value={qDateFrom} onChange={e=>setQDateFrom(e.target.value)}
+                  className="flex-1 px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
+                <span className="text-slate-300 text-xs">~</span>
+                <input type="date" value={qDateTo} onChange={e=>setQDateTo(e.target.value)}
+                  className="flex-1 px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
+                {(qDateFrom||qDateTo) && (
+                  <button onClick={()=>{setQDateFrom("");setQDateTo("");}} className="text-slate-400 hover:text-red-400 text-xs px-1">✕</button>
+                )}
+              </div>
+            </div>
+
+            {/* 목록 - 테이블 헤더 */}
+            <div className="px-4 py-2 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+              <div className="grid grid-cols-7 gap-1 text-[10px] font-bold text-slate-500">
+                <span>견적일자</span>
+                <span>계약자</span>
+                <span>매체</span>
+                <span>유형</span>
+                <span className="text-right">수량</span>
+                <span className="text-right">합계(VAT)</span>
+                <span className="text-center">담당</span>
+              </div>
+            </div>
+
+            {/* 목록 본문 */}
+            <div className="flex-1 overflow-y-auto">
               {loadingQuotes ? (
                 <div className="flex items-center justify-center py-16"><div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/></div>
-              ) : savedQuotes.length === 0 ? (
-                <div className="text-center py-16 text-slate-300 text-sm"><FileText size={32} className="mx-auto mb-3 opacity-30"/><p>저장된 견적서가 없습니다</p><p className="text-xs mt-1">PDF 저장 시 자동 추가됩니다</p></div>
+              ) : filteredQuotes.length === 0 ? (
+                <div className="text-center py-16 text-slate-300 text-sm"><FileText size={28} className="mx-auto mb-2 opacity-30"/><p>견적서가 없습니다</p></div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {savedQuotes.map(q => {
+                  {filteredQuotes.map(q => {
                     let pi: any[] = []; try { pi = JSON.parse(q.items||"[]"); } catch {}
+                    const it0 = pi[0] || {};
+                    const isOpen = expandedId === q.id;
+                    const qtyLabel = it0.media === "호갱노노" && it0.type === "호갱노노_단지마커" ? `${it0.quantity||0}일` : `${Number(it0.quantity||0).toLocaleString()}`;
+
                     return (
-                      <div key={q.id} className="px-5 py-4 hover:bg-slate-50 transition-colors">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <p className="text-sm font-bold text-slate-800 truncate flex-1">{q.property}</p>
-                          <span className="text-sm font-black text-blue-600 flex-shrink-0">{(q.total_vat||0)>=10000?`${Math.floor((q.total_vat||0)/10000).toLocaleString()}만원`:`${(q.total_vat||0).toLocaleString()}원`}</span>
-                        </div>
-                        <div className="bg-slate-50 rounded-lg border border-slate-100 p-3 mb-3 space-y-1.5">
-                          <div className="flex items-center justify-between"><span className="text-[11px] text-slate-400">날짜</span><span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1"><Clock size={10}/>{q.quote_date||"-"}</span></div>
-                          <div className="flex items-center justify-between"><span className="text-[11px] text-slate-400">수급인 담당자</span><span className="text-[11px] font-semibold text-slate-700">{q.supplier_manager||"-"}</span></div>
-                          <div className="flex items-center justify-between"><span className="text-[11px] text-slate-400">위탁인</span><span className="text-[11px] font-semibold text-slate-700">{q.client_name||"-"}</span></div>
-                          <div className="flex items-center justify-between"><span className="text-[11px] text-slate-400">매체</span><div className="flex items-center gap-1"><span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100 font-semibold">{pi[0]?.media||"-"}</span>{pi[0]?.type && <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded border border-slate-200">{pi[0].type}</span>}</div></div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button onClick={()=>loadQuote(q)} className="flex-1 text-xs py-2 bg-slate-50 text-slate-600 rounded-lg border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 font-semibold transition-colors text-center">불러오기</button>
-                          {q.pdf_url ? (
-                            <a href={q.pdf_url} target="_blank" rel="noopener noreferrer" className="flex-1 text-xs py-2 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-200 hover:bg-emerald-100 font-semibold transition-colors flex items-center justify-center gap-1"><Download size={11}/> PDF</a>
-                          ) : (
-                            <span className="flex-1 text-xs py-2 bg-slate-100 text-slate-400 rounded-lg border border-slate-200 font-semibold text-center cursor-not-allowed">PDF 없음</span>
-                          )}
-                          <button onClick={()=>deleteSavedQuote(q.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={13}/></button>
-                        </div>
+                      <div key={q.id}>
+                        {/* 요약 행 (클릭 시 펼침) */}
+                        <button onClick={()=>setExpandedId(isOpen ? null : q.id)}
+                          className={`w-full px-4 py-2.5 text-left hover:bg-slate-50 transition-colors ${isOpen ? "bg-blue-50/50" : ""}`}>
+                          <div className="grid grid-cols-7 gap-1 items-center text-xs">
+                            <span className="text-slate-500 font-medium">{q.quote_date?.slice(5)||"-"}</span>
+                            <span className="text-slate-700 font-semibold truncate">{q.client_name||q.client_manager||"-"}</span>
+                            <span className="text-blue-600 font-semibold truncate">{it0.media||"-"}</span>
+                            <span className="text-slate-500 truncate">{it0.type||"-"}</span>
+                            <span className="text-right text-slate-600">{qtyLabel}</span>
+                            <span className="text-right font-black text-blue-700">{fmtV(q.total_vat||0)}</span>
+                            <span className="text-center text-slate-500 truncate">{q.supplier_manager||"-"}</span>
+                          </div>
+                        </button>
+
+                        {/* 펼쳐진 상세 */}
+                        {isOpen && (
+                          <div className="px-4 pb-3 bg-slate-50/50 border-t border-slate-100">
+                            <div className="bg-white rounded-xl border border-slate-200 p-3 mt-2 space-y-1.5 text-xs">
+                              <div className="flex justify-between"><span className="text-slate-400">대상물건</span><span className="font-bold text-slate-800">{q.property}</span></div>
+                              <div className="flex justify-between"><span className="text-slate-400">견적일자</span><span className="text-slate-600">{q.quote_date||"-"}</span></div>
+                              <div className="border-t border-dashed border-slate-200 my-1.5"/>
+                              <div className="flex justify-between"><span className="text-slate-400">수급인 담당자</span><span className="font-semibold text-slate-700">{q.supplier_manager||"-"}</span></div>
+                              <div className="flex justify-between"><span className="text-slate-400">수급인 HP</span><span className="text-slate-600">{q.supplier_phone||"-"}</span></div>
+                              <div className="border-t border-dashed border-slate-200 my-1.5"/>
+                              <div className="flex justify-between"><span className="text-slate-400">위탁인 계약자</span><span className="font-semibold text-slate-700">{q.client_name||"-"}</span></div>
+                              <div className="flex justify-between"><span className="text-slate-400">위탁인 담당자</span><span className="text-slate-600">{q.client_manager||"-"}</span></div>
+                              <div className="flex justify-between"><span className="text-slate-400">위탁인 HP</span><span className="text-slate-600">{q.client_phone||"-"}</span></div>
+                              <div className="border-t border-dashed border-slate-200 my-1.5"/>
+                              <div className="flex justify-between"><span className="text-slate-400">매체</span><span className="text-blue-600 font-semibold">{it0.media||"-"} / {it0.type||"-"}</span></div>
+                              <div className="flex justify-between"><span className="text-slate-400">수량</span><span className="text-slate-600">{qtyLabel}</span></div>
+                              <div className="flex justify-between"><span className="text-slate-400">공급가액</span><span className="text-slate-600">{(q.total_amount||0).toLocaleString()}원</span></div>
+                              <div className="flex justify-between"><span className="text-slate-400">합계 (VAT포함)</span><span className="font-black text-blue-700">{(q.total_vat||0).toLocaleString()}원</span></div>
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-3">
+                              <button onClick={()=>loadQuote(q)}
+                                className="flex-1 text-xs py-2 bg-white text-slate-600 rounded-lg border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 font-semibold transition-colors text-center">
+                                불러오기
+                              </button>
+                              {q.pdf_url ? (
+                                <a href={q.pdf_url} target="_blank" rel="noopener noreferrer"
+                                  className="flex-1 text-xs py-2 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-200 hover:bg-emerald-100 font-semibold transition-colors flex items-center justify-center gap-1">
+                                  <Download size={11}/> PDF 다운받기
+                                </a>
+                              ) : (
+                                <span className="flex-1 text-xs py-2 bg-slate-100 text-slate-400 rounded-lg border border-slate-200 font-semibold text-center cursor-not-allowed">PDF 없음</span>
+                              )}
+                              <button onClick={()=>deleteSavedQuote(q.id)}
+                                className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={12}/></button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
