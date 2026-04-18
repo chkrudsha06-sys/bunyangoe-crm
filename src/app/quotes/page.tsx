@@ -84,12 +84,6 @@ const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 export default function QuotePage() {
   const [property,    setProperty]    = useState("");
   const [quoteDate,   setQuoteDate]   = useState(new Date().toISOString().split("T")[0]);
-
-  // 기본 정보: 수급인(을) 담당자/HP (㈜광고인 측 담당자 정보)
-  const [recipientMgr,   setRecipientMgr]   = useState("");
-  const [recipientPhone, setRecipientPhone] = useState("");
-
-  // 위탁인(갑)
   const [clientAddr,  setClientAddr]  = useState("");
   const [clientName,  setClientName]  = useState("");
   const [clientBizNo, setClientBizNo] = useState("");
@@ -163,12 +157,7 @@ export default function QuotePage() {
       const res = await fetch("/api/generate-quote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          property, quoteDate,
-          clientAddr, clientName, clientBizNo, clientCeo, clientMgr, clientPhone,
-          recipientMgr, recipientPhone,
-          items,
-        }),
+        body: JSON.stringify({ property, quoteDate, clientAddr, clientName, clientBizNo, clientCeo, clientMgr, clientPhone, items }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -177,15 +166,11 @@ export default function QuotePage() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-
-      // 파일명 형식: 20260417_LMS_BC카드_2200000.pdf
-      const dateStr = (quoteDate || "").replace(/-/g, "");
-      const sanitize = (s: string) => (s || "").toString().replace(/[\/\\:*?"<>|]/g, "");
-      const mediaName = sanitize(items[0]?.media || "");
-      const typeName  = sanitize(items[0]?.type || "");
-      a.download = `${dateStr}_${mediaName}_${typeName}_${totalVat}.pdf`;
-
+      const _media = items[0]?.media || "";
+      const _type = items[0]?.type || "";
+      const _ds = quoteDate.replace(/-/g,"");
+      const _vat = totalVat >= 10000 ? `${Math.floor(totalVat/10000).toLocaleString()}만` : totalVat.toLocaleString();
+      a.href = url; a.download = `(주)광고인_${_media}_${_type}_${_ds}_${_vat}(VAT포함).pdf`;
       a.click(); URL.revokeObjectURL(url);
     } catch(e: any) {
       alert("PDF 생성 오류: " + e.message);
@@ -223,22 +208,10 @@ export default function QuotePage() {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <h2 className="text-sm font-bold text-slate-700 mb-4 pb-2 border-b border-slate-100">기본 정보</h2>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={lbl}>대상물건 <span className="text-red-400">*</span></label>
-              <input className={inp} value={property} onChange={e=>handlePropertyChange(e.target.value)} placeholder="예: [경산] 상방공원 호반써밋"/>
-            </div>
-            <div>
-              <label className={lbl}>견적일자</label>
-              <input type="date" className={inp} value={quoteDate} onChange={e=>setQuoteDate(e.target.value)}/>
-            </div>
-            <div>
-              <label className={lbl}>담당자 <span className="text-[10px] text-slate-400 font-normal">(수급인 / ㈜광고인 측)</span></label>
-              <input className={inp} value={recipientMgr} onChange={e=>setRecipientMgr(e.target.value)} placeholder="예: 기여운"/>
-            </div>
-            <div>
-              <label className={lbl}>HP <span className="text-[10px] text-slate-400 font-normal">(수급인 / ㈜광고인 측)</span></label>
-              <input className={inp} value={recipientPhone} onChange={e=>setRecipientPhone(e.target.value)} placeholder="010-0000-0000"/>
-            </div>
+            <div><label className={lbl}>대상물건 <span className="text-red-400">*</span></label>
+              <input className={inp} value={property} onChange={e=>handlePropertyChange(e.target.value)} placeholder="예: [경산] 상방공원 호반써밋"/></div>
+            <div><label className={lbl}>견적일자</label>
+              <input type="date" className={inp} value={quoteDate} onChange={e=>setQuoteDate(e.target.value)}/></div>
           </div>
         </div>
 
