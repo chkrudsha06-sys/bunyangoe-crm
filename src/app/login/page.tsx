@@ -300,7 +300,7 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* 배경 영상 */
+      {/* 배경 영상 */}
       <video
         ref={videoRef}
         autoPlay muted loop playsInline preload="auto"
