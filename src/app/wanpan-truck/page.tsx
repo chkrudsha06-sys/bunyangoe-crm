@@ -12,6 +12,7 @@ interface WanpanTruck {
   contact_point_title: string | null;
   contact_phone: string | null;
   location: string | null;
+  site_name: string | null;
   dispatch_date: string | null;
   is_ordered: boolean;
   is_direct_order: boolean;
@@ -31,7 +32,7 @@ const CONSULTANT_MEMBERS = ["박경화","박혜은","조승현","박민경","백
 
 const EMPTY: any = {
   team_size:"", agency:"", contact_point:"", contact_point_title:"", contact_phone:"",
-  location:"", dispatch_date:"", is_ordered:false, is_direct_order:false,
+  location:"", site_name:"", dispatch_date:"", is_ordered:false, is_direct_order:false,
   staff_count:"", staff_members:[],
   consultant_count:"", consultant_members:[],
   has_photo:false, notes:"", assigned_to:"", order_confirmed_by:null, report_data:null,
@@ -235,7 +236,7 @@ export default function WanpanTruckPage() {
     setForm({
       team_size: t.team_size||"", agency: t.agency||"",
       contact_point: t.contact_point||"", contact_point_title: t.contact_point_title||"",
-      contact_phone: t.contact_phone||"", location: t.location||"",
+      contact_phone: t.contact_phone||"", location: t.location||"", site_name: (t as any).site_name||"",
       dispatch_date: t.dispatch_date?.split("T")[0]||"", is_ordered: t.is_ordered, is_direct_order: t.is_direct_order||false,
       assigned_to: t.assigned_to||"", order_confirmed_by: t.order_confirmed_by||null,
       staff_count: t.staff_count||"", staff_members: parseMembers(t.staff_members),
@@ -251,7 +252,7 @@ export default function WanpanTruckPage() {
       team_size: Number(form.team_size)||null,
       agency: form.agency||null, contact_point: form.contact_point||null,
       contact_point_title: form.contact_point_title||null,
-      contact_phone: form.contact_phone||null, location: form.location||null,
+      contact_phone: form.contact_phone||null, location: form.location||null, site_name: form.site_name||null,
       dispatch_date: form.dispatch_date||null, is_ordered: form.is_ordered, is_direct_order: form.is_direct_order||false,
       assigned_to: form.assigned_to||null, order_confirmed_by: form.order_confirmed_by||null,
       staff_count: Number(form.staff_count)||null,
@@ -301,7 +302,7 @@ export default function WanpanTruckPage() {
   const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
   const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 
-  const HEADERS = ["#","발송일","현장위치","대행사","접점","직급","소통자 연락처","조직수","대협팀 출장인원","컨설턴트 출장인원","리포트","촬영","발주여부","시안","담당자확인","비고",""];
+  const HEADERS = ["#","발송일","현장위치","현장명","대행사","접점","직급","소통자 연락처","조직수","대협팀 출장인원","컨설턴트 출장인원","리포트","촬영","발주여부","시안","담당자확인","비고",""];
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
@@ -366,6 +367,7 @@ export default function WanpanTruckPage() {
                       <td className="px-3 py-2.5 text-center align-middle text-slate-400 text-xs">{i+1}</td>
                       <td className="px-3 py-2.5 text-center align-middle text-slate-700 font-medium text-xs">{dispDate}</td>
                       <td className="px-3 py-2.5 text-center align-middle font-semibold text-slate-800 text-xs">{t.location||"-"}</td>
+                      <td className="px-3 py-2.5 text-center align-middle text-slate-700 text-xs font-medium">{(t as any).site_name||"-"}</td>
                       <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{t.agency||"-"}</td>
                       <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{t.contact_point||"-"}</td>
                       <td className="px-3 py-2.5 text-center align-middle text-slate-500 text-xs">{t.contact_point_title||"-"}</td>
@@ -459,6 +461,7 @@ export default function WanpanTruckPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div><label className={lbl}>발송일</label><input type="date" className={inp} value={form.dispatch_date} onChange={e=>setForm({...form,dispatch_date:e.target.value})}/></div>
                 <div><label className={lbl}>현장위치</label><input className={inp} value={form.location} onChange={e=>setForm({...form,location:e.target.value})} placeholder="예: 인천 송도"/></div>
+                <div><label className={lbl}>현장명</label><input className={inp} value={form.site_name||""} onChange={e=>setForm({...form,site_name:e.target.value})} placeholder="예: 인천 더샵 센트럴파크"/></div>
                 <div><label className={lbl}>대행사</label><input className={inp} value={form.agency} onChange={e=>setForm({...form,agency:e.target.value})}/></div>
                 <div><label className={lbl}>접점 (소통자 이름)</label><input className={inp} value={form.contact_point} onChange={e=>setForm({...form,contact_point:e.target.value})} placeholder="홍길동"/></div>
                 <div><label className={lbl}>소통자 직급</label><input className={inp} value={form.contact_point_title} onChange={e=>setForm({...form,contact_point_title:e.target.value})} placeholder="본부장"/></div>
