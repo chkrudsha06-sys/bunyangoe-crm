@@ -588,7 +588,7 @@ export default function SalesPage() {
                         {e.contract_route||"-"}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-xs font-bold text-amber-600 text-center">{(e as any).bunyanghoe_number||"-"}</td>
+                    <td className="px-3 py-2.5 text-xs font-bold text-amber-600 text-center">{(e as any).bunyanghoe_number ? ((e as any).bunyanghoe_number.startsWith("B-") ? (e as any).bunyanghoe_number : `B-${(e as any).bunyanghoe_number}`) : "-"}</td>
                     <td className="px-3 py-2.5 font-semibold text-slate-800 text-xs text-center">{e.member_name}</td>
                     <td className="px-3 py-2.5 text-slate-500 text-xs text-center">{e.position||"-"}</td>
                     <td className="px-3 py-2.5 font-bold text-slate-800 text-xs text-center">{fwFull(e.execution_amount)}</td>
@@ -691,7 +691,7 @@ export default function SalesPage() {
                         : filteredVip.map(v=>(
                           <button key={v.id} onClick={()=>handleVipSelect(String(v.id))}
                             className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-blue-50 border-b border-slate-100 last:border-0 transition-colors ${form.vip_member_id===String(v.id)?"bg-blue-50":""}`}>
-                            <span className="text-xs font-bold text-amber-600 min-w-[48px]">{v.bunyanghoe_number||"미부여"}</span>
+                            <span className="text-xs font-bold text-amber-600 min-w-[48px]">{v.bunyanghoe_number ? (v.bunyanghoe_number.startsWith("B-") ? v.bunyanghoe_number : `B-${v.bunyanghoe_number}`) : "미부여"}</span>
                             <span className="font-semibold text-slate-800">{v.name}</span>
                             <span className="text-xs text-slate-400">{v.title||""}</span>
                             <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-full ${v.meeting_result==="계약완료"?"bg-emerald-100 text-emerald-700":"bg-blue-100 text-blue-700"}`}>{v.meeting_result}</span>
@@ -704,7 +704,7 @@ export default function SalesPage() {
                     <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
                       <p className="text-xs font-semibold text-amber-700 mb-2">선택된 분양회 회원</p>
                       <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div><span className="text-slate-400">넘버링</span><p className="font-bold text-amber-600">{form.bunyanghoe_number||"-"}</p></div>
+                        <div><span className="text-slate-400">넘버링</span><p className="font-bold text-amber-600">{form.bunyanghoe_number ? (form.bunyanghoe_number.startsWith("B-") ? form.bunyanghoe_number : `B-${form.bunyanghoe_number}`) : "-"}</p></div>
                         <div><span className="text-slate-400">고객명</span><p className="font-bold text-slate-800">{form.member_name}</p></div>
                         <div><span className="text-slate-400">직급</span><p className="font-bold text-slate-800">{form.position||"-"}</p></div>
                         <div><span className="text-slate-400">대협팀 담당</span><p className="font-bold text-slate-800">{form.team_member||"-"}</p></div>
