@@ -201,7 +201,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
+
   const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
@@ -214,24 +214,29 @@ export default function LoginPage() {
     if (v) { v.muted = true; v.play().catch(() => {}); }
   }, []);
 
-  // BGM: 음소거로 자동재생 → 유저 동작 감지 시 소리 ON
+  // BGM: 유저 동작 감지 시 재생 시작
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.volume = 0.3;
-    audio.loop = true;
-    audio.muted = true;
-    audio.play().catch(() => {});
+    let audio: HTMLAudioElement | null = null;
+    let started = false;
 
-    const unmute = () => {
-      if (audio.muted) {
-        audio.muted = false;
-        audio.play().catch(() => {});
-      }
+    const startBGM = () => {
+      if (started) return;
+      started = true;
+      audio = new Audio("/bgm.mp3");
+      audio.volume = 0.3;
+      audio.loop = true;
+      audio.play().catch(() => { started = false; });
+      // 리스너 모두 제거
+      events.forEach(e => window.removeEventListener(e, startBGM));
     };
-    const events = ["mousemove","click","scroll","keydown","touchstart"];
-    events.forEach(e => window.addEventListener(e, unmute, { once: true }));
-    return () => { events.forEach(e => window.removeEventListener(e, unmute)); };
+
+    const events = ["mousemove","click","scroll","keydown","touchstart","mousedown"];
+    events.forEach(e => window.addEventListener(e, startBGM));
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, startBGM));
+      if (audio) { audio.pause(); audio.src = ""; }
+    };
   }, []);
 
   // 슬라이드 자동 전환
@@ -295,10 +300,7 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* BGM */}
-      <audio ref={audioRef} src="/bgm.mp3" preload="auto"/>
-
-      {/* 배경 영상 */}
+      {/* 배경 영상 */
       <video
         ref={videoRef}
         autoPlay muted loop playsInline preload="auto"
