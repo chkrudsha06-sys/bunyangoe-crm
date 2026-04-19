@@ -201,6 +201,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
@@ -211,6 +212,26 @@ export default function LoginPage() {
   useEffect(() => {
     const v = videoRef.current;
     if (v) { v.muted = true; v.play().catch(() => {}); }
+  }, []);
+
+  // BGM: 음소거로 자동재생 → 유저 동작 감지 시 소리 ON
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = 0.3;
+    audio.loop = true;
+    audio.muted = true;
+    audio.play().catch(() => {});
+
+    const unmute = () => {
+      if (audio.muted) {
+        audio.muted = false;
+        audio.play().catch(() => {});
+      }
+    };
+    const events = ["mousemove","click","scroll","keydown","touchstart"];
+    events.forEach(e => window.addEventListener(e, unmute, { once: true }));
+    return () => { events.forEach(e => window.removeEventListener(e, unmute)); };
   }, []);
 
   // 슬라이드 자동 전환
@@ -273,6 +294,9 @@ export default function LoginPage() {
           </div>
         </div>
       )}
+
+      {/* BGM */}
+      <audio ref={audioRef} src="/bgm.mp3" preload="auto"/>
 
       {/* 배경 영상 */}
       <video
