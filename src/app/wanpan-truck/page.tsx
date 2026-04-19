@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Truck, Plus, Save, X, CheckCircle, XCircle } from "lucide-react";
+import { Truck, Plus, Save, X, CheckCircle, XCircle, FileText } from "lucide-react";
 
 interface WanpanTruck {
   id: number;
@@ -14,6 +14,7 @@ interface WanpanTruck {
   location: string | null;
   dispatch_date: string | null;
   is_ordered: boolean;
+  is_direct_order: boolean;
   staff_count: number | null;
   staff_members: string | null;
   consultant_count: number | null;
@@ -22,6 +23,7 @@ interface WanpanTruck {
   notes: string | null;
   assigned_to: string | null;
   order_confirmed_by: string | null;
+  report_data: string | null;
 }
 
 const DAEHYUP_MEMBERS = ["김정후","김창완","최웅","조계현","이세호","기여운","최연전"];
@@ -29,10 +31,10 @@ const CONSULTANT_MEMBERS = ["박경화","박혜은","조승현","박민경","백
 
 const EMPTY: any = {
   team_size:"", agency:"", contact_point:"", contact_point_title:"", contact_phone:"",
-  location:"", dispatch_date:"", is_ordered:false,
+  location:"", dispatch_date:"", is_ordered:false, is_direct_order:false,
   staff_count:"", staff_members:[],
   consultant_count:"", consultant_members:[],
-  has_photo:false, notes:"", assigned_to:"", order_confirmed_by:null,
+  has_photo:false, notes:"", assigned_to:"", order_confirmed_by:null, report_data:null,
 };
 
 function parseMembers(val: string | null): string[] {
@@ -72,6 +74,135 @@ function MemberSelector({ count, selected, options, onChange, label, color }: {
   );
 }
 
+// ── 리포트 팝업 ────────────────────────────────
+type ReportData = {
+  pre_contact: string;
+  field_contact: string;
+  managed_count: string;
+  customers: { name: string; title: string; phone: string; note: string }[];
+};
+const EMPTY_REPORT: ReportData = { pre_contact:"", field_contact:"", managed_count:"", customers:[] };
+
+function ReportModal({ truck, onClose, onSaved }: { truck: WanpanTruck; onClose: () => void; onSaved: () => void }) {
+  const existing: ReportData = (() => { try { return truck.report_data ? JSON.parse(truck.report_data) : null; } catch { return null; } })();
+  const [mode, setMode] = useState<"view"|"edit">(existing ? "view" : "edit");
+  const [data, setData] = useState<ReportData>(existing || { ...EMPTY_REPORT });
+  const [saving, setSaving] = useState(false);
+
+  const addCustomer = () => setData(d => ({...d, customers:[...d.customers,{name:"",title:"",phone:"",note:""}]}));
+  const removeCustomer = (i: number) => setData(d => ({...d, customers:d.customers.filter((_,idx)=>idx!==i)}));
+  const updateCustomer = (i: number, field: string, val: string) => {
+    setData(d => ({...d, customers: d.customers.map((c,idx) => idx===i ? {...c,[field]:val} : c)}));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await supabase.from("wanpan_trucks").update({ report_data: JSON.stringify(data) }).eq("id", truck.id);
+    setSaving(false); onSaved(); setMode("view");
+  };
+
+  const inp = "w-full px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
+  const dispDate = truck.dispatch_date ? new Date(truck.dispatch_date).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"}).replace(/\.$/, "") : "-";
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e=>e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">완판트럭 리포트</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{dispDate} · {truck.location||"-"}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {mode==="view" && existing && <button onClick={()=>setMode("edit")} className="text-xs px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg border border-blue-200 font-semibold hover:bg-blue-100">수정</button>}
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18}/></button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto px-6 py-4">
+          {mode === "view" && existing ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-blue-50 rounded-xl p-3 text-center border border-blue-100">
+                  <p className="text-[10px] text-blue-400 mb-1">출장전 접촉인원</p>
+                  <p className="text-lg font-black text-blue-700">{data.pre_contact || 0}명</p>
+                </div>
+                <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100">
+                  <p className="text-[10px] text-emerald-400 mb-1">현장 접촉인원</p>
+                  <p className="text-lg font-black text-emerald-700">{data.field_contact || 0}명</p>
+                </div>
+                <div className="bg-amber-50 rounded-xl p-3 text-center border border-amber-100">
+                  <p className="text-[10px] text-amber-400 mb-1">관리고객</p>
+                  <p className="text-lg font-black text-amber-700">{data.managed_count || 0}명</p>
+                </div>
+              </div>
+              {data.customers.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-slate-600 mb-2">관리고객 리스트</p>
+                  <table className="w-full text-xs border-collapse">
+                    <thead><tr className="bg-slate-50">
+                      <th className="px-2 py-2 border border-slate-200 text-slate-500 font-semibold">고객명</th>
+                      <th className="px-2 py-2 border border-slate-200 text-slate-500 font-semibold">직급</th>
+                      <th className="px-2 py-2 border border-slate-200 text-slate-500 font-semibold">연락처</th>
+                      <th className="px-2 py-2 border border-slate-200 text-slate-500 font-semibold">비고</th>
+                    </tr></thead>
+                    <tbody>
+                      {data.customers.map((c,i) => (
+                        <tr key={i} className="border-b border-slate-100">
+                          <td className="px-2 py-2 border border-slate-200 text-slate-700 font-semibold text-center">{c.name||"-"}</td>
+                          <td className="px-2 py-2 border border-slate-200 text-slate-600 text-center">{c.title||"-"}</td>
+                          <td className="px-2 py-2 border border-slate-200 text-slate-600 text-center">{c.phone||"-"}</td>
+                          <td className="px-2 py-2 border border-slate-200 text-slate-500">{c.note||"-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div><label className="block text-xs font-semibold text-slate-500 mb-1">출장전 접촉인원</label><input type="number" className={inp} value={data.pre_contact} onChange={e=>setData({...data,pre_contact:e.target.value})} placeholder="0"/></div>
+                <div><label className="block text-xs font-semibold text-slate-500 mb-1">현장 접촉인원</label><input type="number" className={inp} value={data.field_contact} onChange={e=>setData({...data,field_contact:e.target.value})} placeholder="0"/></div>
+                <div><label className="block text-xs font-semibold text-slate-500 mb-1">관리고객</label><input type="number" className={inp} value={data.managed_count} onChange={e=>{
+                  const n = Number(e.target.value)||0;
+                  const cur = data.customers.length;
+                  let custs = [...data.customers];
+                  if (n > cur) for(let i=0;i<n-cur;i++) custs.push({name:"",title:"",phone:"",note:""});
+                  else if (n < cur) custs = custs.slice(0,n);
+                  setData({...data, managed_count:e.target.value, customers:custs});
+                }} placeholder="0"/></div>
+              </div>
+              {data.customers.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-slate-600 mb-2">관리고객 리스트</p>
+                  <div className="space-y-2">
+                    {data.customers.map((c,i) => (
+                      <div key={i} className="grid grid-cols-4 gap-1.5 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        <input className={inp} value={c.name} onChange={e=>updateCustomer(i,"name",e.target.value)} placeholder="고객명"/>
+                        <input className={inp} value={c.title} onChange={e=>updateCustomer(i,"title",e.target.value)} placeholder="직급"/>
+                        <input className={inp} value={c.phone} onChange={e=>updateCustomer(i,"phone",e.target.value)} placeholder="연락처"/>
+                        <input className={inp} value={c.note} onChange={e=>updateCustomer(i,"note",e.target.value)} placeholder="비고"/>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {mode === "edit" && (
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">취소</button>
+            <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm bg-[#1E3A8A] text-white font-semibold rounded-lg hover:bg-blue-800 disabled:opacity-50">
+              <Save size={13}/>{saving?"저장 중...":"저장"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function WanpanTruckPage() {
   const [trucks, setTrucks] = useState<WanpanTruck[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +211,7 @@ export default function WanpanTruckPage() {
   const [form, setForm] = useState<any>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [filterMonth, setFilterMonth] = useState("");
+  const [reportTruck, setReportTruck] = useState<WanpanTruck | null>(null);
 
   useEffect(() => { fetchTrucks(); }, [filterMonth]);
 
@@ -104,7 +236,8 @@ export default function WanpanTruckPage() {
       team_size: t.team_size||"", agency: t.agency||"",
       contact_point: t.contact_point||"", contact_point_title: t.contact_point_title||"",
       contact_phone: t.contact_phone||"", location: t.location||"",
-      dispatch_date: t.dispatch_date?.split("T")[0]||"", is_ordered: t.is_ordered, assigned_to: t.assigned_to||"", order_confirmed_by: t.order_confirmed_by||null,
+      dispatch_date: t.dispatch_date?.split("T")[0]||"", is_ordered: t.is_ordered, is_direct_order: t.is_direct_order||false,
+      assigned_to: t.assigned_to||"", order_confirmed_by: t.order_confirmed_by||null,
       staff_count: t.staff_count||"", staff_members: parseMembers(t.staff_members),
       consultant_count: t.consultant_count||"", consultant_members: parseMembers(t.consultant_members),
       has_photo: t.has_photo||false, notes: t.notes||"",
@@ -119,7 +252,7 @@ export default function WanpanTruckPage() {
       agency: form.agency||null, contact_point: form.contact_point||null,
       contact_point_title: form.contact_point_title||null,
       contact_phone: form.contact_phone||null, location: form.location||null,
-      dispatch_date: form.dispatch_date||null, is_ordered: form.is_ordered,
+      dispatch_date: form.dispatch_date||null, is_ordered: form.is_ordered, is_direct_order: form.is_direct_order||false,
       assigned_to: form.assigned_to||null, order_confirmed_by: form.order_confirmed_by||null,
       staff_count: Number(form.staff_count)||null,
       staff_members: form.staff_members.length>0 ? JSON.stringify(form.staff_members) : null,
@@ -151,10 +284,24 @@ export default function WanpanTruckPage() {
     fetchTrucks();
   };
 
+  const toggleDirectOrder = async (id: number, current: boolean) => {
+    await supabase.from("wanpan_trucks").update({ is_direct_order: !current }).eq("id", id);
+    fetchTrucks();
+  };
+
+  const toggleConfirm = async (id: number, current: string | null, assignedTo: string | null) => {
+    if (current) {
+      await supabase.from("wanpan_trucks").update({ order_confirmed_by: null }).eq("id", id);
+    } else {
+      await supabase.from("wanpan_trucks").update({ order_confirmed_by: assignedTo }).eq("id", id);
+    }
+    fetchTrucks();
+  };
+
   const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
   const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 
-  const HEADERS = ["#","발송일","현장위치","대행사","접점","직급","소통자 연락처","조직수","대협팀 출장인원","컨설턴트 출장인원","촬영","발주여부","담당자확인","비고",""];
+  const HEADERS = ["#","발송일","현장위치","대행사","접점","직급","소통자 연락처","조직수","대협팀 출장인원","컨설턴트 출장인원","리포트","촬영","발주여부","시안","담당자확인","비고",""];
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
@@ -167,7 +314,6 @@ export default function WanpanTruckPage() {
             <p className="text-xs text-slate-500 mt-0.5">완판트럭 진행 리스트 관리</p>
           </div>
         </div>
-        {/* 월별 필터 + 전체회차 + 신규등록 한 줄 */}
         <div className="flex items-center gap-2">
           <select value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}
             className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-semibold outline-none">
@@ -211,10 +357,10 @@ export default function WanpanTruckPage() {
                 {trucks.map((t, i) => {
                   const staffList = parseMembers(t.staff_members);
                   const consultList = parseMembers(t.consultant_members);
-                  // 발송일 포맷 (마지막 . 제거)
                   const dispDate = t.dispatch_date
                     ? new Date(t.dispatch_date).toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"}).replace(/\.$/, "")
                     : "-";
+                  const hasReport = !!t.report_data;
                   return (
                     <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                       <td className="px-3 py-2.5 text-center align-middle text-slate-400 text-xs">{i+1}</td>
@@ -228,20 +374,24 @@ export default function WanpanTruckPage() {
                       <td className="px-3 py-2.5 text-center align-middle">
                         {staffList.length>0 ? (
                           <div className="flex flex-wrap gap-0.5 justify-center">
-                            {staffList.map(s=>(
-                              <span key={s} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100">{s}</span>
-                            ))}
+                            {staffList.map(s=>(<span key={s} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100">{s}</span>))}
                           </div>
                         ) : <span className="text-xs text-slate-300">-</span>}
                       </td>
                       <td className="px-3 py-2.5 text-center align-middle">
                         {consultList.length>0 ? (
                           <div className="flex flex-wrap gap-0.5 justify-center">
-                            {consultList.map(s=>(
-                              <span key={s} className="text-[10px] px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded-full border border-violet-100">{s}</span>
-                            ))}
+                            {consultList.map(s=>(<span key={s} className="text-[10px] px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded-full border border-violet-100">{s}</span>))}
                           </div>
                         ) : <span className="text-xs text-slate-300">-</span>}
+                      </td>
+                      {/* 리포트 */}
+                      <td className="px-3 py-2.5 text-center align-middle">
+                        <button onClick={()=>setReportTruck(t)}
+                          className={`p-1.5 rounded-lg transition-colors ${hasReport ? "bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100" : "bg-slate-50 text-slate-400 border border-slate-200 hover:bg-blue-50 hover:text-blue-500"}`}
+                          title={hasReport?"리포트 보기":"리포트 작성"}>
+                          <FileText size={13}/>
+                        </button>
                       </td>
                       <td className="px-3 py-2.5 text-center align-middle">
                         <span className={`text-sm font-black ${t.has_photo?"text-emerald-500":"text-slate-300"}`}>{t.has_photo?"O":"X"}</span>
@@ -253,30 +403,26 @@ export default function WanpanTruckPage() {
                           {t.is_ordered?"완료":"미발주"}
                         </button>
                       </td>
-                      {/* 담당자 확인 */}
+                      {/* 시안(직발주여부) */}
+                      <td className="px-3 py-2.5 text-center align-middle">
+                        <button onClick={()=>toggleDirectOrder(t.id,t.is_direct_order||false)}
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${t.is_direct_order?"bg-violet-100 text-violet-700":"bg-slate-100 text-slate-500"}`}>
+                          {t.is_direct_order?"직발주":"미발주"}
+                        </button>
+                      </td>
+                      {/* 담당자 확인 (토글) */}
                       <td className="px-3 py-2.5 text-center align-middle">
                         {t.assigned_to ? (
                           <div className="flex flex-col items-center gap-1">
                             <span className="text-xs text-slate-600 font-medium">{t.assigned_to}</span>
-                            {t.order_confirmed_by ? (
-                              <span className="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold flex items-center gap-0.5">
-                                <CheckCircle size={10}/> 확인완료
-                              </span>
-                            ) : (
-                              (() => {
-                                let curUser = "";
-                                try { const r = localStorage.getItem("crm_user"); if(r) curUser = JSON.parse(r).name||""; } catch {}
-                                return curUser === t.assigned_to ? (
-                                  <button
-                                    onClick={async()=>{ await supabase.from("wanpan_trucks").update({order_confirmed_by:t.assigned_to}).eq("id",t.id); fetchTrucks(); }}
-                                    className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-600 rounded-full font-semibold hover:bg-amber-200 border border-amber-200">
-                                    확인하기
-                                  </button>
-                                ) : (
-                                  <span className="text-xs text-slate-300">미확인</span>
-                                );
-                              })()
-                            )}
+                            <button onClick={()=>toggleConfirm(t.id, t.order_confirmed_by, t.assigned_to)}
+                              className={`text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5 transition-colors ${
+                                t.order_confirmed_by
+                                  ? "bg-emerald-100 text-emerald-700 hover:bg-red-50 hover:text-red-500"
+                                  : "bg-amber-100 text-amber-600 hover:bg-emerald-50 hover:text-emerald-600 border border-amber-200"
+                              }`}>
+                              {t.order_confirmed_by ? <><CheckCircle size={10}/> 확인완료</> : "담당자확인"}
+                            </button>
                           </div>
                         ) : <span className="text-slate-300 text-xs">-</span>}
                       </td>
@@ -298,6 +444,10 @@ export default function WanpanTruckPage() {
         )}
       </div>
 
+      {/* 리포트 팝업 */}
+      {reportTruck && <ReportModal truck={reportTruck} onClose={()=>setReportTruck(null)} onSaved={()=>{fetchTrucks();setReportTruck(null);}}/>}
+
+      {/* 등록/수정 모달 */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
@@ -314,7 +464,6 @@ export default function WanpanTruckPage() {
                 <div><label className={lbl}>소통자 직급</label><input className={inp} value={form.contact_point_title} onChange={e=>setForm({...form,contact_point_title:e.target.value})} placeholder="본부장"/></div>
                 <div><label className={lbl}>소통자 연락처</label><input className={inp} value={form.contact_phone} onChange={e=>setForm({...form,contact_phone:e.target.value})} placeholder="010-0000-0000"/></div>
                 <div><label className={lbl}>조직수</label><input type="number" className={inp} value={form.team_size} onChange={e=>setForm({...form,team_size:e.target.value})} placeholder="명"/></div>
-
                 <div>
                   <label className={lbl}>대협팀 출장인원 (명수)</label>
                   <input type="number" className={inp} value={form.staff_count} min={0} max={7}
@@ -324,6 +473,15 @@ export default function WanpanTruckPage() {
                   <label className={lbl}>컨설턴트 출장인원 (명수)</label>
                   <input type="number" className={inp} value={form.consultant_count} min={0} max={8}
                     onChange={e=>{const n=Number(e.target.value)||0; setForm({...form,consultant_count:e.target.value,consultant_members:form.consultant_members.slice(0,n)});}}/>
+                </div>
+                <div>
+                  <label className={lbl}>담당자 지정</label>
+                  <select value={form.assigned_to||""} onChange={e=>setForm({...form,assigned_to:e.target.value})}
+                    className={inp}>
+                    <option value="">선택</option>
+                    <option value="김재영">김재영</option>
+                    <option value="최은정">최은정</option>
+                  </select>
                 </div>
 
                 {Number(form.staff_count)>0 && (
@@ -345,20 +503,6 @@ export default function WanpanTruckPage() {
                     <button type="button" onClick={()=>setForm({...form,has_photo:false})}
                       className={`flex-1 py-2 text-sm font-black rounded-lg border transition-colors ${!form.has_photo?"bg-slate-500 text-white border-slate-500":"bg-slate-50 text-slate-400 border-slate-200"}`}>X</button>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-4">
-<div className="col-span-2">
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">담당자 지정</label>
-                    <select value={form.assigned_to||""} onChange={e=>setForm({...form,assigned_to:e.target.value})}
-                      className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400">
-                      <option value="">선택</option>
-                      <option value="김재영">김재영</option>
-                      <option value="최은정">최은정</option>
-                    </select>
-                  </div>
-                  <input type="checkbox" id="is_ordered" checked={form.is_ordered} onChange={e=>setForm({...form,is_ordered:e.target.checked})} className="w-4 h-4"/>
-                  <label htmlFor="is_ordered" className="text-sm text-slate-700 font-medium">발주완료</label>
                 </div>
 
                 <div className="col-span-2">
