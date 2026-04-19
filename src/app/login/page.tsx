@@ -214,27 +214,26 @@ export default function LoginPage() {
     if (v) { v.muted = true; v.play().catch(() => {}); }
   }, []);
 
-  // BGM: 유저 동작 감지 시 재생 시작
+  // BGM: 유저 클릭/키 감지 시 재생 시작
+  const [bgmStarted, setBgmStarted] = useState(false);
   useEffect(() => {
     let audio: HTMLAudioElement | null = null;
-    let started = false;
 
     const startBGM = () => {
-      if (started) return;
-      started = true;
+      if (audio) return;
       audio = new Audio("/bgm.mp3");
       audio.volume = 0.3;
       audio.loop = true;
-      audio.play().catch(() => { started = false; });
-      // 리스너 모두 제거
-      events.forEach(e => window.removeEventListener(e, startBGM));
+      audio.play().then(() => setBgmStarted(true)).catch(() => {});
+      const evts = ["click","mousedown","keydown","touchstart","pointerdown"];
+      evts.forEach(e => window.removeEventListener(e, startBGM));
     };
 
-    const events = ["mousemove","click","scroll","keydown","touchstart","mousedown"];
-    events.forEach(e => window.addEventListener(e, startBGM));
+    const evts = ["click","mousedown","keydown","touchstart","pointerdown"];
+    evts.forEach(e => window.addEventListener(e, startBGM));
 
     return () => {
-      events.forEach(e => window.removeEventListener(e, startBGM));
+      evts.forEach(e => window.removeEventListener(e, startBGM));
       if (audio) { audio.pause(); audio.src = ""; }
     };
   }, []);
@@ -380,6 +379,23 @@ export default function LoginPage() {
         ))}
       </div>
 
+      {/* BGM 안내 */}
+      {introDone && !bgmStarted && (
+        <div style={{
+          position: "absolute", bottom: "52px", left: "50%", transform: "translateX(-50%)",
+          zIndex: 10, display: "flex", alignItems: "center", gap: 8,
+          padding: "10px 24px", borderRadius: 50,
+          background: "rgba(255,255,255,0.08)", backdropFilter: "blur(8px)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          animation: "pulse 2s ease-in-out infinite",
+        }}>
+          <span style={{ fontSize: 14 }}>🔊</span>
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontWeight: 500, letterSpacing: "0.03em" }}>
+            화면을 클릭하면 음악이 재생됩니다
+          </span>
+        </div>
+      )}
+
       {/* 카피라이트 */}
       <div style={{ position: "absolute", bottom: "28px", left: "52px", zIndex: 10, fontSize: 11, color: "rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
         © 2026 광고인㈜ · 분양의신 · All rights reserved.
@@ -457,6 +473,10 @@ export default function LoginPage() {
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700;800;900&display=swap');
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
       `}</style>
     </div>
   );
