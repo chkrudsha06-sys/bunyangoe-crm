@@ -417,3 +417,10 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 [data-theme="dark"] .bg-blue-50\/20 .text-slate-300 { color: rgba(255,255,255,0.2) !important; }
 [data-theme="dark"] .bg-blue-50\/20 .text-slate-400 { color: rgba(255,255,255,0.3) !important; }
 [data-theme="dark"] .bg-blue-50\/20 .text-slate-600 { color: rgba(255,255,255,0.6) !important; }
+
+/* 리워드 마일리지 셀 */
+.mile-cell { background: rgba(219,234,254,0.2); }
+[data-theme="dark"] .mile-cell { background: rgba(74,123,247,0.08) !important; }
+[data-theme="dark"] .mile-cell span { color: #93C5FD !important; }
+[data-theme="dark"] .mile-cell .text-red-500 { color: #F87171 !important; }
+[data-theme="dark"] .mile-cell button { background: rgba(74,123,247,0.15) !important; color: #93C5FD !important; border-color: rgba(74,123,247,0.25) !important; }

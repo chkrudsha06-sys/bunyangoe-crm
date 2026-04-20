@@ -477,10 +477,10 @@ export default function RewardsPage() {
                       <td className="px-2 py-3 text-center text-xs text-slate-500">{contact.consultant||"-"}</td>
 
                       {/* 마일리지 */}
-                      <td className="px-2 py-3 text-center bg-blue-50/20">
+                      <td className="px-2 py-3 text-center mile-cell">
                         <span className={`text-xs font-bold ${d.cumMileage<0?"text-red-500":"text-blue-600"}`}>{fw(d.cumMileage)}</span>
                       </td>
-                      <td className="px-2 py-3 text-center bg-blue-50/20">
+                      <td className="px-2 py-3 text-center mile-cell">
                         {d.mileUsages.length>0 ? (
                           <button onClick={()=>setMileHistoryContact(contact)}
                             className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded border border-blue-200 hover:bg-blue-100">
@@ -488,7 +488,7 @@ export default function RewardsPage() {
                           </button>
                         ) : <span className="text-slate-300 text-xs">-</span>}
                       </td>
-                      <td className="px-2 py-3 text-center bg-blue-50/20">
+                      <td className="px-2 py-3 text-center mile-cell">
                         {d.cumMileage > 0 ? (
                           mInline ? (
                             <div className="flex flex-col gap-1 min-w-[110px]">
@@ -513,12 +513,12 @@ export default function RewardsPage() {
                           )
                         ) : <span className="text-slate-300 text-xs">-</span>}
                       </td>
-                      <td className="px-2 py-3 text-center bg-blue-50/20">
+                      <td className="px-2 py-3 text-center mile-cell">
                         <span className={`text-xs font-bold ${d.mileBalance>0?"text-blue-600":d.mileBalance<0?"text-red-500":"text-slate-400"}`}>{fw(d.mileBalance)}</span>
                       </td>
 
                       {/* 구분선 */}
-                      <td className="bg-slate-300 w-0.5 p-0"/>
+                      <td className="w-0.5 p-0" style={{background:"var(--border-2)"}}/>
 
                       {/* 리워드 */}
                       <td className="px-2 py-3 text-center text-xs font-medium">
