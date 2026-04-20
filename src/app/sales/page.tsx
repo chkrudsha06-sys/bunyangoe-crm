@@ -575,7 +575,7 @@ export default function SalesPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {["매출구분","넘버링","고객명","직급","집행금액","VAT포함","환불금액","광고채널","결제일/환불일","대협팀","컨설턴트","하이타겟마일리지","하이타겟리워드","호갱노노리워드","LMS리워드",""].map(h=>(
+                  {["유입구분","매출구분","넘버링","고객명","직급","집행금액","VAT포함","환불금액","광고채널","결제일/환불일","대협팀","컨설턴트","하이타겟마일리지","하이타겟리워드","호갱노노리워드","LMS리워드",""].map(h=>(
                     <th key={h} className="text-center px-3 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -583,6 +583,12 @@ export default function SalesPage() {
               <tbody>
                 {executions.map(e=>(
                   <tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-3 py-2.5 text-center">
+                      {e.contract_route==="분양회" ? (() => {
+                        const ir = intakeMap[e.member_name] || (e.bunyanghoe_number ? intakeMap[`num:${e.bunyanghoe_number}`] : "") || "";
+                        return ir ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${ir==="TM"?"bg-blue-100 text-blue-700":ir==="완판트럭"?"bg-emerald-100 text-emerald-700":"bg-violet-100 text-violet-700"}`}>{ir}</span> : <span className="text-xs text-slate-300">-</span>;
+                      })() : <span className="text-xs text-slate-300">-</span>}
+                    </td>
                     <td className="px-3 py-2.5 text-center">
                       <span className={`text-xs px-1.5 py-0.5 rounded border ${e.contract_route==="분양회"?"bg-amber-50 text-amber-700 border-amber-100":e.contract_route==="완판트럭"?"bg-emerald-50 text-emerald-700 border-emerald-100":e.contract_route==="대협팀활동"?"bg-blue-50 text-blue-700 border-blue-100":"bg-slate-50 text-slate-500 border-slate-100"}`}>
                         {e.contract_route||"-"}

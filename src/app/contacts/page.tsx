@@ -30,7 +30,7 @@ const EMPTY_FORM = {
   name: "", title: "", phone: "",
   customer_type: "", tm_sensitivity: "", prospect_type: "",
   meeting_date: "", meeting_date_text: "", meeting_address: "",
-  meeting_result: "", management_stage: "", memo: "", assigned_to: "", consultant: "", contract_date: "", reservation_date: "", regular_payment_date: "",
+  meeting_result: "", management_stage: "", memo: "", assigned_to: "", consultant: "", contract_date: "", reservation_date: "", regular_payment_date: "", intake_route: "",
 };
 
 // 옵션 목록
@@ -173,7 +173,7 @@ export default function ContactsPage() {
       customer_type: c.customer_type || "", tm_sensitivity: c.tm_sensitivity || "",
       prospect_type: c.prospect_type || "", meeting_date: c.meeting_date?.split("T")[0] || "",
       meeting_date_text: c.meeting_date_text || "", meeting_address: c.meeting_address || "",
-      meeting_result: c.meeting_result || "", management_stage: c.management_stage || "", regular_payment_date: (c as any).regular_payment_date || "",
+      meeting_result: c.meeting_result || "", management_stage: c.management_stage || "", regular_payment_date: (c as any).regular_payment_date || "", intake_route: (c as any).intake_route || "",
       contract_date: (c as any).contract_date || "", reservation_date: (c as any).reservation_date || "",
       consultant: (c as any).consultant || "",
       memo: c.memo || "", assigned_to: c.assigned_to || "",
@@ -202,7 +202,7 @@ export default function ContactsPage() {
       consultant: form.consultant || null,
       contract_date: form.contract_date || null,
       reservation_date: form.reservation_date || null,
-      regular_payment_date: form.regular_payment_date || null,
+      regular_payment_date: form.regular_payment_date || null, intake_route: form.intake_route || null,
     };
     let error;
     if (editContact) {
@@ -303,7 +303,7 @@ export default function ContactsPage() {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   {[
-                    ["#","w-10"], ["고객명","w-24"], ["직급","w-20"], ["연락처","w-32"],
+                    ["#","w-10"], ["유입경로","w-20"], ["고객명","w-24"], ["직급","w-20"], ["연락처","w-32"],
                     ["고객유형","w-20"], ["TM감도","w-28"], ["가망구분","w-28"],
                     ["미팅일정","w-24"], ["미팅지역","w-24"], ["미팅결과","w-28"], ["완료/예약일","w-24"], ["정기출금일","w-24"],
                     ["관리구간","w-24"], ["담당자","w-20"], ["담당컨설턴트","w-24"], ["비고","w-32"], ["","w-20"],
@@ -483,6 +483,17 @@ export default function ContactsPage() {
                   <div>
                     <label className={lbl}>예약완료일 <span className="text-blue-400">★ 자동반영</span></label>
                     <input type="date" className={inp} value={form.reservation_date} onChange={e=>f("reservation_date",e.target.value)}/>
+                  </div>
+                )}
+                {(form.meeting_result === "계약완료" || form.meeting_result === "예약완료") && (
+                  <div>
+                    <label className={lbl}>유입경로 <span className="text-amber-500">★</span></label>
+                    <select className={inp} value={form.intake_route} onChange={e=>f("intake_route",e.target.value)}>
+                      <option value="">선택</option>
+                      <option value="TM">TM</option>
+                      <option value="완판트럭">완판트럭</option>
+                      <option value="대협팀활동">대협팀활동</option>
+                    </select>
                   </div>
                 )}
                 <div>
