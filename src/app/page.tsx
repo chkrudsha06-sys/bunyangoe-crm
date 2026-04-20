@@ -399,11 +399,12 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
         .filter(e => SPECIAL_CHANNELS.includes(e.channel))
         .reduce((s, e) => s + effAmtKpi(e), 0);
 
-      // 팀 전체 - 완판트럭 (발송일이 당월인 건수)
+      // 팀 전체 - 완판트럭 (발송일이 당월 1일 ~ 오늘까지 진행된 건수)
+      const todayStr = new Date().toISOString().split("T")[0];
       const { data: wanpanRows = [] } = await supabase.from("wanpan_trucks")
         .select("id,dispatch_date")
         .gte("dispatch_date", monthStart)
-        .lte("dispatch_date", monthEnd);
+        .lte("dispatch_date", todayStr);
       const teamWanpan = (wanpanRows || []).length;
 
       let myRecruit = 0, myBunyanghoeRev = 0, myLinkedRev = 0, myAdOperationRev = 0;

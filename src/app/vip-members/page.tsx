@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Award, Phone, Calendar, Search, CreditCard, Copy, Check } from "lucide-react";
+import { Award, Phone, Calendar, Search, CreditCard, Copy, Check, Trash2 } from "lucide-react";
 import BankAccountDialog from "@/components/BankAccountDialog";
 
 const SURNAME_COLORS: Record<string,string> = {
@@ -116,7 +116,7 @@ function AccountInfoCell({ contact, onSaved }: { contact: VipContact; onSaved: (
   );
 }
 
-const TH_COLS = ["넘버링","고객명","연락처","담당컨설턴트","대협팀담당자","완료일","계좌정보","메모"];
+const TH_COLS = ["넘버링","고객명","연락처","담당컨설턴트","대협팀담당자","완료일","계좌정보","메모",""];
 
 function VipTable({ title, color, rows, onSaved, fmtBun }: {
   title: string; color: "emerald"|"blue";
@@ -182,6 +182,15 @@ function VipTable({ title, color, rows, onSaved, fmtBun }: {
                   </td>
                   <td className="px-3 py-3 text-center align-middle max-w-[160px]">
                     <p className="text-sm text-slate-500 truncate">{c.memo||"-"}</p>
+                  </td>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <button onClick={async()=>{
+                      if(!confirm(`${c.name} 회원을 삭제하시겠습니까?\n(고객DB에서 미팅결과가 초기화됩니다)`)) return;
+                      await supabase.from("contacts").update({meeting_result:"",contract_date:null,reservation_date:null,bunyanghoe_number:null}).eq("id",c.id);
+                      onSaved();
+                    }} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
+                      <Trash2 size={13}/>
+                    </button>
                   </td>
                 </tr>
               ))}
