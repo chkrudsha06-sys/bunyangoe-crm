@@ -227,6 +227,7 @@ function DailyReportModal({ onClose }: { onClose: () => void }) {
 export default function SalesPage() {
   const [executions, setExecutions]   = useState<AdExecution[]>([]);
   const [vipMembers, setVipMembers]   = useState<VipMember[]>([]);
+  const [intakeMap, setIntakeMap]       = useState<Record<string,string>>({});
   const [loading, setLoading]         = useState(true);
   const [showModal, setShowModal]     = useState(false);
   const [editId, setEditId]           = useState<number|null>(null);
@@ -266,6 +267,19 @@ export default function SalesPage() {
     }
     const { data } = await q;
     setExecutions((data as AdExecution[]) || []);
+
+    // 유입경로 조회 (분양회 가입 고객)
+    const { data: contactsIR } = await supabase.from("contacts")
+      .select("name,intake_route,bunyanghoe_number")
+      .in("meeting_result",["계약완료","예약완료"]);
+    const iMap: Record<string,string> = {};
+    (contactsIR||[]).forEach((c: any) => {
+      if (c.intake_route) {
+        if (c.name) iMap[c.name] = c.intake_route;
+        if (c.bunyanghoe_number) iMap[`num:${c.bunyanghoe_number}`] = c.intake_route;
+      }
+    });
+    setIntakeMap(iMap);
     setLoading(false);
   };
 
