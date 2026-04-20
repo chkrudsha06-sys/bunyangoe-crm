@@ -233,7 +233,10 @@ export default function SalesPage() {
   const [editId, setEditId]           = useState<number|null>(null);
   const [form, setForm]               = useState<any>(EMPTY_FORM);
   const [saving, setSaving]           = useState(false);
+  const [salesSearch, setSalesSearch]     = useState("");
+  const [filterIntake, setFilterIntake]   = useState("");
   const [filterRoute, setFilterRoute]     = useState("");
+  const [filterConsultant, setFilterConsultant] = useState("");
   const [filterChannel, setFilterChannel] = useState("");
   const [filterMember, setFilterMember]   = useState("");
   const [filterStart, setFilterStart]     = useState("");
@@ -243,7 +246,7 @@ export default function SalesPage() {
   const [vipSearch, setVipSearch]         = useState("");
   const [showDailyReport, setShowDailyReport] = useState(false);
 
-  useEffect(() => { fetchExecutions(); }, [filterRoute, filterChannel, filterMember, filterStart, filterEnd, filterRefund, filterMonth]);
+  useEffect(() => { fetchExecutions(); }, [filterRoute, filterChannel, filterMember, filterConsultant, filterStart, filterEnd, filterRefund, filterMonth]);
   useEffect(() => { fetchVipMembers(); }, []);
 
   const fetchExecutions = async () => {
@@ -256,6 +259,7 @@ export default function SalesPage() {
     }
     if (filterRoute)   q = q.eq("contract_route", filterRoute);
     if (filterMember)  q = q.eq("team_member", filterMember);
+    if (filterConsultant) q = q.eq("consultant", filterConsultant);
     if (filterStart)   q = q.gte("payment_date", filterStart);
     if (filterEnd)     q = q.lte("payment_date", filterEnd);
     if (filterRefund === "refund") q = q.not("refund_amount", "is", null);
@@ -504,16 +508,30 @@ export default function SalesPage() {
           </div>
         </div>
 
-        {/* 필터 */}
+        {/* 검색 + 필터 */}
         <div className="flex gap-2 flex-wrap items-center">
-          <select value={filterRoute} onChange={e=>setFilterRoute(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-            <option value="">전체 매출구분</option>
+          <div className="relative flex-1 max-w-xs">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+            <input type="text" placeholder="넘버링, 고객명, 직급 검색..." value={salesSearch}
+              onChange={e=>setSalesSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
+          </div>
+          <select value={filterIntake} onChange={e=>setFilterIntake(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+            <option value="">유입구분</option>
+            <option value="영업부토스TM">영업부토스TM</option>
+            <option value="신규고객TM">신규고객TM</option>
+            <option value="기고객TM">기고객TM</option>
+            <option value="완판트럭">완판트럭</option>
+            <option value="대협팀활동">대협팀활동</option>
+          </select>
+          <select value={filterRoute} onChange={e=>setFilterRoute(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+            <option value="">매출구분</option>
             <option value="분양회">분양회</option>
             <option value="완판트럭">완판트럭</option>
             <option value="대협팀활동">대협팀활동</option>
           </select>
-          <select value={filterChannel} onChange={e=>setFilterChannel(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-            <option value="">전체 채널</option>
+          <select value={filterChannel} onChange={e=>setFilterChannel(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+            <option value="">광고채널</option>
             <option value="분양회 입회비">분양회 입회비</option>
             <option value="분양회 월회비">분양회 월회비</option>
             <option value="하이타겟">하이타겟</option>
@@ -523,29 +541,22 @@ export default function SalesPage() {
             <option value="호갱노노_기타">호갱노노_기타</option>
             <option value="LMS">LMS</option>
           </select>
-          <select value={filterMember} onChange={e=>setFilterMember(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-            <option value="">전체 담당자</option>
+          <select value={filterMember} onChange={e=>setFilterMember(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+            <option value="">대협팀담당자</option>
             {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
           </select>
-          <button
-            onClick={()=>setFilterRefund(filterRefund==="refund" ? "" : "refund")}
-            className={`text-sm px-3 py-1.5 rounded-lg border font-semibold transition-all ${
-              filterRefund==="refund"
-                ? "bg-red-50 text-red-600 border-red-300"
-                : "bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300"
-            }`}>
-            환불건
-          </button>
-          {/* 월별 빠른 탐색 */}
+          <select value={filterConsultant} onChange={e=>setFilterConsultant(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+            <option value="">담당컨설턴트</option>
+            {["박경화","박혜은","조승현","박민경","백선중","강아름","전정훈","박나라"].map(m=><option key={m} value={m}>{m}</option>)}
+          </select>
           <select value={filterMonth} onChange={e=>{ setFilterMonth(e.target.value); setFilterStart(""); setFilterEnd(""); }}
-            className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
-            <option value="">전체 월</option>
+            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+            <option value="">전체월</option>
             {Array.from({length:12},(_,i)=>i+1).map(m=>(
               <option key={m} value={String(m)}>{m}월</option>
             ))}
           </select>
-          {/* 기간 설정 */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2">
             <span className="text-xs text-slate-400 font-medium whitespace-nowrap">기간</span>
             <input type="date" value={filterStart} onChange={e=>{ setFilterStart(e.target.value); setFilterMonth(""); }}
               className="text-xs text-slate-600 bg-transparent outline-none"/>
@@ -557,13 +568,12 @@ export default function SalesPage() {
                 className="text-slate-400 hover:text-red-400 text-xs ml-1">✕</button>
             )}
           </div>
-          {/* 전체 초기화 */}
           <button
             onClick={()=>{
-              setFilterRoute(""); setFilterChannel(""); setFilterMember("");
+              setSalesSearch(""); setFilterIntake(""); setFilterRoute(""); setFilterChannel(""); setFilterMember(""); setFilterConsultant("");
               setFilterStart(""); setFilterEnd(""); setFilterRefund(""); setFilterMonth("");
             }}
-            className="text-sm px-3 py-1.5 bg-white text-slate-400 border border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all font-medium whitespace-nowrap">
+            className={`text-xs px-2.5 py-2 font-semibold rounded-xl whitespace-nowrap transition-colors ${(salesSearch||filterIntake||filterRoute||filterChannel||filterMember||filterConsultant||filterMonth||filterStart||filterEnd) ? "bg-red-500 text-white border border-red-500" : "text-red-400 border border-red-200 hover:bg-red-50"}`}>
             ↺ 초기화
           </button>
           <button onClick={()=>setShowDailyReport(true)}
@@ -595,7 +605,15 @@ export default function SalesPage() {
                 </tr>
               </thead>
               <tbody>
-                {executions.map(e=>(
+                {executions.filter(e => {
+                  const matchSearch = !salesSearch || 
+                    (e.member_name&&e.member_name.includes(salesSearch)) || 
+                    (e.position&&e.position.includes(salesSearch)) ||
+                    ((e as any).bunyanghoe_number&&(e as any).bunyanghoe_number.includes(salesSearch));
+                  const ir = intakeMap[e.member_name] || ((e as any).bunyanghoe_number ? intakeMap[`num:${(e as any).bunyanghoe_number}`] : "") || "";
+                  const matchIntake = !filterIntake || ir === filterIntake;
+                  return matchSearch && matchIntake;
+                }).map(e=>(
                   <tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="px-3 py-2.5 text-center">
                       {e.contract_route==="분양회" ? (() => {
