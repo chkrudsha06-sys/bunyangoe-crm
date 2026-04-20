@@ -316,6 +316,11 @@ export default function ContactsPage() {
                 {contacts.map((c, i) => (
                   <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="px-3 py-3 text-center align-middle text-slate-400 text-sm">{(page-1)*PER_PAGE+i+1}</td>
+                    <td className="px-3 py-3 text-center align-middle">
+                      {(c as any).intake_route
+                        ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${(c as any).intake_route==="TM"?"bg-blue-100 text-blue-700":(c as any).intake_route==="완판트럭"?"bg-emerald-100 text-emerald-700":"bg-violet-100 text-violet-700"}`}>{(c as any).intake_route}</span>
+                        : <span className="text-xs text-slate-300">-</span>}
+                    </td>
                     <td className="px-3 py-3 text-center align-middle font-bold text-slate-800 truncate">{c.name}</td>
                     <td className="px-3 py-3 text-center align-middle text-slate-500 text-sm truncate">{c.title||"-"}</td>
                     <td className="px-3 py-3 text-center align-middle text-slate-600 text-sm">{c.phone||"-"}</td>
