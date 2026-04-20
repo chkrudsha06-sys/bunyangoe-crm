@@ -295,6 +295,93 @@ export default function LoginPage() {
               color: 'rgba(255,255,255,0.75)', marginTop: '16px',
               textTransform: 'uppercase' as const,
             }}>Bunyangoe CRM System</div>
+
+            {/* 3D VIP 카드 */}
+            <div style={{ marginTop: '36px', perspective: '800px', pointerEvents: 'auto' }}>
+              <div
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = (e.clientX - rect.left) / rect.width - 0.5;
+                  const y = (e.clientY - rect.top) / rect.height - 0.5;
+                  e.currentTarget.style.transform = `rotateY(${x * 15}deg) rotateX(${-y * 15}deg)`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'rotateY(0deg) rotateX(0deg)';
+                }}
+                style={{
+                  width: '420px', height: '240px', margin: '0 auto',
+                  background: 'linear-gradient(-45deg, #303030, #191919)',
+                  borderRadius: '16px', padding: '28px 32px',
+                  position: 'relative', overflow: 'hidden',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)',
+                  transition: 'transform 0.15s ease-out',
+                  display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                }}>
+                {/* 글레이즈 효과 */}
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%, rgba(255,255,255,0.03) 100%)',
+                  borderRadius: '16px',
+                }}/>
+                <div style={{
+                  position: 'absolute', width: '400px', height: '400px',
+                  background: 'rgba(0,0,0,0.4)', borderRadius: '50%',
+                  top: '100px', left: '80px', zIndex: 0,
+                }}/>
+                <div style={{
+                  position: 'absolute', width: '400px', height: '400px',
+                  background: 'rgba(0,0,0,0.4)', borderRadius: '50%',
+                  top: '-260px', left: '-160px', zIndex: 0,
+                }}/>
+
+                {/* 상단 */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 2 }}>
+                  <div>
+                    <div style={{
+                      fontFamily: "'Montserrat',sans-serif", fontSize: '18px',
+                      fontWeight: 700, color: '#E8C87A', letterSpacing: '0.08em',
+                    }}>VIP Membership</div>
+                    <div style={{
+                      fontFamily: "'Pretendard',sans-serif", fontSize: '13px',
+                      fontWeight: 500, color: 'rgba(232,200,122,0.6)', marginTop: '4px', letterSpacing: '0.15em',
+                    }}>분양회</div>
+                  </div>
+                  <div style={{
+                    fontFamily: "'Montserrat',sans-serif", fontSize: '11px',
+                    fontWeight: 600, color: 'rgba(232,200,122,0.5)',
+                    letterSpacing: '0.15em', textAlign: 'right',
+                    borderLeft: '1px solid rgba(232,200,122,0.2)',
+                    paddingLeft: '14px',
+                  }}>
+                    <div style={{ fontSize: '10px', letterSpacing: '0.2em' }}>EXCLUSIVE</div>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#E8C87A', marginTop: '2px' }}>TOP 1%</div>
+                  </div>
+                </div>
+
+                {/* 하단 */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', position: 'relative', zIndex: 2 }}>
+                  <div>
+                    <div style={{
+                      fontFamily: "'Montserrat',sans-serif", fontSize: '11px',
+                      fontWeight: 400, color: 'rgba(232,200,122,0.45)',
+                      letterSpacing: '0.12em', lineHeight: 1.5,
+                    }}>THE ULTIMATE BENEFITS<br/>FOR SELECTED MEMBERS</div>
+                    <div style={{
+                      fontFamily: "'Montserrat',sans-serif", fontSize: '52px',
+                      fontWeight: 800, color: '#E8C87A', lineHeight: 1,
+                      marginTop: '4px', letterSpacing: '-0.02em',
+                    }}>100</div>
+                  </div>
+                  {/* 회사 로고 */}
+                  <div style={{ opacity: 0.6 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/company-logo.png" alt="광고인" style={{
+                      height: '36px', objectFit: 'contain', filter: 'brightness(2) grayscale(0.3)',
+                    }} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none";}}/>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
