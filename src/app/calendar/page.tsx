@@ -77,9 +77,14 @@ export default function CalendarPage() {
     };
   };
 
+  const NAME_ORDER = ["조계현","이세호","기여운","최연전","김정후","김창완","최웅","김재영","최은정"];
+  const nameSort = (a: string, b: string) => {
+    const ai = NAME_ORDER.indexOf(a), bi = NAME_ORDER.indexOf(b);
+    return (ai===-1?99:ai) - (bi===-1?99:bi);
+  };
   const selAll = selDate ? {
-    ev: events.filter(e=>e.date===selDate),
-    mt: meetings.filter(m=>m.meeting_date?.startsWith(selDate)),
+    ev: events.filter(e=>e.date===selDate).sort((a,b)=>nameSort(a.author,b.author)),
+    mt: meetings.filter(m=>m.meeting_date?.startsWith(selDate)).sort((a,b)=>nameSort(a.assigned_to,b.assigned_to)),
     wp: wanpan.filter(w=>w.dispatch_date?.startsWith(selDate)),
   } : { ev:[], mt:[], wp:[] };
 
@@ -264,28 +269,34 @@ export default function CalendarPage() {
                   className={`min-h-[140px] border-r border-b border-slate-50 p-1.5 cursor-pointer transition-colors ${isSelected?"bg-blue-50":isToday?"bg-blue-50/30":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}>
                   <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold mb-1 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"}`}>{d}</div>
                   <div className="space-y-0.5">
-                    {/* 완판트럭 */}
-                    {wp.map(w=>(
-                      <div key={`w${w.id}`} className="text-xs px-2 py-1 rounded-lg truncate font-semibold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
-                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(w.assigned_to||"")}`}/>
-                        완판트럭 - {w.site_name || w.location || "-"}
-                      </div>
-                    ))}
-                    {/* 미팅 */}
-                    {mt.slice(0,2).map(m=>(
-                      <div key={`m${m.id}`} className="text-xs px-2 py-1 rounded-lg truncate font-semibold bg-violet-100 text-violet-700 border border-violet-200 flex items-center gap-1">
-                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(m.assigned_to)}`}/>
-                        분양회미팅 - {m.assigned_to}
-                      </div>
-                    ))}
-                    {/* 개인일정 */}
-                    {ev.slice(0,2).map(e=>(
-                      <div key={e.id} className={`text-xs px-2 py-1 rounded-lg truncate font-semibold border flex items-center gap-1 ${EV_COLORS[e.event_type]||EV_COLORS["기타"]}`}>
-                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(e.author)}`}/>
-                        {e.event_type} - {e.author}
-                      </div>
-                    ))}
-                    {total>4&&<p className="text-xs text-slate-400 pl-1 font-semibold">+{total-4}개</p>}
+                    {(()=>{
+                      const allItems: {key:string;node:React.ReactNode}[] = [
+                        ...wp.map(w=>({key:`w${w.id}`,node:(
+                          <div className="text-xs px-2 py-1 rounded-lg truncate font-semibold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
+                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(w.assigned_to||"")}`}/>
+                            완판트럭 - {w.site_name || w.location || "-"}
+                          </div>
+                        )})),
+                        ...mt.map(m=>({key:`m${m.id}`,node:(
+                          <div className="text-xs px-2 py-1 rounded-lg truncate font-semibold bg-violet-100 text-violet-700 border border-violet-200 flex items-center gap-1">
+                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(m.assigned_to)}`}/>
+                            분양회미팅 - {m.assigned_to}
+                          </div>
+                        )})),
+                        ...ev.map(e=>({key:`e${e.id}`,node:(
+                          <div className={`text-xs px-2 py-1 rounded-lg truncate font-semibold border flex items-center gap-1 ${EV_COLORS[e.event_type]||EV_COLORS["기타"]}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(e.author)}`}/>
+                            {e.event_type} - {e.author}
+                          </div>
+                        )})),
+                      ];
+                      const maxShow = 5;
+                      const overflow = allItems.length - maxShow;
+                      return (<>
+                        {allItems.slice(0, maxShow).map(item=><div key={item.key}>{item.node}</div>)}
+                        {overflow > 0 && <p className="text-xs text-slate-400 pl-1 font-semibold">+{overflow}개</p>}
+                      </>);
+                    })()}
                   </div>
                 </div>
               );
