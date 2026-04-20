@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getCurrentUser, CRMUser } from "@/lib/auth";
+import { getCurrentUser, CRMUser, validateSession, logout } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/Sidebar";
 import { Truck, X, CheckCheck } from "lucide-react";
@@ -109,6 +109,21 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       setNotifications(data as Notification[]);
     }
   }, [pushNewToasts]);
+
+  // ── 세션 유효성 검증 (5초마다) ──
+  useEffect(() => {
+    if (!user || pathname === "/login") return;
+    const checkSession = async () => {
+      const valid = await validateSession();
+      if (!valid) {
+        logout();
+        alert("다른 기기에서 로그인되어 자동 로그아웃됩니다.");
+        router.push("/login");
+      }
+    };
+    const sessionTimer = setInterval(checkSession, 5000);
+    return () => clearInterval(sessionTimer);
+  }, [user, pathname, router]);
 
   useEffect(() => {
     if (!user || pathname === "/login") return;

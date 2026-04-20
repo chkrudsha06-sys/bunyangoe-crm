@@ -252,7 +252,7 @@ export default function LoginPage() {
     if (!userId || !userPw) { setError("아이디와 비밀번호를 입력해주세요."); return; }
     setLoading(true);
     await new Promise(r => setTimeout(r, 400));
-    const user = login(userId, userPw);
+    const user = await login(userId, userPw);
     if (user) { router.push("/"); }
     else { setError("아이디 또는 비밀번호가 올바르지 않습니다."); setLoading(false); }
   };
