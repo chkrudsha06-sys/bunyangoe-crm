@@ -42,6 +42,7 @@ const OPS_MENUS = [
 const ADMIN_EXTRA = [
   { href: "/reports",       label: "팀 성과 분석", icon: BarChart3 },
   { href: "/kpi-settings",  label: "KPI 설정",    icon: Target },
+  { href: "/incentives",     label: "인센티브 관리", icon: Award },
 ];
 
 // 역할 배지 스타일
