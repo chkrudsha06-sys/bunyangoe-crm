@@ -208,6 +208,7 @@ export default function VipMembersPage() {
   const [search, setSearch]     = useState("");
   const [filterMember, setFilterMember] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterConsultant, setFilterConsultant] = useState("");
   const TEAM = ["조계현","이세호","기여운","최연전"];
 
   useEffect(() => {
@@ -237,8 +238,8 @@ export default function VipMembersPage() {
 
   const filtered = contacts.filter(c => {
     const matchSearch = !search || c.name.includes(search) || (c.phone&&c.phone.includes(search)) || (c.bunyanghoe_number&&c.bunyanghoe_number.includes(search)) || (c.assigned_to&&c.assigned_to.includes(search));
-    const matchAssigned = !fAssigned || c.assigned_to === fAssigned;
-    const matchConsultant = !fConsultant || c.consultant === fConsultant;
+    const matchAssigned = !filterMember || c.assigned_to === filterMember;
+    const matchConsultant = !filterConsultant || c.consultant === filterConsultant;
     return matchSearch && matchAssigned && matchConsultant;
   });
   const contracts    = filtered.filter(c=>c.meeting_result==="계약완료");
