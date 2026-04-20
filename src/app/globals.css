@@ -409,3 +409,11 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 [data-theme="dark"] [class*="overflow-x-auto"] thead th {
   background: #0F1A42 !important;
 }
+
+/* 리워드 마일리지 셀 배경 + 텍스트 강화 */
+[data-theme="dark"] .bg-blue-50\/20 { background: rgba(74,123,247,0.08) !important; }
+[data-theme="dark"] .bg-blue-50\/20 .text-blue-600 { color: #93C5FD !important; }
+[data-theme="dark"] .bg-blue-50\/20 .font-bold { color: #93C5FD !important; }
+[data-theme="dark"] .bg-blue-50\/20 .text-slate-300 { color: rgba(255,255,255,0.2) !important; }
+[data-theme="dark"] .bg-blue-50\/20 .text-slate-400 { color: rgba(255,255,255,0.3) !important; }
+[data-theme="dark"] .bg-blue-50\/20 .text-slate-600 { color: rgba(255,255,255,0.6) !important; }
