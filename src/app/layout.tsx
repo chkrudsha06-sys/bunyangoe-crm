@@ -9,8 +9,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
       <body>
+        <script dangerouslySetInnerHTML={{__html:`
+          (function(){
+            var s=localStorage.getItem("crm_dark_mode");
+            if(s!=="false") document.documentElement.setAttribute("data-theme","dark");
+          })();
+        `}}/>
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>

@@ -59,10 +59,11 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
   const roleStyle = ROLE_STYLE[user.role] || ROLE_STYLE.exec;
 
   // 다크모드
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
   useEffect(() => {
     const saved = localStorage.getItem("crm_dark_mode");
-    if (saved === "true") { setDarkMode(true); document.documentElement.setAttribute("data-theme","dark"); }
+    if (saved === "false") { setDarkMode(false); document.documentElement.removeAttribute("data-theme"); }
+    else { setDarkMode(true); document.documentElement.setAttribute("data-theme","dark"); }
   }, []);
   const toggleDark = () => {
     const next = !darkMode;
