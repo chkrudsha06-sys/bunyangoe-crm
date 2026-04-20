@@ -109,9 +109,9 @@ export default function CalendarPage() {
             </div>
             {/* 범례 */}
             <div className="flex items-center gap-1.5 ml-3 pl-3 border-l border-slate-200">
-              <span className="text-[10px] text-slate-400 font-semibold mr-1">범례</span>
-              {[{l:"분양회미팅",c:"bg-violet-200 text-violet-700"},{l:"완판트럭",c:"bg-amber-200 text-amber-700"},{l:"연차",c:"bg-red-200 text-red-700"},{l:"반차",c:"bg-orange-200 text-orange-700"},{l:"기타",c:"bg-slate-200 text-slate-600"}].map(({l,c})=>(
-                <span key={l} className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${c}`}>{l}</span>
+              <span className="text-xs text-slate-500 font-bold mr-1">범례</span>
+              {[{l:"분양회미팅",c:"bg-violet-200 text-violet-700"},{l:"완판트럭",c:"bg-amber-200 text-amber-700"},{l:"연차",c:"bg-red-200 text-red-700"},{l:"반차",c:"bg-orange-200 text-orange-700"},{l:"미팅",c:"bg-blue-200 text-blue-700"},{l:"기타",c:"bg-slate-200 text-slate-600"}].map(({l,c})=>(
+                <span key={l} className={`text-xs px-2 py-1 rounded-lg font-bold ${c}`}>{l}</span>
               ))}
             </div>
           </div>
@@ -275,7 +275,7 @@ export default function CalendarPage() {
                     {mt.slice(0,2).map(m=>(
                       <div key={`m${m.id}`} className="text-xs px-2 py-1 rounded-lg truncate font-semibold bg-violet-100 text-violet-700 border border-violet-200 flex items-center gap-1">
                         <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(m.assigned_to)}`}/>
-                        미팅일정 - {m.assigned_to}
+                        분양회미팅 - {m.assigned_to}
                       </div>
                     ))}
                     {/* 개인일정 */}
