@@ -30,7 +30,7 @@ const EMPTY_FORM = {
   name: "", title: "", phone: "",
   customer_type: "", tm_sensitivity: "", prospect_type: "",
   meeting_date: "", meeting_date_text: "", meeting_address: "",
-  meeting_result: "", management_stage: "", memo: "", assigned_to: "", consultant: "", contract_date: "", reservation_date: "", regular_payment_date: "", intake_route: "",
+  meeting_result: "", management_stage: "", memo: "", assigned_to: "", consultant: "", contract_date: "", reservation_date: "", regular_payment_date: "", intake_route: "", dashboard_code: "", photo_url: "",
 };
 
 // 옵션 목록
@@ -173,7 +173,7 @@ export default function ContactsPage() {
       customer_type: c.customer_type || "", tm_sensitivity: c.tm_sensitivity || "",
       prospect_type: c.prospect_type || "", meeting_date: c.meeting_date?.split("T")[0] || "",
       meeting_date_text: c.meeting_date_text || "", meeting_address: c.meeting_address || "",
-      meeting_result: c.meeting_result || "", management_stage: c.management_stage || "", regular_payment_date: (c as any).regular_payment_date || "", intake_route: (c as any).intake_route || "",
+      meeting_result: c.meeting_result || "", management_stage: c.management_stage || "", regular_payment_date: (c as any).regular_payment_date || "", intake_route: (c as any).intake_route || "", dashboard_code: (c as any).dashboard_code || "", photo_url: (c as any).photo_url || "",
       contract_date: (c as any).contract_date || "", reservation_date: (c as any).reservation_date || "",
       consultant: (c as any).consultant || "",
       memo: c.memo || "", assigned_to: c.assigned_to || "",
@@ -202,7 +202,7 @@ export default function ContactsPage() {
       consultant: form.consultant || null,
       contract_date: form.contract_date || null,
       reservation_date: form.reservation_date || null,
-      regular_payment_date: form.regular_payment_date || null, intake_route: form.intake_route || null,
+      regular_payment_date: form.regular_payment_date || null, intake_route: form.intake_route || null, dashboard_code: form.dashboard_code || null, photo_url: form.photo_url || null,
     };
     let error;
     if (editContact) {
@@ -538,6 +538,47 @@ export default function ContactsPage() {
                 </div>
               )}
             </div>
+            {/* 대시보드 코드 + 사진 업로드 */}
+            <div className="mx-6 mt-3 pt-3 border-t border-slate-200">
+              <p className="text-xs font-bold text-slate-500 mb-3 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"/>고객 대시보드
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">대시보드 코드</label>
+                  <div className="flex gap-1.5">
+                    <input className="flex-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg" value={form.dashboard_code} readOnly placeholder="자동 생성"/>
+                    <button type="button" onClick={()=>{
+                      const chars="abcdefghijklmnopqrstuvwxyz0123456789";
+                      let code="";for(let i=0;i<8;i++) code+=chars[Math.floor(Math.random()*chars.length)];
+                      setForm({...form,dashboard_code:code});
+                    }} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-xs rounded-lg border border-indigo-100 font-semibold hover:bg-indigo-100 whitespace-nowrap">생성</button>
+                    {form.dashboard_code && (
+                      <button type="button" onClick={()=>{
+                        navigator.clipboard.writeText(`${window.location.origin}/my/${form.dashboard_code}`);
+                        alert("대시보드 URL이 복사되었습니다");
+                      }} className="px-3 py-1.5 bg-slate-50 text-slate-600 text-xs rounded-lg border border-slate-200 font-semibold hover:bg-slate-100 whitespace-nowrap">복사</button>
+                    )}
+                  </div>
+                  {form.dashboard_code && (
+                    <p className="text-[10px] text-slate-400 mt-1 truncate">/my/{form.dashboard_code}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">고객 사진</label>
+                  <input type="file" accept="image/*" onChange={async(e: React.ChangeEvent<HTMLInputElement>)=>{
+                    const file=e.target.files?.[0]; if(!file) return;
+                    const ext=file.name.split(".").pop(); const fname=`${form.dashboard_code||Date.now()}.${ext}`;
+                    const {error}=await supabase.storage.from("customer-photos").upload(fname,file,{upsert:true});
+                    if(error){alert("업로드 실패: "+error.message);return;}
+                    setForm({...form,photo_url:fname});
+                    alert("사진 업로드 완료");
+                  }} className="text-xs text-slate-600 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border file:border-slate-200 file:bg-slate-50 file:text-xs file:font-semibold file:text-slate-600 hover:file:bg-slate-100"/>
+                  {form.photo_url && <p className="text-[10px] text-emerald-500 mt-1">✓ 사진 등록됨</p>}
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
               <button onClick={()=>setShowModal(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 text-center align-middle">취소</button>
               <button onClick={handleSave} disabled={saving}
