@@ -107,6 +107,13 @@ export default function CalendarPage() {
               <span className="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 font-semibold">완판트럭 {totalWp}건</span>
               <span className="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 font-semibold">개인일정 {totalEv}건</span>
             </div>
+            {/* 범례 */}
+            <div className="flex items-center gap-1.5 ml-3 pl-3 border-l border-slate-200">
+              <span className="text-[10px] text-slate-400 font-semibold mr-1">범례</span>
+              {[{l:"분양회미팅",c:"bg-violet-200 text-violet-700"},{l:"완판트럭",c:"bg-amber-200 text-amber-700"},{l:"연차",c:"bg-red-200 text-red-700"},{l:"반차",c:"bg-orange-200 text-orange-700"},{l:"기타",c:"bg-slate-200 text-slate-600"}].map(({l,c})=>(
+                <span key={l} className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${c}`}>{l}</span>
+              ))}
+            </div>
           </div>
           {/* 담당자 필터 */}
           <select value={filterAuthor} onChange={e=>setFilterAuthor(e.target.value==="전체"?"":e.target.value)}
@@ -119,53 +126,47 @@ export default function CalendarPage() {
       {/* ── 오늘 일정 + 당월 전체일정 요약 배너 ── */}
       <div className="px-4 pt-4 flex gap-3 items-stretch">
 
-        {/* 오늘 일정 */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 w-72 flex-shrink-0 min-h-[180px]">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"/>
-            <span className="text-xs font-bold text-slate-700">오늘 일정</span>
-            <span className="text-xs text-slate-400 ml-auto">
-              {new Date().toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"})}
-            </span>
-          </div>
-          {(() => {
-            const todayStr = new Date().toISOString().split("T")[0];
-            const todayWp = wanpan.filter(w => w.dispatch_date?.startsWith(todayStr));
-            const todayMt = meetings.filter(m => m.meeting_date?.startsWith(todayStr));
-            const todayEv = events.filter(e => e.date === todayStr);
-            const total = todayWp.length + todayMt.length + todayEv.length;
-            if (total === 0) return (
-              <p className="text-xs text-slate-300 text-center py-2">오늘 일정이 없습니다</p>
-            );
-            return (
-              <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
-                {todayWp.map(w => (
-                  <div key={`tw${w.id}`} className="flex items-center gap-2 px-2 py-1.5 bg-amber-50 rounded-lg border border-amber-100">
-                    <Truck size={10} className="text-amber-500 flex-shrink-0"/>
-                    <span className="text-xs font-semibold text-amber-700 truncate">
-                      완판트럭 · {w.site_name || w.location || "-"}
-                    </span>
-                  </div>
-                ))}
-                {todayMt.map(m => (
-                  <div key={`tm${m.id}`} className="flex items-center gap-2 px-2 py-1.5 bg-violet-50 rounded-lg border border-violet-100">
-                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(m.assigned_to)}`}/>
-                    <span className="text-xs font-semibold text-violet-700 truncate">
-                      분양회미팅 · {m.name} ({m.assigned_to})
-                    </span>
-                  </div>
-                ))}
-                {todayEv.map(e => (
-                  <div key={`te${e.id}`} className="flex items-center gap-2 px-2 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(e.author)}`}/>
-                    <span className="text-xs font-semibold text-slate-600 truncate">
-                      {e.event_type} · {e.author}
-                    </span>
-                  </div>
-                ))}
+        {/* 선택 날짜 상세 */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 w-80 flex-shrink-0 min-h-[140px]">
+          {selDate ? (<>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-blue-500"/>
+                <span className="text-sm font-bold text-slate-700">
+                  {new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"})}
+                </span>
               </div>
-            );
-          })()}
+              <button onClick={()=>setSelDate(null)} className="text-slate-300 hover:text-slate-500"><X size={14}/></button>
+            </div>
+            <div className="space-y-1.5 max-h-[100px] overflow-y-auto">
+              {selAll.wp.map(w=>(
+                <div key={`sw${w.id}`} className="flex items-center gap-2 px-2 py-1.5 bg-amber-50 rounded-lg border border-amber-100">
+                  <Truck size={11} className="text-amber-500 flex-shrink-0"/>
+                  <span className="text-xs font-bold text-amber-700 truncate">완판트럭 · {w.site_name||w.location||"-"}</span>
+                </div>
+              ))}
+              {selAll.mt.map(m=>(
+                <div key={`sm${m.id}`} className="flex items-center gap-2 px-2 py-1.5 bg-violet-50 rounded-lg border border-violet-100">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getColor(m.assigned_to)}`}/>
+                  <span className="text-xs font-bold text-violet-700 truncate">분양회미팅 · {m.name}</span>
+                  <span className="text-[10px] text-slate-400 ml-auto">{m.assigned_to}</span>
+                </div>
+              ))}
+              {selAll.ev.map(e=>(
+                <div key={`se${e.id}`} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border ${EV_COLORS[e.event_type]||EV_COLORS["기타"]}`}>
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getColor(e.author)}`}/>
+                  <span className="text-xs font-bold truncate">{e.event_type} · {e.author}</span>
+                </div>
+              ))}
+              {selAll.wp.length===0&&selAll.mt.length===0&&selAll.ev.length===0&&(
+                <p className="text-xs text-slate-300 text-center py-2">일정 없음</p>
+              )}
+            </div>
+          </>) : (
+            <div className="flex flex-col items-center justify-center h-full py-4">
+              <p className="text-xs text-slate-300 text-center">날짜를 클릭하면<br/>일정을 확인할 수 있습니다</p>
+            </div>
+          )}
         </div>
 
         {/* 당월 전체일정 */}
@@ -244,19 +245,19 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 flex gap-4">
+      <div className="flex-1 overflow-auto p-4">
         {/* 캘린더 본체 */}
         <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           {/* 요일 */}
           <div className="grid grid-cols-7 border-b border-slate-100">
             {DAYS.map((d,i)=>(
-              <div key={d} className={`text-center py-2.5 text-xs font-bold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
+              <div key={d} className={`text-center py-3 text-sm font-bold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
             ))}
           </div>
           {/* 날짜 */}
           <div className="grid grid-cols-7">
             {Array.from({length:firstDay}).map((_,i)=>(
-              <div key={`e${i}`} className="min-h-[120px] border-r border-b border-slate-50 bg-slate-50/30"/>
+              <div key={`e${i}`} className="min-h-[140px] border-r border-b border-slate-50 bg-slate-50/30"/>
             ))}
             {Array.from({length:daysInMonth}).map((_,i)=>{
               const d=i+1; const ds=getDs(d);
@@ -265,31 +266,31 @@ export default function CalendarPage() {
               const isSelected=selDate===ds; const total=ev.length+mt.length+wp.length;
               return (
                 <div key={d} onClick={()=>setSelDate(selDate===ds?null:ds)}
-                  className={`min-h-[120px] border-r border-b border-slate-50 p-1.5 cursor-pointer transition-colors ${isSelected?"bg-blue-50":isToday?"bg-blue-50/30":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}>
-                  <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold mb-1 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"}`}>{d}</div>
+                  className={`min-h-[140px] border-r border-b border-slate-50 p-1.5 cursor-pointer transition-colors ${isSelected?"bg-blue-50":isToday?"bg-blue-50/30":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}>
+                  <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold mb-1 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"}`}>{d}</div>
                   <div className="space-y-0.5">
                     {/* 완판트럭 */}
                     {wp.map(w=>(
-                      <div key={`w${w.id}`} className="text-[10px] px-1.5 py-0.5 rounded truncate font-semibold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
+                      <div key={`w${w.id}`} className="text-xs px-2 py-1 rounded-lg truncate font-semibold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
                         <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(w.assigned_to||"")}`}/>
                         완판트럭 - {w.site_name || w.location || "-"}
                       </div>
                     ))}
                     {/* 미팅 */}
                     {mt.slice(0,2).map(m=>(
-                      <div key={`m${m.id}`} className="text-[10px] px-1.5 py-0.5 rounded truncate font-semibold bg-violet-100 text-violet-700 border border-violet-200 flex items-center gap-1">
+                      <div key={`m${m.id}`} className="text-xs px-2 py-1 rounded-lg truncate font-semibold bg-violet-100 text-violet-700 border border-violet-200 flex items-center gap-1">
                         <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(m.assigned_to)}`}/>
                         미팅일정 - {m.assigned_to}
                       </div>
                     ))}
                     {/* 개인일정 */}
                     {ev.slice(0,2).map(e=>(
-                      <div key={e.id} className={`text-[10px] px-1.5 py-0.5 rounded truncate font-semibold border flex items-center gap-1 ${EV_COLORS[e.event_type]||EV_COLORS["기타"]}`}>
+                      <div key={e.id} className={`text-xs px-2 py-1 rounded-lg truncate font-semibold border flex items-center gap-1 ${EV_COLORS[e.event_type]||EV_COLORS["기타"]}`}>
                         <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(e.author)}`}/>
                         {e.event_type} - {e.author}
                       </div>
                     ))}
-                    {total>4&&<p className="text-[10px] text-slate-400 pl-1">+{total-4}개</p>}
+                    {total>4&&<p className="text-xs text-slate-400 pl-1 font-semibold">+{total-4}개</p>}
                   </div>
                 </div>
               );
@@ -297,113 +298,7 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        {/* 사이드: 선택 날짜 상세 + 범례 */}
-        <div className="w-56 flex flex-col gap-3">
-          {/* 선택 날짜 상세 */}
-          {selDate ? (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex-1 overflow-y-auto">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-slate-700">
-                  {new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"})}
-                </h3>
-                <button onClick={()=>setSelDate(null)} className="text-slate-300 hover:text-slate-500"><X size={14}/></button>
-              </div>
-              <div className="space-y-2">
-                {selAll.wp.map(w=>(
-                  <div key={`w${w.id}`} className="rounded-xl p-3 bg-amber-50 border border-amber-100">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Truck size={11} className="text-amber-500"/>
-                      <span className="text-xs font-bold text-amber-700">완판트럭</span>
-                    </div>
-                    {/* 현장명 */}
-                    <p className="text-sm font-bold text-slate-800 mb-0.5">
-                      {w.site_name || w.location || "-"}
-                    </p>
-                    {w.site_name && w.location && (
-                      <p className="text-[11px] text-slate-400 mb-2">{w.location}</p>
-                    )}
-                    {/* 대협팀 출장인원 */}
-                    {w.staff_members && (() => {
-                      try {
-                        const list: string[] = JSON.parse(w.staff_members);
-                        if (list.length > 0) return (
-                          <div className="mb-1.5">
-                            <p className="text-[10px] font-bold text-slate-400 mb-1">대협팀 출장인원</p>
-                            <div className="flex flex-wrap gap-1">
-                              {list.map(s => (
-                                <span key={s} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100 font-semibold">{s}</span>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      } catch { return null; }
-                    })()}
-                    {/* 컨설턴트 출장인원 */}
-                    {w.consultant_members && (() => {
-                      try {
-                        const list: string[] = JSON.parse(w.consultant_members);
-                        if (list.length > 0) return (
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-400 mb-1">컨설턴트 출장인원</p>
-                            <div className="flex flex-wrap gap-1">
-                              {list.map(s => (
-                                <span key={s} className="text-[10px] px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded-full border border-violet-100 font-semibold">{s}</span>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      } catch { return null; }
-                    })()}
-                  </div>
-                ))}
-                {selAll.mt.map(m=>(
-                  <div key={`m${m.id}`} className="rounded-xl p-3 bg-violet-50 border border-violet-100">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-violet-700">미팅일정</span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full text-white text-[10px] ${getColor(m.assigned_to)}`}>{m.assigned_to}</span>
-                    </div>
-                    <p className="text-sm font-bold text-slate-800">{m.name}</p>
-                    {m.phone&&<p className="text-xs text-slate-500 flex items-center gap-1"><Phone size={10}/>{m.phone}</p>}
-                    {m.meeting_address&&<p className="text-xs text-slate-500 flex items-center gap-1"><MapPin size={10}/>{m.meeting_address}</p>}
-                  </div>
-                ))}
-                {selAll.ev.map(e=>(
-                  <div key={e.id} className={`rounded-xl p-3 border ${EV_COLORS[e.event_type]||EV_COLORS["기타"]}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold">{e.event_type}</span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full text-white text-[10px] ${getColor(e.author)}`}>{e.author}</span>
-                    </div>
-                    {e.content&&<p className="text-xs text-slate-600 leading-relaxed">{e.content}</p>}
-                  </div>
-                ))}
-                {selAll.ev.length===0&&selAll.mt.length===0&&selAll.wp.length===0&&(
-                  <p className="text-xs text-slate-300 text-center py-4">일정 없음</p>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center justify-center flex-1">
-              <p className="text-xs text-slate-300 text-center">날짜를 클릭하면<br/>일정을 확인할 수 있습니다</p>
-            </div>
-          )}
 
-          {/* 범례 */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3">
-            <p className="text-xs font-bold text-slate-400 mb-2">범례</p>
-            <div className="space-y-1">
-              {[
-                {label:"미팅일정",cls:"bg-violet-100 text-violet-700"},
-                {label:"완판트럭",cls:"bg-amber-100 text-amber-700"},
-                {label:"연차",cls:"bg-red-100 text-red-700"},
-                {label:"반차",cls:"bg-orange-100 text-orange-700"},
-                {label:"미팅",cls:"bg-blue-100 text-blue-700"},
-                {label:"기타",cls:"bg-slate-100 text-slate-600"},
-              ].map(({label,cls})=>(
-                <div key={label} className={`text-[10px] px-2 py-0.5 rounded font-semibold ${cls}`}>{label}</div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
