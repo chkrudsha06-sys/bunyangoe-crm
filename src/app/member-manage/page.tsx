@@ -17,7 +17,7 @@ function getAvatarColor(n: string): string {
 }
 
 interface VipContact {
-  id: number; name: string; phone: string | null;
+  id: number; name: string; title: string | null; phone: string | null;
   assigned_to: string; meeting_result: string;
   contract_date: string | null; reservation_date: string | null;
   consultant: string | null; memo: string | null;
@@ -157,6 +157,8 @@ export default function MemberManagePage() {
   const [search, setSearch]     = useState("");
   const [filterMember, setFilterMember] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterPayStatus, setFilterPayStatus] = useState("");
+  const [filterConsultant, setFilterConsultant] = useState("");
   const [feeCount, setFeeCount] = useState<Record<string, number>>({});
 
   const TEAM = ["조계현","이세호","기여운","최연전"];
@@ -166,7 +168,7 @@ export default function MemberManagePage() {
   const fetchMembers = async () => {
     setLoading(true);
     let q = supabase.from("contacts")
-      .select("id,name,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_code,bank_name,bank_account,regular_payment_date")
+      .select("id,name,title,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_code,bank_name,bank_account,regular_payment_date")
       .in("meeting_result",["계약완료","예약완료"]);
     if (filterMember) q = q.eq("assigned_to", filterMember);
     if (filterStatus) q = q.eq("meeting_result", filterStatus);
@@ -189,12 +191,18 @@ export default function MemberManagePage() {
     setLoading(false);
   };
 
-  const filtered = contacts.filter(c =>
-    !search || c.name.includes(search) ||
-    (c.phone && c.phone.includes(search)) ||
-    (c.bunyanghoe_number && c.bunyanghoe_number.includes(search)) ||
-    (c.bank_holder && c.bank_holder.includes(search))
-  );
+  const filtered = contacts.filter(c => {
+    const matchSearch = !search || c.name.includes(search) ||
+      ((c as any).title && (c as any).title.includes(search)) ||
+      (c.phone && c.phone.includes(search)) ||
+      (c.bunyanghoe_number && c.bunyanghoe_number.includes(search)) ||
+      (c.bank_holder && c.bank_holder.includes(search));
+    const feeCnt = feeCount[c.name] || (c.bunyanghoe_number ? feeCount[`num:${c.bunyanghoe_number}`] : 0) || 0;
+    const payStatus = calcPaymentStatus(c, feeCnt);
+    const matchPayStatus = !filterPayStatus || payStatus === filterPayStatus;
+    const matchConsultant = !filterConsultant || c.consultant === filterConsultant;
+    return matchSearch && matchPayStatus && matchConsultant;
+  });
   const contracts    = filtered.filter(c=>c.meeting_result==="계약완료");
   const reservations = filtered.filter(c=>c.meeting_result==="예약완료");
 
@@ -226,19 +234,33 @@ export default function MemberManagePage() {
         <div className="flex items-center gap-2">
           <div className="relative flex-1 max-w-xs">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-            <input type="text" placeholder="이름, 연락처, 예금주 검색..." value={search}
+            <input type="text" placeholder="고객명, 직급, 연락처, 예금주 검색..." value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
           </div>
-          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-            <option value="">전체 상태</option>
+          <select value={filterPayStatus} onChange={e=>setFilterPayStatus(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none">
+            <option value="">상태</option>
+            <option value="정상">정상</option>
+            <option value="이상">이상</option>
+            <option value="예약">예약</option>
+          </select>
+          <select value={filterConsultant} onChange={e=>setFilterConsultant(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none">
+            <option value="">담당컨설턴트</option>
+            {["박경화","박혜은","조승현","박민경","백선중","강아름","전정훈","박나라"].map(m=><option key={m} value={m}>{m}</option>)}
+          </select>
+          <select value={filterMember} onChange={e=>setFilterMember(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none">
+            <option value="">대협팀담당자</option>
+            {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
+          </select>
+          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none">
+            <option value="">계약상태</option>
             <option value="계약완료">계약완료</option>
             <option value="예약완료">예약완료</option>
           </select>
-          <select value={filterMember} onChange={e=>setFilterMember(e.target.value)} className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-            <option value="">전체 담당자</option>
-            {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
-          </select>
+          <button onClick={()=>{setSearch("");setFilterPayStatus("");setFilterConsultant("");setFilterMember("");setFilterStatus("");}}
+            className={`text-xs px-2.5 py-2 font-semibold rounded-xl whitespace-nowrap transition-colors ${(search||filterPayStatus||filterConsultant||filterMember||filterStatus) ? "bg-red-500 text-white border border-red-500" : "text-red-400 border border-red-200 hover:bg-red-50"}`}>
+            ↺ 초기화
+          </button>
         </div>
       </div>
 
@@ -257,7 +279,7 @@ export default function MemberManagePage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {["넘버링","회차","상태","고객명","연락처","담당컨설턴트","대협팀","계약상태","예금주","은행코드","은행명","계좌번호","정기출금일","계약/예약일","메모"].map(h=>(
+                  {["넘버링","회차","상태","고객명","직급","연락처","담당컨설턴트","대협팀","계약상태","예금주","은행코드","은행명","계좌번호","정기출금일","계약/예약일","메모"].map(h=>(
                     <th key={h} className="text-center px-3 py-3 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>

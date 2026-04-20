@@ -11,7 +11,7 @@ interface WanpanItem { id: number; dispatch_date: string | null; site_name: stri
 const EV_COLORS: Record<string, string> = {
   연차:    "bg-red-100 text-red-700 border-red-200",
   반차:    "bg-orange-100 text-orange-700 border-orange-200",
-  미팅:    "bg-blue-100 text-blue-700 border-blue-200",
+  분양회미팅: "bg-violet-100 text-violet-700 border-violet-200",
   기타:    "bg-slate-100 text-slate-600 border-slate-200",
   미팅일정: "bg-violet-100 text-violet-700 border-violet-200",
   완판트럭: "bg-amber-100 text-amber-700 border-amber-200",
@@ -101,11 +101,9 @@ export default function CalendarPage() {
               <button onClick={()=>{if(month===12){setMonth(1);setYear(y=>y+1);}else setMonth(m=>m+1);}}
                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400"><ChevronRight size={16}/></button>
             </div>
-            <button onClick={()=>{setYear(new Date().getFullYear());setMonth(new Date().getMonth()+1);}}
-              className="px-3 py-1 text-xs font-semibold bg-blue-50 text-blue-600 rounded-lg border border-blue-100">오늘</button>
             {/* 통계 */}
             <div className="flex items-center gap-2 ml-2">
-              <span className="text-xs px-2 py-1 rounded-lg bg-violet-50 text-violet-600 border border-violet-100 font-semibold">미팅 {totalMt}건</span>
+              <span className="text-xs px-2 py-1 rounded-lg bg-violet-50 text-violet-600 border border-violet-100 font-semibold">분양회미팅 {totalMt}건</span>
               <span className="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 font-semibold">완판트럭 {totalWp}건</span>
               <span className="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 font-semibold">개인일정 {totalEv}건</span>
             </div>
@@ -153,7 +151,7 @@ export default function CalendarPage() {
                   <div key={`tm${m.id}`} className="flex items-center gap-2 px-2 py-1.5 bg-violet-50 rounded-lg border border-violet-100">
                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(m.assigned_to)}`}/>
                     <span className="text-xs font-semibold text-violet-700 truncate">
-                      미팅 · {m.name} ({m.assigned_to})
+                      분양회미팅 · {m.name} ({m.assigned_to})
                     </span>
                   </div>
                 ))}
@@ -179,7 +177,7 @@ export default function CalendarPage() {
             </span>
             <div className="flex gap-1.5 ml-auto">
               {wanpan.length > 0 && <span className="text-[10px] px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full font-semibold">완판트럭 {wanpan.length}</span>}
-              {meetings.length > 0 && <span className="text-[10px] px-2 py-0.5 bg-violet-50 text-violet-600 border border-violet-100 rounded-full font-semibold">미팅 {meetings.length}</span>}
+              {meetings.length > 0 && <span className="text-[10px] px-2 py-0.5 bg-violet-50 text-violet-600 border border-violet-100 rounded-full font-semibold">분양회미팅 {meetings.length}</span>}
               {events.length > 0 && <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-full font-semibold">개인일정 {events.length}</span>}
             </div>
           </div>
@@ -200,7 +198,7 @@ export default function CalendarPage() {
               })),
               ...meetings.map(m => ({
                 date: m.meeting_date?.split("T")[0] || "",
-                type: "미팅",
+                type: "분양회미팅",
                 label: m.name,
                 sub: `${m.assigned_to}${m.meeting_address ? " · " + m.meeting_address : ""}`,
                 color: "bg-violet-50 border-violet-100",

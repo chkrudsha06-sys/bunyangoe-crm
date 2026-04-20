@@ -834,7 +834,11 @@ export default function SalesPage() {
                       <option value="">선택</option>{TEAM.map(m=><option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
-                  <div><label className={lbl}>담당 컨설턴트</label><input className={inp} value={form.consultant} onChange={e=>setForm({...form,consultant:e.target.value})} placeholder="컨설턴트명"/></div>
+                  <div><label className={lbl}>담당컨설턴트</label>
+                    <select className={inp} value={form.consultant} onChange={e=>setForm({...form,consultant:e.target.value})}>
+                      <option value="">선택</option>
+                      {["박경화","박혜은","조승현","박민경","백선중","강아름","전정훈","박나라"].map(c=><option key={c} value={c}>{c}</option>)}
+                    </select></div>
                 </div>
               )}
 
@@ -879,7 +883,11 @@ export default function SalesPage() {
                       <option value="">선택</option>{TEAM.map(m=><option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
-                  <div><label className={lbl}>담당 컨설턴트</label><input className={inp} value={form.consultant} onChange={e=>setForm({...form,consultant:e.target.value})} placeholder="컨설턴트명"/></div>
+                  <div><label className={lbl}>담당컨설턴트</label>
+                    <select className={inp} value={form.consultant} onChange={e=>setForm({...form,consultant:e.target.value})}>
+                      <option value="">선택</option>
+                      {["박경화","박혜은","조승현","박민경","백선중","강아름","전정훈","박나라"].map(c=><option key={c} value={c}>{c}</option>)}
+                    </select></div>
                   <div className="col-span-2">
                     <label className={lbl}>환불금액</label>
                     <input className={inp} value={form.refund_amount}

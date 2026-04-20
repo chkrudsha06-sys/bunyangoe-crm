@@ -170,7 +170,7 @@ export default function PipelinePage() {
   const [search, setSearch] = useState("");
   const [fProspect, setFProspect] = useState("");
   const [fAssigned, setFAssigned] = useState("");
-  const [fResult, setFResult] = useState("");
+  const [fStage, setFStage] = useState("");
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -186,7 +186,7 @@ export default function PipelinePage() {
         .from("contacts")
         .select("id,name,title,phone,tm_sensitivity,prospect_type,meeting_date,meeting_date_text,meeting_address,meeting_result,management_stage,assigned_to,memo")
         .order("created_at", { ascending: false });
-      if (execName) q = q.eq("assigned_to", execName);
+      if (execName) { q = q.eq("assigned_to", execName); }
       const { data } = await q;
       setContacts((data || []) as Contact[]);
       setLoading(false);
@@ -196,13 +196,13 @@ export default function PipelinePage() {
 
   const filtered = contacts.filter(c => {
     const matchSearch = !search || 
-      c.name.includes(search) || 
-      (c.phone && c.phone.includes(search)) ||
-      (c.meeting_address && c.meeting_address.includes(search));
+      c.name.includes(search) ||
+      (c.title && c.title.includes(search)) ||
+      (c.phone && c.phone.includes(search));
     const matchProspect = !fProspect || c.prospect_type === fProspect;
     const matchAssigned = !fAssigned || c.assigned_to === fAssigned;
-    const matchResult = !fResult || c.meeting_result === fResult;
-    return matchSearch && matchProspect && matchAssigned && matchResult;
+    const matchStage = !fStage || c.management_stage === fStage;
+    return matchSearch && matchProspect && matchAssigned && matchStage;
   });
 
   const getColumnContacts = (colKey: string) => {
@@ -232,7 +232,7 @@ export default function PipelinePage() {
         <div className="flex items-center gap-2">
           <div className="relative flex-1 max-w-xs">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-            <input type="text" placeholder="이름, 연락처, 지역 검색..." value={search}
+            <input type="text" placeholder="고객명, 직급, 연락처 검색..." value={search}
               onChange={e=>setSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
           </div>
@@ -243,22 +243,23 @@ export default function PipelinePage() {
             <option value="미팅예정가망">미팅예정가망</option>
             <option value="연계매출가망">연계매출가망</option>
           </select>
-          <select value={fResult} onChange={e=>setFResult(e.target.value)}
+          <select value={fStage} onChange={e=>setFStage(e.target.value)}
             className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 outline-none">
-            <option value="">전체 미팅결과</option>
-            <option value="계약완료">계약완료</option>
-            <option value="예약완료">예약완료</option>
-            <option value="미팅후가망관리">미팅후가망관리</option>
+            <option value="">고객관리구간</option>
+            <option value="리드">리드</option>
+            <option value="프로스펙팅">프로스펙팅</option>
+            <option value="딜크로징">딜크로징</option>
+            <option value="리텐션">리텐션</option>
           </select>
           <select value={fAssigned} onChange={e=>setFAssigned(e.target.value)}
             className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 outline-none">
             <option value="">전체 담당자</option>
             {["조계현","이세호","기여운","최연전"].map(m=><option key={m} value={m}>{m}</option>)}
           </select>
-          {(search||fProspect||fResult||fAssigned) && (
-            <button onClick={()=>{setSearch("");setFProspect("");setFResult("");setFAssigned("");}}
-              className="text-xs text-red-400 hover:text-red-600 px-2 py-1">초기화</button>
-          )}
+          <button onClick={()=>{setSearch("");setFProspect("");setFStage("");setFAssigned("");}}
+            className={`text-xs px-2.5 py-2 font-semibold rounded-xl whitespace-nowrap transition-colors ${(search||fProspect||fStage||fAssigned) ? "bg-red-500 text-white border border-red-500 hover:bg-red-600" : "text-red-400 border border-red-200 hover:bg-red-50"}`}>
+            ↺ 초기화
+          </button>
         </div>
       </div>
 

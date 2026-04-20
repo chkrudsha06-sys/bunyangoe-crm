@@ -235,9 +235,12 @@ export default function VipMembersPage() {
     setLoading(false);
   };
 
-  const filtered = contacts.filter(c =>
-    !search || c.name.includes(search) || (c.phone && c.phone.includes(search))
-  );
+  const filtered = allVip.filter(c => {
+    const matchSearch = !search || c.name.includes(search) || (c.phone&&c.phone.includes(search)) || (c.bunyanghoe_number&&c.bunyanghoe_number.includes(search)) || (c.assigned_to&&c.assigned_to.includes(search));
+    const matchAssigned = !fAssigned || c.assigned_to === fAssigned;
+    const matchConsultant = !fConsultant || c.consultant === fConsultant;
+    return matchSearch && matchAssigned && matchConsultant;
+  });
   const contracts    = filtered.filter(c=>c.meeting_result==="계약완료");
   const reservations = filtered.filter(c=>c.meeting_result==="예약완료");
 
@@ -254,7 +257,7 @@ export default function VipMembersPage() {
         <div className="flex items-center gap-2">
           <div className="relative flex-1 max-w-xs">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-            <input type="text" placeholder="이름, 연락처 검색..." value={search}
+            <input type="text" placeholder="넘버링, 고객명, 연락처, 담당자 검색..." value={search}
               onChange={e=>setSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
           </div>

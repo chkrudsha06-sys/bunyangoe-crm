@@ -113,6 +113,8 @@ export default function ContactsPage() {
   const [fResult, setFResult] = useState("");
   const [fStage, setFStage] = useState("");
   const [fAssigned, setFAssigned] = useState("");
+  const [fTmSens, setFTmSens] = useState("");
+  const [fConsultant, setFConsultant] = useState("");
   const [page, setPage] = useState(1);
   const PER_PAGE = 30;
 
@@ -127,23 +129,25 @@ export default function ContactsPage() {
     } catch {}
 
     // 필터가 하나라도 적용되면 exec 제한 해제
-    const hasFilter = !!(search || fCustomerType || fProspect || fResult || fStage || fAssigned);
+    const hasFilter = !!(search || fCustomerType || fProspect || fResult || fStage || fAssigned || fTmSens || fConsultant);
 
     let q = supabase.from("contacts").select("*", { count: "exact" });
     // 필터 없을 때만 exec 본인 고객 제한
     if (execName && !hasFilter) q = q.eq("assigned_to", execName);
-    if (search) q = q.or(`name.ilike.%${search}%,phone.ilike.%${search}%,memo.ilike.%${search}%,meeting_address.ilike.%${search}%`);
+    if (search) q = q.or(`name.ilike.%${search}%,title.ilike.%${search}%,phone.ilike.%${search}%`);
     if (fCustomerType) q = q.eq("customer_type", fCustomerType);
     if (fProspect) q = q.eq("prospect_type", fProspect);
     if (fResult) q = q.eq("meeting_result", fResult);
     if (fStage) q = q.eq("management_stage", fStage);
+    if (fTmSens) q = q.eq("tm_sensitivity", fTmSens);
+    if (fConsultant) q = q.eq("consultant", fConsultant);
     if (fAssigned && fAssigned !== "__ALL__") q = q.eq("assigned_to", fAssigned);
     q = q.order("created_at", { ascending: false }).range((page-1)*PER_PAGE, page*PER_PAGE-1);
     const { data, count } = await q;
     setContacts((data || []) as Contact[]);
     setTotal(count || 0);
     setLoading(false);
-  }, [search, fCustomerType, fProspect, fResult, fStage, fAssigned, page]);
+  }, [search, fCustomerType, fProspect, fResult, fStage, fAssigned, fTmSens, fConsultant, page]);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
@@ -230,7 +234,7 @@ export default function ContactsPage() {
   const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 
   const totalPages = Math.ceil(total / PER_PAGE);
-  const activeFilters = [fCustomerType, fProspect, fResult, fStage, fAssigned].filter(Boolean).length;
+  const activeFilters = [fCustomerType, fProspect, fResult, fStage, fAssigned, fTmSens, fConsultant].filter(Boolean).length;
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
@@ -251,14 +255,14 @@ export default function ContactsPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 max-w-xs">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-            <input type="text" placeholder="이름, 연락처, 메모, 지역 검색..." value={search}
+            <input type="text" placeholder="고객명, 직급, 연락처 검색..." value={search}
               onChange={e=>{setSearch(e.target.value);setPage(1);}}
               className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
           </div>
           <Sel val={fCustomerType} onChange={v=>{setFCustomerType(v);setPage(1);}} opts={OPT.customer_type} placeholder="고객유형"/>
+          <Sel val={fTmSens} onChange={v=>{setFTmSens(v);setPage(1);}} opts={OPT.tm_sensitivity} placeholder="TM감도"/>
           <Sel val={fProspect} onChange={v=>{setFProspect(v);setPage(1);}} opts={OPT.prospect_type} placeholder="가망구분"/>
-          <Sel val={fResult} onChange={v=>{setFResult(v);setPage(1);}} opts={OPT.meeting_result} placeholder="미팅결과"/>
-          <Sel val={fStage} onChange={v=>{setFStage(v);setPage(1);}} opts={OPT.management_stage} placeholder="고객관리구간"/>
+          <Sel val={fStage} onChange={v=>{setFStage(v);setPage(1);}} opts={OPT.management_stage} placeholder="관리구간"/>
           {/* 담당자 — 전체/개인 선택 */}
           <select
             value={fAssigned}
@@ -268,10 +272,15 @@ export default function ContactsPage() {
             <option value="__ALL__">전체</option>
             {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
           </select>
+          <select value={fConsultant} onChange={e=>{setFConsultant(e.target.value);setPage(1);}}
+            className="w-full appearance-none px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-400 pr-7" style={{minWidth:"110px",maxWidth:"140px"}}>
+            <option value="">담당컨설턴트</option>
+            {["박경화","박혜은","조승현","박민경","백선중","강아름","전정훈","박나라"].map((m: string)=><option key={m} value={m}>{m}</option>)}
+          </select>
           {/* 필터 초기화 */}
           <button
-            onClick={()=>{setFCustomerType("");setFProspect("");setFResult("");setFStage("");setFAssigned("");setSearch("");setPage(1);}}
-            className="px-2.5 py-2 text-xs font-semibold text-red-400 border border-red-200 rounded-xl hover:bg-red-50 whitespace-nowrap">
+            onClick={()=>{setFCustomerType("");setFProspect("");setFResult("");setFStage("");setFAssigned("");setFTmSens("");setFConsultant("");setSearch("");setPage(1);}}
+            className={`px-2.5 py-2 text-xs font-semibold rounded-xl whitespace-nowrap transition-colors ${activeFilters > 0 ? "bg-red-500 text-white border border-red-500 hover:bg-red-600" : "text-red-400 border border-red-200 hover:bg-red-50"}`}>
             ↺ 초기화
           </button>
         </div>
@@ -417,7 +426,12 @@ export default function ContactsPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div><label className={lbl}>고객명 *</label><input className={inp} value={form.name} onChange={e=>f("name",e.target.value)} placeholder="홍길동"/></div>
                 <div><label className={lbl}>직급</label><input className={inp} value={form.title} onChange={e=>f("title",e.target.value)} placeholder="본부장"/></div>
-                <div><label className={lbl}>연락처</label><input className={inp} value={form.phone} onChange={e=>f("phone",e.target.value)} placeholder="010-0000-0000"/></div>
+                <div><label className={lbl}>연락처</label><input className={inp} value={form.phone} onChange={e=>{
+                  let v = e.target.value.replace(/[^0-9]/g,"");
+                  if(v.length>3&&v.length<=7) v=v.slice(0,3)+"-"+v.slice(3);
+                  else if(v.length>7) v=v.slice(0,3)+"-"+v.slice(3,7)+"-"+v.slice(7,11);
+                  f("phone",v);
+                }} placeholder="010-0000-0000" maxLength={13}/></div>
                 <div>
                   <label className={lbl}>고객유형</label>
                   <Sel val={form.customer_type} onChange={v=>f("customer_type",v)} opts={OPT.customer_type} placeholder="선택"/>
@@ -481,7 +495,17 @@ export default function ContactsPage() {
                 </div>
                 <div>
                   <label className={lbl}>담당컨설턴트</label>
-                  <input className={inp} value={form.consultant} onChange={e=>f("consultant",e.target.value)} placeholder="담당 컨설턴트명"/>
+                  <select className={inp} value={form.consultant} onChange={e=>f("consultant",e.target.value)}>
+                    <option value="">선택</option>
+                    <option value="박경화">박경화</option>
+                    <option value="박혜은">박혜은</option>
+                    <option value="조승현">조승현</option>
+                    <option value="박민경">박민경</option>
+                    <option value="백선중">백선중</option>
+                    <option value="강아름">강아름</option>
+                    <option value="전정훈">전정훈</option>
+                    <option value="박나라">박나라</option>
+                  </select>
                 </div>
                 <div className="col-span-3">
                   <label className={lbl}>비고</label>

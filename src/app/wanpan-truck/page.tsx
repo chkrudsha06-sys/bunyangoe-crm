@@ -325,7 +325,7 @@ export default function WanpanTruckPage() {
           </select>
           <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
             <span className="text-sm font-bold text-blue-600">{trucks.length}</span>
-            <span className="text-sm text-blue-500">전체 회차</span>
+            <span className="text-sm text-blue-500">전체진행 {trucks.length}회차</span>
           </div>
           <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[#1E3A8A] text-white text-sm font-semibold rounded-lg hover:bg-blue-800 shadow-sm ml-auto">
             <Plus size={14} />신규 등록
@@ -465,7 +465,12 @@ export default function WanpanTruckPage() {
                 <div><label className={lbl}>대행사</label><input className={inp} value={form.agency} onChange={e=>setForm({...form,agency:e.target.value})}/></div>
                 <div><label className={lbl}>접점 (소통자 이름)</label><input className={inp} value={form.contact_point} onChange={e=>setForm({...form,contact_point:e.target.value})} placeholder="홍길동"/></div>
                 <div><label className={lbl}>소통자 직급</label><input className={inp} value={form.contact_point_title} onChange={e=>setForm({...form,contact_point_title:e.target.value})} placeholder="본부장"/></div>
-                <div><label className={lbl}>소통자 연락처</label><input className={inp} value={form.contact_phone} onChange={e=>setForm({...form,contact_phone:e.target.value})} placeholder="010-0000-0000"/></div>
+                <div><label className={lbl}>소통자 연락처</label><input className={inp} value={form.contact_phone} onChange={e=>{
+                  let v = e.target.value.replace(/[^0-9]/g,"");
+                  if(v.length>3&&v.length<=7) v=v.slice(0,3)+"-"+v.slice(3);
+                  else if(v.length>7) v=v.slice(0,3)+"-"+v.slice(3,7)+"-"+v.slice(7,11);
+                  setForm({...form,contact_phone:v});
+                }} placeholder="010-0000-0000" maxLength={13}/></div>
                 <div><label className={lbl}>조직수</label><input type="number" className={inp} value={form.team_size} onChange={e=>setForm({...form,team_size:e.target.value})} placeholder="명"/></div>
                 <div>
                   <label className={lbl}>대협팀 출장인원 (명수)</label>
