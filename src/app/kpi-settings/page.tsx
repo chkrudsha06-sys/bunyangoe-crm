@@ -148,15 +148,19 @@ export default function KpiSettingsPage() {
 
   const handleSave = async () => {
     setSaving(true);
+    const strip = (row: any, y: number, m: number, w: number, s: string, tn: string) => {
+      const { id, ...rest } = row;
+      return { ...rest, year:y, month:m, week:w, scope:s, target_name:tn };
+    };
     const allRows: any[] = [
       // 월간
-      { ...mTeam["team"], year, month, week:0, scope:"team", target_name:"team" },
-      ...EXEC_MEMBERS.map(n=>({ ...mExec[n], year, month, week:0, scope:"execution", target_name:n })),
-      ...OPS_MEMBERS.map(n=>({ ...mOps[n], year, month, week:0, scope:"operation", target_name:n })),
+      strip(mTeam["team"], year, month, 0, "team", "team"),
+      ...EXEC_MEMBERS.map(n=>strip(mExec[n], year, month, 0, "execution", n)),
+      ...OPS_MEMBERS.map(n=>strip(mOps[n], year, month, 0, "operation", n)),
       // 주간
-      { ...wTeam["team"], year, month, week:selWeek, scope:"team", target_name:"team" },
-      ...EXEC_MEMBERS.map(n=>({ ...wExec[n], year, month, week:selWeek, scope:"execution", target_name:n })),
-      ...OPS_MEMBERS.map(n=>({ ...wOps[n], year, month, week:selWeek, scope:"operation", target_name:n })),
+      strip(wTeam["team"], year, month, selWeek, "team", "team"),
+      ...EXEC_MEMBERS.map(n=>strip(wExec[n], year, month, selWeek, "execution", n)),
+      ...OPS_MEMBERS.map(n=>strip(wOps[n], year, month, selWeek, "operation", n)),
     ];
     const { error } = await supabase.from("kpi_settings").upsert(allRows, { onConflict: "year,month,week,scope,target_name" });
     setSaving(false);
