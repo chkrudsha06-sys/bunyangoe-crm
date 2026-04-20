@@ -327,13 +327,24 @@ interface Actuals {
 function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
   const [team, setTeam] = useState<KpiRow | null>(null);
   const [mine, setMine] = useState<KpiRow | null>(null);
+  const [wTeam, setWTeam] = useState<KpiRow | null>(null);
+  const [wMine, setWMine] = useState<KpiRow | null>(null);
   const [actuals, setActuals] = useState<Actuals>({
-    teamRecruit: 0, teamBunyanghoeRev: 0, teamLinkedRev: 0,
-    teamSpecialRev: 0, teamWanpan: 0,
-    myRecruit: 0, myBunyanghoeRev: 0, myLinkedRev: 0,
-    myAdOperationRev: 0,
+    teamRecruit:0, teamBunyanghoeRev:0, teamLinkedRev:0,
+    teamSpecialRev:0, teamWanpan:0,
+    myRecruit:0, myBunyanghoeRev:0, myLinkedRev:0, myAdOperationRev:0,
+  });
+  const [wActuals, setWActuals] = useState<Actuals>({
+    teamRecruit:0, teamBunyanghoeRev:0, teamLinkedRev:0,
+    teamSpecialRev:0, teamWanpan:0,
+    myRecruit:0, myBunyanghoeRev:0, myLinkedRev:0, myAdOperationRev:0,
   });
   const [loading, setLoading] = useState(true);
+  const [kpiMode, setKpiMode] = useState<"monthly"|"weekly">("monthly");
+
+  // 현재 주차 계산
+  const getCurrentWeek = () => { const d = new Date().getDate(); return Math.min(Math.ceil(d / 7), 5); };
+  const curWeek = getCurrentWeek();
 
   useEffect(() => {
     if (!user) return;
@@ -345,93 +356,99 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
       const monthStr = String(month).padStart(2,"0");
       const lastDay = new Date(year, month, 0).getDate();
       const monthStart = `${year}-${monthStr}-01`;
-      const monthEnd   = `${year}-${monthStr}-${String(lastDay).padStart(2,"0")}`;
+      const monthEnd = `${year}-${monthStr}-${String(lastDay).padStart(2,"0")}`;
 
-      const { data: t } = await supabase.from("kpi_settings")
-        .select("*")
-        .eq("year", year).eq("month", month).eq("week", 0)
-        .eq("scope", "team")
-        .maybeSingle();
+      // 주간 날짜 범위
+      const wStart = (curWeek - 1) * 7 + 1;
+      const wEnd = Math.min(curWeek * 7, lastDay);
+      const weekStart = `${year}-${monthStr}-${String(wStart).padStart(2,"0")}`;
+      const weekEnd = `${year}-${monthStr}-${String(wEnd).padStart(2,"0")}`;
+
+      // 월간 KPI 목표 로드
+      const { data: t } = await supabase.from("kpi_settings").select("*")
+        .eq("year",year).eq("month",month).eq("week",0).eq("scope","team").maybeSingle();
       setTeam(t as KpiRow | null);
+
+      // 주간 KPI 목표 로드
+      const { data: wt } = await supabase.from("kpi_settings").select("*")
+        .eq("year",year).eq("month",month).eq("week",curWeek).eq("scope","team").maybeSingle();
+      setWTeam(wt as KpiRow | null);
 
       if (user.role === "exec" || user.role === "ops") {
         const scope = user.role === "exec" ? "execution" : "operation";
-        const { data: m } = await supabase.from("kpi_settings")
-          .select("*")
-          .eq("year", year).eq("month", month).eq("week", 0)
-          .eq("scope", scope).eq("target_name", user.name)
-          .maybeSingle();
+        const { data: m } = await supabase.from("kpi_settings").select("*")
+          .eq("year",year).eq("month",month).eq("week",0).eq("scope",scope).eq("target_name",user.name).maybeSingle();
         setMine(m as KpiRow | null);
-      } else {
-        setMine(null);
+        const { data: wm } = await supabase.from("kpi_settings").select("*")
+          .eq("year",year).eq("month",month).eq("week",curWeek).eq("scope",scope).eq("target_name",user.name).maybeSingle();
+        setWMine(wm as KpiRow | null);
       }
 
+      // 전체 매출 데이터 로드 (당월)
       const { data: execRows = [] } = await supabase.from("ad_executions")
         .select("id,execution_amount,vat_amount,channel,contract_route,payment_date,team_member")
-        .gte("payment_date", monthStart)
-        .lte("payment_date", monthEnd);
-      const execs = (execRows || []) as any[];
+        .gte("payment_date", monthStart).lte("payment_date", monthEnd);
+      const allExecs = (execRows || []) as any[];
 
       const { data: contactRows = [] } = await supabase.from("contacts")
         .select("id,assigned_to,meeting_result,contract_date,reservation_date")
         .in("meeting_result", ["계약완료","예약완료"]);
       const contacts = (contactRows || []) as any[];
 
-      const inMonth = (c: any): boolean => {
-        const date = c.meeting_result === "계약완료" ? c.contract_date : c.reservation_date;
-        if (!date) return false;
-        return date >= monthStart && date <= monthEnd;
-      };
-
-      const teamRecruit = contacts.filter(inMonth).length;
-
-      const teamBunyanghoeRev = execs
-        .filter(e => e.contract_route === "분양회")
-        .filter(e => e.channel === "분양회 입회비" || e.channel === "분양회 월회비")
-        .reduce((s, e) => s + effAmtKpi(e), 0);
-
-      const teamLinkedRev = execs
-        .filter(e => e.channel === "하이타겟")
-        .reduce((s, e) => s + effAmtKpi(e), 0);
-
-      const teamSpecialRev = execs
-        .filter(e => e.contract_route === "분양회")
-        .filter(e => SPECIAL_CHANNELS.includes(e.channel))
-        .reduce((s, e) => s + effAmtKpi(e), 0);
-
-      // 팀 전체 - 완판트럭 (발송일이 당월 1일 ~ 오늘까지 진행된 건수)
       const todayStr = new Date().toISOString().split("T")[0];
       const { data: wanpanRows = [] } = await supabase.from("wanpan_trucks")
-        .select("id,dispatch_date")
-        .gte("dispatch_date", monthStart)
-        .lte("dispatch_date", todayStr);
-      const teamWanpan = (wanpanRows || []).length;
+        .select("id,dispatch_date").gte("dispatch_date", monthStart).lte("dispatch_date", todayStr);
 
-      let myRecruit = 0, myBunyanghoeRev = 0, myLinkedRev = 0, myAdOperationRev = 0;
-      if (user.role === "exec") {
-        myRecruit = contacts.filter(c => c.assigned_to === user.name).filter(inMonth).length;
-        myBunyanghoeRev = execs.filter(e => e.team_member === user.name).filter(e => e.contract_route === "분양회").filter(e => e.channel === "분양회 입회비" || e.channel === "분양회 월회비").reduce((s, e) => s + effAmtKpi(e), 0);
-        myLinkedRev = execs.filter(e => e.team_member === user.name).filter(e => e.channel === "하이타겟").reduce((s, e) => s + effAmtKpi(e), 0);
-      }
+      // 계산 함수
+      const calcActuals = (execs: any[], dateStart: string, dateEnd: string) => {
+        const inRange = (c: any): boolean => {
+          const date = c.meeting_result === "계약완료" ? c.contract_date : c.reservation_date;
+          return date && date >= dateStart && date <= dateEnd;
+        };
+        const teamRecruit = contacts.filter(inRange).length;
+        const teamBunyanghoeRev = execs.filter(e=>e.contract_route==="분양회").filter(e=>e.channel==="분양회 입회비"||e.channel==="분양회 월회비").reduce((s,e)=>s+effAmtKpi(e),0);
+        const teamLinkedRev = execs.filter(e=>e.channel==="하이타겟").reduce((s,e)=>s+effAmtKpi(e),0);
+        const teamSpecialRev = execs.filter(e=>e.contract_route==="분양회").filter(e=>SPECIAL_CHANNELS.includes(e.channel)).reduce((s,e)=>s+effAmtKpi(e),0);
+        const teamWanpan = (wanpanRows||[]).filter((w:any)=>w.dispatch_date>=dateStart&&w.dispatch_date<=dateEnd).length;
+        let myRecruit=0, myBunyanghoeRev=0, myLinkedRev=0, myAdOperationRev=0;
+        if (user!.role === "exec") {
+          myRecruit = contacts.filter(c=>c.assigned_to===user!.name).filter(inRange).length;
+          myBunyanghoeRev = execs.filter(e=>e.team_member===user!.name).filter(e=>e.contract_route==="분양회").filter(e=>e.channel==="분양회 입회비"||e.channel==="분양회 월회비").reduce((s,e)=>s+effAmtKpi(e),0);
+          myLinkedRev = execs.filter(e=>e.team_member===user!.name).filter(e=>e.channel==="하이타겟").reduce((s,e)=>s+effAmtKpi(e),0);
+        }
+        if (user!.role === "ops") {
+          const targetMembers = OPS_MAPPING[user!.name] || [];
+          myAdOperationRev = execs.filter(e=>targetMembers.includes(e.team_member)).filter(e=>e.contract_route==="분양회").filter(e=>SPECIAL_CHANNELS.includes(e.channel)).reduce((s,e)=>s+effAmtKpi(e),0);
+        }
+        return { teamRecruit, teamBunyanghoeRev, teamLinkedRev, teamSpecialRev, teamWanpan, myRecruit, myBunyanghoeRev, myLinkedRev, myAdOperationRev };
+      };
 
-      if (user.role === "ops") {
-        const targetMembers = OPS_MAPPING[user.name] || [];
-        myAdOperationRev = execs.filter(e => targetMembers.includes(e.team_member)).filter(e => e.contract_route === "분양회").filter(e => SPECIAL_CHANNELS.includes(e.channel)).reduce((s, e) => s + effAmtKpi(e), 0);
-      }
+      // 월간 실적
+      setActuals(calcActuals(allExecs, monthStart, monthEnd));
+      // 주간 실적
+      const weekExecs = allExecs.filter(e => e.payment_date >= weekStart && e.payment_date <= weekEnd);
+      setWActuals(calcActuals(weekExecs, weekStart, weekEnd));
 
-      setActuals({ teamRecruit, teamBunyanghoeRev, teamLinkedRev, teamSpecialRev, teamWanpan, myRecruit, myBunyanghoeRev, myLinkedRev, myAdOperationRev });
       setLoading(false);
     };
     load();
   }, [user]);
 
+  const isWeekly = kpiMode === "weekly";
+  const tgt = isWeekly ? wTeam : team;
+  const myTgt = isWeekly ? wMine : mine;
+  const act = isWeekly ? wActuals : actuals;
+
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-slate-700">KPI</h3>
-        <span className="text-xs text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100 font-semibold">
-          {new Date().getFullYear()}.{String(new Date().getMonth()+1).padStart(2,"0")} 월간 기준
-        </span>
+        <div className="flex items-center gap-1">
+          <button onClick={()=>setKpiMode("monthly")}
+            className={`text-xs px-2.5 py-1 rounded-lg font-bold border transition-colors ${!isWeekly?"bg-blue-600 text-white border-blue-600":"bg-slate-50 text-slate-400 border-slate-200"}`}>월간</button>
+          <button onClick={()=>setKpiMode("weekly")}
+            className={`text-xs px-2.5 py-1 rounded-lg font-bold border transition-colors ${isWeekly?"bg-blue-600 text-white border-blue-600":"bg-slate-50 text-slate-400 border-slate-200"}`}>{curWeek}주차</button>
+        </div>
       </div>
 
       {loading ? (
@@ -444,17 +461,18 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
             <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-amber-200">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500"/>
               <span className="text-base font-black text-amber-700 tracking-tight">대협팀 전체</span>
+              <span className="text-xs text-slate-400 ml-auto">{isWeekly?`${curWeek}주차 목표`:"월간 목표"}</span>
             </div>
             <div className="text-xs font-bold text-slate-500 mb-2">주요 KPI</div>
             <div className="grid grid-cols-2 gap-2 mb-3">
-              <KpiItem label="분양회 모집"       target={team?.recruit_count       ?? 0} actual={actuals.teamRecruit}       unit="명" accentColor="#EC4899"/>
-              <KpiItem label="분양회 매출(회비)"  target={team?.bunyanghoe_revenue  ?? 0} actual={actuals.teamBunyanghoeRev} unit="원" isMoney accentColor="#10B981"/>
-              <KpiItem label="연계매출(하이타겟)" target={team?.linked_revenue      ?? 0} actual={actuals.teamLinkedRev}     unit="원" isMoney accentColor="#6366F1"/>
-              <KpiItem label="특전매출"           target={team?.special_revenue     ?? 0} actual={actuals.teamSpecialRev}    unit="원" isMoney accentColor="#F59E0B"/>
+              <KpiItem label="분양회 모집"       target={tgt?.recruit_count       ?? 0} actual={act.teamRecruit}       unit="명" accentColor="#EC4899"/>
+              <KpiItem label="분양회 매출(회비)"  target={tgt?.bunyanghoe_revenue  ?? 0} actual={act.teamBunyanghoeRev} unit="원" isMoney accentColor="#10B981"/>
+              <KpiItem label="연계매출(하이타겟)" target={tgt?.linked_revenue      ?? 0} actual={act.teamLinkedRev}     unit="원" isMoney accentColor="#6366F1"/>
+              <KpiItem label="특전매출"           target={tgt?.special_revenue     ?? 0} actual={act.teamSpecialRev}    unit="원" isMoney accentColor="#F59E0B"/>
             </div>
             <div className="text-xs font-bold text-slate-500 mb-2">부가 KPI</div>
             <div className="grid grid-cols-2 gap-2">
-              <KpiItem label="완판트럭"           target={team?.wanpan_truck_count  ?? 0} actual={actuals.teamWanpan}        unit="건" accentColor="#8B5CF6"/>
+              <KpiItem label="완판트럭"           target={tgt?.wanpan_truck_count  ?? 0} actual={act.teamWanpan}        unit="건" accentColor="#8B5CF6"/>
             </div>
           </div>
 
@@ -463,18 +481,19 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
               <span className="w-2.5 h-2.5 rounded-full bg-blue-500"/>
               <span className="text-base font-black text-blue-700 tracking-tight">내 목표</span>
               {user?.name && <span className="text-xs text-slate-400 font-semibold">({user.name})</span>}
+              <span className="text-xs text-slate-400 ml-auto">{isWeekly?`${curWeek}주차`:"월간"}</span>
             </div>
             <div className="text-xs font-bold text-slate-500 mb-2">주요 KPI</div>
 
             {user?.role === "exec" ? (
               <div className="grid grid-cols-2 gap-2">
-                <KpiItem label="분양회 모집"       target={mine?.recruit_count      ?? 0} actual={actuals.myRecruit}         unit="명" accentColor="#EC4899"/>
-                <KpiItem label="분양회 매출(회비)"  target={mine?.bunyanghoe_revenue ?? 0} actual={actuals.myBunyanghoeRev}   unit="원" isMoney accentColor="#10B981"/>
-                <KpiItem label="연계매출"          target={mine?.linked_revenue     ?? 0} actual={actuals.myLinkedRev}       unit="원" isMoney accentColor="#6366F1"/>
+                <KpiItem label="분양회 모집"       target={myTgt?.recruit_count      ?? 0} actual={act.myRecruit}         unit="명" accentColor="#EC4899"/>
+                <KpiItem label="분양회 매출(회비)"  target={myTgt?.bunyanghoe_revenue ?? 0} actual={act.myBunyanghoeRev}   unit="원" isMoney accentColor="#10B981"/>
+                <KpiItem label="연계매출"          target={myTgt?.linked_revenue     ?? 0} actual={act.myLinkedRev}       unit="원" isMoney accentColor="#6366F1"/>
               </div>
             ) : user?.role === "ops" ? (
               <div className="grid grid-cols-2 gap-2">
-                <KpiItem label="광고특전운영매출" target={mine?.ad_operation_revenue ?? 0} actual={actuals.myAdOperationRev} unit="원" isMoney accentColor="#F59E0B"/>
+                <KpiItem label="광고특전운영매출" target={myTgt?.ad_operation_revenue ?? 0} actual={act.myAdOperationRev} unit="원" isMoney accentColor="#F59E0B"/>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-6 text-center">
