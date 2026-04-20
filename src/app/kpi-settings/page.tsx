@@ -27,7 +27,7 @@ function MoneyInput({ value, onChange }: { value: number; onChange: (v:number)=>
     <div className="relative">
       <input type="text" inputMode="numeric" value={value?value.toLocaleString("ko-KR"):""}
         onChange={e=>{const r=e.target.value.replace(/[^0-9]/g,""); onChange(r?parseInt(r):0);}}
-        placeholder="0" className="w-full px-3 py-2 pr-8 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 font-mono text-right"/>
+        placeholder="0" className="w-full px-3 py-2.5 pr-8 text-sm font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 text-right"/>
       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">원</span>
     </div>
   );
@@ -36,7 +36,7 @@ function CountInput({ value, onChange, unit }: { value: number; onChange: (v:num
   return (
     <div className="relative">
       <input type="number" min={0} value={value||""} onChange={e=>onChange(parseInt(e.target.value)||0)}
-        placeholder="0" className="w-full px-3 py-2 pr-10 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 font-mono text-right"/>
+        placeholder="0" className="w-full px-3 py-2.5 pr-10 text-sm font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 text-right"/>
       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">{unit}</span>
     </div>
   );
@@ -53,7 +53,7 @@ function GoalSection({ title, color, borderColor, bgGradient, rows, members, sco
     <div className={`bg-white rounded-xl border ${borderColor} shadow-sm overflow-hidden`}>
       <div className={`${bgGradient} px-4 py-2.5 border-b ${borderColor} flex items-center gap-2`}>
         {isTeam ? <Users size={14} className={color}/> : <UserCircle size={14} className={color}/>}
-        <h3 className={`text-xs font-bold ${color}`}>{title}</h3>
+        <h3 className={`text-sm font-bold ${color}`}>{title}</h3>
       </div>
       <div className="p-3 space-y-3">
         {members.map(name => {
@@ -65,23 +65,23 @@ function GoalSection({ title, color, borderColor, bgGradient, rows, members, sco
                   <div className={`w-5 h-5 rounded-full ${scope==="execution"?"bg-blue-500":"bg-emerald-500"} flex items-center justify-center`}>
                     <span className="text-white text-[10px] font-bold">{name[0]}</span>
                   </div>
-                  <span className="text-xs font-bold text-slate-700">{name}</span>
+                  <span className="text-sm font-bold text-slate-700">{name}</span>
                 </div>
               )}
-              <div className={`grid ${isOps?"grid-cols-1":"grid-cols-2"} gap-2`}>
+              <div className={`grid ${isOps?"grid-cols-1":"grid-cols-3"} gap-2`}>
                 {!isOps && <>
-                  <div><label className="block text-[10px] font-semibold text-slate-400 mb-1">분양회 모집</label>
+                  <div><label className="block text-xs font-semibold text-slate-500 mb-1.5">분양회 모집</label>
                     <CountInput value={row.recruit_count||0} onChange={v=>onUpdate(name,{recruit_count:v})} unit="명"/></div>
-                  <div><label className="block text-[10px] font-semibold text-slate-400 mb-1">분양회 매출(회비)</label>
+                  <div><label className="block text-xs font-semibold text-slate-500 mb-1.5">분양회 매출(회비)</label>
                     <MoneyInput value={row.bunyanghoe_revenue||0} onChange={v=>onUpdate(name,{bunyanghoe_revenue:v})}/></div>
-                  <div><label className="block text-[10px] font-semibold text-slate-400 mb-1">{isTeam?"연계매출(하이타겟)":"연계매출"}</label>
+                  <div><label className="block text-xs font-semibold text-slate-500 mb-1.5">{isTeam?"연계매출(하이타겟)":"연계매출"}</label>
                     <MoneyInput value={row.linked_revenue||0} onChange={v=>onUpdate(name,{linked_revenue:v})}/></div>
-                  {isTeam && <div><label className="block text-[10px] font-semibold text-slate-400 mb-1">특전매출목표</label>
+                  {isTeam && <div><label className="block text-xs font-semibold text-slate-500 mb-1.5">특전매출목표</label>
                     <MoneyInput value={row.special_revenue||0} onChange={v=>onUpdate(name,{special_revenue:v})}/></div>}
-                  {isTeam && <div><label className="block text-[10px] font-semibold text-slate-400 mb-1">완판트럭</label>
+                  {isTeam && <div><label className="block text-xs font-semibold text-slate-500 mb-1.5">완판트럭</label>
                     <CountInput value={row.wanpan_truck_count||0} onChange={v=>onUpdate(name,{wanpan_truck_count:v})} unit="건"/></div>}
                 </>}
-                {isOps && <div><label className="block text-[10px] font-semibold text-slate-400 mb-1">광고특전운영매출</label>
+                {isOps && <div><label className="block text-xs font-semibold text-slate-500 mb-1.5">광고특전운영매출</label>
                   <MoneyInput value={row.ad_operation_revenue||0} onChange={v=>onUpdate(name,{ad_operation_revenue:v})}/></div>}
               </div>
             </div>
@@ -200,10 +200,17 @@ export default function KpiSettingsPage() {
           <div className="grid grid-cols-2 gap-5">
             {/* ═══ 좌측: 월간 목표 ═══ */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
-                <Calendar size={15} className="text-amber-500"/>
-                <h2 className="text-sm font-black text-slate-800">월간 목표</h2>
-                <span className="text-xs text-slate-400">{year}년 {month}월</span>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <Calendar size={15} className="text-amber-500"/>
+                  <h2 className="text-base font-black text-slate-800">월간 목표</h2>
+                  <span className="text-xs text-slate-400">{year}년 {month}월</span>
+                </div>
+                <button onClick={()=>{
+                  setMTeam({"team":makeEmpty(year,month,0,"team","team")});
+                  const me: Record<string,KpiRow>={}; EXEC_MEMBERS.forEach(n=>{me[n]=makeEmpty(year,month,0,"execution",n);}); setMExec(me);
+                  const mo: Record<string,KpiRow>={}; OPS_MEMBERS.forEach(n=>{mo[n]=makeEmpty(year,month,0,"operation",n);}); setMOps(mo);
+                }} className="text-xs px-3 py-1.5 text-red-400 border border-red-200 rounded-lg hover:bg-red-50 font-semibold">↺ 초기화</button>
               </div>
               <GoalSection title="대협팀 전체" color="text-amber-700" borderColor="border-amber-100" bgGradient="bg-gradient-to-r from-amber-50 to-orange-50"
                 rows={mTeam} members={["team"]} scope="team"
@@ -218,17 +225,24 @@ export default function KpiSettingsPage() {
 
             {/* ═══ 우측: 주간 목표 ═══ */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
-                <Calendar size={15} className="text-blue-500"/>
-                <h2 className="text-sm font-black text-slate-800">주간 목표</h2>
-                <div className="flex gap-1 ml-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <Calendar size={15} className="text-blue-500"/>
+                  <h2 className="text-base font-black text-slate-800">주간 목표</h2>
+                  <div className="flex gap-1 ml-1">
                   {[1,2,3,4,5].map(w=>(
                     <button key={w} onClick={()=>setSelWeek(w)}
                       className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-colors ${selWeek===w?"bg-blue-600 text-white border-blue-600":"bg-slate-50 text-slate-500 border-slate-200 hover:border-blue-300"}`}>
                       {w}주차
                     </button>
                   ))}
+                  </div>
                 </div>
+                <button onClick={()=>{
+                  setWTeam({"team":makeEmpty(year,month,selWeek,"team","team")});
+                  const we: Record<string,KpiRow>={}; EXEC_MEMBERS.forEach(n=>{we[n]=makeEmpty(year,month,selWeek,"execution",n);}); setWExec(we);
+                  const wo: Record<string,KpiRow>={}; OPS_MEMBERS.forEach(n=>{wo[n]=makeEmpty(year,month,selWeek,"operation",n);}); setWOps(wo);
+                }} className="text-xs px-3 py-1.5 text-red-400 border border-red-200 rounded-lg hover:bg-red-50 font-semibold">↺ 초기화</button>
               </div>
               <GoalSection title={`대협팀 전체 (${selWeek}주차)`} color="text-amber-700" borderColor="border-amber-100" bgGradient="bg-gradient-to-r from-amber-50 to-orange-50"
                 rows={wTeam} members={["team"]} scope="team"
