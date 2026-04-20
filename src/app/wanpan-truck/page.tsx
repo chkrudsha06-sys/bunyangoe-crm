@@ -318,14 +318,13 @@ export default function WanpanTruckPage() {
         <div className="flex items-center gap-2">
           <select value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}
             className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-semibold outline-none">
-            <option value="">전체</option>
+            <option value="">월별</option>
             {Array.from({length:12},(_,i)=>i+1).map(m=>(
               <option key={m} value={String(m)}>{m}월</option>
             ))}
           </select>
           <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
-            <span className="text-sm font-bold text-blue-600">{trucks.length}</span>
-            <span className="text-sm text-blue-500">전체진행 {trucks.length}회차</span>
+            <span className="text-sm font-bold text-blue-600">전체 {trucks.length}회차</span>
           </div>
           <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[#1E3A8A] text-white text-sm font-semibold rounded-lg hover:bg-blue-800 shadow-sm ml-auto">
             <Plus size={14} />신규 등록
