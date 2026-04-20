@@ -96,7 +96,7 @@ export default function CustomerDashboard() {
   if (loading) return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f5f6fa"}}><div style={{width:28,height:28,border:"3px solid #1E3A8A",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>;
   if (notFound) return <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#f5f6fa",fontFamily:"'Pretendard',sans-serif"}}><div style={{fontSize:48,marginBottom:16}}>🔒</div><h1 style={{fontSize:20,fontWeight:700,color:"#334155"}}>접근할 수 없는 페이지입니다</h1><p style={{fontSize:14,color:"#94a3b8",marginTop:8}}>유효하지 않은 대시보드 코드입니다</p></div>;
 
-  const Card = ({children,style}:{children:React.ReactNode;style?:React.CSSProperties}) => <div style={{background:"#fff",borderRadius:20,padding:"24px",boxShadow:"0 2px 16px rgba(0,0,0,0.06)",...style}}>{children}</div>;
+  const Card = ({children,style,className}:{children:React.ReactNode;style?:React.CSSProperties;className?:string}) => <div className={className} style={{background:"#fff",borderRadius:20,padding:"24px",boxShadow:"0 2px 16px rgba(0,0,0,0.06)",...style}}>{children}</div>;
   const SectionTitle = ({children}:{children:React.ReactNode}) => <h3 style={{fontSize:16,fontWeight:700,color:"#1e293b",marginBottom:20,display:"flex",alignItems:"center",gap:8}}>{children}</h3>;
 
   return (
@@ -113,9 +113,9 @@ export default function CustomerDashboard() {
 
       <div style={{maxWidth:960,margin:"-72px auto 0",padding:"0 20px 48px",position:"relative",zIndex:1}}>
         {/* ═══ 프로필 + 요약 카드 ═══ */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+        <div className="dash-grid-4" style={{display:"grid",gap:14,marginBottom:16}}>
           {/* 프로필 */}
-          <Card style={{gridColumn:"span 2",display:"flex",alignItems:"center",gap:20}}>
+          <Card style={{display:"flex",alignItems:"center",gap:20}} className="dash-span-2">
             <div style={{width:72,height:72,borderRadius:"50%",overflow:"hidden",background:"#e2e8f0",flexShrink:0,border:"3px solid #E8C87A",display:"flex",alignItems:"center",justifyContent:"center"}}>
               {photoUrl ? <img src={photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <span style={{fontSize:28,fontWeight:800,color:"#94a3b8"}}>{contact?.name?.[0]}</span>}
             </div>
@@ -143,11 +143,11 @@ export default function CustomerDashboard() {
         </div>
 
         {/* ═══ 리워드 상세 + 월별 추이 ═══ */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16}}>
+        <div className="dash-grid-2" style={{display:"grid",gap:14,marginBottom:16}}>
           {/* 리워드 상세 */}
           <Card>
             <SectionTitle><span style={{fontSize:18}}>💎</span>리워드 상세</SectionTitle>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+            <div className="dash-grid-3" style={{display:"grid",gap:12}}>
               {[
                 {label:"하이타겟",value:stats.htReward,color:"#6366F1"},
                 {label:"호갱노노",value:stats.hogReward,color:"#14B8A6"},
@@ -184,7 +184,7 @@ export default function CustomerDashboard() {
         </div>
 
         {/* ═══ 채널별 분석 + 광고 현황 ═══ */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16}}>
+        <div className="dash-grid-2" style={{display:"grid",gap:14,marginBottom:16}}>
           {/* 채널별 */}
           <Card>
             <SectionTitle><span style={{fontSize:18}}>📋</span>채널별 현황</SectionTitle>
@@ -260,7 +260,7 @@ export default function CustomerDashboard() {
         <Card style={{marginBottom:16}}>
           <SectionTitle><span style={{fontSize:18}}>🎁</span>VIP 특전 가이드</SectionTitle>
           {guides.length > 0 ? (
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+            <div className="dash-grid-3" style={{display:"grid",gap:12}}>
               {guides.map(g=>(
                 <a key={g.id} href={g.url||"#"} target="_blank" rel="noopener noreferrer" style={{display:"block",padding:"20px",borderRadius:16,background:"#f8fafc",border:"1px solid #e2e8f0",textDecoration:"none",textAlign:"center",transition:"all 0.2s"}}>
                   <p style={{fontSize:14,fontWeight:700,color:"#334155"}}>{g.title}</p>
@@ -269,7 +269,7 @@ export default function CustomerDashboard() {
               ))}
             </div>
           ) : (
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10}}>
+            <div className="dash-grid-4s" style={{display:"grid",gap:10}}>
               {[
                 {icon:"🎯",label:"하이타겟",desc:"맞춤형 광고"},
                 {icon:"📱",label:"호갱노노",desc:"부동산 앱 광고"},
@@ -291,7 +291,7 @@ export default function CustomerDashboard() {
         <Card style={{marginBottom:16}}>
           <SectionTitle><span style={{fontSize:18}}>🔗</span>콘텐츠 & 링크</SectionTitle>
           {links.length > 0 ? (
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div className="dash-grid-2s" style={{display:"grid",gap:10}}>
               {links.map(l=>(
                 <a key={l.id} href={l.url||"#"} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:14,padding:"16px 18px",borderRadius:14,background:"#f8fafc",border:"1px solid #e2e8f0",textDecoration:"none",transition:"all 0.2s"}}>
                   <span style={{fontSize:20}}>📎</span>
@@ -300,7 +300,7 @@ export default function CustomerDashboard() {
               ))}
             </div>
           ) : (
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+            <div className="dash-grid-3" style={{display:"grid",gap:10}}>
               {[{icon:"📺",label:"분양의신 유튜브"},{icon:"📰",label:"분양의신 매거진"},{icon:"📱",label:"분양의신 앱"}].map(l=>(
                 <div key={l.label} style={{padding:"18px",borderRadius:14,background:"#f8fafc",border:"1px solid #f1f5f9",textAlign:"center"}}>
                   <div style={{fontSize:24,marginBottom:6}}>{l.icon}</div>
@@ -319,11 +319,22 @@ export default function CustomerDashboard() {
         </div>
       </div>
 
-      <style>{`@media(max-width:768px){
-        div[style*="gridTemplateColumns: 1fr 1fr 1fr 1fr"]{grid-template-columns:1fr 1fr !important;}
-        div[style*="gridTemplateColumns: 1fr 1fr"]{grid-template-columns:1fr !important;}
-        div[style*="span 2"]{grid-column:span 1 !important;}
-      }`}</style>
+      <style>{`
+        .dash-grid-4{grid-template-columns:1fr 1fr 1fr 1fr;}
+        .dash-grid-2{grid-template-columns:1fr 1fr;}
+        .dash-grid-3{grid-template-columns:1fr 1fr 1fr;}
+        .dash-grid-4s{grid-template-columns:1fr 1fr 1fr 1fr;}
+        .dash-grid-2s{grid-template-columns:1fr 1fr;}
+        .dash-span-2{grid-column:span 2;}
+        @media(max-width:768px){
+          .dash-grid-4{grid-template-columns:1fr !important;}
+          .dash-grid-2{grid-template-columns:1fr !important;}
+          .dash-grid-3{grid-template-columns:1fr 1fr !important;}
+          .dash-grid-4s{grid-template-columns:1fr 1fr !important;}
+          .dash-grid-2s{grid-template-columns:1fr !important;}
+          .dash-span-2{grid-column:span 1 !important;}
+        }
+      `}</style>
     </div>
   );
 }
