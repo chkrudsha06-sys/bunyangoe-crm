@@ -269,12 +269,12 @@ export default function PipelinePage() {
           <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
         </div>
       ) : (
-        <div className="flex-1 overflow-x-auto p-4">
-          <div className="flex gap-3 min-w-max h-full">
+        <div className="flex-1 overflow-auto p-4">
+          <div className="grid grid-cols-5 gap-3 h-full">
             {COLUMNS.map(col => {
               const colContacts = getColumnContacts(col.key);
               return (
-                <div key={col.key} className={`w-72 flex flex-col rounded-2xl border ${col.border} ${col.color} overflow-hidden`}>
+                <div key={col.key} className={`flex flex-col rounded-2xl border ${col.border} ${col.color} overflow-hidden min-w-0`}>
                   {/* 컬럼 헤더 */}
                   <div className="px-4 py-3 border-b border-white/60 flex items-center justify-between">
                     <div className="flex items-center gap-2">
