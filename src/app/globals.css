@@ -171,3 +171,108 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 
 /* 모달 */
 [data-theme="dark"] [class*="bg-black/"] { background: var(--modal-overlay) !important; }
+
+/* ═══ 2단계: 전체 컴포넌트 다크 오버라이드 ═══ */
+
+/* 전체 페이지 배경 */
+[data-theme="dark"] .bg-\[\#F1F5F9\] { background: var(--bg) !important; }
+
+/* 헤더 */
+[data-theme="dark"] [class*="sticky"][class*="top-0"] {
+  background: var(--header-bg) !important;
+  backdrop-filter: blur(20px);
+  border-color: var(--border) !important;
+}
+
+/* 카드 - 글래스모피즘 */
+[data-theme="dark"] .rounded-2xl[class*="border"][class*="shadow"] {
+  background: rgba(255,255,255,0.03) !important;
+  border-color: rgba(255,255,255,0.06) !important;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  backdrop-filter: blur(12px);
+}
+[data-theme="dark"] .rounded-xl[class*="border"][class*="shadow"] {
+  background: rgba(255,255,255,0.03) !important;
+  border-color: rgba(255,255,255,0.06) !important;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  backdrop-filter: blur(12px);
+}
+
+/* 테이블 헤더 */
+[data-theme="dark"] thead { background: rgba(255,255,255,0.03) !important; }
+[data-theme="dark"] thead th { color: rgba(255,255,255,0.5) !important; border-color: var(--border) !important; }
+[data-theme="dark"] tbody td { border-color: rgba(255,255,255,0.03) !important; }
+[data-theme="dark"] tbody tr:hover { background: rgba(255,255,255,0.03) !important; }
+
+/* select / input 다크 */
+[data-theme="dark"] select {
+  background-color: rgba(255,255,255,0.06) !important;
+  color: rgba(255,255,255,0.8) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+}
+[data-theme="dark"] select option {
+  background: #1a2550;
+  color: #fff;
+}
+
+/* 버튼 */
+[data-theme="dark"] .bg-blue-600 { background: #4A7BF7 !important; box-shadow: 0 0 20px rgba(74,123,247,0.3); }
+[data-theme="dark"] .bg-blue-600:hover { background: #5A8BFF !important; }
+[data-theme="dark"] .hover\:bg-blue-800:hover { background: #3A6BE7 !important; }
+[data-theme="dark"] .bg-\[\#1E3A8A\] { background: linear-gradient(135deg, #4A7BF7, #3B5FC0) !important; box-shadow: 0 0 20px rgba(74,123,247,0.25); }
+
+/* 서브 배경들 */
+[data-theme="dark"] .bg-blue-50 { background: rgba(74,123,247,0.1) !important; }
+[data-theme="dark"] .bg-amber-50 { background: rgba(245,158,11,0.1) !important; }
+[data-theme="dark"] .bg-emerald-50 { background: rgba(16,185,129,0.1) !important; }
+[data-theme="dark"] .bg-violet-50 { background: rgba(139,92,246,0.1) !important; }
+[data-theme="dark"] .bg-red-50 { background: rgba(239,68,68,0.1) !important; }
+[data-theme="dark"] .bg-orange-50 { background: rgba(249,115,22,0.1) !important; }
+[data-theme="dark"] .bg-indigo-50 { background: rgba(99,102,241,0.1) !important; }
+[data-theme="dark"] .bg-pink-50 { background: rgba(236,72,153,0.1) !important; }
+[data-theme="dark"] .bg-teal-50 { background: rgba(20,184,166,0.1) !important; }
+[data-theme="dark"] .bg-cyan-50 { background: rgba(6,182,212,0.1) !important; }
+
+/* 보더 색상들 */
+[data-theme="dark"] .border-blue-100 { border-color: rgba(74,123,247,0.2) !important; }
+[data-theme="dark"] .border-amber-100 { border-color: rgba(245,158,11,0.2) !important; }
+[data-theme="dark"] .border-emerald-100 { border-color: rgba(16,185,129,0.2) !important; }
+[data-theme="dark"] .border-violet-100 { border-color: rgba(139,92,246,0.2) !important; }
+[data-theme="dark"] .border-red-100,.border-red-200 { border-color: rgba(239,68,68,0.2) !important; }
+
+/* 텍스트 색상 정밀 제어 */
+[data-theme="dark"] .text-blue-600 { color: #60A5FA !important; }
+[data-theme="dark"] .text-blue-700 { color: #93C5FD !important; }
+[data-theme="dark"] .text-emerald-600 { color: #4ADE80 !important; }
+[data-theme="dark"] .text-emerald-700 { color: #6EE7B7 !important; }
+[data-theme="dark"] .text-amber-600 { color: #FBBF24 !important; }
+[data-theme="dark"] .text-amber-700 { color: #FCD34D !important; }
+[data-theme="dark"] .text-violet-600,.text-violet-700 { color: #A78BFA !important; }
+[data-theme="dark"] .text-red-500,.text-red-600 { color: #F87171 !important; }
+[data-theme="dark"] .text-indigo-600 { color: #818CF8 !important; }
+[data-theme="dark"] .text-pink-600 { color: #F472B6 !important; }
+
+/* 그래디언트 배경 */
+[data-theme="dark"] [class*="bg-gradient-to-r"][class*="from-amber"] {
+  background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(249,115,22,0.08)) !important;
+}
+[data-theme="dark"] [class*="bg-gradient-to-r"][class*="from-blue"] {
+  background: linear-gradient(135deg, rgba(74,123,247,0.12), rgba(99,102,241,0.08)) !important;
+}
+[data-theme="dark"] [class*="bg-gradient-to-r"][class*="from-emerald"] {
+  background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(20,184,166,0.08)) !important;
+}
+
+/* 프로그레스 바 배경 */
+[data-theme="dark"] .bg-white.rounded-full { background: rgba(255,255,255,0.08) !important; }
+
+/* 파이프라인 칸반 */
+[data-theme="dark"] .bg-blue-50\/30 { background: rgba(74,123,247,0.03) !important; }
+[data-theme="dark"] .bg-slate-50\/30 { background: rgba(255,255,255,0.02) !important; }
+
+/* 캘린더 */
+[data-theme="dark"] .bg-blue-600.text-white { background: #4A7BF7 !important; }
+
+/* 스크롤바 다크 */
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
