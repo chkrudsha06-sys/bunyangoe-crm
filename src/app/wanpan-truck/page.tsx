@@ -346,7 +346,7 @@ export default function WanpanTruckPage() {
             <button onClick={openAdd} className="mt-3 text-xs text-blue-600 underline">첫 번째 회차 등록하기</button>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-auto shadow-sm">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto" style={{maxHeight:"calc(100vh - 180px)"}}>
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                 <tr>

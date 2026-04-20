@@ -427,7 +427,7 @@ export default function RewardsPage() {
             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto" style={{maxHeight:"calc(100vh - 180px)"}}>
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                 <tr>

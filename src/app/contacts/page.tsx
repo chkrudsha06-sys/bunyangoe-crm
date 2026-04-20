@@ -299,7 +299,7 @@ export default function ContactsPage() {
             <button onClick={openAdd} className="text-xs text-blue-600 underline">첫 번째 고객 등록하기</button>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-auto shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-auto" style={{maxHeight:"calc(100vh - 200px)"}}>
             <table className="w-full text-sm table-fixed">
               <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                 <tr>

@@ -595,7 +595,7 @@ export default function SalesPage() {
             <p className="text-sm">집행 내역이 없습니다</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-auto shadow-sm">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto" style={{maxHeight:"calc(100vh - 380px)"}}>
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                 <tr>

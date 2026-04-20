@@ -275,7 +275,7 @@ export default function MemberManagePage() {
             <p className="text-sm">회원 데이터가 없습니다</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-auto shadow-sm">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto" style={{maxHeight:"calc(100vh - 200px)"}}>
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                 <tr>
