@@ -79,15 +79,38 @@ export function getCurrentUser(): CRMUser | null {
 // 세션 유효성 검증
 export async function validateSession(): Promise<boolean> {
   const user = getCurrentUser();
-  if (!user || !user.sessionToken || !user.id) return false;
+  if (!user || !user.id) return false;
+
+  // 세션 토큰이 없는 기존 로그인 → 새 세션 자동 생성 (마이그레이션)
+  if (!user.sessionToken) {
+    const token = generateToken();
+    await supabase.from("sessions").upsert(
+      { user_id: user.id, session_token: token, logged_in_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
+    user.sessionToken = token;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("crm_user", JSON.stringify(user));
+    }
+    return true;
+  }
 
   const { data } = await supabase.from("sessions")
     .select("session_token")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  // DB의 토큰과 로컬 토큰이 다르면 → 다른 기기에서 로그인한 것
-  if (!data || data.session_token !== user.sessionToken) return false;
+  // DB에 세션이 없으면 → 새로 생성 (첫 접속)
+  if (!data) {
+    await supabase.from("sessions").upsert(
+      { user_id: user.id, session_token: user.sessionToken, logged_in_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
+    return true;
+  }
+
+  // DB의 토큰과 로컬 토큰이 다르면 → 다른 기기에서 같은 계정 로그인한 것
+  if (data.session_token !== user.sessionToken) return false;
   return true;
 }
 
