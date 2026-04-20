@@ -349,7 +349,7 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
 
       const { data: t } = await supabase.from("kpi_settings")
         .select("*")
-        .eq("year", year).eq("month", month)
+        .eq("year", year).eq("month", month).eq("week", 0)
         .eq("scope", "team")
         .maybeSingle();
       setTeam(t as KpiRow | null);
@@ -358,7 +358,7 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
         const scope = user.role === "exec" ? "execution" : "operation";
         const { data: m } = await supabase.from("kpi_settings")
           .select("*")
-          .eq("year", year).eq("month", month)
+          .eq("year", year).eq("month", month).eq("week", 0)
           .eq("scope", scope).eq("target_name", user.name)
           .maybeSingle();
         setMine(m as KpiRow | null);
@@ -430,7 +430,7 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-slate-700">KPI</h3>
         <span className="text-xs text-slate-400 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100 font-semibold">
-          {new Date().getFullYear()}.{String(new Date().getMonth()+1).padStart(2,"0")} 기준
+          {new Date().getFullYear()}.{String(new Date().getMonth()+1).padStart(2,"0")} 월간 기준
         </span>
       </div>
 
