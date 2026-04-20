@@ -78,7 +78,27 @@ export default function ReportsPage() {
     const wpCount = wanpans.length;
     const wpOrg = wanpans.reduce((s,w) => s + (w.team_size||0), 0);
 
-    return { totalRev, prevRev, growth, refundTotal, refundRate, byRoute, byCh, newContracts, byIntake, wpCount, wpOrg };
+    // 전월 세부
+    const prevNewContracts = (() => {
+      const pms2 = String(month===1?12:month-1).padStart(2,"0");
+      const pyr = month===1 ? year-1 : year;
+      const pmS2 = `${pyr}-${pms2}`;
+      return contacts.filter(c => c.contract_date?.startsWith(pmS2) || c.reservation_date?.startsWith(pmS2)).length;
+    })();
+    const prevRefund = prevExecs.reduce((s,e) => s + (e.refund_amount||0), 0);
+    const prevRefundRate = prevRev + prevRefund > 0 ? Math.round(prevRefund / (prevRev + prevRefund) * 100 * 10) / 10 : 0;
+    const prevWpCount = 0; // 전월 완판트럭은 별도 조회 필요
+
+    const contractGrowth = prevNewContracts > 0 ? Math.round((newContracts - prevNewContracts) / prevNewContracts * 100) : 0;
+    const refundDiff = refundRate - prevRefundRate;
+
+    // 분양회 월회비 총매출
+    const monthlyFeeTotal = execs.filter(e => e.channel === "분양회 월회비").reduce((s,e) => s + net(e), 0);
+    const prevMonthlyFee = prevExecs.filter(e => e.channel === "분양회 월회비").reduce((s,e) => s + net(e), 0);
+    const feeGrowth = prevMonthlyFee > 0 ? Math.round((monthlyFeeTotal - prevMonthlyFee) / prevMonthlyFee * 100) : 0;
+
+    return { totalRev, prevRev, growth, refundTotal, refundRate, byRoute, byCh, newContracts, byIntake, wpCount, wpOrg,
+      contractGrowth, refundDiff, prevRefundRate, monthlyFeeTotal, prevMonthlyFee, feeGrowth, prevNewContracts };
   }, [execs, prevExecs, contacts, wanpans, month, year]);
 
   // ═══ 개인별 성과 ═══
@@ -87,7 +107,7 @@ export default function ReportsPage() {
     const mS = `${year}-${ms}`;
     return EXEC.map(name => {
       const adAmt = execs.filter(e => e.team_member===name && e.channel==="하이타겟").reduce((s,e) => s+net(e), 0);
-      const bhAmt = execs.filter(e => e.team_member===name && e.contract_route==="분양회" && (e.channel==="분양회 입회비"||e.channel==="분양회 월회비")).reduce((s,e) => s+net(e), 0);
+      const bhAmt = execs.filter(e => e.team_member===name && e.channel==="분양회 월회비").reduce((s,e) => s+net(e), 0);
       const totalAmt = adAmt + bhAmt;
       const myContacts = contacts.filter(c => c.assigned_to===name);
       const newContract = myContacts.filter(c => c.contract_date?.startsWith(mS)).length;
@@ -154,32 +174,43 @@ export default function ReportsPage() {
         {/* ═══ 월간 종합 카드 ═══ */}
         <div className="grid grid-cols-5 gap-3">
           {[
-            { label:"총매출", value: fwFull(summary.totalRev), sub: `전월 ${fwFull(summary.prevRev)}`, icon:"💰",
-              badge: summary.growth > 0 ? `+${summary.growth}%` : summary.growth < 0 ? `${summary.growth}%` : "0%",
-              badgeColor: summary.growth > 0 ? "text-emerald-600 bg-emerald-50" : summary.growth < 0 ? "text-red-500 bg-red-50" : "text-slate-400 bg-slate-50" },
-            { label:"신규 계약+예약", value: `${summary.newContracts}건`, sub: `계약+예약 합산`, icon:"📝", badge:"", badgeColor:"" },
-            { label:"환불률", value: `${summary.refundRate}%`, sub: `환불 ${fwFull(summary.refundTotal)}`, icon:"↩️", badge:"", badgeColor:"" },
-            { label:"완판트럭", value: `${summary.wpCount}회`, sub: `접촉 ${summary.wpOrg}개 조직`, icon:"🚚", badge:"", badgeColor:"" },
-            { label:"전월 대비", value: summary.growth > 0 ? `+${summary.growth}%` : `${summary.growth}%`, sub: `${fwFull(Math.abs(summary.totalRev - summary.prevRev))} ${summary.growth>=0?"증가":"감소"}`, icon:"📊",
-              badge:"", badgeColor:"" },
-          ].map(c=>(
+            { label:"총매출 (하이타겟+입회비+월회비+LMS+호갱노노)", value: fwFull(summary.totalRev), sub: `전월 ${fwFull(summary.prevRev)}`,
+              badge: summary.growth, icon:"💰" },
+            { label:"신규 계약+예약", value: `${summary.newContracts}건`, sub: `전월 ${summary.prevNewContracts}건`,
+              badge: summary.contractGrowth, icon:"📝" },
+            { label:"환불률", value: `${summary.refundRate}%`, sub: `환불 ${fwFull(summary.refundTotal)}`,
+              badge: summary.refundDiff > 0 ? summary.refundDiff : -summary.refundDiff, icon:"↩️", invert: true },
+            { label:"완판트럭 출장", value: `${summary.wpCount}회`, sub: `접촉 ${summary.wpOrg}개 조직`,
+              badge: 0, icon:"🚚" },
+            { label:"분양회 월회비 매출", value: fwFull(summary.monthlyFeeTotal), sub: `전월 ${fwFull(summary.prevMonthlyFee)}`,
+              badge: summary.feeGrowth, icon:"💳" },
+          ].map((c: any)=>{
+            const g = c.badge;
+            const inv = c.invert;
+            const isUp = inv ? g < 0 : g > 0;
+            const isDown = inv ? g > 0 : g < 0;
+            const badgeText = g > 0 ? `+${typeof g==="number"&&g<1?g.toFixed(1):g}%` : g < 0 ? `${typeof g==="number"&&g>-1?g.toFixed(1):g}%` : "";
+            const badgeColor = isUp ? "text-emerald-600 bg-emerald-50" : isDown ? "text-red-500 bg-red-50" : "";
+            return (
             <div key={c.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-lg">{c.icon}</span>
-                {c.badge && <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${c.badgeColor}`}>{c.badge}</span>}
+                {badgeText && <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${badgeColor}`}>{badgeText}</span>}
               </div>
-              <p className="text-xs text-slate-400 font-medium mb-1">{c.label}</p>
+              <p className="text-[10px] text-slate-400 font-medium mb-1 leading-tight">{c.label}</p>
               <p className="text-xl font-black text-slate-800">{c.value}</p>
               <p className="text-xs text-slate-400 mt-1">{c.sub}</p>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* ═══ 매출구분 + 채널별 ═══ */}
         <div className="grid grid-cols-2 gap-4">
           {/* 매출구분별 */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <p className="text-sm font-bold text-slate-700 mb-4">매출구분별 비중</p>
+            <p className="text-sm font-bold text-slate-700 mb-1">매출구분별 비중</p>
+            <p className="text-[10px] text-slate-400 mb-3">전체 매출 합계: {fwFull(summary.totalRev)}</p>
             <div className="space-y-3">
               {Object.entries(summary.byRoute).sort((a,b)=>b[1]-a[1]).map(([route, amt])=>(
                 <div key={route}>
@@ -257,11 +288,11 @@ export default function ReportsPage() {
                 {/* 상세 */}
                 <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between"><span className="text-slate-400">하이타겟</span><span className="font-semibold text-indigo-600">{fwFull(p.adAmt)}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-400">분양회</span><span className="font-semibold text-amber-600">{fwFull(p.bhAmt)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">월회비</span><span className="font-semibold text-amber-600">{fwFull(p.bhAmt)}</span></div>
                   <div className="border-t border-slate-200 my-1"/>
                   <div className="flex justify-between"><span className="text-slate-400">계약</span><span className="font-bold text-emerald-600">{p.newContract}건</span></div>
                   <div className="flex justify-between"><span className="text-slate-400">예약</span><span className="font-bold text-blue-600">{p.newReserv}건</span></div>
-                  <div className="flex justify-between"><span className="text-slate-400">전환율</span><span className="font-bold text-slate-700">{p.convRate}%</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">미팅전환율</span><span className="font-bold text-slate-700">{p.convRate}%</span></div>
                   <div className="flex justify-between"><span className="text-slate-400">완판트럭</span><span className="font-bold text-slate-700">{p.wpTrips}회</span></div>
                 </div>
               </div>
@@ -273,7 +304,7 @@ export default function ReportsPage() {
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-slate-50">
-                  {["순위","담당자","하이타겟 매출","분양회 매출","총매출","계약","예약","전환율","완판출장"].map(h=>(
+                  {["순위","담당자","하이타겟 매출","월회비 매출","총매출","계약","예약","미팅전환율","완판출장"].map(h=>(
                     <th key={h} className="px-4 py-3 border border-slate-200 text-slate-500 font-semibold text-center text-xs">{h}</th>
                   ))}
                 </tr>
@@ -301,7 +332,8 @@ export default function ReportsPage() {
         <div className="grid grid-cols-2 gap-4">
           {/* 주차별 매출 */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <p className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><TrendingUp size={15} className="text-emerald-500"/>주차별 매출 추이</p>
+            <p className="text-sm font-bold text-slate-700 mb-1 flex items-center gap-2"><TrendingUp size={15} className="text-emerald-500"/>주차별 매출 추이</p>
+            <p className="text-[10px] text-slate-400 mb-3">하이타겟 + 입회비 + 월회비 + LMS + 호갱노노 합산</p>
             <div className="space-y-3">
               {weeklyData.map(w=>(
                 <div key={w.label}>
@@ -322,7 +354,8 @@ export default function ReportsPage() {
 
           {/* 주차별 × 개인별 */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <p className="text-sm font-bold text-slate-700 mb-4">주차별 개인 매출</p>
+            <p className="text-sm font-bold text-slate-700 mb-1">주차별 개인 매출</p>
+            <p className="text-[10px] text-slate-400 mb-3">담당자별 전체 채널 매출 합산 (환불 차감)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead>
@@ -364,7 +397,8 @@ export default function ReportsPage() {
 
         {/* ═══ 컨설턴트별 실적 ═══ */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <p className="text-sm font-bold text-slate-700 mb-4">담당컨설턴트별 매출</p>
+          <p className="text-sm font-bold text-slate-700 mb-1">담당컨설턴트별 매출</p>
+          <p className="text-[10px] text-slate-400 mb-3">전체 채널 합산 (하이타겟 + 입회비 + 월회비 + LMS + 호갱노노, 환불 차감)</p>
           <div className="grid grid-cols-4 gap-2">
             {CONSULTANTS.map(name => {
               const amt = execs.filter(e => e.consultant === name).reduce((s,e) => s + net(e), 0);
