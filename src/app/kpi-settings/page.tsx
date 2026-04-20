@@ -237,6 +237,14 @@ export default function KpiSettingsPage() {
                     </button>
                   ))}
                   </div>
+                  <span className="text-xs text-blue-500 font-semibold ml-2">
+                    {(()=>{
+                      const ld = new Date(year,month,0).getDate();
+                      const s = (selWeek-1)*7+1;
+                      const e = Math.min(selWeek*7, ld);
+                      return `${month}/${s}일 ~ ${month}/${e}일`;
+                    })()}
+                  </span>
                 </div>
                 <button onClick={()=>{
                   setWTeam({"team":makeEmpty(year,month,selWeek,"team","team")});
