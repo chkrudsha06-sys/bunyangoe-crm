@@ -179,8 +179,7 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 
 /* 헤더 */
 [data-theme="dark"] [class*="sticky"][class*="top-0"] {
-  background: var(--header-bg) !important;
-  backdrop-filter: blur(20px);
+  background: #0B1437 !important;
   border-color: var(--border) !important;
 }
 
@@ -199,7 +198,9 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 }
 
 /* 테이블 헤더 */
-[data-theme="dark"] thead { background: rgba(255,255,255,0.03) !important; }
+[data-theme="dark"] thead { background: #0F1A42 !important; }
+[data-theme="dark"] thead.sticky { background: #0F1A42 !important; z-index: 20; }
+[data-theme="dark"] .sticky.top-0 { background: #0F1A42 !important; }
 [data-theme="dark"] thead th { color: rgba(255,255,255,0.5) !important; border-color: var(--border) !important; }
 [data-theme="dark"] tbody td { border-color: rgba(255,255,255,0.03) !important; }
 [data-theme="dark"] tbody tr:hover { background: rgba(255,255,255,0.03) !important; }
@@ -386,3 +387,25 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 
 /* 로그인 페이지 제외 */
 [data-theme="dark"] .login-page { background: transparent !important; }
+
+/* 리워드 마일리지 컬럼 가독성 */
+[data-theme="dark"] .text-blue-500 { color: #60A5FA !important; }
+[data-theme="dark"] .text-cyan-600 { color: #22D3EE !important; }
+[data-theme="dark"] .text-sky-600 { color: #38BDF8 !important; }
+[data-theme="dark"] .font-black { color: var(--text) !important; }
+[data-theme="dark"] td .font-bold { color: rgba(255,255,255,0.9) !important; }
+[data-theme="dark"] .text-blue-600.font-bold, [data-theme="dark"] .text-blue-600.font-semibold { color: #93C5FD !important; }
+
+/* 리워드 마일리지 헤더 */
+[data-theme="dark"] .bg-blue-50\/40 { background: rgba(74,123,247,0.12) !important; }
+[data-theme="dark"] th.text-blue-600 { color: #93C5FD !important; }
+
+/* sticky thead 배경 확실히 불투명 */
+[data-theme="dark"] [class*="overflow-auto"] thead,
+[data-theme="dark"] [class*="overflow-x-auto"] thead {
+  background: #0F1A42 !important;
+}
+[data-theme="dark"] [class*="overflow-auto"] thead th,
+[data-theme="dark"] [class*="overflow-x-auto"] thead th {
+  background: #0F1A42 !important;
+}
