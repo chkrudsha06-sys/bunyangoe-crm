@@ -272,113 +272,112 @@ export default function LoginPage() {
 
       {/* 인트로 오버레이 */}
       <IntroOverlay onDone={() => setIntroDone(true)}/>
-      {/* 인트로 완료 후에도 가운데 텍스트 고정 유지 */}
+      {/* 인트로 완료 후 가운데 텍스트 + 카드 */}
       {introDone && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 5,
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
-          paddingBottom: '18vh',
           pointerEvents: 'none',
         }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              fontFamily: "'Montserrat','Pretendard',sans-serif",
-              fontSize: 'clamp(48px, 8vw, 120px)',
-              fontWeight: 800, letterSpacing: '0.04em',
-              color: '#ffffff', lineHeight: 1,
-            }}>VIP Membership</div>
-            <div style={{
-              fontFamily: "'Montserrat','Pretendard',sans-serif",
-              fontSize: 'clamp(13px, 1.5vw, 22px)',
-              fontWeight: 400, letterSpacing: '0.42em',
-              color: 'rgba(255,255,255,0.75)', marginTop: '16px',
-              textTransform: 'uppercase' as const,
-            }}>Bunyangoe CRM System</div>
+          {/* 타이틀 */}
+          <div style={{
+            fontFamily: "'Montserrat','Pretendard',sans-serif",
+            fontSize: 'clamp(36px, 6vw, 80px)',
+            fontWeight: 800, letterSpacing: '0.04em',
+            color: '#ffffff', lineHeight: 1, textAlign: 'center',
+          }}>VIP Membership</div>
+          <div style={{
+            fontFamily: "'Montserrat','Pretendard',sans-serif",
+            fontSize: 'clamp(11px, 1.2vw, 16px)',
+            fontWeight: 400, letterSpacing: '0.42em',
+            color: 'rgba(255,255,255,0.6)', marginTop: '12px',
+            textTransform: 'uppercase' as const, textAlign: 'center',
+          }}>Bunyangoe CRM System</div>
 
-            {/* 3D VIP 카드 */}
-            <div style={{ marginTop: '36px', perspective: '800px', pointerEvents: 'auto' }}>
-              <div
-                onMouseMove={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const x = (e.clientX - rect.left) / rect.width - 0.5;
-                  const y = (e.clientY - rect.top) / rect.height - 0.5;
-                  e.currentTarget.style.transform = `rotateY(${x * 15}deg) rotateX(${-y * 15}deg)`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'rotateY(0deg) rotateX(0deg)';
-                }}
-                style={{
-                  width: '420px', height: '240px', margin: '0 auto',
-                  background: 'linear-gradient(-45deg, #303030, #191919)',
-                  borderRadius: '16px', padding: '28px 32px',
-                  position: 'relative', overflow: 'hidden',
-                  boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)',
-                  transition: 'transform 0.15s ease-out',
-                  display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                }}>
-                {/* 글레이즈 효과 */}
-                <div style={{
-                  position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none',
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%, rgba(255,255,255,0.03) 100%)',
-                  borderRadius: '16px',
-                }}/>
-                <div style={{
-                  position: 'absolute', width: '400px', height: '400px',
-                  background: 'rgba(0,0,0,0.4)', borderRadius: '50%',
-                  top: '100px', left: '80px', zIndex: 0,
-                }}/>
-                <div style={{
-                  position: 'absolute', width: '400px', height: '400px',
-                  background: 'rgba(0,0,0,0.4)', borderRadius: '50%',
-                  top: '-260px', left: '-160px', zIndex: 0,
-                }}/>
+          {/* 3D VIP 카드 */}
+          <div style={{ marginTop: '32px', perspective: '1000px', pointerEvents: 'auto', cursor: 'default' }}>
+            <div
+              id="vip-card-3d"
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / rect.width - 0.5;
+                const y = (e.clientY - rect.top) / rect.height - 0.5;
+                e.currentTarget.style.transform = `rotateY(${x * 20}deg) rotateX(${-y * 20}deg) scale(1.02)`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'rotateY(0deg) rotateX(0deg) scale(1)';
+              }}
+              style={{
+                width: 'clamp(340px, 30vw, 440px)',
+                height: 'clamp(190px, 17vw, 250px)',
+                background: 'linear-gradient(-45deg, #2a2a2a, #111)',
+                borderRadius: '16px',
+                padding: 'clamp(20px, 2vw, 30px)',
+                position: 'relative', overflow: 'hidden',
+                boxShadow: '0 25px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.08)',
+                transition: 'transform 0.2s ease-out',
+                display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                transformStyle: 'preserve-3d' as const,
+              }}>
+              {/* 글레이즈 빛 반사 */}
+              <div style={{
+                position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%',
+                background: 'conic-gradient(from 180deg, transparent 0%, rgba(232,200,122,0.03) 25%, transparent 50%)',
+                pointerEvents: 'none', animation: 'cardShine 8s linear infinite',
+              }}/>
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 40%, rgba(255,255,255,0.02) 100%)',
+                borderRadius: '16px', pointerEvents: 'none',
+              }}/>
 
-                {/* 상단 */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 2 }}>
-                  <div>
-                    <div style={{
-                      fontFamily: "'Montserrat',sans-serif", fontSize: '18px',
-                      fontWeight: 700, color: '#E8C87A', letterSpacing: '0.08em',
-                    }}>VIP Membership</div>
-                    <div style={{
-                      fontFamily: "'Pretendard',sans-serif", fontSize: '13px',
-                      fontWeight: 500, color: 'rgba(232,200,122,0.6)', marginTop: '4px', letterSpacing: '0.15em',
-                    }}>분양회</div>
-                  </div>
+              {/* 상단 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 2 }}>
+                <div>
                   <div style={{
-                    fontFamily: "'Montserrat',sans-serif", fontSize: '11px',
-                    fontWeight: 600, color: 'rgba(232,200,122,0.5)',
-                    letterSpacing: '0.15em', textAlign: 'right',
-                    borderLeft: '1px solid rgba(232,200,122,0.2)',
-                    paddingLeft: '14px',
-                  }}>
-                    <div style={{ fontSize: '10px', letterSpacing: '0.2em' }}>EXCLUSIVE</div>
-                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#E8C87A', marginTop: '2px' }}>TOP 1%</div>
-                  </div>
+                    fontFamily: "'Montserrat',sans-serif", fontSize: 'clamp(14px, 1.3vw, 20px)',
+                    fontWeight: 700, color: '#E8C87A', letterSpacing: '0.08em',
+                  }}>VIP Membership</div>
+                  <div style={{
+                    fontFamily: "'Pretendard',sans-serif", fontSize: 'clamp(11px, 1vw, 14px)',
+                    fontWeight: 500, color: 'rgba(232,200,122,0.5)', marginTop: '3px', letterSpacing: '0.15em',
+                  }}>분양회</div>
                 </div>
+                <div style={{
+                  textAlign: 'right',
+                  borderLeft: '1px solid rgba(232,200,122,0.15)',
+                  paddingLeft: 'clamp(10px, 1vw, 16px)',
+                }}>
+                  <div style={{
+                    fontFamily: "'Montserrat',sans-serif", fontSize: '9px',
+                    fontWeight: 600, color: 'rgba(232,200,122,0.4)', letterSpacing: '0.25em',
+                  }}>EXCLUSIVE</div>
+                  <div style={{
+                    fontFamily: "'Montserrat',sans-serif", fontSize: 'clamp(14px, 1.3vw, 20px)',
+                    fontWeight: 800, color: '#E8C87A', marginTop: '2px', letterSpacing: '0.05em',
+                  }}>TOP 1%</div>
+                </div>
+              </div>
 
-                {/* 하단 */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', position: 'relative', zIndex: 2 }}>
-                  <div>
-                    <div style={{
-                      fontFamily: "'Montserrat',sans-serif", fontSize: '11px',
-                      fontWeight: 400, color: 'rgba(232,200,122,0.45)',
-                      letterSpacing: '0.12em', lineHeight: 1.5,
-                    }}>THE ULTIMATE BENEFITS<br/>FOR SELECTED MEMBERS</div>
-                    <div style={{
-                      fontFamily: "'Montserrat',sans-serif", fontSize: '52px',
-                      fontWeight: 800, color: '#E8C87A', lineHeight: 1,
-                      marginTop: '4px', letterSpacing: '-0.02em',
-                    }}>100</div>
-                  </div>
-                  {/* 회사 로고 */}
-                  <div style={{ opacity: 0.6 }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/company-logo.png" alt="광고인" style={{
-                      height: '36px', objectFit: 'contain', filter: 'brightness(2) grayscale(0.3)',
-                    }} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none";}}/>
-                  </div>
+              {/* 하단 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', position: 'relative', zIndex: 2 }}>
+                <div>
+                  <div style={{
+                    fontFamily: "'Montserrat',sans-serif", fontSize: 'clamp(9px, 0.8vw, 11px)',
+                    fontWeight: 400, color: 'rgba(232,200,122,0.35)', letterSpacing: '0.12em', lineHeight: 1.6,
+                  }}>THE ULTIMATE BENEFITS<br/>FOR SELECTED MEMBERS</div>
+                  <div style={{
+                    fontFamily: "'Montserrat',sans-serif", fontSize: 'clamp(40px, 3.5vw, 56px)',
+                    fontWeight: 800, color: '#E8C87A', lineHeight: 1, marginTop: '2px',
+                  }}>100</div>
+                </div>
+                <div style={{ opacity: 0.5, display: 'flex', alignItems: 'flex-end' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/company-logo.png" alt="광고인" style={{
+                    height: 'clamp(28px, 2.5vw, 40px)', objectFit: 'contain',
+                    filter: 'brightness(1.8) grayscale(0.2)',
+                  }} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none";}}/>
                 </div>
               </div>
             </div>
@@ -560,6 +559,10 @@ export default function LoginPage() {
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700;800;900&display=swap');
+        @keyframes cardShine {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
