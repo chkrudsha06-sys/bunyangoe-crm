@@ -145,7 +145,7 @@ function VipTable({ title, color, rows, onSaved, fmtBun }: {
           <table className="w-full text-sm table-fixed">
             <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
               <tr>
-                {[["넘버링","w-[70px]"],["고객명","w-[140px]"],["연락처","w-[140px]"],["담당컨설턴트","w-[100px]"],["대협팀담당자","w-[100px]"],["완료일","w-[110px]"],["계좌정보","w-[180px]"],["메모",""],["","w-[40px]"]].map(([h,w])=>(
+                {[["넘버링","w-[70px]"],["고객명","w-[140px]"],["연락처","w-[140px]"],["담당컨설턴트","w-[100px]"],["대협팀담당자","w-[100px]"],["완료일","w-[110px]"],["계좌정보","w-[180px]"],["메모","w-[160px]"],["","w-[40px]"]].map(([h,w])=>(
                   <th key={h} className={`text-center px-3 py-3 text-slate-600 text-sm font-semibold whitespace-nowrap ${w}`}>{h}</th>
                 ))}
               </tr>
