@@ -261,9 +261,9 @@ export default function IncentivesPage() {
                     {execData.map(d=>(
                       <tr key={d.name} className="hover:bg-slate-50">
                         <td className="px-4 py-3 border border-slate-200 text-center font-bold text-slate-800">{d.name}</td>
-                        <td className="px-4 py-3 border border-slate-200 text-right text-blue-600 font-semibold">{d.adAmt.toLocaleString()}원</td>
+                        <td className="px-4 py-3 border border-slate-200 text-center text-blue-600 font-semibold">{d.adAmt.toLocaleString()}원</td>
                         <td className="px-4 py-3 border border-slate-200 text-center font-bold text-emerald-600">{d.adIncentive ? `${d.adIncentive}만원` : "-"}</td>
-                        <td className="px-4 py-3 border border-slate-200 text-right text-blue-600 font-semibold">{d.bhAmt.toLocaleString()}원</td>
+                        <td className="px-4 py-3 border border-slate-200 text-center text-blue-600 font-semibold">{d.bhAmt.toLocaleString()}원</td>
                         <td className="px-4 py-3 border border-slate-200 text-center font-bold text-emerald-600">{d.bhIncentive ? `${d.bhIncentive}만원` : "-"}</td>
                         <td className="px-4 py-3 border border-slate-200 text-center font-black text-amber-600 bg-amber-50 text-base">{d.totalIncentive ? `${d.totalIncentive}만원` : "-"}</td>
                       </tr>
@@ -302,9 +302,9 @@ export default function IncentivesPage() {
                     {opsData.map(d=>(
                       <tr key={d.name} className="hover:bg-slate-50">
                         <td className="px-4 py-3 border border-slate-200 text-center font-bold text-slate-800">{d.name}</td>
-                        <td className="px-4 py-3 border border-slate-200 text-right text-blue-600 font-semibold">{d.lmsAmt.toLocaleString()}원</td>
-                        <td className="px-4 py-3 border border-slate-200 text-right text-blue-600 font-semibold">{d.hogAmt.toLocaleString()}원</td>
-                        <td className="px-4 py-3 border border-slate-200 text-right font-bold text-slate-800">{d.totalAmt.toLocaleString()}원</td>
+                        <td className="px-4 py-3 border border-slate-200 text-center text-blue-600 font-semibold">{d.lmsAmt.toLocaleString()}원</td>
+                        <td className="px-4 py-3 border border-slate-200 text-center text-blue-600 font-semibold">{d.hogAmt.toLocaleString()}원</td>
+                        <td className="px-4 py-3 border border-slate-200 text-center font-bold text-slate-800">{d.totalAmt.toLocaleString()}원</td>
                         <td className="px-4 py-3 border border-slate-200 text-center font-black text-amber-600 bg-amber-50 text-base">{d.incentive ? `${d.incentive}만원` : "-"}</td>
                       </tr>
                     ))}
