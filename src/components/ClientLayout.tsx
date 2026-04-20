@@ -75,7 +75,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     const u = getCurrentUser();
-    if (!u && pathname !== "/login") router.push("/login");
+    if (!u && pathname !== "/login" && !pathname.startsWith("/my")) router.push("/login");
     else { setUser(u); setChecked(true); }
   }, [pathname, router]);
 
@@ -177,7 +177,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
-  if (pathname === "/login") return <>{children}</>;
+  if (pathname === "/login" || pathname.startsWith("/my")) return <>{children}</>;
   if (!checked || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-brand-bg">
