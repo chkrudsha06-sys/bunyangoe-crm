@@ -44,11 +44,11 @@ const OPS_AD_TIERS = [
 // 파트장(최웅) 광고연계매출 (팀 전체)
 const MGR_AD_TIERS = [
   { grade: 6000, incentive: 60, rate: "1.0%" },
-  { grade: 9000, incentive: 90, rate: "1.0%" },
+  { grade: 9000, incentive: 90, rate: "" },
   { grade: 12000, incentive: 180, rate: "1.5%" },
-  { grade: 15000, incentive: 225, rate: "1.5%" },
+  { grade: 15000, incentive: 225, rate: "" },
   { grade: 20000, incentive: 350, rate: "1.75%" },
-  { grade: 25000, incentive: 438, rate: "1.75%" },
+  { grade: 25000, incentive: 438, rate: "" },
   { grade: 30000, incentive: 600, rate: "2.0%" },
   { grade: 40000, incentive: 1000, rate: "2.5%" },
   { grade: 50000, incentive: 1500, rate: "3.0%" },
@@ -82,22 +82,45 @@ function findTier(tiers: typeof EXEC_AD_TIERS, amountMan: number): { incentive: 
 }
 
 function TierTable({ title, tiers, color }: { title: string; tiers: typeof EXEC_AD_TIERS; color: string }) {
+  // 지급률 병합 그룹 계산
+  const rateGroups: { rate: string; span: number }[] = [];
+  let i = 0;
+  while (i < tiers.length) {
+    if (tiers[i].rate) {
+      // 이 rate가 다음 rate까지 몇 칸을 커버하는지
+      let span = 1;
+      let j = i + 1;
+      while (j < tiers.length && !tiers[j].rate) { span++; j++; }
+      rateGroups.push({ rate: tiers[i].rate, span });
+      i = j;
+    } else {
+      // rate 없는 칸 (맨 앞에 rate 없는 구간)
+      let span = 1;
+      let j = i + 1;
+      while (j < tiers.length && !tiers[j].rate) { span++; j++; }
+      rateGroups.push({ rate: "", span });
+      i = j;
+    }
+  }
+
   return (
     <div>
       <p className="text-sm font-bold text-slate-700 mb-2">{title}</p>
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">
           <thead>
-            <tr><th className={`px-3 py-2 border border-slate-200 ${color} text-white font-bold`}></th>
+            <tr><th className={`px-3 py-2 border border-slate-200 ${color} text-white font-bold text-center`}></th>
               {tiers.map(t=><th key={t.grade} className={`px-3 py-2 border border-slate-200 ${color} text-white font-bold text-center`}>{t.grade.toLocaleString()}만</th>)}
             </tr>
           </thead>
           <tbody>
-            <tr><td className="px-3 py-2 border border-slate-200 font-bold text-slate-600 bg-slate-50">인센티브</td>
+            <tr><td className="px-3 py-2 border border-slate-200 font-bold text-slate-600 bg-slate-50 text-center">인센티브</td>
               {tiers.map(t=><td key={t.grade} className="px-3 py-2 border border-slate-200 text-center text-slate-700">{t.incentive}만</td>)}
             </tr>
-            <tr><td className="px-3 py-2 border border-slate-200 font-bold text-red-500 bg-slate-50">지급률</td>
-              {tiers.map(t=><td key={t.grade} className="px-3 py-2 border border-slate-200 text-center text-red-500 font-semibold">{t.rate||""}</td>)}
+            <tr><td className="px-3 py-2 border border-slate-200 font-bold text-red-500 bg-slate-50 text-center">지급률</td>
+              {rateGroups.map((g,idx)=>(
+                <td key={idx} colSpan={g.span} className="px-3 py-2 border border-slate-200 text-center text-red-500 font-bold">{g.rate}</td>
+              ))}
             </tr>
           </tbody>
         </table>
