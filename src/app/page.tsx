@@ -102,6 +102,10 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     .filter((x:any) => x.channel === "하이타겟")
     .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
 
+  const cumTotalRevenue = (allAd||[])
+    .filter((x:any) => x.contract_route === "분양회" && AD_CHANNELS.includes(x.channel))
+    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
+
   const monthMeetingDone = (allContacts||[]).filter((x:any) => {
     if (!["계약완료","예약완료"].includes(x.meeting_result||"")) return false;
     if (!x.meeting_date) return false;
@@ -123,7 +127,7 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     : monthAd.filter((x:any)=>x.channel==="하이타겟")).length;
 
   return {
-    totalRevenue,
+    totalRevenue: isAll ? cumTotalRevenue : totalRevenue,
     joinCount: isAll ? allJoined.length : monthJoined.length,
     contractCount: isAll
       ? allJoined.filter((x:any)=>x.meeting_result==="계약완료").length
