@@ -235,7 +235,7 @@ export default function VipMembersPage() {
     setLoading(false);
   };
 
-  const filtered = allVip.filter(c => {
+  const filtered = contacts.filter(c => {
     const matchSearch = !search || c.name.includes(search) || (c.phone&&c.phone.includes(search)) || (c.bunyanghoe_number&&c.bunyanghoe_number.includes(search)) || (c.assigned_to&&c.assigned_to.includes(search));
     const matchAssigned = !fAssigned || c.assigned_to === fAssigned;
     const matchConsultant = !fConsultant || c.consultant === fConsultant;
