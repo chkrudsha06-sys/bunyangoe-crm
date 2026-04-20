@@ -129,47 +129,7 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
         </div>
       )}
 
-      {/* 가운데 고정 텍스트 — 패널 열리면서 등장 */}
-      {(panelOpen || centerOp > 0) && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 36,
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          paddingBottom: '18vh',
-          pointerEvents: 'none',
-        }}>
-          <div style={{
-            opacity: centerOp,
-            transform: `translateY(${centerY}px)`,
-            transition: 'opacity 0.7s ease, transform 0.7s cubic-bezier(0.16,1,0.3,1)',
-            textAlign: 'center',
-          }}>
-            {/* 1% */}
-            <div style={{
-              fontFamily: "'Montserrat','Pretendard',sans-serif",
-              fontSize: 'clamp(48px, 8vw, 120px)',
-              fontWeight: 800,
-              letterSpacing: '0.04em',
-              color: '#ffffff',
-              lineHeight: 1,
-            }}>
-              VIP Membership
-            </div>
-            {/* Bunyangoe CRM System */}
-            <div style={{
-              fontFamily: "'Montserrat','Pretendard',sans-serif",
-              fontSize: 'clamp(13px, 1.5vw, 22px)',
-              fontWeight: 400,
-              letterSpacing: '0.42em',
-              color: 'rgba(255,255,255,0.7)',
-              marginTop: '16px',
-              textTransform: 'uppercase' as const,
-            }}>
-              Bunyangoe CRM System
-            </div>
-          </div>
-        </div>
-      )}
+
     </>
   );
 }
@@ -296,27 +256,27 @@ export default function LoginPage() {
           }}>Bunyangoe CRM System</div>
 
           {/* 3D VIP 카드 */}
-          <div style={{ marginTop: '32px', perspective: '1000px', pointerEvents: 'auto', cursor: 'default' }}>
+          <div style={{ marginTop: '52px', perspective: '600px', pointerEvents: 'auto', cursor: 'default' }}>
             <div
               id="vip-card-3d"
               onMouseMove={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const x = (e.clientX - rect.left) / rect.width - 0.5;
                 const y = (e.clientY - rect.top) / rect.height - 0.5;
-                e.currentTarget.style.transform = `rotateY(${x * 20}deg) rotateX(${-y * 20}deg) scale(1.02)`;
+                e.currentTarget.style.transform = `rotateY(${x * 35}deg) rotateX(${-y * 35}deg) scale(1.05)`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'rotateY(0deg) rotateX(0deg) scale(1)';
               }}
               style={{
-                width: 'clamp(340px, 30vw, 440px)',
-                height: 'clamp(190px, 17vw, 250px)',
+                width: 'clamp(380px, 35vw, 520px)',
+                height: 'clamp(220px, 20vw, 300px)',
                 background: 'linear-gradient(-45deg, #2a2a2a, #111)',
                 borderRadius: '16px',
                 padding: 'clamp(20px, 2vw, 30px)',
                 position: 'relative', overflow: 'hidden',
                 boxShadow: '0 25px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.08)',
-                transition: 'transform 0.2s ease-out',
+                transition: 'transform 0.1s ease-out',
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                 transformStyle: 'preserve-3d' as const,
               }}>
