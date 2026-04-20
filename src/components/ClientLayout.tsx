@@ -36,7 +36,7 @@ function NotifToast({ notif, onClose }: { notif: Notification; onClose: () => vo
   return (
     <div
       onClick={handleClick}
-      className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 w-80 flex gap-3 relative overflow-hidden cursor-pointer hover:bg-slate-50 transition-colors"
+      className="rounded-2xl shadow-2xl p-4 w-80 flex gap-3 relative overflow-hidden cursor-pointer transition-colors" style={{background:"var(--surface)",border:"1px solid var(--border)"}}
       style={{ animation: "slideInRight 0.35s cubic-bezier(0.16,1,0.3,1)" }}
       title="클릭하면 완판트럭 페이지로 이동">
       <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-l-2xl"/>
