@@ -21,6 +21,8 @@ interface WanpanTruck {
   consultant_count: number | null;
   consultant_members: string | null;
   has_photo: boolean;
+  order_qty_base: number | null;
+  order_qty_extra: number | null;
   notes: string | null;
   assigned_to: string | null;
   order_confirmed_by: string | null;
@@ -35,7 +37,7 @@ const EMPTY: any = {
   location:"", site_name:"", dispatch_date:"", is_ordered:false, is_direct_order:false,
   staff_count:"", staff_members:[],
   consultant_count:"", consultant_members:[],
-  has_photo:false, notes:"", assigned_to:"", order_confirmed_by:null, report_data:null,
+  has_photo:false, order_qty_base:"", order_qty_extra:"", notes:"", assigned_to:"", order_confirmed_by:null, report_data:null,
 };
 
 function parseMembers(val: string | null): string[] {
@@ -241,7 +243,7 @@ export default function WanpanTruckPage() {
       assigned_to: t.assigned_to||"", order_confirmed_by: t.order_confirmed_by||null,
       staff_count: t.staff_count||"", staff_members: parseMembers(t.staff_members),
       consultant_count: t.consultant_count||"", consultant_members: parseMembers(t.consultant_members),
-      has_photo: t.has_photo||false, notes: t.notes||"",
+      has_photo: t.has_photo||false, order_qty_base: t.order_qty_base||"", order_qty_extra: t.order_qty_extra||"", notes: t.notes||"",
     });
     setShowModal(true);
   };
@@ -259,7 +261,7 @@ export default function WanpanTruckPage() {
       staff_members: form.staff_members.length>0 ? JSON.stringify(form.staff_members) : null,
       consultant_count: Number(form.consultant_count)||null,
       consultant_members: form.consultant_members.length>0 ? JSON.stringify(form.consultant_members) : null,
-      has_photo: form.has_photo, notes: form.notes||null,
+      has_photo: form.has_photo, order_qty_base: Number(form.order_qty_base)||null, order_qty_extra: Number(form.order_qty_extra)||null, notes: form.notes||null,
     };
     let error;
     if (editItem) {
@@ -302,7 +304,7 @@ export default function WanpanTruckPage() {
   const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
   const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 
-  const HEADERS = ["#","발송일","현장위치","현장명","대행사","접점","직급","소통자 연락처","조직수","대협팀 출장인원","컨설턴트 출장인원","리포트","촬영","발주여부","시안","담당자확인","비고",""];
+  const HEADERS = ["#","발송일","현장위치","현장명","대행사","접점","직급","소통자 연락처","조직수","대협팀 출장인원","컨설턴트 출장인원","리포트","촬영","발주수량","발주여부","시안","담당자확인","비고",""];
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
@@ -349,7 +351,7 @@ export default function WanpanTruckPage() {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   {HEADERS.map(h => (
-                    <th key={h} className="text-center px-3 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
+                    <th key={h} className="text-center px-3 py-3 text-slate-500 text-sm font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -363,26 +365,26 @@ export default function WanpanTruckPage() {
                   const hasReport = !!t.report_data;
                   return (
                     <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-400 text-xs">{i+1}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-700 font-medium text-xs">{dispDate}</td>
-                      <td className="px-3 py-2.5 text-center align-middle font-semibold text-slate-800 text-xs">{t.location||"-"}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-700 text-xs font-medium">{(t as any).site_name||"-"}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{t.agency||"-"}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{t.contact_point||"-"}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-500 text-xs">{t.contact_point_title||"-"}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-xs">{t.contact_phone||"-"}</td>
-                      <td className="px-3 py-2.5 text-center align-middle text-xs font-bold text-slate-700">{t.team_size?`${t.team_size}명`:"-"}</td>
+                      <td className="px-3 py-2.5 text-center align-middle text-slate-400 text-sm">{i+1}</td>
+                      <td className="px-3 py-2.5 text-center align-middle text-slate-700 font-medium text-sm">{dispDate}</td>
+                      <td className="px-3 py-2.5 text-center align-middle font-semibold text-slate-800 text-sm">{t.location||"-"}</td>
+                      <td className="px-3 py-2.5 text-center align-middle text-slate-700 text-sm font-medium">{(t as any).site_name||"-"}</td>
+                      <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-sm">{t.agency||"-"}</td>
+                      <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-sm">{t.contact_point||"-"}</td>
+                      <td className="px-3 py-2.5 text-center align-middle text-slate-500 text-sm">{t.contact_point_title||"-"}</td>
+                      <td className="px-3 py-2.5 text-center align-middle text-slate-600 text-sm">{t.contact_phone||"-"}</td>
+                      <td className="px-3 py-2.5 text-center align-middle text-sm font-bold text-slate-700">{t.team_size?`${t.team_size}명`:"-"}</td>
                       <td className="px-3 py-2.5 text-center align-middle">
                         {staffList.length>0 ? (
                           <div className="flex flex-wrap gap-0.5 justify-center">
-                            {staffList.map(s=>(<span key={s} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100">{s}</span>))}
+                            {staffList.map(s=>(<span key={s} className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100 font-semibold">{s}</span>))}
                           </div>
                         ) : <span className="text-xs text-slate-300">-</span>}
                       </td>
                       <td className="px-3 py-2.5 text-center align-middle">
                         {consultList.length>0 ? (
                           <div className="flex flex-wrap gap-0.5 justify-center">
-                            {consultList.map(s=>(<span key={s} className="text-[10px] px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded-full border border-violet-100">{s}</span>))}
+                            {consultList.map(s=>(<span key={s} className="text-xs px-2 py-0.5 bg-violet-50 text-violet-700 rounded-full border border-violet-100 font-semibold">{s}</span>))}
                           </div>
                         ) : <span className="text-xs text-slate-300">-</span>}
                       </td>
@@ -396,6 +398,13 @@ export default function WanpanTruckPage() {
                       </td>
                       <td className="px-3 py-2.5 text-center align-middle">
                         <span className={`text-sm font-black ${t.has_photo?"text-emerald-500":"text-slate-300"}`}>{t.has_photo?"O":"X"}</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-center align-middle">
+                        {t.order_qty_base ? (
+                          <span className="text-sm font-bold text-slate-700">
+                            {t.order_qty_base}{t.order_qty_extra ? <span className="text-blue-500">+({t.order_qty_extra})</span> : ""}
+                          </span>
+                        ) : <span className="text-sm text-slate-300">-</span>}
                       </td>
                       <td className="px-3 py-2.5 text-center align-middle">
                         <button onClick={()=>toggleOrder(t.id,t.is_ordered)}
@@ -428,7 +437,7 @@ export default function WanpanTruckPage() {
                         ) : <span className="text-slate-300 text-xs">-</span>}
                       </td>
                       <td className="px-3 py-2.5 text-center align-middle max-w-[100px]">
-                        <p className="text-xs text-slate-500 truncate">{t.notes||"-"}</p>
+                        <p className="text-sm text-slate-500 truncate">{t.notes||"-"}</p>
                       </td>
                       <td className="px-3 py-2.5 text-center align-middle">
                         <div className="flex justify-center gap-1">
@@ -501,6 +510,15 @@ export default function WanpanTruckPage() {
                     options={CONSULTANT_MEMBERS} onChange={v=>setForm({...form,consultant_members:v})}
                     label="컨설턴트 출장인원" color="bg-violet-600"/>
                 )}
+
+                <div>
+                  <label className={lbl}>발주수량 (기본)</label>
+                  <input type="number" className={inp} value={form.order_qty_base} onChange={e=>setForm({...form,order_qty_base:e.target.value})} placeholder="기본 수량"/>
+                </div>
+                <div>
+                  <label className={lbl}>발주수량 (추가)</label>
+                  <input type="number" className={inp} value={form.order_qty_extra} onChange={e=>setForm({...form,order_qty_extra:e.target.value})} placeholder="추가 수량"/>
+                </div>
 
                 <div>
                   <label className={lbl}>촬영여부</label>
