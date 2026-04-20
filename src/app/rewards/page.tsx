@@ -429,7 +429,7 @@ export default function RewardsPage() {
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                 <tr>
                   {/* 기본 */}
                   <th className="text-center px-2 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">넘버링</th>

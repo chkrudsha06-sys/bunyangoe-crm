@@ -299,9 +299,9 @@ export default function ContactsPage() {
             <button onClick={openAdd} className="text-xs text-blue-600 underline">첫 번째 고객 등록하기</button>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-auto shadow-sm">
             <table className="w-full text-sm table-fixed">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                 <tr>
                   {[
                     ["#","w-10"], ["유입경로","w-20"], ["고객명","w-24"], ["직급","w-20"], ["연락처","w-32"],

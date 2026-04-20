@@ -275,9 +275,9 @@ export default function MemberManagePage() {
             <p className="text-sm">회원 데이터가 없습니다</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="bg-white rounded-xl border border-slate-200 overflow-auto shadow-sm">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                 <tr>
                   {["넘버링","회차","상태","고객명","직급","연락처","담당컨설턴트","대협팀","계약상태","예금주","은행코드","은행명","계좌번호","정기출금일","계약/예약일","메모"].map(h=>(
                     <th key={h} className="text-center px-3 py-3 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
