@@ -314,6 +314,8 @@ export default function MemberManagePage() {
                         <span className="font-semibold text-slate-800">{c.name}</span>
                       </div>
                     </td>
+                    {/* 직급 */}
+                    <td className="px-3 py-3 text-center align-middle text-xs text-slate-600">{c.title||"-"}</td>
                     <td className="px-3 py-3 text-center align-middle">
                       <span className="text-slate-600 flex items-center justify-center gap-1 text-xs"><Phone size={11}/>{c.phone||"-"}</span>
                     </td>
