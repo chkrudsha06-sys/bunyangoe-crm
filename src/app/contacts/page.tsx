@@ -263,6 +263,7 @@ export default function ContactsPage() {
           <Sel val={fTmSens} onChange={v=>{setFTmSens(v);setPage(1);}} opts={OPT.tm_sensitivity} placeholder="TM감도"/>
           <Sel val={fProspect} onChange={v=>{setFProspect(v);setPage(1);}} opts={OPT.prospect_type} placeholder="가망구분"/>
           <Sel val={fStage} onChange={v=>{setFStage(v);setPage(1);}} opts={OPT.management_stage} placeholder="관리구간"/>
+          <Sel val={fResult} onChange={v=>{setFResult(v);setPage(1);}} opts={OPT.meeting_result} placeholder="미팅결과"/>
           {/* 담당자 — 전체/개인 선택 */}
           <select
             value={fAssigned}
@@ -318,7 +319,7 @@ export default function ContactsPage() {
                     <td className="px-3 py-3 text-center align-middle text-slate-400 text-sm">{(page-1)*PER_PAGE+i+1}</td>
                     <td className="px-3 py-3 text-center align-middle">
                       {(c as any).intake_route
-                        ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${(c as any).intake_route==="TM"?"bg-blue-100 text-blue-700":(c as any).intake_route==="완판트럭"?"bg-emerald-100 text-emerald-700":"bg-violet-100 text-violet-700"}`}>{(c as any).intake_route}</span>
+                        ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${(c as any).intake_route?.includes("TM")?"bg-blue-100 text-blue-700":(c as any).intake_route==="완판트럭"?"bg-emerald-100 text-emerald-700":"bg-violet-100 text-violet-700"}`}>{(c as any).intake_route}</span>
                         : <span className="text-xs text-slate-300">-</span>}
                     </td>
                     <td className="px-3 py-3 text-center align-middle font-bold text-slate-800 truncate">{c.name}</td>
@@ -495,7 +496,9 @@ export default function ContactsPage() {
                     <label className={lbl}>유입경로 <span className="text-amber-500">★</span></label>
                     <select className={inp} value={form.intake_route} onChange={e=>f("intake_route",e.target.value)}>
                       <option value="">선택</option>
-                      <option value="TM">TM</option>
+                      <option value="영업부토스TM">영업부토스TM</option>
+                      <option value="신규고객TM">신규고객TM</option>
+                      <option value="기고객TM">기고객TM</option>
                       <option value="완판트럭">완판트럭</option>
                       <option value="대협팀활동">대협팀활동</option>
                     </select>

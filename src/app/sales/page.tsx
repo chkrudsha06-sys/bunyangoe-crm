@@ -600,7 +600,7 @@ export default function SalesPage() {
                     <td className="px-3 py-2.5 text-center">
                       {e.contract_route==="분양회" ? (() => {
                         const ir = intakeMap[e.member_name] || (e.bunyanghoe_number ? intakeMap[`num:${e.bunyanghoe_number}`] : "") || "";
-                        return ir ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${ir==="TM"?"bg-blue-100 text-blue-700":ir==="완판트럭"?"bg-emerald-100 text-emerald-700":"bg-violet-100 text-violet-700"}`}>{ir}</span> : <span className="text-xs text-slate-300">-</span>;
+                        return ir ? <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${ir.includes("TM")?"bg-blue-100 text-blue-700":ir==="완판트럭"?"bg-emerald-100 text-emerald-700":"bg-violet-100 text-violet-700"}`}>{ir}</span> : <span className="text-xs text-slate-300">-</span>;
                       })() : <span className="text-xs text-slate-300">-</span>}
                     </td>
                     <td className="px-3 py-2.5 text-center">
