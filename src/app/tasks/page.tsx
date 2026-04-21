@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { Send, Paperclip, MessageCircle, Check, Clock, AlertCircle, Pause, X, Download } from "lucide-react";
+import { Send, Paperclip, MessageCircle, Check, Clock, AlertCircle, Pause, X, Download, Trash2 } from "lucide-react";
 
 const CATEGORIES = ["LMS부킹요청","호갱노노 부킹요청","호갱노노 광고요청"];
 const PRIORITIES = [
@@ -85,6 +85,7 @@ export default function TasksPage() {
         loadData();
       })
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"tasks"},()=>loadData())
+      .on("postgres_changes",{event:"DELETE",schema:"public",table:"tasks"},()=>loadData())
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"task_comments"},()=>loadData())
       .subscribe();
     return ()=>{supabase.removeChannel(ch);};
@@ -140,6 +141,18 @@ export default function TasksPage() {
     setNewComment("");loadData();
   };
 
+  const handleDelete=async(taskId:number)=>{
+    if(!confirm("이 업무를 삭제하시겠습니까?\n관련 코멘트·알림도 함께 삭제됩니다."))return;
+    const task=tasks.find(t=>t.id===taskId);
+    if(task?.file_urls?.length>0){
+      for(const f of task.file_urls) await supabase.storage.from("task-files").remove([f]);
+    }
+    await supabase.from("task_comments").delete().eq("task_id",taskId);
+    await supabase.from("notifications").delete().eq("source_type","업무전달").eq("source_id",taskId);
+    await supabase.from("tasks").delete().eq("id",taskId);
+    setSelectedTask(null);loadData();
+  };
+
   const taskComments=(id:number)=>comments.filter(c=>c.task_id===id);
   const getPri=(p:string)=>PRIORITIES.find(x=>x.label===p)||PRIORITIES[2];
   const getSt=(s:string)=>STATUS_CFG[s]||STATUS_CFG["요청"];
@@ -191,13 +204,18 @@ export default function TasksPage() {
         <div className="space-y-2">
           {filtered.length===0?<div className="text-center py-16 text-slate-300 text-sm">업무가 없습니다</div>:
           filtered.map(t=>{const p=getPri(t.priority);const s=getSt(t.status);const Icon=s.icon;const cmts=taskComments(t.id);
-            return(<div key={t.id} onClick={()=>setSelectedTask(t)} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all">
+            return(<div key={t.id} onClick={()=>setSelectedTask(t)} className="group bg-white rounded-xl border border-slate-200 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5">
                   <span className={`text-xs px-2.5 py-1 rounded-lg font-bold ${p.bg} ${p.color} border ${p.border}`}>{t.priority}</span>
                   <span className="text-xs px-2.5 py-1 rounded-lg font-semibold bg-slate-50 text-slate-600 border border-slate-200">{t.category}</span>
                 </div>
-                <span className={`text-xs px-2.5 py-1 rounded-lg font-bold ${s.bg} ${s.color} flex items-center gap-1`}><Icon size={12}/>{t.status}</span>
+                <div className="flex items-center gap-1.5">
+                  {t.requester===me&&(
+                    <button onClick={(e)=>{e.stopPropagation();handleDelete(t.id);}} className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all" title="삭제"><Trash2 size={13}/></button>
+                  )}
+                  <span className={`text-xs px-2.5 py-1 rounded-lg font-bold ${s.bg} ${s.color} flex items-center gap-1`}><Icon size={12}/>{t.status}</span>
+                </div>
               </div>
               <p className="text-sm font-semibold text-slate-800 mt-3 line-clamp-2 whitespace-pre-wrap">{t.content}</p>
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
@@ -381,7 +399,12 @@ export default function TasksPage() {
                 <span className={`text-xs px-2 py-1 rounded-lg font-bold ${getPri(selectedTask.priority).bg} ${getPri(selectedTask.priority).color}`}>{selectedTask.priority}</span>
                 <span className="text-xs px-2 py-1 rounded-lg font-semibold bg-slate-50 text-slate-600 border border-slate-200">{selectedTask.category}</span>
               </div>
-              <button onClick={()=>setSelectedTask(null)}><X size={18} className="text-slate-400"/></button>
+              <div className="flex items-center gap-1.5">
+                {selectedTask.requester===me&&(
+                  <button onClick={()=>handleDelete(selectedTask.id)} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors" title="업무 삭제"><Trash2 size={15}/></button>
+                )}
+                <button onClick={()=>setSelectedTask(null)}><X size={18} className="text-slate-400"/></button>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="flex items-center justify-between text-sm">
