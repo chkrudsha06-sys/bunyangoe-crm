@@ -342,7 +342,7 @@ export default function RewardsPage() {
     return true;
   });
 
-  const inp = "w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
+  const inp = "w-full px-2 py-1.5 text-xs bg-[#0E1530] border border-[#1E2A4A] rounded-lg focus:outline-none focus:border-[#6C72FF] text-white";
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">

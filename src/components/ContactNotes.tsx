@@ -94,15 +94,15 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
         ) : (
           <div className="space-y-1.5">
             {notes.slice(0, 2).map(n => (
-              <div key={n.id} className="bg-white rounded-lg px-3 py-2 border border-slate-100">
+              <div key={n.id} className="bg-[#101935] rounded-lg px-3 py-2 border border-[#1E2A4A]">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <span className="text-xs font-bold text-blue-500 mr-1.5">{formatDate(n.note_date)}</span>
-                    <span className="text-xs text-slate-600 line-clamp-1">{n.content}</span>
+                    <span className="text-xs text-[#9AA3C0] line-clamp-1">{n.content}</span>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button onClick={e => { e.stopPropagation(); setEditingId(n.id); setEditContent(n.content); }}
-                      className="text-slate-400 hover:text-blue-500"><Pencil size={16}/></button>
+                      className="text-slate-400 hover:text-[#57C3FF]"><Pencil size={16}/></button>
                     <button onClick={e => { e.stopPropagation(); handleDelete(n.id); }}
                       className="text-slate-400 hover:text-red-500"><Trash2 size={16}/></button>
                   </div>
@@ -118,16 +118,16 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
         {/* 인라인 수정 팝업 */}
         {editingId && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={e => { e.stopPropagation(); setEditingId(null); }}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#101935] rounded-2xl shadow-2xl border border-[#1E2A4A] w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-bold text-slate-800">활동노트 수정</h3>
+                <h3 className="font-bold text-white">활동노트 수정</h3>
                 <button onClick={() => setEditingId(null)}><X size={18} className="text-slate-400"/></button>
               </div>
               <textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={4}
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-blue-400 resize-none mb-3"/>
               <div className="flex gap-2">
                 <button onClick={() => setEditingId(null)} className="flex-1 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg">취소</button>
-                <button onClick={() => handleEdit(editingId)} className="flex-1 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700">저장</button>
+                <button onClick={() => handleEdit(editingId)} className="flex-1 py-2 text-sm font-bold bg-[#6C72FF] text-white rounded-lg hover:bg-[#7B80FF]">저장</button>
               </div>
             </div>
           </div>
@@ -140,14 +140,14 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+        <h3 className="text-sm font-bold text-[#D1DBF9] flex items-center gap-1.5">
           <Calendar size={14} className="text-blue-500" />
           활동 노트
           <span className="text-xs text-slate-400 font-normal ml-1">{notes.length}건</span>
         </h3>
         <button
           onClick={() => setAdding(!adding)}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-[#6C72FF] text-white rounded-lg hover:bg-[#7B80FF]"
         >
           <Plus size={12} /> 노트 추가
         </button>
@@ -155,7 +155,7 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
 
       {/* 추가 폼 */}
       {adding && (
-        <div className="mb-3 bg-blue-50 rounded-xl p-3 border border-blue-100 space-y-2">
+        <div className="mb-3 bg-[#0E1530] rounded-xl p-3 border border-[#1E2A4A] space-y-2">
           <div>
             <label className="text-xs font-semibold text-slate-500 mb-1 block">날짜 선택</label>
             <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
@@ -171,7 +171,7 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
             <button onClick={() => { setAdding(false); setNewContent(""); }}
               className="flex-1 py-1.5 text-xs text-slate-600 border border-slate-200 bg-white rounded-lg hover:bg-slate-50">취소</button>
             <button onClick={handleAdd} disabled={saving || !newContent.trim()}
-              className="flex-1 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="flex-1 py-1.5 text-xs font-bold bg-[#6C72FF] text-white rounded-lg hover:bg-[#7B80FF] disabled:opacity-50">
               {saving ? "저장 중..." : "저장"}
             </button>
           </div>
@@ -191,16 +191,16 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
             <div key={note.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-blue-600">
+                  <span className="text-xs font-bold text-[#57C3FF]">
                     {new Date(note.note_date + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
                   </span>
                   {note.author && (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded-full">{note.author}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-[#1E2A4A] text-[#7E89AC] rounded-full">{note.author}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
                   <button onClick={() => { setEditingId(note.id); setEditContent(note.content); }}
-                    className="text-slate-400 hover:text-blue-500"><Pencil size={18}/></button>
+                    className="text-slate-400 hover:text-[#57C3FF]"><Pencil size={18}/></button>
                   <button onClick={() => handleDelete(note.id)}
                     className="text-slate-400 hover:text-red-500"><Trash2 size={18}/></button>
                 </div>
@@ -211,11 +211,11 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
                     className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg outline-none focus:border-blue-400 resize-none"/>
                   <div className="flex gap-2">
                     <button onClick={() => setEditingId(null)} className="px-3 py-1 text-xs text-slate-500 border border-slate-200 rounded-lg">취소</button>
-                    <button onClick={() => handleEdit(note.id)} className="px-3 py-1 text-xs font-bold bg-blue-600 text-white rounded-lg"><Check size={12} className="inline mr-1"/>저장</button>
+                    <button onClick={() => handleEdit(note.id)} className="px-3 py-1 text-xs font-bold bg-[#6C72FF] text-white rounded-lg"><Check size={12} className="inline mr-1"/>저장</button>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{note.content}</p>
+                <p className="text-sm text-[#B8C4E0] leading-relaxed whitespace-pre-wrap">{note.content}</p>
               )}
             </div>
           ))}

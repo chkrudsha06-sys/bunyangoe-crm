@@ -66,9 +66,9 @@ const TEAM = ["조계현", "이세호", "기여운", "최연전"];
 function CellPopup({ value, onClose }: { value: string; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#101935] rounded-2xl p-6 border border-[#1E2A4A] max-w-md w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-3">
-          <h3 className="font-bold text-slate-700 text-sm">상세 내용</h3>
+          <h3 className="font-bold text-white text-sm">상세 내용</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
         </div>
         <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">{value}</p>

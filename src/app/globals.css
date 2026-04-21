@@ -254,3 +254,197 @@ input[type="file"] { color: var(--text-muted) !important; }
 .text-red-400 { color: rgba(248,113,113,0.7) !important; }
 .border-red-200 { border-color: rgba(248,113,113,0.3) !important; }
 .border-red-500 { border-color: var(--error) !important; }
+
+
+/* ═══ Phase 3: 텍스트 대비 + 시안성 강화 ═══ */
+
+/* ── 텍스트 계층 강화 ── */
+/* 최상위 제목 (페이지 타이틀) */
+.text-lg.font-bold, .text-lg.font-black,
+.text-xl.font-bold, .text-xl.font-black {
+  color: #FFFFFF !important;
+}
+
+/* 카드 제목/중요 수치 */
+.text-3xl.font-black, .text-2xl.font-black, .text-2xl.font-bold {
+  color: #FFFFFF !important;
+}
+
+/* 서브 텍스트 */
+.text-sm.text-slate-500, .text-xs.text-slate-500 {
+  color: #7E89AC !important;
+}
+
+/* 라벨 */
+.text-xs.font-semibold.text-slate-500, .text-xs.font-bold.text-slate-500 {
+  color: #9AA3C0 !important;
+}
+
+/* ── 카드 내부 대비 ── */
+.rounded-2xl .text-sm.font-bold, .rounded-xl .text-sm.font-bold {
+  color: #D1DBF9 !important;
+}
+.rounded-2xl .text-xs, .rounded-xl .text-xs {
+  color: #7E89AC;
+}
+
+/* ── 헤더 영역 ── */
+.sticky.top-0 {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+/* 페이지 헤더 설명 텍스트 */
+.text-xs.text-slate-500.mt-0\.5, .text-xs.text-slate-500.mt-1 {
+  color: #5A6585 !important;
+}
+
+/* ── 요약 카드 강화 ── */
+/* 카드 라벨 */
+.text-\[10px\].text-slate-400 {
+  color: #6B7599 !important;
+  letter-spacing: 0.02em;
+}
+/* 카드 수치 */
+.text-lg.font-black, .text-xl.font-black {
+  color: #FFFFFF !important;
+}
+
+/* ── 테이블 강화 ── */
+thead th {
+  color: #9AA3C0 !important;
+  background: var(--surface-2) !important;
+  border-bottom: 1px solid var(--border-2) !important;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+tbody td {
+  color: #B8C4E0 !important;
+  border-color: var(--border) !important;
+}
+tbody td .font-bold, tbody td .font-black, tbody td .font-semibold {
+  color: #E2E8F9 !important;
+}
+/* 테이블 내 뱃지 - 배경과 구분 */
+tbody td .rounded-full {
+  border-width: 1px;
+}
+
+/* ── 필터/검색 영역 ── */
+input.rounded-lg, select.rounded-lg {
+  background: var(--input-bg) !important;
+  border: 1px solid var(--border) !important;
+  color: #D1DBF9 !important;
+}
+input.rounded-lg:focus, select.rounded-lg:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px rgba(108,114,255,0.15);
+}
+input.rounded-lg::placeholder {
+  color: #4A5578 !important;
+}
+
+/* ── 버튼 시안성 ── */
+/* Primary (퍼플) */
+.bg-blue-600, .bg-\[\#1E3A8A\] {
+  background: var(--primary) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+}
+/* Emerald 계열 */
+.bg-emerald-50 {
+  background: rgba(45,212,191,0.08) !important;
+  border-color: rgba(45,212,191,0.2) !important;
+}
+.text-emerald-700 {
+  color: #2DD4BF !important;
+}
+/* Blue 계열 */
+.bg-blue-50 {
+  background: rgba(108,114,255,0.08) !important;
+  border-color: rgba(108,114,255,0.2) !important;
+}
+.text-blue-700 {
+  color: #57C3FF !important;
+}
+
+/* ── 구간별 그라디언트 카드 (인센티브) ── */
+.from-orange-100 { background: rgba(249,115,22,0.08) !important; }
+.from-slate-100 { background: rgba(100,116,139,0.08) !important; }
+.from-amber-100 { background: rgba(253,181,42,0.08) !important; }
+
+/* 구간 뱃지 */
+.bg-orange-400 { background: #F97316 !important; }
+.bg-slate-400 { background: #94A3B8 !important; }
+.bg-amber-400 { background: #FBBF24 !important; }
+
+/* ── 진행률 바 ── */
+.bg-slate-100.rounded-full { background: var(--surface-3) !important; }
+.bg-blue-300 { background: var(--accent-cyan) !important; }
+
+/* ── 파이프라인 컬럼 헤더 ── */
+.text-sm.font-bold.flex.items-center.gap-1 {
+  color: #D1DBF9 !important;
+}
+
+/* ── 캘린더 ── */
+.bg-white.rounded-2xl.border.shadow-sm {
+  background: var(--surface) !important;
+}
+
+/* ── 모달 ── */
+.fixed.inset-0 .bg-white {
+  background: var(--surface) !important;
+}
+.fixed.inset-0 .rounded-2xl {
+  border: 1px solid var(--border) !important;
+}
+
+/* ── 파이프라인 카드 ── */
+.cursor-pointer.hover\:shadow-md {
+  border-color: var(--card-border) !important;
+}
+.cursor-pointer.hover\:shadow-md:hover {
+  border-color: rgba(108,114,255,0.3) !important;
+  box-shadow: 0 4px 16px rgba(108,114,255,0.1) !important;
+}
+
+/* ── 활동노트 ── */
+.bg-blue-50.rounded-xl {
+  background: rgba(108,114,255,0.08) !important;
+  border-color: rgba(108,114,255,0.15) !important;
+}
+
+/* ── 수치 강조 색상 ── */
+.text-emerald-600 { color: #2DD4BF !important; }
+.text-blue-600 { color: #57C3FF !important; }
+.text-amber-600 { color: #FDB52A !important; }
+.text-red-500 { color: #F87171 !important; }
+
+/* ── 데이터다운/지급정보 버튼 ── */
+.bg-emerald-50.text-emerald-700 {
+  background: rgba(45,212,191,0.1) !important;
+  color: #2DD4BF !important;
+  border-color: rgba(45,212,191,0.25) !important;
+}
+.bg-blue-50.text-blue-700 {
+  background: rgba(87,195,255,0.1) !important;
+  color: #57C3FF !important;
+  border-color: rgba(87,195,255,0.25) !important;
+}
+
+/* ── 인라인 편집 셀 ── */
+.bg-white.border-slate-200 {
+  background: var(--input-bg) !important;
+  border-color: var(--border) !important;
+}
+
+/* ── 빈 상태 메시지 ── */
+.text-center.py-12.text-slate-300,
+.text-center.py-6.text-slate-300 {
+  color: #37446B !important;
+}
+
+/* ── link 색상 ── */
+a.text-blue-500 { color: var(--accent-cyan) !important; }
+a.hover\:text-blue-600:hover { color: var(--primary) !important; }

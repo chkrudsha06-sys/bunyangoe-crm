@@ -89,7 +89,7 @@ function ContactCard({ contact, col, onNotesClick, refreshKey }: {
 
   return (
     <div
-      className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all group"
+      className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-[#6C72FF]/30 transition-all group"
     >
       {/* 헤더 */}
       <div className="flex items-start justify-between mb-2.5">
