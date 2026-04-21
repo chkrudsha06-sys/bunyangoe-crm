@@ -142,7 +142,7 @@ export default function CustomerIncentivesPage() {
     XLSX.utils.book_append_sheet(wb,ws,"입력정보");XLSX.writeFile(wb,"인센티브_지급정보.xls");
   };
 
-  if(loading)return<div className="flex items-center justify-center h-full bg-[#F1F5F9]"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>;
+  if(loading)return<div className="flex items-center justify-center h-full bg-[#F1F5F9]"><div className="w-6 h-6 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/></div>;
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">

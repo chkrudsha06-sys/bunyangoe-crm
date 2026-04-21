@@ -226,7 +226,7 @@ export default function IncentivesPage() {
 
       <div className="flex-1 overflow-auto p-6 space-y-8">
         {loading ? (
-          <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>
+          <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/></div>
         ) : (
           <>
             {/* ═══ 실행파트 인센티브 표 ═══ */}
@@ -242,7 +242,7 @@ export default function IncentivesPage() {
             {/* 실행파트 실시간 계산 */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
               <h2 className="text-base font-black text-slate-800 mb-1 flex items-center gap-2">
-                <TrendingUp size={16} className="text-blue-500"/>실행파트 당월 인센티브 현황
+                <TrendingUp size={16} className="text-[#57C3FF]"/>실행파트 당월 인센티브 현황
               </h2>
               <p className="text-xs text-slate-400 mb-4">{monthLabel} · 환불 차감 반영</p>
               <div className="overflow-x-auto">

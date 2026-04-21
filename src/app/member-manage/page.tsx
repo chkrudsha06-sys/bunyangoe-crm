@@ -270,7 +270,7 @@ export default function MemberManagePage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Shield size={20} className="text-blue-500"/>분양회 회원관리
+              <Shield size={20} className="text-[#57C3FF]"/>분양회 회원관리
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">분양회 입회자 계좌 및 회원 정보 관리</p>
           </div>
@@ -325,7 +325,7 @@ export default function MemberManagePage() {
       <div className="flex-1 overflow-auto p-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
+            <div className="w-6 h-6 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">

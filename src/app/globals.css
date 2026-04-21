@@ -162,3 +162,95 @@ thead.sticky { background: var(--surface) !important; }
 
 /* 로그인 페이지 전용 - 예외 */
 .login-page { background: var(--bg); }
+
+/* ═══ Phase 2: 추가 오버라이드 ═══ */
+
+/* 로딩 스피너 */
+.border-blue-600 { border-color: var(--primary) !important; }
+.border-blue-500 { border-color: var(--primary) !important; }
+.animate-spin { border-top-color: transparent !important; }
+
+/* 페이지 배경 */
+.bg-\[\#F1F5F9\] { background: var(--bg) !important; }
+
+/* 카드 */
+.bg-white.rounded-2xl, .bg-white.rounded-xl {
+  background: var(--surface) !important;
+  border-color: var(--card-border) !important;
+}
+.shadow-2xl { box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important; }
+
+/* 모달 */
+.bg-white.rounded-2xl.shadow-2xl {
+  background: var(--surface) !important;
+}
+
+/* 오렌지 계열 */
+.bg-orange-100, .bg-orange-50 { background: rgba(249,115,22,0.12) !important; }
+.text-orange-600, .text-orange-700 { color: #FB923C !important; }
+.border-orange-200 { border-color: rgba(249,115,22,0.2) !important; }
+
+/* 인디고 계열 */
+.bg-indigo-50 { background: var(--primary-bg) !important; }
+.text-indigo-600 { color: var(--primary) !important; }
+.border-indigo-100 { border-color: rgba(108,114,255,0.2) !important; }
+
+/* 그래디언트 카드 */
+.bg-gradient-to-br.from-orange-100, .bg-gradient-to-br.from-slate-100, .bg-gradient-to-br.from-amber-100 {
+  background: var(--surface-2) !important;
+}
+
+/* 파이프라인 헤더 */
+.bg-slate-50\/80 { background: var(--surface) !important; }
+
+/* 테이블 호버 */
+.hover\:bg-slate-50:hover { background: var(--surface-2) !important; }
+
+/* 연보라/시안 accent */
+.text-blue-500 { color: var(--accent-cyan) !important; }
+.bg-blue-600 { background: var(--primary) !important; }
+.hover\:bg-blue-700:hover { background: var(--primary-hover) !important; }
+.hover\:bg-blue-800:hover { background: var(--primary-hover) !important; }
+.bg-\[\#1E3A8A\] { background: var(--primary) !important; }
+
+/* 에메랄드 버튼 */
+.bg-emerald-600 { background: var(--success) !important; color: #000 !important; }
+.hover\:bg-emerald-700:hover { background: #20b2aa !important; }
+
+/* 구분선 색상 */
+.border-t.border-slate-100, .border-b.border-slate-100, .border-b.border-slate-200 {
+  border-color: var(--border) !important;
+}
+
+/* 대시보드 KPI 아이콘 배경 */
+.bg-slate-50.rounded-2xl { background: var(--surface-2) !important; }
+
+/* 넘버링 수정 */
+.text-amber-600.font-black { color: var(--accent-gold) !important; }
+
+/* select option */
+option { background: var(--surface); color: var(--text); }
+
+/* 팝업/드롭다운 */
+.bg-white.shadow-lg { background: var(--surface) !important; }
+
+/* KPI 카드 */
+.bg-white.rounded-2xl.border { background: var(--surface) !important; }
+
+/* 체크박스/라디오 */
+input[type="checkbox"], input[type="radio"] {
+  accent-color: var(--primary);
+}
+
+/* file input */
+input[type="file"] { color: var(--text-muted) !important; }
+.file\:bg-slate-50 { background: var(--surface-2) !important; }
+
+/* 빈 상태 */
+.text-slate-300 { color: var(--text-subtle) !important; }
+
+/* 초기화 버튼 활성 */
+.bg-red-500.text-white { background: var(--error) !important; }
+.text-red-400 { color: rgba(248,113,113,0.7) !important; }
+.border-red-200 { border-color: rgba(248,113,113,0.3) !important; }
+.border-red-500 { border-color: var(--error) !important; }

@@ -168,7 +168,7 @@ export default function KpiSettingsPage() {
     else { setSavedAt(new Date().toLocaleTimeString("ko-KR")); setTimeout(()=>setSavedAt(""),3000); }
   };
 
-  if (!authChecked) return <div className="flex items-center justify-center h-full"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>;
+  if (!authChecked) return <div className="flex items-center justify-center h-full"><div className="w-6 h-6 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/></div>;
   if (!user || user.role !== "admin") return <div className="flex flex-col items-center justify-center h-full text-slate-400"><Lock size={40} className="mb-3 opacity-40"/><p className="text-sm font-semibold">관리자만 접근 가능</p></div>;
 
   return (
@@ -196,7 +196,7 @@ export default function KpiSettingsPage() {
       </div>
 
       <div className="flex-1 overflow-auto p-5">
-        {loading ? <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div> : (
+        {loading ? <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/></div> : (
           <div className="grid grid-cols-2 gap-5">
             {/* ═══ 좌측: 월간 목표 ═══ */}
             <div className="space-y-4">
@@ -227,7 +227,7 @@ export default function KpiSettingsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                 <div className="flex items-center gap-2">
-                  <Calendar size={15} className="text-blue-500"/>
+                  <Calendar size={15} className="text-[#57C3FF]"/>
                   <h2 className="text-base font-black text-slate-800">주간 목표</h2>
                   <div className="flex gap-1 ml-1">
                   {[1,2,3,4,5].map(w=>(

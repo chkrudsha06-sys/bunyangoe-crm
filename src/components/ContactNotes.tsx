@@ -181,7 +181,7 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
       {/* 노트 목록 */}
       {loading ? (
         <div className="flex justify-center py-4">
-          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"/>
+          <div className="w-4 h-4 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/>
         </div>
       ) : notes.length === 0 ? (
         <div className="text-center py-6 text-slate-300 text-xs">활동 노트가 없습니다</div>

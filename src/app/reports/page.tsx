@@ -149,7 +149,7 @@ export default function ReportsPage() {
   const CH_COLORS: Record<string,string> = { "하이타겟":"bg-indigo-400","분양회 입회비":"bg-amber-400","분양회 월회비":"bg-amber-300","호갱노노":"bg-teal-400","LMS":"bg-pink-400" };
   const PERSON_COLORS = ["bg-blue-500","bg-violet-500","bg-emerald-500","bg-rose-500"];
 
-  if (loading) return <div className="flex items-center justify-center h-full bg-[#F1F5F9]"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>;
+  if (loading) return <div className="flex items-center justify-center h-full bg-[#F1F5F9]"><div className="w-6 h-6 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/></div>;
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
@@ -157,7 +157,7 @@ export default function ReportsPage() {
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2"><BarChart3 size={20} className="text-blue-500"/>팀 성과 분석</h1>
+            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2"><BarChart3 size={20} className="text-[#57C3FF]"/>팀 성과 분석</h1>
             <p className="text-xs text-slate-500 mt-0.5">{year}년 {month}월 · 실행파트 성과 종합</p>
           </div>
           <div className="flex items-center gap-2">
@@ -262,7 +262,7 @@ export default function ReportsPage() {
         {/* ═══ 개인별 성과 ═══ */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-bold text-slate-700 flex items-center gap-2"><Users size={15} className="text-blue-500"/>개인별 성과</p>
+            <p className="text-sm font-bold text-slate-700 flex items-center gap-2"><Users size={15} className="text-[#57C3FF]"/>개인별 성과</p>
           </div>
 
           {/* 개인 매출 바 차트 */}
