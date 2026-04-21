@@ -100,8 +100,8 @@ export default function CustomerDashboard() {
     if(!incData)return null;const lg=sz==="lg";
     return(<div style={{background:"linear-gradient(135deg,#f5f3ff,#ede9fe)",borderRadius:lg?16:14,padding:lg?"24px":"18px 16px",border:"1px solid #ddd6fe"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:lg?14:12}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:lg?17:13,fontWeight:700,color:"#5b21b6"}}>❷ 누적 리워드</span><span style={{fontSize:lg?12:10,padding:"2px 8px",background:"#7c3aed",color:"#fff",borderRadius:12,fontWeight:700}}>3개월 보너스</span></div>
-        <span style={{fontSize:lg?15:12,fontWeight:700,color:"#7c3aed"}}>D-{incData.daysLeft}</span>
+        <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:lg?17:13,fontWeight:700,color:"#5b21b6"}}>❷ 누적 리워드</span><span style={{fontSize:lg?12:10,padding:"2px 8px",background:"#7c3aed",color:"#fff",borderRadius:12,fontWeight:700}}>인센티브</span></div>
+        <span style={{fontSize:lg?15:12,fontWeight:700,color:"#7c3aed"}}>잔여기간 D-{incData.daysLeft}</span>
       </div>
       <p style={{fontSize:lg?13:11,color:"#8b5cf6",marginBottom:lg?14:12}}>{fDate(incData.sStr)} ~ {fDate(incData.eStr)} 누적 집행액 기준</p>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
@@ -190,12 +190,12 @@ export default function CustomerDashboard() {
 
           {/* 2행: 마일리지 + 리워드 + 인센티브 */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 2fr",gap:20,marginBottom:20}}>
-            <div style={{background:"#f8fafc",borderRadius:16,padding:"28px 24px",border:"1px solid #e8edf2"}}>
-              <p style={{fontSize:14,fontWeight:600,color:"#64748b",marginBottom:12}}>하이타겟 마일리지</p>
+            <div style={{background:"#eff6ff",borderRadius:16,padding:"28px 24px",border:"1px solid #bfdbfe"}}>
+              <p style={{fontSize:14,fontWeight:600,color:"#3b82f6",marginBottom:12}}>하이타겟 마일리지</p>
               <p style={{fontSize:36,fontWeight:800,color:"#1e293b"}}>{fw(stats.remainMileage)}<span style={{fontSize:14,color:"#94a3b8",marginLeft:4}}>P</span></p>
             </div>
-            <div style={{background:"#f8fafc",borderRadius:16,padding:"28px 24px",border:"1px solid #e8edf2"}}>
-              <p style={{fontSize:14,fontWeight:600,color:"#64748b",marginBottom:12}}>리워드</p>
+            <div style={{background:"#fff7ed",borderRadius:16,padding:"28px 24px",border:"1px solid #fed7aa"}}>
+              <p style={{fontSize:14,fontWeight:600,color:"#ea580c",marginBottom:12}}>리워드</p>
               <p style={{fontSize:36,fontWeight:800,color:"#1e293b"}}>{fw(stats.totalReward)}<span style={{fontSize:14,color:"#94a3b8",marginLeft:4}}>원</span></p>
             </div>
             <IncentiveBlock sz="lg"/>
@@ -206,6 +206,23 @@ export default function CustomerDashboard() {
             <div style={{background:"#fff",borderRadius:16,border:"1px solid #f1f1f1",padding:"24px"}}>
               <p style={{fontSize:16,fontWeight:700,color:"#222",marginBottom:16}}>마일리지 및 리워드 상세</p>
               <RewardDetails sz="lg"/>
+              <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginTop:16}}>
+                <p style={{fontSize:15,fontWeight:700,color:"#222",marginBottom:12}}>마일리지 및 리워드 사용·지급현황</p>
+                <details style={{borderBottom:"1px solid #f8f8f8"}}>
+                  <summary style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 0",cursor:"pointer",listStyle:"none"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:18}}>📤</span><span style={{fontSize:15,color:"#666"}}>하이타겟 마일리지 사용</span></div>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:15,fontWeight:600,color:"#ef4444"}}>{fw(stats.totalUsed)}P</span><span style={{fontSize:10,color:"#ccc"}}>▼</span></div>
+                  </summary>
+                  {usages.length>0?(<div style={{padding:"4px 0 12px 28px"}}>{usages.map((u:any)=>(<div key={u.id} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",fontSize:13}}><span style={{color:"#999"}}>{fDate(u.usage_date)}</span><span style={{fontWeight:600,color:"#ef4444"}}>-{fw(u.usage_amount)}P</span></div>))}</div>):<p style={{padding:"8px 0 12px 28px",fontSize:13,color:"#ccc"}}>사용 내역 없음</p>}
+                </details>
+                <details style={{borderBottom:"1px solid #f8f8f8"}}>
+                  <summary style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 0",cursor:"pointer",listStyle:"none"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:18}}>💸</span><span style={{fontSize:15,color:"#666"}}>리워드 지급내역</span></div>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:15,fontWeight:600,color:"#16a34a"}}>내역 확인</span><span style={{fontSize:10,color:"#ccc"}}>▼</span></div>
+                  </summary>
+                  <p style={{padding:"8px 0 12px 28px",fontSize:13,color:"#ccc"}}>리워드 지급은 분기별 정산 후 진행됩니다</p>
+                </details>
+              </div>
             </div>
             <div style={{background:"#fff",borderRadius:16,border:"1px solid #f1f1f1",padding:"24px"}}>
               <p style={{fontSize:16,fontWeight:700,color:"#222",marginBottom:16}}>분양회 VIP 이용가이드</p>
@@ -224,12 +241,8 @@ export default function CustomerDashboard() {
       </div>
 
       {/* ════════════════ 모바일 레이아웃 (기존 그대로) ════════════════ */}
-      <div className="mob-view" style={{display:"flex",flexDirection:"column-reverse"}}>
-        {/* 내역 */}
-        <div style={{borderTop:"8px solid #f5f5f5",padding:"0 20px"}}>
-          <TabBar/>
-          <HistoryList/>
-        </div>
+      <div className="mob-view">
+
         {/* 프로필 */}
         <div style={{padding:"24px 20px"}}>
           <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:20}}>
@@ -248,11 +261,28 @@ export default function CustomerDashboard() {
           {contact?.consultant&&cInfo&&<ContactCard label="광고사업부 담당자" name={contact.consultant} title={cInfo.title} phone={cInfo.phone} sz="sm"/>}
           <div style={{marginTop:12,marginBottom:12}}><WeatherWidget size="sm"/></div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-            <div style={{background:"#f8fafc",borderRadius:14,padding:"18px 16px",border:"1px solid #e8edf2"}}><p style={{fontSize:11,fontWeight:600,color:"#64748b",marginBottom:8}}>하이타겟 마일리지</p><p style={{fontSize:24,fontWeight:800,color:"#1e293b"}}>{fw(stats.remainMileage)}<span style={{fontSize:12,color:"#94a3b8"}}>P</span></p></div>
-            <div style={{background:"#f8fafc",borderRadius:14,padding:"18px 16px",border:"1px solid #e8edf2"}}><p style={{fontSize:11,fontWeight:600,color:"#64748b",marginBottom:8}}>리워드</p><p style={{fontSize:24,fontWeight:800,color:"#1e293b"}}>{fw(stats.totalReward)}<span style={{fontSize:12,color:"#94a3b8"}}>원</span></p></div>
+            <div style={{background:"#eff6ff",borderRadius:14,padding:"18px 16px",border:"1px solid #bfdbfe"}}><p style={{fontSize:11,fontWeight:600,color:"#3b82f6",marginBottom:8}}>하이타겟 마일리지</p><p style={{fontSize:24,fontWeight:800,color:"#1e293b"}}>{fw(stats.remainMileage)}<span style={{fontSize:12,color:"#94a3b8"}}>P</span></p></div>
+            <div style={{background:"#fff7ed",borderRadius:14,padding:"18px 16px",border:"1px solid #fed7aa"}}><p style={{fontSize:11,fontWeight:600,color:"#ea580c",marginBottom:8}}>리워드</p><p style={{fontSize:24,fontWeight:800,color:"#1e293b"}}>{fw(stats.totalReward)}<span style={{fontSize:12,color:"#94a3b8"}}>원</span></p></div>
           </div>
           <div style={{marginBottom:16}}><IncentiveBlock sz="sm"/></div>
           <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}><p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:12}}>마일리지 및 리워드 상세</p><RewardDetails sz="sm"/></div>
+          <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}>
+            <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:12}}>마일리지 및 리워드 사용·지급현황</p>
+            <details style={{borderBottom:"1px solid #f8f8f8"}}>
+              <summary style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",cursor:"pointer",listStyle:"none"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:14}}>📤</span><span style={{fontSize:13,color:"#666"}}>하이타겟 마일리지 사용</span></div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:13,fontWeight:600,color:"#ef4444"}}>{fw(stats.totalUsed)}P</span><span style={{fontSize:10,color:"#ccc"}}>▼</span></div>
+              </summary>
+              {usages.length>0?(<div style={{padding:"4px 0 12px 28px"}}>{usages.map((u:any)=>(<div key={u.id} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",fontSize:12}}><span style={{color:"#999"}}>{fDate(u.usage_date)}</span><span style={{fontWeight:600,color:"#ef4444"}}>-{fw(u.usage_amount)}P</span></div>))}</div>):<p style={{padding:"8px 0 12px 28px",fontSize:12,color:"#ccc"}}>사용 내역 없음</p>}
+            </details>
+            <details style={{borderBottom:"1px solid #f8f8f8"}}>
+              <summary style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",cursor:"pointer",listStyle:"none"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:14}}>💸</span><span style={{fontSize:13,color:"#666"}}>리워드 지급내역</span></div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:13,fontWeight:600,color:"#16a34a"}}>내역 확인</span><span style={{fontSize:10,color:"#ccc"}}>▼</span></div>
+              </summary>
+              <p style={{padding:"8px 0 12px 28px",fontSize:12,color:"#ccc"}}>리워드 지급은 분기별 정산 후 진행됩니다</p>
+            </details>
+          </div>
           <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}><p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:12}}>분양회 VIP 이용가이드</p><GuideButtons sz="sm"/></div>
           <div style={{paddingTop:16,borderTop:"1px solid #f1f1f1",textAlign:"center"}}><p style={{fontSize:11,color:"#ccc"}}>© 2026 광고인㈜ · 분양의신</p></div>
         </div>
