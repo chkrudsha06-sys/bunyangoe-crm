@@ -171,7 +171,7 @@ export default function CustomerDashboard() {
                 </div>
               </div>
             </div>
-            <img src="/bunyanghoe-logo.png" alt="" style={{width:120,height:120,objectFit:"contain",opacity:0.9}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
+            <img src="/bunyanghoe-logo.png" alt="" style={{width:140,height:170,objectFit:"contain",opacity:0.9}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
           </div>
         </div>
 
