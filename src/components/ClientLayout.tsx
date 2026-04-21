@@ -194,6 +194,15 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
+  // 업무전달 토스트 자동 삭제 (12초)
+  useEffect(() => {
+    if (taskToasts.length === 0) return;
+    const timers = taskToasts.map(t =>
+      setTimeout(() => setTaskToasts(prev => prev.filter(x => x.id !== t.id)), 12000)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [taskToasts]);
+
   if (pathname === "/login" || pathname.startsWith("/my")) return <>{children}</>;
   if (!checked || !user) {
     return (
@@ -223,6 +232,27 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         {toastQueue.slice(0, 3).map(n => (
           <div key={n.id} className="pointer-events-auto">
             <NotifToast notif={n} onClose={() => closeToast(n.id)}/>
+          </div>
+        ))}
+        {taskToasts.slice(0, 2).map(t => (
+          <div key={`task-${t.id}`} className="pointer-events-auto">
+            <div
+              onClick={() => { setTaskToasts(prev => prev.filter(x => x.id !== t.id)); router.push("/tasks"); }}
+              className="rounded-2xl shadow-2xl p-4 w-80 flex gap-3 relative overflow-hidden cursor-pointer"
+              style={{background:"var(--surface)",border:"1px solid var(--border)",animation:"slideInRight 0.35s cubic-bezier(0.16,1,0.3,1)"}}>
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-violet-500 rounded-l-2xl"/>
+              <div className="w-9 h-9 bg-violet-100 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Send size={14} className="text-violet-600"/>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-bold leading-snug" style={{color:"var(--text)"}}>{t.requester}님의 업무 요청</p>
+                  <button onClick={(e)=>{e.stopPropagation();setTaskToasts(prev=>prev.filter(x=>x.id!==t.id));}} className="text-slate-300 hover:text-slate-500 flex-shrink-0"><X size={13}/></button>
+                </div>
+                <p className="text-xs mt-1 line-clamp-2 leading-relaxed" style={{color:"var(--text-muted)"}}>{t.category} — {t.content.slice(0, 60)}</p>
+                <span className="inline-block mt-1.5 text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full font-semibold">업무전달</span>
+              </div>
+            </div>
           </div>
         ))}
       </div>
