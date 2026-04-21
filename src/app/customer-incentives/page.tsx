@@ -191,7 +191,7 @@ export default function CustomerIncentivesPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
               <tr>
-                {["넘버링","고객명","직급","계약일","분기","기간","누적 광고비","진행률","구간","인센티브","이월금액","지급예정월","지급처리","지급추전액(이월)","지급내역"].map(h=>(
+                {["넘버링","고객명","직급","계약일","분기","기간","잔여기간","누적 광고비","진행률","구간","인센티브","이월금액","지급예정월","지급처리","지급추전액(이월)","지급내역"].map(h=>(
                   <th key={h} className="text-center px-2 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -210,6 +210,17 @@ export default function CustomerIncentivesPage() {
                     <td className="px-2 py-3 text-center text-slate-600 text-xs">{fDate(c.contract_date)}</td>
                     <td className="px-2 py-3 text-center"><span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-bold border border-blue-100">{r.qNum}기</span></td>
                     <td className="px-2 py-3 text-center text-xs text-slate-500 whitespace-nowrap">{fDate(r.sStr)}~{fDate(r.eStr)}</td>
+                    <td className="px-2 py-3 text-center">
+                      {(()=>{
+                        const endDate=new Date(r.eStr+"T00:00:00");
+                        const now=new Date(); now.setHours(0,0,0,0);
+                        const diff=Math.ceil((endDate.getTime()-now.getTime())/(1000*60*60*24));
+                        if(diff<0) return <span className="text-xs text-slate-300">종료</span>;
+                        if(diff<=7) return <span className="text-xs font-bold text-red-500">D-{diff}</span>;
+                        if(diff<=30) return <span className="text-xs font-bold text-amber-500">D-{diff}</span>;
+                        return <span className="text-xs font-semibold text-blue-500">D-{diff}</span>;
+                      })()}
+                    </td>
                     <td className="px-2 py-3 text-center font-bold text-slate-800 text-xs">{fw(r.adTotal)}원</td>
                     <td className="px-2 py-3 text-center" style={{minWidth:70}}>
                       <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
