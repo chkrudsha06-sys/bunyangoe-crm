@@ -610,8 +610,8 @@ export default function SalesPage() {
             }
             const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"매출데이터");
             XLSX.writeFile(wb,"통합매출_데이터.xls");
-          }} className="text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold whitespace-nowrap flex items-center gap-1.5">
-            <FileText size={13}/> 엑셀다운(XLS)
+          }} className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 hover:bg-emerald-100 whitespace-nowrap">
+            <FileText size={13}/> 데이터다운(XLS)
           </button>
         </div>
       </div>

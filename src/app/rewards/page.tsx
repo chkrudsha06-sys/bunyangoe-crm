@@ -413,7 +413,7 @@ export default function RewardsPage() {
             <option value="paid">지급완료</option>
           </select>
           <button onClick={()=>{setSearch("");setFilterQuarter(getCurrentQuarter());setFilterPaid("");}}
-            className="text-sm px-3 py-1.5 text-red-400 border border-red-200 rounded-lg hover:bg-red-50 font-semibold">↺ 초기화</button>
+            className={`text-sm px-3 py-1.5 font-semibold rounded-lg whitespace-nowrap transition-colors ${(search||filterPaid||filterQuarter!==getCurrentQuarter())?"bg-red-500 text-white border border-red-500":"text-red-400 border border-red-200 hover:bg-red-50"}`}>↺ 초기화</button>
           <div className="flex items-center gap-1.5 ml-auto">
             <button onClick={downloadDataXLS}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 hover:bg-emerald-100">

@@ -189,7 +189,7 @@ export default function CustomerIncentivesPage() {
             <option value="">지급여부</option><option value="unpaid">미지급</option><option value="paid">지급완료</option>
           </select>
           <button onClick={()=>{setSearch("");setFilterPaid("");}}
-            className="text-xs px-3 py-2 text-red-400 border border-red-200 rounded-lg hover:bg-red-50 font-semibold">↺ 초기화</button>
+            className={`text-xs px-3 py-2 font-semibold rounded-lg whitespace-nowrap transition-colors ${(search||filterPaid)?"bg-red-500 text-white border border-red-500":"text-red-400 border border-red-200 hover:bg-red-50"}`}>↺ 초기화</button>
           <div className="flex items-center gap-1.5 ml-auto">
             <button onClick={downloadDataXLS} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 hover:bg-emerald-100"><FileSpreadsheet size={13}/>데이터다운(XLS)</button>
             <button onClick={downloadPaymentXLS} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100"><FileSpreadsheet size={13}/>지급정보(XLS)</button>
