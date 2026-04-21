@@ -475,3 +475,14 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
   background: #0F1A42;
   color: #fff;
 }
+
+/* ═══ 다크모드 divide 색상 통일 ═══ */
+[data-theme="dark"] .divide-slate-200 > * + * {
+  border-color: rgba(255,255,255,0.15) !important;
+}
+[data-theme="dark"] .divide-x > * + * {
+  border-color: rgba(255,255,255,0.15) !important;
+}
+[data-theme="dark"] .divide-y > * + * {
+  border-color: rgba(255,255,255,0.15) !important;
+}

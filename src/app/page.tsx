@@ -869,13 +869,13 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-7 border border-slate-200 divide-x divide-slate-200 border-t border-slate-200">
+      <div className="grid grid-cols-7 border border-slate-200 divide-x divide-slate-200" style={{borderColor:"rgba(255,255,255,0.15)"}}>
         {days.map((d,i)=>(
           <div key={d} className={`text-center py-3 text-sm font-bold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 border border-slate-200 divide-x divide-y divide-slate-200">
+      <div className="grid grid-cols-7 border border-slate-200 divide-x divide-y divide-slate-200" style={{borderColor:"rgba(255,255,255,0.15)","--tw-divide-opacity":"1"} as any}>
         {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`} className="min-h-[140px] bg-slate-50/30"/>)}
         {Array.from({length:daysInMonth}).map((_,i)=>{
           const d = i+1; const ds = getDs(d);
