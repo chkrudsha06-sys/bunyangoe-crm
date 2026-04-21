@@ -56,6 +56,14 @@ export default function TasksPage() {
 
   useEffect(()=>{try{const u=localStorage.getItem("crm_user");if(u)setMe(JSON.parse(u).name||"");}catch{};},[]);
 
+  const [members,setMembers]=useState<any[]>([]);
+  const [memberSearch,setMemberSearch]=useState("");
+  useEffect(()=>{(async()=>{
+    const {data}=await supabase.from("contacts").select("id,name,title,bunyanghoe_number,meeting_result,assigned_to,consultant").order("bunyanghoe_number",{ascending:true});
+    setMembers((data||[]).sort((a:any,b:any)=>{const na=parseInt(a.bunyanghoe_number?.replace(/[^0-9]/g,"")||"9999");const nb=parseInt(b.bunyanghoe_number?.replace(/[^0-9]/g,"")||"9999");return na-nb;}));
+  })();},[]);
+  const filteredMembers=members.filter(m=>{if(!memberSearch)return true;const s=memberSearch.toLowerCase();return (m.name||"").includes(s)||(m.bunyanghoe_number||"").includes(s)||(m.title||"").includes(s);});
+
   const loadData=async()=>{
     setLoading(true);
     const [r1,r2]=await Promise.all([
@@ -89,7 +97,7 @@ export default function TasksPage() {
   });
 
   // ═══ 생성 폼 ═══
-  const initForm={category:CATEGORIES[0],content:"",priority:"보통",assignee:"",tagged:[] as string[],
+  const initForm={category:CATEGORIES[0],content:"",priority:"보통",assignee:"",tagged:[] as string[],member_name:"",member_number:"",member_title:"",
     platform:"",age_range:"",site_name:"",ad_amount:"",send_count:"",hope_date:"",hope_time:"",
     region1:"",region2:"",region3:""};
   const [form,setForm]=useState(initForm);
@@ -107,9 +115,9 @@ export default function TasksPage() {
     // 카테고리별 content 조합
     let content=form.content;
     if(form.category==="LMS부킹요청"){
-      content=`■ 플랫폼: ${form.platform}\n■ 연령대: ${form.age_range}\n■ 타겟팅: 부동산 관심자\n■ 현장명: ${form.site_name}\n■ 집행방식: LMS\n■ 광고금액: ${fmtAmt(form.ad_amount)}원\n■ 발송건수: ${fmtAmt(form.send_count)}건\n■ 희망날짜: ${form.hope_date}${form.hope_date?` (${getWeekday(form.hope_date)})`:""} ${form.hope_time?form.hope_time+"시":""}\n■ 지역타겟팅: ①${form.region1} ②${form.region2} ③${form.region3}`;
+      content=`■ 분양회원: ${form.member_number} ${form.member_name} ${form.member_title}\n■ 플랫폼: ${form.platform}\n■ 연령대: ${form.age_range}\n■ 타겟팅: 부동산 관심자\n■ 현장명: ${form.site_name}\n■ 집행방식: LMS\n■ 광고금액: ${fmtAmt(form.ad_amount)}원\n■ 발송건수: ${fmtAmt(form.send_count)}건\n■ 희망날짜: ${form.hope_date}${form.hope_date?` (${getWeekday(form.hope_date)})`:""} ${form.hope_time?form.hope_time+"시":""}\n■ 지역타겟팅: ①${form.region1} ②${form.region2} ③${form.region3}`;
     } else if(form.category==="호갱노노 부킹요청"){
-      content=`■ 현장명: ${form.site_name}\n■ 플랫폼: 호갱노노 채널톡\n■ 발송건수: ${fmtAmt(form.send_count)}건\n■ 발송일시: ${form.hope_date}${form.hope_date?` (${getWeekday(form.hope_date)})`:""} ${form.hope_time?form.hope_time+"시":""}\n■ 지역타겟팅: ①${form.region1} ②${form.region2} ③${form.region3}\n■ 타겟연령: ${form.age_range}`;
+      content=`■ 분양회원: ${form.member_number} ${form.member_name} ${form.member_title}\n■ 현장명: ${form.site_name}\n■ 플랫폼: 호갱노노 채널톡\n■ 발송건수: ${fmtAmt(form.send_count)}건\n■ 발송일시: ${form.hope_date}${form.hope_date?` (${getWeekday(form.hope_date)})`:""} ${form.hope_time?form.hope_time+"시":""}\n■ 지역타겟팅: ①${form.region1} ②${form.region2} ③${form.region3}\n■ 타겟연령: ${form.age_range}`;
     }
     const {error}=await supabase.from("tasks").insert({
       category:form.category,content,priority:form.priority,
@@ -209,7 +217,7 @@ export default function TasksPage() {
       {/* ═══ 업무 생성 모달 ═══ */}
       {showCreate&&(
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={()=>setShowCreate(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col" onClick={e=>e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e=>e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-800">📬 업무 요청</h2>
               <button onClick={()=>setShowCreate(false)}><X size={18} className="text-slate-400"/></button>
@@ -239,6 +247,34 @@ export default function TasksPage() {
                   {CATEGORIES.map(c=><option key={c}>{c}</option>)}
                 </select>
               </div>
+              {/* 분양회 회원 선택 */}
+              <div>
+                <label className={lbl}>분양회 회원</label>
+                {form.member_name ? (
+                  <div className="flex items-center justify-between px-3 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
+                    <span className="text-sm font-bold text-blue-700">{form.member_number} {form.member_name} {form.member_title}</span>
+                    <button type="button" onClick={()=>setForm({...form,member_name:"",member_number:"",member_title:""})} className="text-xs text-red-400 hover:text-red-600">변경</button>
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <input value={memberSearch} onChange={e=>setMemberSearch(e.target.value)} placeholder="이름, 넘버링, 직급 검색..."
+                      className="w-full px-3 py-2 text-sm border-b border-slate-200 outline-none focus:border-blue-400"/>
+                    <div className="max-h-[160px] overflow-y-auto">
+                      {filteredMembers.slice(0,20).map(m=>(
+                        <button key={m.id} type="button" onClick={()=>{setForm({...form,member_name:m.name,member_number:m.bunyanghoe_number||"",member_title:m.title||""});setMemberSearch("");}}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-blue-50 border-b border-slate-50 text-left">
+                          <span className="font-black text-amber-600 w-10">{m.bunyanghoe_number||"-"}</span>
+                          <span className="font-bold text-slate-800">{m.name}</span>
+                          <span className="text-slate-400">{m.title||""}</span>
+                          <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-semibold ${m.meeting_result==="계약완료"?"bg-emerald-50 text-emerald-600":"bg-slate-50 text-slate-400"}`}>{m.meeting_result==="계약완료"?"계약완료":"미계약"}</span>
+                        </button>
+                      ))}
+                      {filteredMembers.length===0&&<p className="text-xs text-slate-300 text-center py-4">검색 결과 없음</p>}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* 우선순위 */}
               <div><label className={lbl}>우선순위</label>
                 <div className="flex gap-2">{PRIORITIES.map(p=>(
@@ -254,6 +290,7 @@ export default function TasksPage() {
                   <div><label className={lbl}>플랫폼</label>
                     <select value={form.platform} onChange={e=>setForm({...form,platform:e.target.value})} className={inp}>
                       <option value="">선택</option>
+                      <option value="전체플랫폼">전체플랫폼</option>
                       {LMS_PLATFORMS.map(g=>(<optgroup key={g.label} label={`■ ${g.label}`}>{g.items.map(t=><option key={t}>{t}</option>)}</optgroup>))}
                     </select>
                   </div>
