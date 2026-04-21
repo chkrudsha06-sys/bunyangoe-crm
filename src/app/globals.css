@@ -486,3 +486,36 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 [data-theme="dark"] .divide-y > * + * {
   border-color: rgba(255,255,255,0.15) !important;
 }
+
+/* ═══ 벨 알림 애니메이션 ═══ */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(12deg); }
+  30% { transform: rotate(-10deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-6deg); }
+  75% { transform: rotate(3deg); }
+}
+.animate-wiggle {
+  animation: wiggle 0.8s ease-in-out;
+  animation-iteration-count: 1;
+}
+
+/* ═══ 알림 드롭다운 다크모드 ═══ */
+[data-theme="dark"] .bg-violet-100 { background: rgba(139,92,246,0.2) !important; }
+[data-theme="dark"] .bg-violet-50 { background: rgba(139,92,246,0.15) !important; }
+[data-theme="dark"] .text-violet-600 { color: #a78bfa !important; }
+[data-theme="dark"] .bg-amber-100 { background: rgba(245,158,11,0.2) !important; }
+[data-theme="dark"] .bg-amber-50 { background: rgba(245,158,11,0.15) !important; }
+[data-theme="dark"] .text-amber-600 { color: #fbbf24 !important; }
+[data-theme="dark"] .bg-blue-100 { background: rgba(59,130,246,0.2) !important; }
+[data-theme="dark"] .bg-blue-50 { background: rgba(59,130,246,0.15) !important; }
+[data-theme="dark"] .text-blue-600 { color: #60a5fa !important; }
+
+/* line-clamp 유틸리티 */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
