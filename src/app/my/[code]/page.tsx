@@ -253,7 +253,7 @@ export default function CustomerDashboard() {
       {/* ═══ VIP 가이드 모달 ═══ */}
       {guideOpen && (
         <div style={{position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setGuideOpen(false)}>
-          <div style={{background:"#fff",borderRadius:20,width:"90%",maxWidth:600,maxHeight:"85vh",overflow:"auto",padding:"32px 28px"}} onClick={e=>e.stopPropagation()}>
+          <div style={{background:"#fff",borderRadius:20,width:"92%",maxWidth:600,maxHeight:"85vh",overflow:"auto",padding:"24px 16px",WebkitOverflowScrolling:"touch" as any}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
               <h2 style={{fontSize:18,fontWeight:800,color:"#222"}}>{GUIDE_CATS.find(c=>c.id===guideSection)?.title}</h2>
               <button onClick={()=>setGuideOpen(false)} style={{background:"none",border:"none",fontSize:20,color:"#999",cursor:"pointer"}}>✕</button>
@@ -261,14 +261,15 @@ export default function CustomerDashboard() {
             {guideSection==="reward" && (
               <div>
                 <p style={{fontSize:14,color:"#555",lineHeight:1.8,marginBottom:16}}>분양회 VIP 멤버십의 리워드 및 마일리지 적립률 안내입니다.</p>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,marginBottom:20}}>
-                  <thead><tr style={{background:"#f8fafc"}}><th style={{padding:"12px 14px",textAlign:"left",fontWeight:700,borderBottom:"2px solid #e2e8f0"}}>광고채널</th><th style={{padding:"12px 14px",textAlign:"center",fontWeight:700,borderBottom:"2px solid #e2e8f0"}}>마일리지</th><th style={{padding:"12px 14px",textAlign:"center",fontWeight:700,borderBottom:"2px solid #e2e8f0"}}>리워드</th></tr></thead>
+                <div style={{borderRadius:12,border:"1px solid #e2e8f0",overflowX:"auto",marginBottom:20,WebkitOverflowScrolling:"touch" as any}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:300}}>
+                  <thead><tr style={{background:"#f8fafc"}}><th style={{padding:"12px 14px",textAlign:"left",fontWeight:700,borderBottom:"2px solid #e2e8f0",whiteSpace:"nowrap"}}>광고채널</th><th style={{padding:"12px 14px",textAlign:"center",fontWeight:700,borderBottom:"2px solid #e2e8f0",whiteSpace:"nowrap"}}>마일리지</th><th style={{padding:"12px 14px",textAlign:"center",fontWeight:700,borderBottom:"2px solid #e2e8f0",whiteSpace:"nowrap"}}>리워드</th></tr></thead>
                   <tbody>
                     <tr><td style={{padding:"12px 14px",borderBottom:"1px solid #f1f1f1"}}>분양의신 하이타겟</td><td style={{padding:"12px 14px",textAlign:"center",borderBottom:"1px solid #f1f1f1",fontWeight:600,color:"#2563eb"}}>10%</td><td style={{padding:"12px 14px",textAlign:"center",borderBottom:"1px solid #f1f1f1",fontWeight:600,color:"#16a34a"}}>5%</td></tr>
                     <tr><td style={{padding:"12px 14px",borderBottom:"1px solid #f1f1f1"}}>호갱노노</td><td style={{padding:"12px 14px",textAlign:"center",borderBottom:"1px solid #f1f1f1",fontWeight:600,color:"#2563eb"}}>5%</td><td style={{padding:"12px 14px",textAlign:"center",borderBottom:"1px solid #f1f1f1",fontWeight:600,color:"#16a34a"}}>5%</td></tr>
                     <tr><td style={{padding:"12px 14px",borderBottom:"1px solid #f1f1f1"}}>LMS</td><td style={{padding:"12px 14px",textAlign:"center",borderBottom:"1px solid #f1f1f1",fontWeight:600,color:"#2563eb"}}>15%</td><td style={{padding:"12px 14px",textAlign:"center",borderBottom:"1px solid #f1f1f1",fontWeight:600,color:"#16a34a"}}>5%</td></tr>
                   </tbody>
-                </table>
+                </table></div>
                 <p style={{fontSize:12,color:"#999",lineHeight:1.6}}>※ 마일리지는 자사 광고 집행 시 적립됩니다.<br/>※ 리워드는 분기별 정산 후 현금 지급됩니다. (원천징수 3.3% 차감)</p>
               </div>
             )}
@@ -276,9 +277,9 @@ export default function CustomerDashboard() {
               <div>
                 <p style={{fontSize:14,color:"#555",lineHeight:1.8,marginBottom:16}}>분양회는 분양업계 상위 3%, 리더 100인만을 위한 프라이빗 멤버십입니다.</p>
                 <p style={{fontSize:14,color:"#555",lineHeight:1.8}}>전체 분양상담사 약 45,000명 중 상위권 팀장 900명, 상위권 본부장 450명, 그 중 분양회 100명이 선발됩니다.</p>
-                <div style={{marginTop:16,padding:"16px",background:"#f8fafc",borderRadius:12,border:"1px solid #e2e8f0"}}>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                    <thead><tr style={{background:"#f1f5f9"}}><th style={{padding:"10px 12px",textAlign:"left",fontWeight:700}}>특전</th><th style={{padding:"10px 12px",textAlign:"left",fontWeight:700}}>콘셉트</th><th style={{padding:"10px 12px",textAlign:"right",fontWeight:700}}>연간 체감가치</th></tr></thead>
+                <div style={{marginTop:16,borderRadius:12,border:"1px solid #e2e8f0",overflowX:"auto",WebkitOverflowScrolling:"touch" as any}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:320}}>
+                    <thead><tr style={{background:"#f1f5f9"}}><th style={{padding:"10px 12px",textAlign:"left",fontWeight:700,whiteSpace:"nowrap"}}>특전</th><th style={{padding:"10px 12px",textAlign:"left",fontWeight:700,whiteSpace:"nowrap"}}>콘셉트</th><th style={{padding:"10px 12px",textAlign:"right",fontWeight:700,whiteSpace:"nowrap"}}>연간 체감가치</th></tr></thead>
                     <tbody>
                       <tr><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0"}}>광고 특전</td><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0"}}>광고 잘하는 리더</td><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0",textAlign:"right",fontWeight:700}}>~1억원</td></tr>
                       <tr><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0"}}>홍보 특전</td><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0"}}>팀원이 먼저 찾는 리더</td><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0",textAlign:"right",fontWeight:700}}>~1,000만원</td></tr>
@@ -291,7 +292,7 @@ export default function CustomerDashboard() {
             {guideSection==="ad" && (
               <div style={{fontSize:14,color:"#555",lineHeight:1.8}}>
                 <p style={{marginBottom:12}}>분양회 VIP 멤버십의 광고 특전 안내입니다.</p>
-                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {[{t:"횡보기간 단독 콜보장",d:"정체기 현장 하이타겟 광고 독점 집행, 150% 효과 보장"},{t:"LMS 광고 이용 및 리워드",d:"장문 문자 광고, 마일리지 15% + 리워드 5%"},{t:"호갱노노 광고 이용 및 리워드",d:"부동산 플랫폼 광고, 마일리지 5% + 리워드 5%"},{t:"분양의신 광고 이용 및 리워드",d:"마일리지 10% 또는 리워드 5% 택1"},{t:"본부 광고비 지원 제안서",d:"현장 맞춤형 브리핑용 제안서 무료 제작"},{t:"PC+모바일 홈페이지",d:"팀원 수만큼 퍼포먼스형 홈페이지 무료 제공"}].map(item=>(
                     <div key={item.t} style={{padding:"14px",background:"#f8fafc",borderRadius:10,border:"1px solid #f1f1f1"}}>
                       <p style={{fontSize:14,fontWeight:700,color:"#222"}}>{item.t}</p>
