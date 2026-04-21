@@ -89,7 +89,8 @@ export default function CustomerIncentivesPage() {
     const pi=payInline[key];if(!pi)return;
     const amt=Number((pi.amt||"0").replace(/,/g,""))||0;
     if(amt<=0){alert("지급금액을 입력하세요");return;}
-    await supabase.from("incentive_payments").insert({contact_id:c.id,quarter_num:q.qNum,incentive_amount:amt,is_paid:true,paid_date:pi.date});
+    const {error}=await supabase.from("incentive_payments").insert({contact_id:c.id,quarter_num:q.qNum,incentive_amount:amt,is_paid:true,paid_date:pi.date});
+    if(error){alert("지급 저장 실패: "+error.message);return;}
     setPayInline(p=>{const n={...p};delete n[key];return n;});
     loadData();
   };
