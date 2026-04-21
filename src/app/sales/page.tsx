@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { CreditCard, Plus, Save, X, TrendingUp, Search, Edit2, FileText } from "lucide-react";
 
