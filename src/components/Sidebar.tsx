@@ -36,6 +36,7 @@ const OPS_MENUS = [
   { href: "/member-manage", label: "분양회 회원관리", icon: Shield },
   { href: "/sales", label: "통합매출관리", icon: CreditCard },
   { href: "/rewards", label: "리워드 관리", icon: BarChart3 },
+  { href: "/customer-incentives", label: "인센티브 관리", icon: Award },
   { href: "/quotes", label: "견적서", icon: FileText },
 ];
 
