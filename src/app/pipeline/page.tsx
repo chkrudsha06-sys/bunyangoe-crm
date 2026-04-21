@@ -146,15 +146,14 @@ function ContactCard({ contact, col, onNotesClick, refreshKey }: {
 
       {/* 활동 노트 */}
       <div
-        className="mt-2 pt-2 border-t border-slate-50 cursor-pointer"
-        onClick={e => { e.stopPropagation(); onNotesClick(contact.id, contact.name); }}
-        onDoubleClick={e => e.stopPropagation()}
-        title="클릭: 활동노트 전체보기"
+        className="mt-2 pt-2 border-t border-slate-50"
+        onDoubleClick={e => { e.stopPropagation(); onNotesClick(contact.id, contact.name); }}
+        onClick={e => e.stopPropagation()}
       >
         <ContactNotes contactId={contact.id} compact refreshKey={refreshKey}/>
         <p
           onClick={() => onNotesClick(contact.id, contact.name)}
-          className="text-xs text-slate-800 font-semibold mt-1.5 text-right cursor-pointer hover:text-blue-600 select-none">
+          className="text-xs text-slate-800 font-semibold mt-2 text-right cursor-pointer hover:text-blue-600 select-none">
           활동노트 입력하기 →
         </p>
       </div>

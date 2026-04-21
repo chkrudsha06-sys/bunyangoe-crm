@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Trash2, Calendar } from "lucide-react";
+import { Plus, Trash2, Calendar, Pencil, X, Check } from "lucide-react";
 
 interface Note {
   id: number;
@@ -16,7 +16,7 @@ interface Props {
   contactId: number;
   authorName?: string;
   compact?: boolean;
-  refreshKey?: number; // 외부에서 갱신 트리거
+  refreshKey?: number;
 }
 
 export default function ContactNotes({ contactId, authorName, compact, refreshKey }: Props) {
@@ -26,6 +26,8 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
   const [newDate, setNewDate] = useState(new Date().toISOString().split("T")[0]);
   const [newContent, setNewContent] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState("");
 
   const fetchNotes = async () => {
     setLoading(true);
@@ -63,13 +65,20 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
     setNewContent("");
     setNewDate(new Date().toISOString().split("T")[0]);
     setAdding(false);
-    // 저장 후 즉시 목록 갱신
     await fetchNotes();
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm("삭제하시겠습니까?")) return;
     await supabase.from("contact_notes").delete().eq("id", id);
+    fetchNotes();
+  };
+
+  const handleEdit = async (id: number) => {
+    if (!editContent.trim()) return;
+    await supabase.from("contact_notes").update({ content: editContent.trim() }).eq("id", id);
+    setEditingId(null);
+    setEditContent("");
     fetchNotes();
   };
 
@@ -83,11 +92,21 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
         {loading ? null : notes.length === 0 ? (
           <p className="text-xs text-slate-300 py-1">활동 노트 없음</p>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {notes.slice(0, 2).map(n => (
-              <div key={n.id} className="bg-white rounded-lg px-2 py-1.5 border border-slate-100">
-                <span className="text-[10px] font-bold text-blue-500 mr-1.5">{formatDate(n.note_date)}</span>
-                <span className="text-[11px] text-slate-600 line-clamp-1">{n.content}</span>
+              <div key={n.id} className="bg-white rounded-lg px-3 py-2 border border-slate-100">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-bold text-blue-500 mr-1.5">{formatDate(n.note_date)}</span>
+                    <span className="text-xs text-slate-600 line-clamp-1">{n.content}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button onClick={e => { e.stopPropagation(); setEditingId(n.id); setEditContent(n.content); }}
+                      className="text-slate-400 hover:text-blue-500"><Pencil size={16}/></button>
+                    <button onClick={e => { e.stopPropagation(); handleDelete(n.id); }}
+                      className="text-slate-400 hover:text-red-500"><Trash2 size={16}/></button>
+                  </div>
+                </div>
               </div>
             ))}
             {notes.length > 2 && (
@@ -95,11 +114,29 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
             )}
           </div>
         )}
+
+        {/* 인라인 수정 팝업 */}
+        {editingId && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={e => { e.stopPropagation(); setEditingId(null); }}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-slate-800">활동노트 수정</h3>
+                <button onClick={() => setEditingId(null)}><X size={18} className="text-slate-400"/></button>
+              </div>
+              <textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={4}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-blue-400 resize-none mb-3"/>
+              <div className="flex gap-2">
+                <button onClick={() => setEditingId(null)} className="flex-1 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg">취소</button>
+                <button onClick={() => handleEdit(editingId)} className="flex-1 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700">저장</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
-  // ── 일반 모드 (상세 페이지 / 수정 모달) ──
+  // ── 일반 모드 ──
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
@@ -151,7 +188,7 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
       ) : (
         <div className="space-y-2">
           {notes.map(note => (
-            <div key={note.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3 group">
+            <div key={note.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-blue-600">
@@ -161,12 +198,25 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
                     <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded-full">{note.author}</span>
                   )}
                 </div>
-                <button onClick={() => handleDelete(note.id)}
-                  className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all">
-                  <Trash2 size={12}/>
-                </button>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => { setEditingId(note.id); setEditContent(note.content); }}
+                    className="text-slate-400 hover:text-blue-500"><Pencil size={18}/></button>
+                  <button onClick={() => handleDelete(note.id)}
+                    className="text-slate-400 hover:text-red-500"><Trash2 size={18}/></button>
+                </div>
               </div>
-              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{note.content}</p>
+              {editingId === note.id ? (
+                <div className="space-y-2">
+                  <textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={3}
+                    className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg outline-none focus:border-blue-400 resize-none"/>
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditingId(null)} className="px-3 py-1 text-xs text-slate-500 border border-slate-200 rounded-lg">취소</button>
+                    <button onClick={() => handleEdit(note.id)} className="px-3 py-1 text-xs font-bold bg-blue-600 text-white rounded-lg"><Check size={12} className="inline mr-1"/>저장</button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{note.content}</p>
+              )}
             </div>
           ))}
         </div>
