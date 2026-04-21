@@ -156,24 +156,27 @@ export default function CustomerDashboard() {
       {/* ════════════════ PC 레이아웃 ════════════════ */}
       <div className="pc-view">
         {/* 히어로 */}
-        <div style={{background:"linear-gradient(135deg,#1E3A8A 0%,#3B5FC0 50%,#1E3A8A 100%)",padding:"40px 56px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{display:"flex",alignItems:"center",gap:24}}>
-            <div style={{width:100,height:120,borderRadius:16,overflow:"hidden",border:"3px solid #D4A843",boxShadow:"0 4px 20px rgba(0,0,0,0.3)",background:"#1a1a1a",flexShrink:0}}>
-              {photoUrl?<img src={photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:36,fontWeight:800,color:"#D4A843"}}>{contact?.name?.[0]}</span></div>}
-            </div>
-            <div>
-              <h1 style={{fontSize:32,fontWeight:800,color:"#fff"}}>{contact?.name} <span style={{fontSize:18,fontWeight:500,color:"rgba(255,255,255,0.6)"}}>{contact?.title}</span></h1>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8}}>
-                <span style={{fontSize:11,padding:"3px 10px",background:"#D4A843",color:"#1a1a1a",borderRadius:4,fontWeight:800}}>VIP</span>
-                <span style={{fontSize:14,color:"#D4A843",fontWeight:600}}>분양회 프리미엄 멤버십</span>
+        <div style={{background:"linear-gradient(135deg,#0a0a0a 0%,#1a1a1a 40%,#2d2318 100%)",padding:"48px 0",position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",top:0,right:0,width:"40%",height:"100%",background:"linear-gradient(90deg,transparent,rgba(212,168,67,0.05))"}}/>
+          <div style={{maxWidth:1600,margin:"0 auto",padding:"0 56px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"relative",zIndex:1}}>
+            <div style={{display:"flex",alignItems:"center",gap:32}}>
+              <div style={{width:140,height:170,borderRadius:16,overflow:"hidden",border:"3px solid #D4A843",boxShadow:"0 8px 32px rgba(0,0,0,0.5)",flexShrink:0}}>
+                {photoUrl?<img src={photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",background:"#222"}}><span style={{fontSize:44,fontWeight:800,color:"#D4A843"}}>{contact?.name?.[0]}</span></div>}
+              </div>
+              <div>
+                <h1 style={{fontSize:36,fontWeight:800,color:"#fff",marginBottom:8}}>{contact?.name} <span style={{fontSize:20,fontWeight:500,color:"rgba(255,255,255,0.5)"}}>{contact?.title}</span></h1>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:12,padding:"4px 12px",background:"#D4A843",color:"#1a1a1a",borderRadius:6,fontWeight:800}}>VIP</span>
+                  <span style={{fontSize:15,color:"#D4A843",fontWeight:600}}>분양회 프리미엄 멤버십</span>
+                </div>
               </div>
             </div>
+            <img src="/bunyanghoe-logo.png" alt="" style={{width:120,height:120,objectFit:"contain",opacity:0.9}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
           </div>
-          <img src="/bunyanghoe-logo.png" alt="" style={{width:80,height:80,objectFit:"contain",opacity:0.9}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
         </div>
 
         {/* 그리드 */}
-        <div style={{padding:"32px 56px",maxWidth:1600,margin:"0 auto"}}>
+        <div style={{padding:"32px 0",maxWidth:1600,margin:"0 auto",paddingLeft:56,paddingRight:56}}>
           {/* 1행: 내정보 + 담당자 + 날씨 */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:20,marginBottom:20}}>
             <div style={{background:"#fff",borderRadius:16,border:"1px solid #f1f1f1",padding:"24px"}}>
