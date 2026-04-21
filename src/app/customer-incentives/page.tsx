@@ -68,7 +68,7 @@ export default function CustomerIncentivesPage() {
     customerData.forEach(c=>c.quarters.forEach((q:any)=>{
       if(search.trim()){const s=search.trim().toLowerCase();if(!c.name.includes(s)&&!fmtBun(c.bunyanghoe_number).toLowerCase().includes(s)&&!(c.assigned_to||"").includes(s))return;}
       if(filterPaid==="paid"&&q.totalPaid<=0)return;
-      if(filterPaid==="unpaid"&&(q.totalPaid>0||!q.tier||!q.isEnded))return;
+      if(filterPaid==="unpaid"&&(q.totalPaid>0||!q.tier))return;
       rows.push({...q,contact:c});
     }));
     return rows;
@@ -79,7 +79,7 @@ export default function CustomerIncentivesPage() {
     customerData.forEach(c=>c.quarters.forEach((q:any)=>{
       if(!q.tier)return;total++;
       if(q.tier.label==="1구간")t1++;if(q.tier.label==="2구간")t2++;if(q.tier.label==="3구간")t3++;
-      if(q.totalPaid>0){paid++;paidAmt+=q.totalPaid;}else if(q.isEnded)unpaid++;
+      if(q.totalPaid>0){paid++;paidAmt+=q.totalPaid;}else unpaid++;
     }));
     return {total,t1,t2,t3,paid,unpaid,paidAmt};
   },[customerData]);
@@ -209,7 +209,7 @@ export default function CustomerIncentivesPage() {
 
                     {/* 지급처리 인라인 */}
                     <td className="px-2 py-3 text-center">
-                      {r.tier&&r.isEnded ? (
+                      {r.tier ? (
                         pI ? (
                           <div className="flex flex-col gap-1 min-w-[130px]">
                             <input type="date" value={pI.date} onChange={e=>setPayInline(p=>({...p,[key]:{...p[key],date:e.target.value}}))} className={inp}/>
@@ -247,7 +247,7 @@ export default function CustomerIncentivesPage() {
 
                     {/* 지급추전액(이월) */}
                     <td className="px-2 py-3 text-center">
-                      {r.tier&&r.isEnded ? (()=>{
+                      {r.tier ? (()=>{
                         const remain=r.remaining;
                         if(pI){const inputAmt=Number((pI.amt||"0").replace(/,/g,""))||0;const nr=r.incentiveAmt-r.totalPaid-inputAmt;
                           return <span className={`text-xs font-bold ${nr>0?"text-amber-500":nr===0?"text-slate-400":"text-red-400"}`}>{fw(nr)}원</span>;}
