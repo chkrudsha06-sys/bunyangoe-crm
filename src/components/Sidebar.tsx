@@ -24,26 +24,26 @@ interface SidebarProps {
 }
 
 const EXEC_MENUS = [
-  { href: "/", label: "대시보드", icon: LayoutDashboard },
-  { href: "/contacts", label: "고객 DB", icon: Users },
-  { href: "/pipeline", label: "파이프라인", icon: Kanban },
-  { href: "/vip-members", label: "분양회 입회자", icon: Award },
-  { href: "/wanpan-truck", label: "완판트럭", icon: Truck },
-  { href: "/calendar", label: "운영캘린더", icon: CalendarDays },
+  { href: "/", label: "대시보드", emoji: "📊" },
+  { href: "/contacts", label: "고객 DB", emoji: "👥" },
+  { href: "/pipeline", label: "파이프라인", emoji: "🔄" },
+  { href: "/vip-members", label: "분양회 입회자", emoji: "⭐" },
+  { href: "/wanpan-truck", label: "완판트럭", emoji: "🚚" },
+  { href: "/calendar", label: "운영캘린더", emoji: "📅" },
 ];
 
 const OPS_MENUS = [
-  { href: "/member-manage", label: "분양회 회원관리", icon: Shield },
-  { href: "/sales", label: "통합매출관리", icon: CreditCard },
-  { href: "/rewards", label: "리워드 관리", icon: BarChart3 },
-  { href: "/customer-incentives", label: "인센티브 관리", icon: Award },
-  { href: "/quotes", label: "견적서", icon: FileText },
+  { href: "/member-manage", label: "분양회 회원관리", emoji: "🛡️" },
+  { href: "/sales", label: "통합매출관리", emoji: "💳" },
+  { href: "/rewards", label: "리워드 관리", emoji: "💎" },
+  { href: "/customer-incentives", label: "인센티브 관리", emoji: "🏆" },
+  { href: "/quotes", label: "견적서", emoji: "📄" },
 ];
 
 const ADMIN_EXTRA = [
-  { href: "/reports",       label: "팀 성과 분석", icon: BarChart3 },
-  { href: "/kpi-settings",  label: "KPI 설정",    icon: Target },
-  { href: "/incentives",     label: "인센티브 관리", icon: Award },
+  { href: "/reports",       label: "팀 성과 분석", emoji: "📈" },
+  { href: "/kpi-settings",  label: "KPI 설정",    emoji: "🎯" },
+  { href: "/incentives",     label: "인센티브 관리", emoji: "🏅" },
 ];
 
 // 역할 배지 스타일
@@ -76,7 +76,7 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
 
   const handleLogout = () => { logout(); router.push("/login"); };
 
-  const NavItem = ({ href, label, icon: Icon }: { href: string; label: string; icon: React.ElementType }) => {
+  const NavItem = ({ href, label, emoji }: { href: string; label: string; emoji: string }) => {
     const active = pathname === href;
     return (
       <Link href={href} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all group"
@@ -88,7 +88,7 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
         }}
         onMouseEnter={e=>{if(!active)(e.currentTarget as HTMLElement).style.background="var(--sidebar-hover)";}}
         onMouseLeave={e=>{if(!active)(e.currentTarget as HTMLElement).style.background="transparent";}}>
-        <Icon size={15} style={{color: active ? "var(--info)" : "var(--sidebar-text)"}} />
+        <span style={{fontSize:16,width:20,textAlign:"center"}}>{emoji}</span>
         <span className="flex-1">{label}</span>
         {active && <ChevronRight size={12} style={{color:"var(--info)"}} />}
       </Link>
