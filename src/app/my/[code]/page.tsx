@@ -181,10 +181,11 @@ export default function CustomerDashboard() {
       <style>{`
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.min.css');
         *{box-sizing:border-box;margin:0;padding:0}
-        .dw{max-width:960px;margin:0 auto;display:flex;flex-direction:row-reverse;gap:0;min-height:100vh}
-        .dl{flex:1;min-width:0;max-width:480px;border-left:1px solid #f1f1f1}
-        .dr{flex:1;min-width:360px;padding:28px 28px}
-        @media(max-width:768px){.dw{flex-direction:column-reverse}.dl{border-left:none;border-top:8px solid #f5f5f5}.dr{width:100%;padding:24px 20px}}
+        .dw{max-width:1280px;margin:0 auto;display:flex;flex-direction:row-reverse;gap:0;min-height:100vh;padding:0 24px}
+        .dl{flex:1;min-width:0;border-left:1px solid #f1f1f1}
+        .dr{width:420px;flex-shrink:0;padding:28px 32px}
+        @media(max-width:1024px){.dr{width:360px;padding:24px 20px}}
+        @media(max-width:768px){.dw{flex-direction:column-reverse;padding:0}.dl{border-left:none;border-top:8px solid #f5f5f5}.dr{width:100%;padding:24px 20px}}
       `}</style>
 
       <div className="dw">
