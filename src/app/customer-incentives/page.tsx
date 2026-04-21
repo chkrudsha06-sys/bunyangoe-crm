@@ -127,7 +127,7 @@ export default function CustomerIncentivesPage() {
     const rows:any[][]=[];
     customerData.forEach(c=>c.quarters.forEach((q:any)=>{
       q.paidRecords.forEach((p:any)=>{
-        rows.push([c.bank_code||"",c.bank_account||"",c.bank_holder||c.name,p.incentive_amount||0,`인센티브${q.qNum}기`,"(주)광고인"]);
+        const pMonth=p.paid_date?new Date(p.paid_date+"T00:00:00").getMonth()+1:0;rows.push([c.bank_code||"",c.bank_account||"",c.bank_holder||c.name,p.incentive_amount||0,`${pMonth}월프리이화원`,"(주)광고인"]);
       });
     }));
     const ws=XLSX.utils.aoa_to_sheet(rows);const wb=XLSX.utils.book_new();
