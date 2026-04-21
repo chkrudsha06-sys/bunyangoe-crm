@@ -93,8 +93,8 @@ export default function CustomerDashboard() {
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.min.css');
         *{box-sizing:border-box;margin:0;padding:0}
         .dw{max-width:960px;margin:0 auto;display:flex;gap:0;min-height:100vh}
-        .dl{flex:1;min-width:0;border-right:1px solid #f1f1f1}
-        .dr{width:340px;flex-shrink:0;padding:28px 24px}
+        .dl{flex:1;min-width:0;max-width:480px;border-right:1px solid #f1f1f1}
+        .dr{flex:1;min-width:360px;padding:28px 28px}
         @media(max-width:768px){.dw{flex-direction:column-reverse}.dl{border-right:none;border-top:8px solid #f5f5f5}.dr{width:100%;padding:24px 20px}}
       `}</style>
 
@@ -133,8 +133,8 @@ export default function CustomerDashboard() {
         <div className="dr">
           {/* 프로필: 사진 | 이름 | 로고 */}
           <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:20}}>
-            <div style={{width:80,height:80,borderRadius:"50%",overflow:"hidden",flexShrink:0,background:"#1a1a1a",border:"2.5px solid #D4A843",boxShadow:"0 0 0 4px rgba(212,168,67,0.12)"}}>
-              {photoUrl ? <img src={photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%"}}/> : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:28,fontWeight:800,color:"#D4A843"}}>{contact?.name?.[0]}</span></div>}
+            <div style={{width:100,height:120,borderRadius:12,overflow:"hidden",flexShrink:0,background:"#1a1a1a",border:"2px solid #D4A843",boxShadow:"0 4px 12px rgba(0,0,0,0.1)"}}>
+              {photoUrl ? <img src={photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%"}}/> : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:32,fontWeight:800,color:"#D4A843"}}>{contact?.name?.[0]}</span></div>}
             </div>
             <div style={{flex:1}}>
               <h2 style={{fontSize:20,fontWeight:800,color:"#222"}}>{contact?.name} <span style={{fontSize:13,fontWeight:500,color:"#999"}}>{contact?.title}</span></h2>
@@ -165,10 +165,17 @@ export default function CustomerDashboard() {
             <p style={{fontSize:24,fontWeight:800,color:"#78350f"}}>{fw(stats.totalReward + stats.totalMileage)}<span style={{fontSize:12,color:"#a16207",marginLeft:2}}>원</span></p>
           </div>
 
-          {/* 담당자 정보 */}
+          {/* 내 정보 */}
           <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}>
             <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:12}}>내 정보</p>
-            {/* 대외협력팀 담당자 */}
+            <div style={{padding:"10px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between"}}>
+              <span style={{fontSize:13,color:"#666"}}>성명 / 직급</span>
+              <span style={{fontSize:13,fontWeight:600,color:"#333"}}>{contact?.name} {contact?.title}</span>
+            </div>
+            <div style={{padding:"10px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between",marginBottom:12}}>
+              <span style={{fontSize:13,color:"#666"}}>가입일</span>
+              <span style={{fontSize:13,fontWeight:600,color:"#333"}}>{fDate(contact?.contract_date||"")}</span>
+            </div>
             {contact?.assigned_to && tInfo && (
               <div style={{padding:"12px 14px",background:"#f8fafc",borderRadius:10,border:"1px solid #f1f1f1",marginBottom:8}}>
                 <p style={{fontSize:12,color:"#94a3b8",fontWeight:600,marginBottom:6}}>대외협력팀 담당자</p>
@@ -176,7 +183,6 @@ export default function CustomerDashboard() {
                 <a href={`tel:${tInfo.phone}`} style={{fontSize:13,color:"#3b82f6",textDecoration:"none",marginTop:2,display:"block"}}>{tInfo.phone}</a>
               </div>
             )}
-            {/* 광고사업부 담당자 */}
             {contact?.consultant && cInfo && (
               <div style={{padding:"12px 14px",background:"#f8fafc",borderRadius:10,border:"1px solid #f1f1f1",marginBottom:8}}>
                 <p style={{fontSize:12,color:"#94a3b8",fontWeight:600,marginBottom:6}}>광고사업부 담당자</p>
@@ -184,28 +190,39 @@ export default function CustomerDashboard() {
                 <a href={`tel:${cInfo.phone}`} style={{fontSize:13,color:"#3b82f6",textDecoration:"none",marginTop:2,display:"block"}}>{cInfo.phone}</a>
               </div>
             )}
-            <div style={{padding:"10px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between"}}>
-              <span style={{fontSize:13,color:"#666"}}>가입일</span>
-              <span style={{fontSize:13,fontWeight:600,color:"#333"}}>{fDate(contact?.contract_date||"")}</span>
-            </div>
           </div>
 
           {/* 마일리지 및 리워드 상세 */}
           <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}>
             <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:12}}>마일리지 및 리워드 상세</p>
             {[
-              {icon:"🎯",label:"하이타겟 마일리지",value:`${fw(stats.totalMileage)}P`},
-              {icon:"🎯",label:"하이타겟 리워드",value:`${fw(stats.htReward)}원`},
-              {icon:"📱",label:"호갱노노 리워드",value:`${fw(stats.hogReward)}원`},
-              {icon:"💬",label:"LMS 리워드",value:`${fw(stats.lmsReward)}원`},
+              {icon:"🎯",label:"하이타겟 마일리지",value:`${fw(stats.totalMileage)}P`,detail:execs.filter(e=>(e.hightarget_mileage||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.hightarget_mileage,unit:"P"}))},
+              {icon:"🎯",label:"하이타겟 리워드",value:`${fw(stats.htReward)}원`,detail:execs.filter(e=>(e.hightarget_reward||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.hightarget_reward,unit:"원"}))},
+              {icon:"📱",label:"호갱노노 리워드",value:`${fw(stats.hogReward)}원`,detail:execs.filter(e=>(e.hogaengnono_reward||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.hogaengnono_reward,unit:"원"}))},
+              {icon:"💬",label:"LMS 리워드",value:`${fw(stats.lmsReward)}원`,detail:execs.filter(e=>(e.lms_reward||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.lms_reward,unit:"원"}))},
             ].map(row=>(
-              <div key={row.label} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #f8f8f8"}}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:14}}>{row.icon}</span>
-                  <span style={{fontSize:13,color:"#666"}}>{row.label}</span>
-                </div>
-                <span style={{fontSize:13,fontWeight:600,color:"#333"}}>{row.value}</span>
-              </div>
+              <details key={row.label} style={{borderBottom:"1px solid #f8f8f8"}}>
+                <summary style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",cursor:"pointer",listStyle:"none"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:14}}>{row.icon}</span>
+                    <span style={{fontSize:13,color:"#666"}}>{row.label}</span>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:13,fontWeight:600,color:"#333"}}>{row.value}</span>
+                    <span style={{fontSize:10,color:"#ccc"}}>▼</span>
+                  </div>
+                </summary>
+                {row.detail.length > 0 ? (
+                  <div style={{padding:"4px 0 12px 28px"}}>
+                    {row.detail.map((d: any,i: number)=>(
+                      <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",fontSize:12}}>
+                        <span style={{color:"#999"}}>{fDate(d.date)} · {d.ch}</span>
+                        <span style={{fontWeight:600,color:"#2563eb"}}>+{fw(d.amt)}{d.unit}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p style={{padding:"8px 0 12px 28px",fontSize:12,color:"#ccc"}}>내역 없음</p>}
+              </details>
             ))}
           </div>
 
