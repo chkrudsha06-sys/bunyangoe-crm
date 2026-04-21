@@ -245,12 +245,16 @@ export default function CustomerDashboard() {
 
         {/* 프로필 */}
         <div style={{padding:"24px 20px"}}>
-          <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:20}}>
-            <div style={{width:100,height:120,borderRadius:12,overflow:"hidden",background:"#1a1a1a",border:"2px solid #D4A843",boxShadow:"0 4px 12px rgba(0,0,0,0.1)",flexShrink:0}}>
-              {photoUrl?<img src={photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:32,fontWeight:800,color:"#D4A843"}}>{contact?.name?.[0]}</span></div>}
+          <div style={{marginBottom:20}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:12}}>
+              <div style={{width:100,height:120,borderRadius:12,overflow:"hidden",background:"#1a1a1a",border:"2px solid #D4A843",boxShadow:"0 4px 12px rgba(0,0,0,0.1)",flexShrink:0}}>
+                {photoUrl?<img src={photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:32,fontWeight:800,color:"#D4A843"}}>{contact?.name?.[0]}</span></div>}
+              </div>
+              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"flex-end",flex:1,height:120}}>
+                <img src="/bunyanghoe-logo.png" alt="" style={{width:100,height:100,objectFit:"contain"}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
+              </div>
             </div>
-            <div style={{flex:1}}><h2 style={{fontSize:20,fontWeight:800,color:"#222"}}>{contact?.name} <span style={{fontSize:13,fontWeight:500,color:"#999"}}>{contact?.title}</span></h2></div>
-            <img src="/bunyanghoe-logo.png" alt="" style={{width:52,height:52,objectFit:"contain"}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
+            <h2 style={{fontSize:20,fontWeight:800,color:"#222"}}>{contact?.name} <span style={{fontSize:13,fontWeight:500,color:"#999"}}>{contact?.title}</span></h2>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,padding:"10px 14px",background:"linear-gradient(90deg,#1a1a1a,#2d2318)",borderRadius:10}}><span style={{fontSize:10,padding:"2px 8px",background:"#D4A843",color:"#1a1a1a",borderRadius:4,fontWeight:800}}>VIP</span><span style={{fontSize:12,color:"#D4A843",fontWeight:600}}>분양회 프리미엄 멤버십</span></div>
           <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:10}}>내 정보</p>
