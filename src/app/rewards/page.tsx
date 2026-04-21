@@ -399,11 +399,12 @@ export default function RewardsPage() {
           </div>
           <select value={filterQuarter} onChange={e=>setFilterQuarter(e.target.value)}
             className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+            <option value="">전체</option>
             {quarters.map(qq=><option key={qq} value={qq}>{qq}</option>)}
           </select>
           <select value={filterPaid} onChange={e=>setFilterPaid(e.target.value)}
             className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-            <option value="">전체</option>
+            <option value="">지급여부</option>
             <option value="unpaid">미지급</option>
             <option value="paid">지급완료</option>
           </select>
