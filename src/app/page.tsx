@@ -895,7 +895,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
                 {mt.slice(0,1).map(m=>(<div key={`m${m.id}`} className="text-xs px-2 py-1.5 rounded-lg truncate font-bold bg-violet-100 text-violet-700 border border-violet-200">미팅 - {m.assigned_to}</div>))}
                 {ev.slice(0,2).map(e=>{
                   const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
-                  return <div key={e.id} className={`text-xs px-2 py-1.5 rounded-lg truncate font-bold border ${c.bg} ${c.text} ${c.border||""}`}>{e.event_type}</div>;
+                  return <div key={e.id} className={`text-xs px-2 py-1.5 rounded-lg truncate font-bold border ${c.bg} ${c.text} `}>{e.event_type}</div>;
                 })}
                 {total>3&&<p className="text-xs text-slate-400 pl-1 font-semibold">+{total-3}</p>}
               </div>
