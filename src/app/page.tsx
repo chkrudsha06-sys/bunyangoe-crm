@@ -869,14 +869,14 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-7 border border-slate-200 divide-x divide-slate-200">
+      <div className="grid grid-cols-7 border border-slate-200 divide-x divide-slate-200 border-t border-slate-200">
         {days.map((d,i)=>(
           <div key={d} className={`text-center py-3 text-sm font-bold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
         ))}
       </div>
 
       <div className="grid grid-cols-7 border border-slate-200 divide-x divide-y divide-slate-200">
-        {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`} className="min-h-[96px] bg-slate-50/30"/>)}
+        {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`} className="min-h-[140px] bg-slate-50/30"/>)}
         {Array.from({length:daysInMonth}).map((_,i)=>{
           const d = i+1; const ds = getDs(d);
           const {ev,mt,wp} = getItems(d);
@@ -887,23 +887,23 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
             <div key={d}
               onClick={()=>{ setSelDate(ds); setShowDayPopup(true); setShowAdd(false); }}
               onDoubleClick={()=>{ setSelDate(ds); setShowAdd(true); setShowDayPopup(false); }}
-              className={`min-h-[96px] p-1.5 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"}`}
+              className={`min-h-[140px] p-1.5 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"}`}
               title="더블클릭: 일정 추가">
               <div className={`w-8 h-8 flex items-center justify-center rounded-full text-base font-bold mb-1 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-600"}`}>{d}</div>
-              <div className="space-y-0.5">
-                {wp.map(w=>(<div key={`w${w.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-amber-100 text-amber-700">🚚 완판트럭</div>))}
-                {mt.slice(0,1).map(m=>(<div key={`m${m.id}`} className="text-[9px] px-1 py-0.5 rounded truncate font-semibold bg-violet-50 text-violet-600">미팅 - {m.assigned_to}</div>))}
+              <div className="space-y-1">
+                {wp.map(w=>(<div key={`w${w.id}`} className="text-xs px-2 py-1.5 rounded-lg truncate font-bold bg-amber-100 text-amber-700 border border-amber-200">🚚 완판트럭</div>))}
+                {mt.slice(0,1).map(m=>(<div key={`m${m.id}`} className="text-xs px-2 py-1.5 rounded-lg truncate font-bold bg-violet-100 text-violet-700 border border-violet-200">미팅 - {m.assigned_to}</div>))}
                 {ev.slice(0,2).map(e=>{
                   const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
-                  return <div key={e.id} className={`text-[9px] px-1 py-0.5 rounded truncate font-semibold ${c.bg} ${c.text}`}>{e.event_type}</div>;
+                  return <div key={e.id} className={`text-xs px-2 py-1.5 rounded-lg truncate font-bold border ${c.bg} ${c.text} ${c.border||""}`}>{e.event_type}</div>;
                 })}
-                {total>3&&<p className="text-[9px] text-slate-400 pl-0.5">+{total-3}</p>}
+                {total>3&&<p className="text-xs text-slate-400 pl-1 font-semibold">+{total-3}</p>}
               </div>
             </div>
           );
         })}
         {Array.from({length: (7 - (firstDay + daysInMonth) % 7) % 7}).map((_,i)=>(
-          <div key={`t${i}`} className="min-h-[96px] bg-slate-50/30"/>
+          <div key={`t${i}`} className="min-h-[140px] bg-slate-50/30"/>
         ))}
       </div>
     </div>
