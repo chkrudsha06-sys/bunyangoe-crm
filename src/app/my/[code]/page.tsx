@@ -91,7 +91,7 @@ export default function CustomerDashboard() {
     return(<div style={{padding:lg?"18px 20px":"12px 14px",background:"#f8fafc",borderRadius:lg?14:10,border:"1px solid #f1f1f1",marginBottom:lg?10:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
       <div><p style={{fontSize:lg?14:12,color:"#94a3b8",fontWeight:600,marginBottom:4}}>{label}</p><p style={{fontSize:lg?17:14,fontWeight:700,color:"#222"}}>{name} {title}</p></div>
       <div style={{display:"flex",gap:6}}>
-        <button onClick={()=>{navigator.clipboard.writeText(phone);alert(name+" "+title+"\n"+phone+"\n\n연락처가 복사되었습니다");}} style={{width:lg?46:36,height:lg?46:36,borderRadius:lg?13:10,background:"#f8fafc",border:"1px solid #e2e8f0",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:lg?20:15,fontFamily:"inherit"}}>👤</button>
+        <button onClick={()=>{alert(name+" "+title+"\n"+phone);}} style={{width:lg?46:36,height:lg?46:36,borderRadius:lg?13:10,background:"#f8fafc",border:"1px solid #e2e8f0",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:lg?20:15,fontFamily:"inherit"}}>👤</button>
         <a href={`tel:${phone}`} style={{width:lg?46:36,height:lg?46:36,borderRadius:lg?13:10,background:"#eff6ff",border:"1px solid #dbeafe",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",fontSize:lg?22:16}}>📞</a>
         <a href={`sms:${phone}`} style={{width:lg?46:36,height:lg?46:36,borderRadius:lg?13:10,background:"#f0fdf4",border:"1px solid #dcfce7",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",fontSize:lg?22:16}}>💬</a>
       </div>
