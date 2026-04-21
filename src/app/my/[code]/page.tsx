@@ -200,13 +200,13 @@ export default function CustomerDashboard() {
           </div>
 
           {/* VIP 뱃지 */}
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,padding:"10px 14px",background:"linear-gradient(90deg,#1a1a1a,#2d2318)",borderRadius:10}}>
-            <span style={{fontSize:10,padding:"2px 8px",background:"#D4A843",color:"#1a1a1a",borderRadius:4,fontWeight:800}}>VIP</span>
-            <span style={{fontSize:12,color:"#D4A843",fontWeight:600}}>분양회 프리미엄 멤버십</span>
-          </div>
-          <div style={{textAlign:"center",marginBottom:16}}>
-            <p style={{fontSize:12,color:"#94a3b8",lineHeight:1.6}}>분양업계 상위 1%</p>
-            <p style={{fontSize:12,color:"#94a3b8",lineHeight:1.6}}>리더 100인의 프리미엄 네트워크 멤버</p>
+          <div style={{marginBottom:16,padding:"12px 14px 14px",background:"linear-gradient(90deg,#1a1a1a,#2d2318)",borderRadius:10,textAlign:"center"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:8}}>
+              <span style={{fontSize:10,padding:"2px 8px",background:"#D4A843",color:"#1a1a1a",borderRadius:4,fontWeight:800}}>VIP</span>
+              <span style={{fontSize:12,color:"#D4A843",fontWeight:600}}>분양회 프리미엄 멤버십</span>
+            </div>
+            <p style={{fontSize:11,color:"rgba(212,168,67,0.5)",lineHeight:1.6}}>분양업계 상위 1%</p>
+            <p style={{fontSize:11,color:"rgba(212,168,67,0.5)",lineHeight:1.6}}>리더 100인의 프리미엄 네트워크 멤버</p>
           </div>
 
           {/* 포인트 카드 2개 (동일 스타일) */}
