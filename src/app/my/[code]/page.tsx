@@ -261,31 +261,34 @@ export default function CustomerDashboard() {
             {guideSection==="reward" && (
               <div>
                 <p style={{fontSize:14,color:"#555",lineHeight:1.8,marginBottom:16}}>분양회 VIP 멤버십의 리워드 및 마일리지 적립률 안내입니다.</p>
-                <div style={{borderRadius:12,border:"1px solid #e2e8f0",overflowX:"auto",marginBottom:20,WebkitOverflowScrolling:"touch" as any}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:300}}>
-                  <thead><tr style={{background:"#f8fafc"}}><th style={{padding:"12px 14px",textAlign:"left",fontWeight:700,borderBottom:"2px solid #e2e8f0",whiteSpace:"nowrap"}}>광고채널</th><th style={{padding:"12px 14px",textAlign:"center",fontWeight:700,borderBottom:"2px solid #e2e8f0",whiteSpace:"nowrap"}}>마일리지</th><th style={{padding:"12px 14px",textAlign:"center",fontWeight:700,borderBottom:"2px solid #e2e8f0",whiteSpace:"nowrap"}}>리워드</th></tr></thead>
-                  <tbody>
-                    <tr><td style={{padding:"12px 14px",borderBottom:"1px solid #f1f1f1"}}>분양의신 하이타겟</td><td style={{padding:"12px 14px",textAlign:"center",borderBottom:"1px solid #f1f1f1",fontWeight:600,color:"#2563eb"}}>10%</td><td style={{padding:"12px 14px",textAlign:"center",borderBottom:"1px solid #f1f1f1",fontWeight:600,color:"#16a34a"}}>5%</td></tr>
-                    <tr><td style={{padding:"12px 14px",borderBottom:"1px solid #f1f1f1"}}>호갱노노</td><td style={{padding:"12px 14px",textAlign:"center",borderBottom:"1px solid #f1f1f1",fontWeight:600,color:"#2563eb"}}>5%</td><td style={{padding:"12px 14px",textAlign:"center",borderBottom:"1px solid #f1f1f1",fontWeight:600,color:"#16a34a"}}>5%</td></tr>
-                    <tr><td style={{padding:"12px 14px",borderBottom:"1px solid #f1f1f1"}}>LMS</td><td style={{padding:"12px 14px",textAlign:"center",borderBottom:"1px solid #f1f1f1",fontWeight:600,color:"#2563eb"}}>15%</td><td style={{padding:"12px 14px",textAlign:"center",borderBottom:"1px solid #f1f1f1",fontWeight:600,color:"#16a34a"}}>5%</td></tr>
-                  </tbody>
-                </table></div>
+                <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+                  {[{ch:"분양의신 하이타겟",m:"10%",r:"5%"},{ch:"호갱노노",m:"5%",r:"5%"},{ch:"LMS",m:"15%",r:"5%"}].map(row=>(
+                    <div key={row.ch} style={{padding:"14px 16px",background:"#f8fafc",borderRadius:10,border:"1px solid #f1f1f1"}}>
+                      <p style={{fontSize:14,fontWeight:700,color:"#222",marginBottom:8}}>{row.ch}</p>
+                      <div style={{display:"flex",gap:10}}>
+                        <span style={{fontSize:13,padding:"4px 12px",background:"#eff6ff",color:"#2563eb",borderRadius:8,fontWeight:600,border:"1px solid #dbeafe"}}>마일리지 {row.m}</span>
+                        <span style={{fontSize:13,padding:"4px 12px",background:"#f0fdf4",color:"#16a34a",borderRadius:8,fontWeight:600,border:"1px solid #dcfce7"}}>리워드 {row.r}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
                 <p style={{fontSize:12,color:"#999",lineHeight:1.6}}>※ 마일리지는 자사 광고 집행 시 적립됩니다.<br/>※ 리워드는 분기별 정산 후 현금 지급됩니다. (원천징수 3.3% 차감)</p>
               </div>
             )}
             {guideSection==="start" && (
               <div>
                 <p style={{fontSize:14,color:"#555",lineHeight:1.8,marginBottom:16}}>분양회는 분양업계 상위 3%, 리더 100인만을 위한 프라이빗 멤버십입니다.</p>
-                <p style={{fontSize:14,color:"#555",lineHeight:1.8}}>전체 분양상담사 약 45,000명 중 상위권 팀장 900명, 상위권 본부장 450명, 그 중 분양회 100명이 선발됩니다.</p>
-                <div style={{marginTop:16,borderRadius:12,border:"1px solid #e2e8f0",overflowX:"auto",WebkitOverflowScrolling:"touch" as any}}>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:320}}>
-                    <thead><tr style={{background:"#f1f5f9"}}><th style={{padding:"10px 12px",textAlign:"left",fontWeight:700,whiteSpace:"nowrap"}}>특전</th><th style={{padding:"10px 12px",textAlign:"left",fontWeight:700,whiteSpace:"nowrap"}}>콘셉트</th><th style={{padding:"10px 12px",textAlign:"right",fontWeight:700,whiteSpace:"nowrap"}}>연간 체감가치</th></tr></thead>
-                    <tbody>
-                      <tr><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0"}}>광고 특전</td><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0"}}>광고 잘하는 리더</td><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0",textAlign:"right",fontWeight:700}}>~1억원</td></tr>
-                      <tr><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0"}}>홍보 특전</td><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0"}}>팀원이 먼저 찾는 리더</td><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0",textAlign:"right",fontWeight:700}}>~1,000만원</td></tr>
-                      <tr><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0"}}>네트워킹 특전</td><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0"}}>좋은 현장 가져오는 리더</td><td style={{padding:"10px 12px",borderTop:"1px solid #e2e8f0",textAlign:"right",fontWeight:700}}>~1,000만원</td></tr>
-                    </tbody>
-                  </table>
+                <p style={{fontSize:14,color:"#555",lineHeight:1.8,marginBottom:16}}>전체 분양상담사 약 45,000명 중 상위권 팀장 900명, 상위권 본부장 450명, 그 중 분양회 100명이 선발됩니다.</p>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {[{t:"광고 특전",d:"광고 잘하는 리더",v:"~1억원"},{t:"홍보 특전",d:"팀원이 먼저 찾는 리더",v:"~1,000만원"},{t:"네트워킹 특전",d:"좋은 현장 가져오는 리더",v:"~1,000만원"}].map(row=>(
+                    <div key={row.t} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",background:"#f8fafc",borderRadius:10,border:"1px solid #f1f1f1"}}>
+                      <div>
+                        <p style={{fontSize:14,fontWeight:700,color:"#222"}}>{row.t}</p>
+                        <p style={{fontSize:12,color:"#888",marginTop:2}}>{row.d}</p>
+                      </div>
+                      <span style={{fontSize:15,fontWeight:800,color:"#2563eb",whiteSpace:"nowrap",marginLeft:12}}>{row.v}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
