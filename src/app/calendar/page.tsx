@@ -249,7 +249,7 @@ export default function CalendarPage() {
         {/* 캘린더 본체 */}
         <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           {/* 요일 */}
-          <div className="grid grid-cols-7 border-b border-slate-100">
+          <div className="grid grid-cols-7 border-b-2 border-slate-200">
             {DAYS.map((d,i)=>(
               <div key={d} className={`text-center py-3 text-sm font-bold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
             ))}
@@ -257,7 +257,7 @@ export default function CalendarPage() {
           {/* 날짜 */}
           <div className="grid grid-cols-7">
             {Array.from({length:firstDay}).map((_,i)=>(
-              <div key={`e${i}`} className="min-h-[140px] border-r border-b border-slate-50 bg-slate-50/30"/>
+              <div key={`e${i}`} className="min-h-[180px] border-r border-b border-slate-200 bg-slate-50/30"/>
             ))}
             {Array.from({length:daysInMonth}).map((_,i)=>{
               const d=i+1; const ds=getDs(d);
@@ -266,26 +266,26 @@ export default function CalendarPage() {
               const isSelected=selDate===ds; const total=ev.length+mt.length+wp.length;
               return (
                 <div key={d} onClick={()=>setSelDate(selDate===ds?null:ds)}
-                  className={`min-h-[140px] border-r border-b border-slate-50 p-1.5 cursor-pointer transition-colors ${isSelected?"bg-blue-50":isToday?"bg-blue-50/30":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}>
-                  <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold mb-1 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"}`}>{d}</div>
-                  <div className="space-y-0.5">
+                  className={`min-h-[180px] border-r border-b border-slate-200 p-2 cursor-pointer transition-colors ${isSelected?"bg-blue-50":isToday?"bg-blue-50/30":"hover:bg-slate-50"} ${(firstDay+i+1)%7===0?"border-r-0":""}`}>
+                  <div className={`w-8 h-8 flex items-center justify-center rounded-full text-base font-bold mb-1.5 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-500"}`}>{d}</div>
+                  <div className="space-y-1">
                     {(()=>{
                       const allItems: {key:string;node:React.ReactNode}[] = [
                         ...wp.map(w=>({key:`w${w.id}`,node:(
-                          <div className="text-xs px-2 py-1 rounded-lg truncate font-semibold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
-                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(w.assigned_to||"")}`}/>
+                          <div className="text-sm px-2.5 py-2 rounded-lg truncate font-bold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1.5">
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getColor(w.assigned_to||"")}`}/>
                             완판트럭 - {w.site_name || w.location || "-"}
                           </div>
                         )})),
                         ...mt.map(m=>({key:`m${m.id}`,node:(
-                          <div className="text-xs px-2 py-1 rounded-lg truncate font-semibold bg-violet-100 text-violet-700 border border-violet-200 flex items-center gap-1">
-                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(m.assigned_to)}`}/>
+                          <div className="text-sm px-2.5 py-2 rounded-lg truncate font-bold bg-violet-100 text-violet-700 border border-violet-200 flex items-center gap-1.5">
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getColor(m.assigned_to)}`}/>
                             분양회미팅 - {m.assigned_to}
                           </div>
                         )})),
                         ...ev.map(e=>({key:`e${e.id}`,node:(
-                          <div className={`text-xs px-2 py-1 rounded-lg truncate font-semibold border flex items-center gap-1 ${EV_COLORS[e.event_type]||EV_COLORS["기타"]}`}>
-                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getColor(e.author)}`}/>
+                          <div className={`text-sm px-2.5 py-2 rounded-lg truncate font-bold border flex items-center gap-1.5 ${EV_COLORS[e.event_type]||EV_COLORS["기타"]}`}>
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getColor(e.author)}`}/>
                             {e.event_type} - {e.author}
                           </div>
                         )})),
