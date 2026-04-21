@@ -57,7 +57,7 @@ function WeatherWidget() {
   if (!weather) return null;
   return (
     <div style={{padding:"14px",background:"#f8fafc",borderRadius:12,border:"1px solid #f1f1f1",marginBottom:4}}>
-      <p style={{fontSize:14,fontWeight:700,color:"#64748b",marginBottom:12}}>🌤️ 오늘의 전국날씨</p>
+      <p style={{fontWeight:700,color:"#64748b",marginBottom:12}}>🌤️ 오늘의 전국날씨</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
         {weather.map((w: any) => (
           <div key={w.name} style={{textAlign:"center",padding:"6px 4px",background:"#fff",borderRadius:8,border:"1px solid #f1f1f1"}}>
@@ -183,10 +183,44 @@ export default function CustomerDashboard() {
         *{box-sizing:border-box;margin:0;padding:0}
         .dw{width:100%;display:flex;flex-direction:row-reverse;gap:0;min-height:100vh}
         .dl{flex:1;min-width:0;border-left:1px solid #f1f1f1;padding:0}
-        .dr{width:55%;max-width:680px;flex-shrink:0;padding:40px 48px}
-        @media(max-width:1200px){.dr{width:50%;padding:32px 36px}}
-        @media(max-width:1024px){.dr{width:48%;padding:24px 24px}}
-        @media(max-width:768px){.dw{flex-direction:column-reverse}.dl{border-left:none;border-top:8px solid #f5f5f5}.dr{width:100%;max-width:100%;padding:24px 20px}}
+        .dr{width:50%;flex-shrink:0;padding:48px 56px;font-size:16px}
+        .dr .pc-photo{width:140px;height:160px;border-radius:16px}
+        .dr .pc-name{font-size:28px}
+        .dr .pc-title{font-size:17px}
+        .dr .pc-logo{width:72px;height:72px}
+        .dr .pc-vip{padding:16px 22px;border-radius:14px;font-size:14px}
+        .dr .pc-section{font-size:17px;margin-bottom:16px}
+        .dr .pc-label{font-size:15px}
+        .dr .pc-value{font-size:15px}
+        .dr .pc-big-num{font-size:34px}
+        .dr .pc-med-num{font-size:30px}
+        .dr .pc-card{padding:22px 20px;border-radius:16px}
+        .dr .pc-contact-card{padding:16px 18px;border-radius:12px}
+        .dr .pc-icon-btn{width:42px;height:42px;border-radius:12px;font-size:20px}
+        .dr .pc-weather{font-size:15px}
+        .dr .pc-tier-num{font-size:20px}
+        @media(max-width:1200px){.dr{width:48%;padding:36px 40px}}
+        @media(max-width:1024px){.dr{width:46%;padding:28px 28px}}
+        @media(max-width:768px){
+          .dw{flex-direction:column-reverse}
+          .dl{border-left:none;border-top:8px solid #f5f5f5}
+          .dr{width:100%;max-width:100%;padding:24px 20px;font-size:14px}
+          .dr .pc-photo{width:100px;height:120px;border-radius:12px}
+          .dr .pc-name{font-size:20px}
+          .dr .pc-title{font-size:13px}
+          .dr .pc-logo{width:52px;height:52px}
+          .dr .pc-vip{padding:10px 14px;border-radius:10px;font-size:12px}
+          .dr .pc-section{font-size:13px;margin-bottom:12px}
+          .dr .pc-label{font-size:13px}
+          .dr .pc-value{font-size:13px}
+          .dr .pc-big-num{font-size:24px}
+          .dr .pc-med-num{font-size:22px}
+          .dr .pc-card{padding:18px 16px;border-radius:14px}
+          .dr .pc-contact-card{padding:12px 14px;border-radius:10px}
+          .dr .pc-icon-btn{width:36px;height:36px;border-radius:10px;font-size:16px}
+          .dr .pc-weather{font-size:12px}
+          .dr .pc-tier-num{font-size:16px}
+        }
       `}</style>
 
       <div className="dw">
@@ -224,54 +258,54 @@ export default function CustomerDashboard() {
         <div className="dr">
           {/* 프로필 */}
           <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:20}}>
-            <div style={{width:120,height:140,borderRadius:14,overflow:"hidden",flexShrink:0,background:"#1a1a1a",border:"2px solid #D4A843",boxShadow:"0 4px 12px rgba(0,0,0,0.1)"}}>
+            <div className="pc-photo" style={{overflow:"hidden",flexShrink:0,background:"#1a1a1a",border:"2px solid #D4A843",boxShadow:"0 4px 12px rgba(0,0,0,0.1)"}}>
               {photoUrl ? <img src={photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%"}}/> : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:32,fontWeight:800,color:"#D4A843"}}>{contact?.name?.[0]}</span></div>}
             </div>
             <div style={{flex:1}}>
-              <h2 style={{fontSize:24,fontWeight:800,color:"#222"}}>{contact?.name} <span style={{fontSize:15,fontWeight:500,color:"#999"}}>{contact?.title}</span></h2>
+              <h2 className="pc-name" style={{fontWeight:800,color:"#222"}}>{contact?.name} <span className="pc-title" style={{fontWeight:500,color:"#999"}}>{contact?.title}</span></h2>
             </div>
-            <img src="/bunyanghoe-logo.png" alt="분양회" style={{width:60,height:60,objectFit:"contain",flexShrink:0}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
+            <img src="/bunyanghoe-logo.png" alt="분양회" className="pc-logo" style={{objectFit:"contain",flexShrink:0}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
           </div>
 
           {/* VIP 뱃지 */}
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,padding:"14px 18px",background:"linear-gradient(90deg,#1a1a1a,#2d2318)",borderRadius:12}}>
+          <div className="pc-vip" style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,background:"linear-gradient(90deg,#1a1a1a,#2d2318)"}}>
             <span style={{fontSize:10,padding:"2px 8px",background:"#D4A843",color:"#1a1a1a",borderRadius:4,fontWeight:800}}>VIP</span>
             <span style={{fontSize:12,color:"#D4A843",fontWeight:600}}>분양회 프리미엄 멤버십</span>
           </div>
 
           {/* ① 내 정보 */}
           <div style={{marginBottom:16}}>
-            <p style={{fontSize:15,fontWeight:700,color:"#222",marginBottom:12}}>내 정보</p>
+            <p className="pc-section" style={{fontWeight:700,color:"#222"}}>내 정보</p>
             <div style={{padding:"8px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between"}}>
-              <span style={{fontSize:13,color:"#666"}}>성명 / 직급</span>
-              <span style={{fontSize:13,fontWeight:600,color:"#333"}}>{contact?.name} {contact?.title}</span>
+              <span className="pc-label" style={{color:"#666"}}>성명 / 직급</span>
+              <span className="pc-value" style={{fontWeight:600,color:"#333"}}>{contact?.name} {contact?.title}</span>
             </div>
             <div style={{padding:"8px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between",marginBottom:12}}>
-              <span style={{fontSize:13,color:"#666"}}>가입일</span>
-              <span style={{fontSize:13,fontWeight:600,color:"#333"}}>{fDate(contact?.contract_date||"")}</span>
+              <span className="pc-label" style={{color:"#666"}}>가입일</span>
+              <span className="pc-value" style={{fontWeight:600,color:"#333"}}>{fDate(contact?.contract_date||"")}</span>
             </div>
-            <p style={{fontSize:15,fontWeight:700,color:"#222",marginBottom:10}}>분양회 담당자</p>
+            <p className="pc-section" style={{fontWeight:700,color:"#222"}}>분양회 담당자</p>
             {contact?.assigned_to && tInfo && (
-              <div style={{padding:"12px 14px",background:"#f8fafc",borderRadius:10,border:"1px solid #f1f1f1",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div className="pc-contact-card" style={{background:"#f8fafc",border:"1px solid #f1f1f1",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                 <div>
-                  <p style={{fontSize:12,color:"#94a3b8",fontWeight:600,marginBottom:4}}>대외협력팀 담당자</p>
-                  <p style={{fontSize:14,fontWeight:700,color:"#222"}}>{contact.assigned_to} {tInfo.title}</p>
+                  <p className="pc-label" style={{color:"#94a3b8",fontWeight:600,marginBottom:4}}>대외협력팀 담당자</p>
+                  <p className="pc-value" style={{fontWeight:700,color:"#222"}}>{contact.assigned_to} {tInfo.title}</p>
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <a href={`tel:${tInfo.phone}`} style={{width:36,height:36,borderRadius:10,background:"#eff6ff",border:"1px solid #dbeafe",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",fontSize:16}}>📞</a>
-                  <a href={`sms:${tInfo.phone}`} style={{width:36,height:36,borderRadius:10,background:"#f0fdf4",border:"1px solid #dcfce7",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",fontSize:16}}>💬</a>
+                  <a href={`tel:${tInfo.phone}`} className="pc-icon-btn" style={{background:"#eff6ff",border:"1px solid #dbeafe",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none"}}>📞</a>
+                  <a href={`sms:${tInfo.phone}`} className="pc-icon-btn" style={{background:"#f0fdf4",border:"1px solid #dcfce7",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none"}}>💬</a>
                 </div>
               </div>
             )}
             {contact?.consultant && cInfo && (
-              <div style={{padding:"12px 14px",background:"#f8fafc",borderRadius:10,border:"1px solid #f1f1f1",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div className="pc-contact-card" style={{background:"#f8fafc",border:"1px solid #f1f1f1",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                 <div>
-                  <p style={{fontSize:12,color:"#94a3b8",fontWeight:600,marginBottom:4}}>광고사업부 담당자</p>
-                  <p style={{fontSize:14,fontWeight:700,color:"#222"}}>{contact.consultant} {cInfo.title}</p>
+                  <p className="pc-label" style={{color:"#94a3b8",fontWeight:600,marginBottom:4}}>광고사업부 담당자</p>
+                  <p className="pc-value" style={{fontWeight:700,color:"#222"}}>{contact.consultant} {cInfo.title}</p>
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <a href={`tel:${cInfo.phone}`} style={{width:36,height:36,borderRadius:10,background:"#eff6ff",border:"1px solid #dbeafe",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",fontSize:16}}>📞</a>
-                  <a href={`sms:${cInfo.phone}`} style={{width:36,height:36,borderRadius:10,background:"#f0fdf4",border:"1px solid #dcfce7",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",fontSize:16}}>💬</a>
+                  <a href={`tel:${cInfo.phone}`} className="pc-icon-btn" style={{background:"#eff6ff",border:"1px solid #dbeafe",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none"}}>📞</a>
+                  <a href={`sms:${cInfo.phone}`} className="pc-icon-btn" style={{background:"#f0fdf4",border:"1px solid #dcfce7",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none"}}>💬</a>
                 </div>
               </div>
             )}
@@ -282,13 +316,13 @@ export default function CustomerDashboard() {
 
           {/* ③ 하이타겟 마일리지 + 리워드 */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:16,marginBottom:16}}>
-            <div style={{background:"#f8fafc",borderRadius:14,padding:"18px 16px",border:"1px solid #e8edf2"}}>
-              <p style={{fontSize:11,fontWeight:600,color:"#64748b",marginBottom:8}}>하이타겟 마일리지</p>
-              <p style={{fontSize:28,fontWeight:800,color:"#1e293b"}}>{fw(stats.remainMileage)}<span style={{fontSize:12,color:"#94a3b8",marginLeft:2}}>P</span></p>
+            <div className="pc-card" style={{background:"#f8fafc",border:"1px solid #e8edf2"}}>
+              <p className="pc-label" style={{fontWeight:600,color:"#64748b",marginBottom:8}}>하이타겟 마일리지</p>
+              <p className="pc-big-num" style={{fontWeight:800,color:"#1e293b"}}>{fw(stats.remainMileage)}<span style={{fontSize:12,color:"#94a3b8",marginLeft:2}}>P</span></p>
             </div>
-            <div style={{background:"#f8fafc",borderRadius:14,padding:"18px 16px",border:"1px solid #e8edf2"}}>
-              <p style={{fontSize:11,fontWeight:600,color:"#64748b",marginBottom:8}}>리워드</p>
-              <p style={{fontSize:28,fontWeight:800,color:"#1e293b"}}>{fw(stats.totalReward)}<span style={{fontSize:12,color:"#94a3b8",marginLeft:2}}>원</span></p>
+            <div className="pc-card" style={{background:"#f8fafc",border:"1px solid #e8edf2"}}>
+              <p className="pc-label" style={{fontWeight:600,color:"#64748b",marginBottom:8}}>리워드</p>
+              <p className="pc-big-num" style={{fontWeight:800,color:"#1e293b"}}>{fw(stats.totalReward)}<span style={{fontSize:12,color:"#94a3b8",marginLeft:2}}>원</span></p>
             </div>
           </div>
 
@@ -297,7 +331,7 @@ export default function CustomerDashboard() {
             <div style={{background:"linear-gradient(135deg,#f5f3ff,#ede9fe)",borderRadius:14,padding:"18px 16px",border:"1px solid #ddd6fe",marginBottom:16}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{fontSize:15,fontWeight:700,color:"#5b21b6"}}>❷ 누적 리워드</span>
+                  <span style={{fontWeight:700,color:"#5b21b6"}}>❷ 누적 리워드</span>
                   <span style={{fontSize:10,padding:"2px 8px",background:"#7c3aed",color:"#fff",borderRadius:12,fontWeight:700}}>3개월 보너스</span>
                 </div>
                 <span style={{fontSize:12,fontWeight:700,color:"#7c3aed"}}>D-{incentiveData.daysLeft}</span>
@@ -306,7 +340,7 @@ export default function CustomerDashboard() {
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                 <div>
                   <p style={{fontSize:11,color:"#94a3b8"}}>현재 누적 집행</p>
-                  <p style={{fontSize:26,fontWeight:800,color:"#1e293b"}}>{fw(incentiveData.adTotal)}<span style={{fontSize:11,color:"#94a3b8"}}>원</span></p>
+                  <p style={{fontWeight:800,color:"#1e293b"}}>{fw(incentiveData.adTotal)}<span style={{fontSize:11,color:"#94a3b8"}}>원</span></p>
                 </div>
                 <div style={{textAlign:"right"}}>
                   <p style={{fontSize:11,color:"#94a3b8"}}>다음 티어까지</p>
@@ -326,7 +360,7 @@ export default function CustomerDashboard() {
                 ].map(t=>(
                   <div key={t.label} style={{padding:"10px 8px",borderRadius:10,background:t.active?"rgba(255,255,255,0.8)":"rgba(255,255,255,0.4)",border:t.active?`2px solid ${t.color}`:"1px solid rgba(0,0,0,0.05)",textAlign:"center",opacity:t.active?1:0.6}}>
                     <p style={{fontSize:10,color:"#64748b"}}>{t.label}</p>
-                    <p style={{fontSize:16,fontWeight:800,color:t.active?t.color:"#94a3b8"}}>{t.amt}</p>
+                    <p style={{fontWeight:800,color:t.active?t.color:"#94a3b8"}}>{t.amt}</p>
                   </div>
                 ))}
               </div>
@@ -335,7 +369,7 @@ export default function CustomerDashboard() {
 
           {/* ⑤ 마일리지 및 리워드 상세 */}
           <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}>
-            <p style={{fontSize:15,fontWeight:700,color:"#222",marginBottom:14}}>마일리지 및 리워드 상세</p>
+            <p className="pc-section" style={{fontWeight:700,color:"#222"}}>마일리지 및 리워드 상세</p>
             {[
               {icon:"🎯",label:"하이타겟 마일리지",value:`${fw(stats.totalMileage)}P`,detail:execs.filter(e=>(e.hightarget_mileage||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.hightarget_mileage,unit:"P"}))},
               {icon:"🎯",label:"하이타겟 리워드",value:`${fw(stats.htReward)}원`,detail:execs.filter(e=>(e.hightarget_reward||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.hightarget_reward,unit:"원"}))},
@@ -369,7 +403,7 @@ export default function CustomerDashboard() {
 
           {/* ⑥ VIP 이용가이드 */}
           <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}>
-            <p style={{fontSize:15,fontWeight:700,color:"#222",marginBottom:14}}>분양회 VIP 이용가이드</p>
+            <p className="pc-section" style={{fontWeight:700,color:"#222"}}>분양회 VIP 이용가이드</p>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               {GUIDE_CATS.map(cat=>(
                 <button key={cat.id} onClick={()=>{setGuideOpen(true);setGuideSection(cat.id);}} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 14px",borderRadius:10,border:"1px solid #f1f1f1",background:"#fafafa",cursor:"pointer",textAlign:"left",fontFamily:"inherit",transition:"background 0.15s"}}>
