@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { getCurrentUser, CRMUser, validateSession, logout } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/Sidebar";
-import { Truck, X, CheckCheck } from "lucide-react";
+import { Truck, X, CheckCheck, Send } from "lucide-react";
 
 interface Notification {
   id: number;
@@ -69,6 +69,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toastQueue, setToastQueue] = useState<Notification[]>([]);
   const [showPanel, setShowPanel] = useState(false);
+  const [taskToasts, setTaskToasts] = useState<{id:number;requester:string;category:string;content:string}[]>([]);
 
   // 이미 알고 있는 알림 ID 집합 — 중복 토스트 방지
   const knownIds = useRef<Set<number>>(new Set());
@@ -156,8 +157,24 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       fetchNotifications(user.name, true);
     }, 10000);
 
+    // ── Tasks Realtime 구독 ──
+    const taskChannel = supabase
+      .channel(`tasks-${user.name}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "tasks",
+      }, (payload) => {
+        const t = payload.new as any;
+        if (t.assignee === user.name) {
+          setTaskToasts(prev => [...prev, { id: t.id, requester: t.requester, category: t.category, content: t.content }]);
+        }
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(taskChannel);
       clearInterval(pollTimer);
     };
   }, [user, pathname, fetchNotifications]);
