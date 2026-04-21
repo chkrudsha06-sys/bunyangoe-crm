@@ -216,7 +216,7 @@ export default function MemberManagePage() {
   const fetchMembers = async () => {
     setLoading(true);
     let q = supabase.from("contacts")
-      .select("id,name,title,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_code,bank_name,bank_account,regular_payment_date")
+      .select("id,name,title,phone,assigned_to,meeting_result,contract_date,reservation_date,consultant,memo,bunyanghoe_number,bank_holder,bank_code,bank_name,bank_account,regular_payment_date,dashboard_code,photo_url")
       .in("meeting_result",["계약완료","예약완료"]);
     if (filterMember) q = q.eq("assigned_to", filterMember);
     if (filterStatus) q = q.eq("meeting_result", filterStatus);
@@ -405,6 +405,9 @@ export default function MemberManagePage() {
                     </td>
                     <td className="px-3 py-3 text-center align-middle max-w-[160px]">
                       <p className="text-xs text-slate-500 truncate">{c.memo||"-"}</p>
+                    </td>
+                    <td className="px-3 py-3 text-center align-middle">
+                      <DashboardCell contact={c} onSaved={fetchMembers}/>
                     </td>
                   </tr>
                   );
