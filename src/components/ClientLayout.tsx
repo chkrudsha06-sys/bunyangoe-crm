@@ -166,7 +166,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         table: "tasks",
       }, (payload) => {
         const t = payload.new as any;
-        if (t.assignee === user.name) {
+        if (t.assignee === user.name || (t.tagged && (t.tagged as string[]).includes(user.name))) {
           setTaskToasts(prev => [...prev, { id: t.id, requester: t.requester, category: t.category, content: t.content }]);
         }
       })
