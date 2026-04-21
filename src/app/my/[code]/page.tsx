@@ -251,7 +251,7 @@ export default function CustomerDashboard() {
             </div>
             <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
               <img src="/bunyanghoe-logo.png" alt="" style={{width:"100%",height:130,objectFit:"contain",marginBottom:6}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
-              <h2 style={{fontSize:20,fontWeight:800,color:"#fff"}}>{contact?.name} <span style={{fontSize:13,fontWeight:500,color:"rgba(255,255,255,0.5)"}}>{contact?.title}</span></h2>
+              <h2 style={{fontSize:24,fontWeight:800,color:"#fff",textAlign:"center"}}>{contact?.name} <span style={{fontSize:16,fontWeight:500,color:"rgba(255,255,255,0.5)"}}>{contact?.title}</span></h2>
             </div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,padding:"10px 14px",background:"linear-gradient(90deg,#1a1a1a,#2d2318)",borderRadius:10}}><span style={{fontSize:10,padding:"2px 8px",background:"#D4A843",color:"#1a1a1a",borderRadius:4,fontWeight:800}}>VIP</span><span style={{fontSize:12,color:"#D4A843",fontWeight:600}}>분양회 프리미엄 멤버십</span></div>
