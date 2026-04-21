@@ -191,10 +191,20 @@ function DashboardCell({ contact, onSaved }: { contact: VipContact; onSaved: () 
         <button onClick={copyUrl} className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded border border-blue-100 font-semibold hover:bg-blue-100" title="URL 복사">복사</button>
         <a href={`/my/${code}`} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 bg-slate-50 text-slate-600 rounded border border-slate-200 font-semibold hover:bg-slate-100">보기</a>
       </div>
-      <label className="text-xs text-slate-400 cursor-pointer hover:text-indigo-500">
-        {uploading ? "업로드중..." : photoUrl ? "✓사진" : "📷사진"}
-        <input type="file" accept="image/*" onChange={uploadPhoto} className="hidden"/>
-      </label>
+      <div className="flex items-center gap-1.5">
+        <label className="text-xs text-slate-400 cursor-pointer hover:text-indigo-500">
+          {uploading ? "업로드중..." : photoUrl ? "✓사진" : "📷사진"}
+          <input type="file" accept="image/*" onChange={uploadPhoto} className="hidden"/>
+        </label>
+        {photoUrl && (
+          <button onClick={async()=>{
+            if(!confirm("사진을 삭제하시겠습니까?")) return;
+            await supabase.storage.from("customer-photos").remove([photoUrl]);
+            await supabase.from("contacts").update({photo_url:null}).eq("id",contact.id);
+            onSaved();
+          }} className="text-xs text-red-300 hover:text-red-500">✕</button>
+        )}
+      </div>
     </div>
   );
 }
