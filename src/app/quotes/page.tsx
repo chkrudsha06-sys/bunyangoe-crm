@@ -200,7 +200,7 @@ export default function QuotePage() {
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FileText size={20} className="text-[#57C3FF]"/>견적서 작성</h1>
+            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FileText size={20} className="text-blue-500"/>견적서 작성</h1>
             <p className="text-sm text-slate-500 mt-0.5">㈜ 광고인 문자광고 대행 견적서</p>
           </div>
           <button onClick={handleDownload} disabled={downloading}
@@ -294,7 +294,7 @@ export default function QuotePage() {
         <div className="flex-[2] min-w-0 self-stretch">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col h-full">
             <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-2"><List size={15} className="text-[#57C3FF]"/><h3 className="text-sm font-bold text-slate-700">저장된 견적서</h3></div>
+              <div className="flex items-center gap-2"><List size={15} className="text-blue-500"/><h3 className="text-sm font-bold text-slate-700">저장된 견적서</h3></div>
               <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 font-semibold">{filteredQuotes.length}건</span>
             </div>
             <div className="px-4 py-3 border-b border-slate-100 space-y-2 flex-shrink-0">

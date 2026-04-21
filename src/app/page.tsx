@@ -191,7 +191,7 @@ function DashCard({ icon, label, main, subs, cumLabel }: {
 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{ minWidth: 180, flex: "1 1 0" }}>
-      <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl mb-3 bg-[#162040]">{icon}</div>
+      <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl mb-3 bg-slate-50">{icon}</div>
       <p className="text-sm text-slate-400 font-semibold mb-1.5">{label}</p>
       <p className="text-3xl font-black text-slate-800 leading-tight">{main}</p>
       {subs && subs.length > 0 && (

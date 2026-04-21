@@ -45,11 +45,11 @@ function NumberingCell({ value, contactId, onSaved }: {
   if (editing) {
     return (
       <div className="flex items-center justify-center gap-0.5">
-        <span className="text-sm font-black text-[#FDB52A] flex-shrink-0">B-</span>
+        <span className="text-sm font-black text-amber-600 flex-shrink-0">B-</span>
         <input ref={inputRef} value={val}
           onChange={e => setVal(e.target.value.replace(/[^0-9]/g, ""))}
           onBlur={save} onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") { setVal(stripPrefix(value)); setEditing(false); } }}
-          placeholder="001" className="w-14 px-1 py-0.5 text-sm font-black text-[#FDB52A] border border-amber-400 rounded outline-none bg-white text-center"/>
+          placeholder="001" className="w-14 px-1 py-0.5 text-sm font-black text-amber-600 border border-amber-400 rounded outline-none bg-white text-center"/>
       </div>
     );
   }
@@ -72,7 +72,7 @@ function AccountFieldCell({ contact, field, placeholder, onSaved }: {
     <>
       <button onClick={() => setOpen(true)}
         className={`w-full min-w-[80px] px-2 py-1.5 text-xs rounded-lg border text-center transition-colors ${
-          value ? "bg-[#0E1530] border-[#1E2A4A] text-[#D1DBF9] hover:border-blue-400 hover:bg-blue-50 font-semibold"
+          value ? "bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50 font-semibold"
                 : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200"}`}>
         {value || placeholder}
       </button>
@@ -97,14 +97,14 @@ function AccountNumberCell({ contact, onSaved }: { contact: VipContact; onSaved:
       <div className="flex items-center justify-center gap-1">
         <button onClick={() => setOpen(true)}
           className={`min-w-[110px] px-2 py-1.5 text-xs rounded-lg border text-center transition-colors ${
-            value ? "bg-[#0E1530] border-[#1E2A4A] text-[#D1DBF9] hover:border-blue-400 hover:bg-blue-50 font-semibold"
+            value ? "bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50 font-semibold"
                   : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200"}`}>
           {value || "계좌번호"}
         </button>
         {value && (
           <button onClick={handleCopy}
             className={`flex-shrink-0 p-1.5 rounded-lg border transition-colors ${
-              copied ? "bg-emerald-50 border-emerald-200 text-emerald-500" : "bg-[#0E1530] border-[#1E2A4A] text-[#4A5578] hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50"}`}>
+              copied ? "bg-emerald-50 border-emerald-200 text-emerald-500" : "bg-white border-slate-200 text-slate-400 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50"}`}>
             {copied ? <Check size={11}/> : <Copy size={11}/>}
           </button>
         )}
@@ -270,7 +270,7 @@ export default function MemberManagePage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Shield size={20} className="text-[#57C3FF]"/>분양회 회원관리
+              <Shield size={20} className="text-blue-500"/>분양회 회원관리
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">분양회 입회자 계좌 및 회원 정보 관리</p>
           </div>
@@ -325,7 +325,7 @@ export default function MemberManagePage() {
       <div className="flex-1 overflow-auto p-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="w-6 h-6 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/>
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">

@@ -14,7 +14,7 @@ const fw=(n:number)=>n.toLocaleString();
 const fDate=(d:string)=>d?new Date(d+"T00:00:00").toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"}).replace(/\. /g,".").replace(/\.$/,""):"-";
 function fmtBun(s:string|null){if(!s)return"-";const n=s.replace(/[^0-9]/g,"");return n?`B-${n}`:s;}
 const AD_CHANNELS=["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
-const inp="w-full px-2 py-1 text-xs border border-[#1E2A4A] rounded bg-[#0E1530] outline-none focus:border-[#6C72FF] text-white text-center";
+const inp="w-full px-2 py-1 text-xs border border-slate-200 rounded bg-white outline-none focus:border-blue-400 text-center";
 
 export default function CustomerIncentivesPage() {
   const [contacts,setContacts]=useState<any[]>([]);
@@ -142,7 +142,7 @@ export default function CustomerIncentivesPage() {
     XLSX.utils.book_append_sheet(wb,ws,"입력정보");XLSX.writeFile(wb,"인센티브_지급정보.xls");
   };
 
-  if(loading)return<div className="flex items-center justify-center h-full bg-[#F1F5F9]"><div className="w-6 h-6 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/></div>;
+  if(loading)return<div className="flex items-center justify-center h-full bg-[#F1F5F9]"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>;
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">

@@ -200,14 +200,14 @@ function DailyReportModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:"rgba(0,0,0,0.5)"}} onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col" onClick={e=>e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
-          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FileText size={18} className="text-[#57C3FF]"/>매출일보</h3>
+          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FileText size={18} className="text-blue-500"/>매출일보</h3>
           <div className="flex items-center gap-2">
             <button onClick={copyImage} disabled={copying||rLoading} className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{copying?"복사 중...":"📋 이미지 복사"}</button>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><X size={18}/></button>
           </div>
         </div>
         <div className="flex-1 overflow-auto p-5">
-          {rLoading||!rData ? (<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/></div>
+          {rLoading||!rData ? (<div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>
           ) : (
             <div ref={reportRef} className="bg-white p-6 space-y-5" style={{fontFamily:"'Pretendard','Noto Sans KR',sans-serif"}}>
               <div className="text-center mb-4"><p className="text-xs text-slate-400 mb-1">{rData.td}</p><h2 className="text-lg font-black text-slate-800">대외협력팀 매출일보</h2></div>
@@ -477,7 +477,7 @@ export default function SalesPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <CreditCard size={20} className="text-[#57C3FF]"/>통합매출관리
+              <CreditCard size={20} className="text-blue-500"/>통합매출관리
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">광고 집행 내역 및 리워드 현황</p>
           </div>
@@ -620,7 +620,7 @@ export default function SalesPage() {
       <div className="flex-1 overflow-auto p-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="w-6 h-6 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/>
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
           </div>
         ) : executions.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">

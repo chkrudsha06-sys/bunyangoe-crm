@@ -342,7 +342,7 @@ export default function RewardsPage() {
     return true;
   });
 
-  const inp = "w-full px-2 py-1.5 text-xs bg-[#0E1530] border border-[#1E2A4A] rounded-lg focus:outline-none focus:border-[#6C72FF] text-white";
+  const inp = "w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
@@ -431,7 +431,7 @@ export default function RewardsPage() {
       <div className="flex-1 overflow-auto p-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="w-6 h-6 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/>
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto" style={{maxHeight:"calc(100vh - 180px)"}}>

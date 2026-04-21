@@ -70,7 +70,7 @@ function AccountInfoCell({ contact, onSaved }: { contact: VipContact; onSaved: (
           {hasAccount ? (
             <div className="space-y-0.5">
               <div className="flex items-center gap-1 font-semibold text-slate-700">
-                <CreditCard size={11} className="text-[#57C3FF]"/>
+                <CreditCard size={11} className="text-blue-500"/>
                 <span>{contact.bank_holder || "예금주 미입력"}</span>
               </div>
               <div className="text-[11px] text-slate-500 truncate">
@@ -295,7 +295,7 @@ export default function VipMembersPage() {
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="w-6 h-6 border-2 border-[#6C72FF] border-t-transparent rounded-full animate-spin"/>
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
           </div>
         ) : (
           <>
