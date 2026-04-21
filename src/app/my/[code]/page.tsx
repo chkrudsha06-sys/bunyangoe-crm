@@ -250,7 +250,7 @@ export default function CustomerDashboard() {
               {photoUrl?<img src={photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",background:"#222"}}><span style={{fontSize:36,fontWeight:800,color:"#D4A843"}}>{contact?.name?.[0]}</span></div>}
             </div>
             <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
-              <img src="/bunyanghoe-logo.png" alt="" style={{width:80,height:80,objectFit:"contain",marginBottom:6}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
+              <img src="/bunyanghoe-logo.png" alt="" style={{width:"100%",height:130,objectFit:"contain",marginBottom:6}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
               <h2 style={{fontSize:20,fontWeight:800,color:"#fff"}}>{contact?.name} <span style={{fontSize:13,fontWeight:500,color:"rgba(255,255,255,0.5)"}}>{contact?.title}</span></h2>
             </div>
           </div>
