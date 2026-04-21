@@ -56,7 +56,13 @@ export default function CustomerIncentivesPage() {
         const totalPaid=paidRecords.reduce((s:number,p:any)=>s+(p.incentive_amount||0),0);
         const incentiveAmt=tier?.incentive||0;
         const remaining=incentiveAmt-totalPaid;
-        quarters.push({qNum,start:qStart,end:qEnd,sStr,eStr,adTotal,tier,isEnded,paidRecords,totalPaid,incentiveAmt,remaining});
+        // 이전 기수 이월금액 계산
+        const prevQ = quarters.length > 0 ? quarters[quarters.length-1] : null;
+        const carryOver = prevQ ? Math.max(prevQ.incentiveAmt - prevQ.totalPaid, 0) : 0;
+        // 지급예정월: 분기 종료 익월
+        const payMonth = new Date(qEnd); payMonth.setMonth(payMonth.getMonth()+1);
+        const payDueLabel = `${payMonth.getFullYear()}.${String(payMonth.getMonth()+1).padStart(2,"0")}`;
+        quarters.push({qNum,start:qStart,end:qEnd,sStr,eStr,adTotal,tier,isEnded,paidRecords,totalPaid,incentiveAmt,remaining,carryOver,payDueLabel});
         qStart=new Date(qEnd);qStart.setDate(qStart.getDate()+1);qNum++;
       }
       return {...c,quarters};
@@ -185,7 +191,7 @@ export default function CustomerIncentivesPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
               <tr>
-                {["넘버링","고객명","직급","계약일","분기","기간","누적 광고비","진행률","구간","인센티브","지급처리","지급추전액(이월)","지급내역"].map(h=>(
+                {["넘버링","고객명","직급","계약일","분기","기간","누적 광고비","진행률","구간","인센티브","이월금액","지급예정월","지급처리","지급추전액(이월)","지급내역"].map(h=>(
                   <th key={h} className="text-center px-2 py-2.5 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -214,6 +220,18 @@ export default function CustomerIncentivesPage() {
                       {r.tier?<span className={`text-xs px-2 py-0.5 rounded-full font-bold ${r.tier.bg} ${r.tier.text} border ${r.tier.border}`}>{r.tier.label}</span>:<span className="text-xs text-slate-300">미달</span>}
                     </td>
                     <td className="px-2 py-3 text-center font-black text-slate-800 text-xs">{r.tier?`${fw(r.incentiveAmt)}원`:"-"}</td>
+
+                    {/* 이월금액 */}
+                    <td className="px-2 py-3 text-center">
+                      {r.carryOver > 0 ? (
+                        <span className="text-xs font-bold text-amber-500">{fw(r.carryOver)}원</span>
+                      ) : <span className="text-xs text-slate-300">-</span>}
+                    </td>
+
+                    {/* 지급예정월 */}
+                    <td className="px-2 py-3 text-center">
+                      <span className="text-xs font-semibold text-slate-600">{r.payDueLabel}</span>
+                    </td>
 
                     {/* 지급처리 인라인 */}
                     <td className="px-2 py-3 text-center">
