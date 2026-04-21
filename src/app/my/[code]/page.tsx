@@ -61,15 +61,23 @@ export default function CustomerDashboard() {
   }, [execs, usages]);
 
   const history = useMemo(() => {
-    const items: {date:string;type:string;channel:string;mileage:number;reward:number;sign:string}[] = [];
+    const items: {date:string;type:string;channel:string;mileage:number;reward:number;sign:string;category:string}[] = [];
     execs.forEach(e => {
-      items.push({ date:e.payment_date, type:"광고 적립", channel:e.channel||"기타", mileage:e.hightarget_mileage||0, reward:(e.hightarget_reward||0)+(e.hogaengnono_reward||0)+(e.lms_reward||0), sign:"+" });
+      // 월회비 제외
+      if (e.channel === "분양회 월회비" || e.channel === "분양회 입회비") return;
+      if ((e.hightarget_mileage||0) > 0) {
+        items.push({ date:e.payment_date, type:"마일리지 적립", channel:e.channel||"하이타겟", mileage:e.hightarget_mileage, reward:0, sign:"+", category:"적립" });
+      }
+      const rwd = (e.hightarget_reward||0)+(e.hogaengnono_reward||0)+(e.lms_reward||0);
+      if (rwd > 0) {
+        items.push({ date:e.payment_date, type:"리워드 적립", channel:e.channel||"기타", mileage:0, reward:rwd, sign:"+", category:"리워드지급" });
+      }
     });
-    usages.forEach(u => { items.push({ date:u.usage_date, type:"마일리지 사용", channel:"", mileage:u.usage_amount, reward:0, sign:"-" }); });
+    usages.forEach(u => { items.push({ date:u.usage_date, type:"마일리지 사용", channel:"", mileage:u.usage_amount, reward:0, sign:"-", category:"마일리지사용" }); });
     return items.sort((a,b) => b.date.localeCompare(a.date));
   }, [execs, usages]);
 
-  const filtered = tab==="전체" ? history : tab==="적립" ? history.filter(h=>h.sign==="+") : history.filter(h=>h.sign==="-");
+  const filtered = tab==="전체" ? history : tab==="적립" ? history.filter(h=>h.category==="적립") : tab==="마일리지사용" ? history.filter(h=>h.category==="마일리지사용") : history.filter(h=>h.category==="리워드지급");
   const photoUrl = contact?.photo_url ? `https://rlpdhufcsuewvwluydky.supabase.co/storage/v1/object/public/customer-photos/${contact.photo_url}` : null;
   const cInfo = contact?.consultant ? CONSULTANT_INFO[contact.consultant] : null;
   const tInfo = contact?.assigned_to ? TEAM_INFO[contact.assigned_to] : null;
@@ -92,17 +100,17 @@ export default function CustomerDashboard() {
       <style>{`
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.min.css');
         *{box-sizing:border-box;margin:0;padding:0}
-        .dw{max-width:960px;margin:0 auto;display:flex;gap:0;min-height:100vh}
-        .dl{flex:1;min-width:0;max-width:480px;border-right:1px solid #f1f1f1}
+        .dw{max-width:960px;margin:0 auto;display:flex;flex-direction:row-reverse;gap:0;min-height:100vh}
+        .dl{flex:1;min-width:0;max-width:480px;border-left:1px solid #f1f1f1}
         .dr{flex:1;min-width:360px;padding:28px 28px}
-        @media(max-width:768px){.dw{flex-direction:column-reverse}.dl{border-right:none;border-top:8px solid #f5f5f5}.dr{width:100%;padding:24px 20px}}
+        @media(max-width:768px){.dw{flex-direction:column-reverse}.dl{border-left:none;border-top:8px solid #f5f5f5}.dr{width:100%;padding:24px 20px}}
       `}</style>
 
       <div className="dw">
         {/* ═══ 좌측: 내역 ═══ */}
         <div className="dl">
           <div style={{display:"flex",alignItems:"center",gap:20,padding:"20px 24px",borderBottom:"1px solid #f1f1f1",position:"sticky",top:0,background:"#fff",zIndex:10}}>
-            {["전체","적립","사용"].map(t=>(
+            {["전체","적립","마일리지사용","리워드지급"].map(t=>(
               <button key={t} onClick={()=>setTab(t)} style={{fontSize:15,fontWeight:tab===t?700:400,color:tab===t?"#222":"#999",background:"none",border:"none",cursor:"pointer",padding:"4px 0",borderBottom:tab===t?"2px solid #222":"2px solid transparent"}}>{t}</button>
             ))}
             <span style={{fontSize:13,color:"#bbb",marginLeft:"auto"}}>{filtered.length}건</span>
@@ -336,7 +344,7 @@ export default function CustomerDashboard() {
             <div style={{marginTop:24,padding:"16px",background:"#f8fafc",borderRadius:12,border:"1px solid #e2e8f0",fontSize:13,color:"#666"}}>
               <p style={{fontWeight:700,color:"#333",marginBottom:8}}>문의</p>
               {contact?.assigned_to && tInfo && <p>대외협력팀 {contact.assigned_to} {tInfo.title} <a href={`tel:${tInfo.phone}`} style={{color:"#3b82f6"}}>{tInfo.phone}</a></p>}
-              {contact?.consultant && cInfo && <p>광고사업부 {contact.consultant} {cInfo.title} <a href={`tel:${cInfo.phone}`} style={{color:"#3b82f6"}}>{cInfo.phone}</a></p>}
+              
             </div>
           </div>
         </div>
