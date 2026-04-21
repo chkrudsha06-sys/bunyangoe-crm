@@ -22,6 +22,55 @@ const TEAM_INFO: Record<string,{title:string;phone:string}> = {
 const fw = (n:number) => n.toLocaleString();
 const fDate = (d:string) => { if(!d) return "-"; const dt=new Date(d+"T00:00:00"); return `${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,"0")}.${String(dt.getDate()).padStart(2,"0")}`; };
 
+function WeatherWidget() {
+  const [weather, setWeather] = useState<any>(null);
+  useEffect(() => {
+    const cities = [
+      {name:"서울",lat:37.5665,lon:126.978},{name:"부산",lat:35.1796,lon:129.0756},
+      {name:"대구",lat:35.8714,lon:128.6014},{name:"광주",lat:35.1595,lon:126.8526},
+      {name:"대전",lat:36.3504,lon:127.3845},{name:"인천",lat:37.4563,lon:126.7052},
+    ];
+    const load = async () => {
+      try {
+        const results = await Promise.all(cities.map(async c => {
+          const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&current=temperature_2m,weather_code&timezone=Asia/Seoul`);
+          const data = await res.json();
+          return { name: c.name, temp: Math.round(data.current?.temperature_2m || 0), code: data.current?.weather_code || 0 };
+        }));
+        setWeather(results);
+      } catch { setWeather(null); }
+    };
+    load();
+  }, []);
+
+  const getIcon = (code: number) => {
+    if (code === 0) return "☀️";
+    if (code <= 3) return "⛅";
+    if (code <= 48) return "🌫️";
+    if (code <= 67) return "🌧️";
+    if (code <= 77) return "🌨️";
+    if (code <= 82) return "🌧️";
+    if (code <= 86) return "❄️";
+    return "⛈️";
+  };
+
+  if (!weather) return null;
+  return (
+    <div style={{padding:"14px",background:"#f8fafc",borderRadius:12,border:"1px solid #f1f1f1",marginBottom:4}}>
+      <p style={{fontSize:12,fontWeight:700,color:"#64748b",marginBottom:10}}>🌤️ 오늘의 전국날씨</p>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+        {weather.map((w: any) => (
+          <div key={w.name} style={{textAlign:"center",padding:"6px 4px",background:"#fff",borderRadius:8,border:"1px solid #f1f1f1"}}>
+            <span style={{fontSize:16}}>{getIcon(w.code)}</span>
+            <p style={{fontSize:11,fontWeight:600,color:"#333",marginTop:2}}>{w.name}</p>
+            <p style={{fontSize:13,fontWeight:700,color:"#1e293b"}}>{w.temp}°</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CustomerDashboard() {
   const { code } = useParams();
   const [contact, setContact] = useState<Contact|null>(null);
@@ -155,6 +204,10 @@ export default function CustomerDashboard() {
             <span style={{fontSize:10,padding:"2px 8px",background:"#D4A843",color:"#1a1a1a",borderRadius:4,fontWeight:800}}>VIP</span>
             <span style={{fontSize:12,color:"#D4A843",fontWeight:600}}>분양회 프리미엄 멤버십</span>
           </div>
+          <div style={{textAlign:"center",marginBottom:16}}>
+            <p style={{fontSize:12,color:"#94a3b8",lineHeight:1.6}}>분양업계 상위 1%</p>
+            <p style={{fontSize:12,color:"#94a3b8",lineHeight:1.6}}>리더 100인의 프리미엄 네트워크 멤버</p>
+          </div>
 
           {/* 포인트 카드 2개 (동일 스타일) */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
@@ -180,10 +233,15 @@ export default function CustomerDashboard() {
               <span style={{fontSize:13,color:"#666"}}>성명 / 직급</span>
               <span style={{fontSize:13,fontWeight:600,color:"#333"}}>{contact?.name} {contact?.title}</span>
             </div>
-            <div style={{padding:"10px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between",marginBottom:12}}>
+            <div style={{padding:"10px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between",marginBottom:16}}>
               <span style={{fontSize:13,color:"#666"}}>가입일</span>
               <span style={{fontSize:13,fontWeight:600,color:"#333"}}>{fDate(contact?.contract_date||"")}</span>
             </div>
+
+            {/* 오늘의 전국날씨 */}
+            <WeatherWidget/>
+
+            <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:10,marginTop:16}}>분양회 담당자</p>
             {contact?.assigned_to && tInfo && (
               <div style={{padding:"12px 14px",background:"#f8fafc",borderRadius:10,border:"1px solid #f1f1f1",marginBottom:8}}>
                 <p style={{fontSize:12,color:"#94a3b8",fontWeight:600,marginBottom:6}}>대외협력팀 담당자</p>
