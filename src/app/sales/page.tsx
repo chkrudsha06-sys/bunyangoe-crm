@@ -576,9 +576,41 @@ export default function SalesPage() {
             className={`text-xs px-2.5 py-2 font-semibold rounded-xl whitespace-nowrap transition-colors ${(salesSearch||filterIntake||filterRoute||filterChannel||filterMember||filterConsultant||filterMonth||filterStart||filterEnd) ? "bg-red-500 text-white border border-red-500" : "text-red-400 border border-red-200 hover:bg-red-50"}`}>
             ↺ 초기화
           </button>
-          <button onClick={()=>setShowDailyReport(true)}
-            className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold whitespace-nowrap flex items-center gap-1.5">
-            <FileText size={13}/> 매출일보
+          <button onClick={()=>{
+            const rows = executions.filter(e => {
+              const matchSearch = !salesSearch || (e.member_name&&e.member_name.includes(salesSearch)) || (e.position&&e.position.includes(salesSearch)) || ((e as any).bunyanghoe_number&&(e as any).bunyanghoe_number.includes(salesSearch));
+              return matchSearch;
+            }).map((e: any) => ({
+              "유입구분": intakeMap[e.member_name]||"",
+              "매출구분": e.contract_route||"",
+              "넘버링": e.bunyanghoe_number||"",
+              "고객명": e.member_name||"",
+              "직급": e.position||"",
+              "집행금액": e.execution_amount||0,
+              "VAT포함": e.vat_amount||0,
+              "환불금액": e.refund_amount||0,
+              "광고채널": e.channel||"",
+              "결제일/등록일": e.payment_date||"",
+              "대협팀": e.team_member||"",
+              "컨설턴트": e.consultant||"",
+              "하이타겟마일리지": e.hightarget_mileage||0,
+              "하이타겟리워드": e.hightarget_reward||0,
+              "호갱노노리워드": e.hogaengnono_reward||0,
+              "LMS리워드": e.lms_reward||0,
+            }));
+            const ws = XLSX.utils.json_to_sheet(rows);
+            // 금액 컬럼 서식
+            const range = XLSX.utils.decode_range(ws["!ref"]||"A1");
+            for(let R=range.s.r+1;R<=range.e.r;R++){
+              for(const C of [5,6,7,12,13,14,15]){
+                const addr=XLSX.utils.encode_cell({r:R,c:C});
+                if(ws[addr]&&typeof ws[addr].v==="number") ws[addr].z="#,##0";
+              }
+            }
+            const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"매출데이터");
+            XLSX.writeFile(wb,"통합매출_데이터.xls");
+          }} className="text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold whitespace-nowrap flex items-center gap-1.5">
+            <FileText size={13}/> 엑셀다운(XLS)
           </button>
         </div>
       </div>
@@ -682,8 +714,7 @@ export default function SalesPage() {
         )}
       </div>
 
-      {/* ── 매출일보 팝업 ── */}
-      {showDailyReport && <DailyReportModal onClose={()=>setShowDailyReport(false)}/>}
+
 
       {/* ── 매출집행등록 모달 ── */}
       {showModal && (

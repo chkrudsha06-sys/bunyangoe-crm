@@ -291,6 +291,8 @@ export default function RewardsPage() {
       };
     });
     const ws = XLSX.utils.json_to_sheet(rows);
+    const range = XLSX.utils.decode_range(ws["!ref"]||"A1");
+    for(let R=range.s.r+1;R<=range.e.r;R++){for(let C=5;C<=range.e.c;C++){const addr=XLSX.utils.encode_cell({r:R,c:C});if(ws[addr]&&typeof ws[addr].v==="number")ws[addr].z="#,##0";}}
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "리워드데이터");
     XLSX.writeFile(wb, `리워드_데이터_${q}.xls`);
@@ -320,6 +322,8 @@ export default function RewardsPage() {
       ];
     });
     const ws = XLSX.utils.aoa_to_sheet(rows);
+    const range = XLSX.utils.decode_range(ws["!ref"]||"A1");
+    for(let R=range.s.r;R<=range.e.r;R++){const addr=XLSX.utils.encode_cell({r:R,c:3});if(ws[addr]&&typeof ws[addr].v==="number")ws[addr].z="#,##0";}
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "입력정보");
     XLSX.writeFile(wb, `리워드_지급정보_${q}.xls`);
@@ -408,6 +412,8 @@ export default function RewardsPage() {
             <option value="unpaid">미지급</option>
             <option value="paid">지급완료</option>
           </select>
+          <button onClick={()=>{setSearch("");setFilterQuarter(getCurrentQuarter());setFilterPaid("");}}
+            className="text-sm px-3 py-1.5 text-red-400 border border-red-200 rounded-lg hover:bg-red-50 font-semibold">↺ 초기화</button>
           <div className="flex items-center gap-1.5 ml-auto">
             <button onClick={downloadDataXLS}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 hover:bg-emerald-100">

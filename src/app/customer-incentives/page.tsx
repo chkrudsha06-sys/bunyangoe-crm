@@ -119,7 +119,10 @@ export default function CustomerIncentivesPage() {
     customerData.forEach(c=>c.quarters.forEach((q:any)=>{
       rows.push({"넘버링":fmtBun(c.bunyanghoe_number),"고객명":c.name,"직급":c.title||"","대협팀":c.assigned_to||"","컨설턴트":c.consultant||"","분기":`${q.qNum}기`,"기간시작":q.sStr,"기간종료":q.eStr,"누적광고비":q.adTotal,"구간":q.tier?.label||"미달","인센티브":q.incentiveAmt,"지급완료액":q.totalPaid,"잔액":q.remaining});
     }));
-    const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.json_to_sheet(rows);
+    const range=XLSX.utils.decode_range(ws["!ref"]||"A1");
+    for(let R=range.s.r+1;R<=range.e.r;R++){for(const C of [8,10,11]){const addr=XLSX.utils.encode_cell({r:R,c:C});if(ws[addr]&&typeof ws[addr].v==="number")ws[addr].z="#,##0";}}
+    const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,"인센티브데이터");XLSX.writeFile(wb,"인센티브_데이터.xls");
   };
 
@@ -130,7 +133,10 @@ export default function CustomerIncentivesPage() {
         const pMonth=p.paid_date?new Date(p.paid_date+"T00:00:00").getMonth()+1:0;rows.push([c.bank_code||"",c.bank_account||"",c.bank_holder||c.name,p.incentive_amount||0,`${pMonth}월프리이화원`,"(주)광고인"]);
       });
     }));
-    const ws=XLSX.utils.aoa_to_sheet(rows);const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    const range=XLSX.utils.decode_range(ws["!ref"]||"A1");
+    for(let R=range.s.r;R<=range.e.r;R++){const addr=XLSX.utils.encode_cell({r:R,c:3});if(ws[addr]&&typeof ws[addr].v==="number")ws[addr].z="#,##0";}
+    const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,"입력정보");XLSX.writeFile(wb,"인센티브_지급정보.xls");
   };
 
@@ -180,6 +186,8 @@ export default function CustomerIncentivesPage() {
             className="text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
             <option value="">지급여부</option><option value="unpaid">미지급</option><option value="paid">지급완료</option>
           </select>
+          <button onClick={()=>{setSearch("");setFilterPaid("");}}
+            className="text-xs px-3 py-2 text-red-400 border border-red-200 rounded-lg hover:bg-red-50 font-semibold">↺ 초기화</button>
           <div className="flex items-center gap-1.5 ml-auto">
             <button onClick={downloadDataXLS} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 hover:bg-emerald-100"><FileSpreadsheet size={13}/>데이터다운(XLS)</button>
             <button onClick={downloadPaymentXLS} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100"><FileSpreadsheet size={13}/>지급정보(XLS)</button>
