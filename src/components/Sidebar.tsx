@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -10,6 +10,7 @@ import {
   LayoutDashboard, Users, Kanban, BarChart3,
   CalendarDays, Truck, Shield, Award,
   CreditCard, LogOut, ChevronRight, FileText, Target, Moon, Sun,
+  Bell, CheckCheck, X, Send, Clock, MessageCircle,
 } from "lucide-react";
 
 interface NotificationItem { id: number; message: string | null; created_at: string; is_read: boolean; assignee_name?: string; title?: string; source_type?: string; source_id?: number | null; }
@@ -77,6 +78,19 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
 
   const handleLogout = () => { logout(); router.push("/login"); };
 
+  // 알림 패널 외부 클릭 감지
+  const bellRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showPanel) return;
+    const handler = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        onPanelClose?.();
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPanel, onPanelClose]);
+
   const NavItem = ({ href, label, emoji }: { href: string; label: string; emoji: string }) => {
     const active = pathname === href;
     return (
@@ -109,8 +123,8 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
         </div>
       </div>
 
-      {/* 유저 정보 - 이름 + 직급 표시 */}
-      <div className="px-4 py-3" style={{borderBottom:"1px solid var(--sidebar-border)"}}>
+      {/* 유저 정보 + 알림 벨 */}
+      <div className="px-4 py-3 relative" style={{borderBottom:"1px solid var(--sidebar-border)"}}>
         <div className="flex items-center gap-2.5">
           <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${roleStyle.bg} ${roleStyle.text}`}>
             {user.name[0]}
@@ -123,6 +137,110 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
             <span className={`text-xs px-1.5 py-0.5 rounded-md font-semibold ${roleStyle.bg} ${roleStyle.text}`}>
               {roleStyle.label}
             </span>
+          </div>
+          {/* 🔔 알림 벨 */}
+          <div className="relative" ref={bellRef}>
+            <button
+              onClick={onBellClick}
+              className="relative w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+              style={{color: unreadCount > 0 ? "var(--warning)" : "var(--text-muted)", background: showPanel ? "var(--sidebar-active-bg)" : "transparent"}}
+            >
+              <Bell size={18} className={unreadCount > 0 ? "animate-wiggle" : ""} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 flex items-center justify-center text-[10px] font-bold text-white bg-red-500 rounded-full px-1 leading-none">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* 알림 드롭다운 패널 */}
+            {showPanel && (
+              <div
+                className="absolute left-0 top-full mt-2 w-80 max-h-96 rounded-xl shadow-2xl overflow-hidden z-50"
+                style={{background:"var(--surface)", border:"1px solid var(--border)"}}
+              >
+                {/* 패널 헤더 */}
+                <div className="flex items-center justify-between px-4 py-3" style={{borderBottom:"1px solid var(--border)"}}>
+                  <div className="flex items-center gap-2">
+                    <Bell size={14} style={{color:"var(--info)"}} />
+                    <span className="text-sm font-bold" style={{color:"var(--text)"}}>알림</span>
+                    {unreadCount > 0 && (
+                      <span className="text-[10px] font-bold text-white bg-red-500 rounded-full px-1.5 py-0.5 leading-none">{unreadCount}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {unreadCount > 0 && (
+                      <button onClick={onMarkAll} className="text-[11px] font-semibold px-2 py-1 rounded-md transition-colors" style={{color:"var(--info)"}}>
+                        전체 읽음
+                      </button>
+                    )}
+                    <button onClick={onPanelClose} className="w-6 h-6 flex items-center justify-center rounded-md transition-colors" style={{color:"var(--text-muted)"}}>
+                      <X size={14}/>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 알림 리스트 */}
+                <div className="overflow-y-auto max-h-80 divide-y" style={{borderColor:"var(--border)"}}>
+                  {notifications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-2">
+                      <Bell size={24} style={{color:"var(--text-muted)", opacity:0.4}} />
+                      <p className="text-xs" style={{color:"var(--text-muted)"}}>알림이 없습니다</p>
+                    </div>
+                  ) : (
+                    notifications.slice(0, 20).map(n => {
+                      const isTask = n.source_type === "업무전달";
+                      const isWanpan = n.source_type === "완판트럭";
+                      return (
+                        <div
+                          key={n.id}
+                          className="flex gap-3 px-4 py-3 transition-colors cursor-pointer"
+                          style={{background: n.is_read ? "transparent" : "var(--sidebar-active-bg)"}}
+                          onClick={() => {
+                            if (isTask) router.push("/tasks");
+                            else if (isWanpan) router.push("/wanpan-truck");
+                            onPanelClose?.();
+                          }}
+                        >
+                          {/* 아이콘 */}
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                            isTask ? "bg-violet-100" : isWanpan ? "bg-amber-100" : "bg-blue-100"
+                          }`}>
+                            {isTask ? <Send size={14} className="text-violet-600"/> :
+                             isWanpan ? <Truck size={14} className="text-amber-600"/> :
+                             <MessageCircle size={14} className="text-blue-600"/>}
+                          </div>
+                          {/* 내용 */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold truncate" style={{color: n.is_read ? "var(--text-muted)" : "var(--text)"}}>
+                                {n.title || n.source_type}
+                              </span>
+                              {!n.is_read && <span className="w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0"/>}
+                            </div>
+                            {n.message && (
+                              <p className="text-[11px] mt-0.5 line-clamp-2 leading-relaxed" style={{color:"var(--text-muted)"}}>
+                                {n.message}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px]" style={{color:"var(--text-subtle)"}}>
+                                {new Date(n.created_at).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}
+                              </span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                                isTask ? "bg-violet-50 text-violet-600" : isWanpan ? "bg-amber-50 text-amber-600" : "bg-blue-50 text-blue-600"
+                              }`}>
+                                {n.source_type}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
