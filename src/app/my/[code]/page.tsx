@@ -12,6 +12,7 @@ const TEAM_INFO: Record<string,{title:string;phone:string}> = {"조계현":{titl
 
 const fw=(n:number)=>n.toLocaleString();
 const fDate=(d:string)=>{if(!d)return"-";const dt=new Date(d+"T00:00:00");return`${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,"0")}.${String(dt.getDate()).padStart(2,"0")}`;};
+const getDays=(d:string)=>{if(!d)return 0;const s=new Date(d+'T00:00:00');const n=new Date();n.setHours(0,0,0,0);return Math.floor((n.getTime()-s.getTime())/(1000*60*60*24))+1;};
 const AD_CHS=["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
 
 function WeatherWidget({size="sm"}:{size?:"sm"|"lg"}) {
@@ -178,7 +179,8 @@ export default function CustomerDashboard() {
             <div style={{background:"#fff",borderRadius:16,border:"1px solid #f1f1f1",padding:"24px"}}>
               <p style={{fontSize:16,fontWeight:700,color:"#222",marginBottom:16}}>내 정보</p>
               <div style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #f8f8f8"}}><span style={{fontSize:15,color:"#666"}}>성명 / 직급</span><span style={{fontSize:15,fontWeight:600,color:"#333"}}>{contact?.name} {contact?.title}</span></div>
-              <div style={{display:"flex",justifyContent:"space-between",padding:"10px 0"}}><span style={{fontSize:15,color:"#666"}}>가입일</span><span style={{fontSize:15,fontWeight:600,color:"#333"}}>{fDate(contact?.contract_date||"")}</span></div>
+              <div style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #f8f8f8"}}><span style={{fontSize:15,color:"#666"}}>가입일</span><span style={{fontSize:15,fontWeight:600,color:"#333"}}>{fDate(contact?.contract_date||"")}</span></div>
+              <div style={{display:"flex",justifyContent:"space-between",padding:"10px 0"}}><span style={{fontSize:15,color:"#666"}}>가입</span><span style={{fontSize:15,fontWeight:600,color:"#7c3aed"}}>{getDays(contact?.contract_date||"")}일차</span></div>
             </div>
             <div style={{background:"#fff",borderRadius:16,border:"1px solid #f1f1f1",padding:"24px"}}>
               <p style={{fontSize:16,fontWeight:700,color:"#222",marginBottom:16}}>분양회 담당자</p>
@@ -246,7 +248,7 @@ export default function CustomerDashboard() {
         {/* 프로필 */}
         <div style={{padding:"24px 20px"}}>
           <div style={{background:"#111",borderRadius:16,padding:"20px",marginBottom:20,display:"flex",gap:16}}>
-            <div style={{width:130,height:170,borderRadius:12,overflow:"hidden",border:"2px solid #D4A843",flexShrink:0}}>
+            <div style={{width:130,height:200,borderRadius:12,overflow:"hidden",border:"2px solid #D4A843",flexShrink:0}}>
               {photoUrl?<img src={photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",background:"#222"}}><span style={{fontSize:36,fontWeight:800,color:"#D4A843"}}>{contact?.name?.[0]}</span></div>}
             </div>
             <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
@@ -257,7 +259,8 @@ export default function CustomerDashboard() {
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,padding:"10px 14px",background:"linear-gradient(90deg,#1a1a1a,#2d2318)",borderRadius:10}}><span style={{fontSize:10,padding:"2px 8px",background:"#D4A843",color:"#1a1a1a",borderRadius:4,fontWeight:800}}>VIP</span><span style={{fontSize:12,color:"#D4A843",fontWeight:600}}>분양회 프리미엄 멤버십</span></div>
           <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:10}}>내 정보</p>
           <div style={{padding:"8px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between"}}><span style={{fontSize:13,color:"#666"}}>성명 / 직급</span><span style={{fontSize:13,fontWeight:600,color:"#333"}}>{contact?.name} {contact?.title}</span></div>
-          <div style={{padding:"8px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between",marginBottom:12}}><span style={{fontSize:13,color:"#666"}}>가입일</span><span style={{fontSize:13,fontWeight:600,color:"#333"}}>{fDate(contact?.contract_date||"")}</span></div>
+          <div style={{padding:"8px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between"}}><span style={{fontSize:13,color:"#666"}}>가입일</span><span style={{fontSize:13,fontWeight:600,color:"#333"}}>{fDate(contact?.contract_date||"")}</span></div>
+            <div style={{padding:"8px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between",marginBottom:12}}><span style={{fontSize:13,color:"#666"}}>가입</span><span style={{fontSize:13,fontWeight:600,color:"#7c3aed"}}>{getDays(contact?.contract_date||"")}일차</span></div>
           <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:8}}>분양회 담당자</p>
           {contact?.assigned_to&&tInfo&&<ContactCard label="대외협력팀 담당자" name={contact.assigned_to} title={tInfo.title} phone={tInfo.phone} sz="sm"/>}
           {contact?.consultant&&cInfo&&<ContactCard label="광고사업부 담당자" name={contact.consultant} title={cInfo.title} phone={cInfo.phone} sz="sm"/>}
