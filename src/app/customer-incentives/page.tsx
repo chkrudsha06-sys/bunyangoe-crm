@@ -49,7 +49,9 @@ export default function CustomerIncentivesPage() {
         const qEnd=new Date(qStart);qEnd.setDate(qEnd.getDate()+89);
         const sStr=qStart.toISOString().split("T")[0];
         const eStr=qEnd.toISOString().split("T")[0];
-        const adTotal=execs.filter(e=>(e.member_name===c.name||e.bunyanghoe_number===c.bunyanghoe_number)&&e.payment_date>=sStr&&e.payment_date<=eStr).reduce((s:number,e:any)=>s+(e.execution_amount||0),0);
+        // 1기만 올해 시작 기준으로 전체 매출 반영
+        const adStartDate=qNum===1?"2026-01-01":sStr;
+        const adTotal=execs.filter(e=>(e.member_name===c.name||e.bunyanghoe_number===c.bunyanghoe_number)&&e.payment_date>=adStartDate&&e.payment_date<=eStr).reduce((s:number,e:any)=>s+(e.execution_amount||0),0);
         const tier=getTier(adTotal);
         const isEnded=qEnd<now;
         const paidRecords=payments.filter((p:any)=>p.contact_id===c.id&&p.quarter_num===qNum&&p.is_paid);
