@@ -151,6 +151,54 @@ function calcPaymentStatus(c: VipContact, feeCnt: number): "정상"|"이상"|"�
   return "이상";
 }
 
+// ─── 대시보드 코드 관리 셀 ───
+function DashboardCell({ contact, onSaved }: { contact: VipContact; onSaved: () => void }) {
+  const [uploading, setUploading] = useState(false);
+  const code = (contact as any).dashboard_code || "";
+  const photoUrl = (contact as any).photo_url || "";
+
+  const generateCode = async () => {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let newCode = ""; for (let i=0;i<8;i++) newCode += chars[Math.floor(Math.random()*chars.length)];
+    await supabase.from("contacts").update({ dashboard_code: newCode }).eq("id", contact.id);
+    onSaved();
+  };
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/my/${code}`);
+    alert("대시보드 URL 복사 완료");
+  };
+
+  const uploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const fname = `${code || contact.id}.${ext}`;
+    const { error } = await supabase.storage.from("customer-photos").upload(fname, file, { upsert: true });
+    if (error) { alert("업로드 실패: " + error.message); setUploading(false); return; }
+    await supabase.from("contacts").update({ photo_url: fname }).eq("id", contact.id);
+    setUploading(false);
+    onSaved();
+  };
+
+  if (!code) {
+    return <button onClick={generateCode} className="text-xs px-2.5 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 font-semibold hover:bg-indigo-100 whitespace-nowrap">생성</button>;
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="flex items-center gap-1">
+        <button onClick={copyUrl} className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded border border-blue-100 font-semibold hover:bg-blue-100" title="URL 복사">복사</button>
+        <a href={`/my/${code}`} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 bg-slate-50 text-slate-600 rounded border border-slate-200 font-semibold hover:bg-slate-100">보기</a>
+      </div>
+      <label className="text-xs text-slate-400 cursor-pointer hover:text-indigo-500">
+        {uploading ? "업로드중..." : photoUrl ? "✓사진" : "📷사진"}
+        <input type="file" accept="image/*" onChange={uploadPhoto} className="hidden"/>
+      </label>
+    </div>
+  );
+}
+
 export default function MemberManagePage() {
   const [contacts, setContacts] = useState<VipContact[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -279,7 +327,7 @@ export default function MemberManagePage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                 <tr>
-                  {["넘버링","회차","상태","고객명","직급","연락처","담당컨설턴트","대협팀","계약상태","예금주","은행코드","은행명","계좌번호","정기출금일","계약/예약일","메모"].map(h=>(
+                  {["넘버링","회차","상태","고객명","직급","연락처","담당컨설턴트","대협팀","계약상태","예금주","은행코드","은행명","계좌번호","정기출금일","계약/예약일","메모","대시보드"].map(h=>(
                     <th key={h} className="text-center px-3 py-3 text-slate-500 text-xs font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
