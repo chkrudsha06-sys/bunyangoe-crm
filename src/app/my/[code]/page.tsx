@@ -57,7 +57,7 @@ function WeatherWidget() {
   if (!weather) return null;
   return (
     <div style={{padding:"14px",background:"#f8fafc",borderRadius:12,border:"1px solid #f1f1f1",marginBottom:4}}>
-      <p style={{fontSize:12,fontWeight:700,color:"#64748b",marginBottom:10}}>🌤️ 오늘의 전국날씨</p>
+      <p style={{fontSize:14,fontWeight:700,color:"#64748b",marginBottom:12}}>🌤️ 오늘의 전국날씨</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
         {weather.map((w: any) => (
           <div key={w.name} style={{textAlign:"center",padding:"6px 4px",background:"#fff",borderRadius:8,border:"1px solid #f1f1f1"}}>
@@ -183,8 +183,9 @@ export default function CustomerDashboard() {
         *{box-sizing:border-box;margin:0;padding:0}
         .dw{width:100%;display:flex;flex-direction:row-reverse;gap:0;min-height:100vh}
         .dl{flex:1;min-width:0;border-left:1px solid #f1f1f1;padding:0}
-        .dr{width:50%;max-width:540px;flex-shrink:0;padding:32px 40px}
-        @media(max-width:1024px){.dr{width:45%;padding:24px 24px}}
+        .dr{width:55%;max-width:680px;flex-shrink:0;padding:40px 48px}
+        @media(max-width:1200px){.dr{width:50%;padding:32px 36px}}
+        @media(max-width:1024px){.dr{width:48%;padding:24px 24px}}
         @media(max-width:768px){.dw{flex-direction:column-reverse}.dl{border-left:none;border-top:8px solid #f5f5f5}.dr{width:100%;max-width:100%;padding:24px 20px}}
       `}</style>
 
@@ -223,24 +224,24 @@ export default function CustomerDashboard() {
         <div className="dr">
           {/* 프로필 */}
           <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:20}}>
-            <div style={{width:100,height:120,borderRadius:12,overflow:"hidden",flexShrink:0,background:"#1a1a1a",border:"2px solid #D4A843",boxShadow:"0 4px 12px rgba(0,0,0,0.1)"}}>
+            <div style={{width:120,height:140,borderRadius:14,overflow:"hidden",flexShrink:0,background:"#1a1a1a",border:"2px solid #D4A843",boxShadow:"0 4px 12px rgba(0,0,0,0.1)"}}>
               {photoUrl ? <img src={photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%"}}/> : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:32,fontWeight:800,color:"#D4A843"}}>{contact?.name?.[0]}</span></div>}
             </div>
             <div style={{flex:1}}>
-              <h2 style={{fontSize:20,fontWeight:800,color:"#222"}}>{contact?.name} <span style={{fontSize:13,fontWeight:500,color:"#999"}}>{contact?.title}</span></h2>
+              <h2 style={{fontSize:24,fontWeight:800,color:"#222"}}>{contact?.name} <span style={{fontSize:15,fontWeight:500,color:"#999"}}>{contact?.title}</span></h2>
             </div>
-            <img src="/bunyanghoe-logo.png" alt="분양회" style={{width:52,height:52,objectFit:"contain",flexShrink:0}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
+            <img src="/bunyanghoe-logo.png" alt="분양회" style={{width:60,height:60,objectFit:"contain",flexShrink:0}} onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
           </div>
 
           {/* VIP 뱃지 */}
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,padding:"10px 14px",background:"linear-gradient(90deg,#1a1a1a,#2d2318)",borderRadius:10}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,padding:"14px 18px",background:"linear-gradient(90deg,#1a1a1a,#2d2318)",borderRadius:12}}>
             <span style={{fontSize:10,padding:"2px 8px",background:"#D4A843",color:"#1a1a1a",borderRadius:4,fontWeight:800}}>VIP</span>
             <span style={{fontSize:12,color:"#D4A843",fontWeight:600}}>분양회 프리미엄 멤버십</span>
           </div>
 
           {/* ① 내 정보 */}
           <div style={{marginBottom:16}}>
-            <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:10}}>내 정보</p>
+            <p style={{fontSize:15,fontWeight:700,color:"#222",marginBottom:12}}>내 정보</p>
             <div style={{padding:"8px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between"}}>
               <span style={{fontSize:13,color:"#666"}}>성명 / 직급</span>
               <span style={{fontSize:13,fontWeight:600,color:"#333"}}>{contact?.name} {contact?.title}</span>
@@ -249,7 +250,7 @@ export default function CustomerDashboard() {
               <span style={{fontSize:13,color:"#666"}}>가입일</span>
               <span style={{fontSize:13,fontWeight:600,color:"#333"}}>{fDate(contact?.contract_date||"")}</span>
             </div>
-            <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:8}}>분양회 담당자</p>
+            <p style={{fontSize:15,fontWeight:700,color:"#222",marginBottom:10}}>분양회 담당자</p>
             {contact?.assigned_to && tInfo && (
               <div style={{padding:"12px 14px",background:"#f8fafc",borderRadius:10,border:"1px solid #f1f1f1",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                 <div>
@@ -283,11 +284,11 @@ export default function CustomerDashboard() {
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:16,marginBottom:16}}>
             <div style={{background:"#f8fafc",borderRadius:14,padding:"18px 16px",border:"1px solid #e8edf2"}}>
               <p style={{fontSize:11,fontWeight:600,color:"#64748b",marginBottom:8}}>하이타겟 마일리지</p>
-              <p style={{fontSize:24,fontWeight:800,color:"#1e293b"}}>{fw(stats.remainMileage)}<span style={{fontSize:12,color:"#94a3b8",marginLeft:2}}>P</span></p>
+              <p style={{fontSize:28,fontWeight:800,color:"#1e293b"}}>{fw(stats.remainMileage)}<span style={{fontSize:12,color:"#94a3b8",marginLeft:2}}>P</span></p>
             </div>
             <div style={{background:"#f8fafc",borderRadius:14,padding:"18px 16px",border:"1px solid #e8edf2"}}>
               <p style={{fontSize:11,fontWeight:600,color:"#64748b",marginBottom:8}}>리워드</p>
-              <p style={{fontSize:24,fontWeight:800,color:"#1e293b"}}>{fw(stats.totalReward)}<span style={{fontSize:12,color:"#94a3b8",marginLeft:2}}>원</span></p>
+              <p style={{fontSize:28,fontWeight:800,color:"#1e293b"}}>{fw(stats.totalReward)}<span style={{fontSize:12,color:"#94a3b8",marginLeft:2}}>원</span></p>
             </div>
           </div>
 
@@ -296,7 +297,7 @@ export default function CustomerDashboard() {
             <div style={{background:"linear-gradient(135deg,#f5f3ff,#ede9fe)",borderRadius:14,padding:"18px 16px",border:"1px solid #ddd6fe",marginBottom:16}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{fontSize:13,fontWeight:700,color:"#5b21b6"}}>❷ 누적 리워드</span>
+                  <span style={{fontSize:15,fontWeight:700,color:"#5b21b6"}}>❷ 누적 리워드</span>
                   <span style={{fontSize:10,padding:"2px 8px",background:"#7c3aed",color:"#fff",borderRadius:12,fontWeight:700}}>3개월 보너스</span>
                 </div>
                 <span style={{fontSize:12,fontWeight:700,color:"#7c3aed"}}>D-{incentiveData.daysLeft}</span>
@@ -305,7 +306,7 @@ export default function CustomerDashboard() {
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                 <div>
                   <p style={{fontSize:11,color:"#94a3b8"}}>현재 누적 집행</p>
-                  <p style={{fontSize:22,fontWeight:800,color:"#1e293b"}}>{fw(incentiveData.adTotal)}<span style={{fontSize:11,color:"#94a3b8"}}>원</span></p>
+                  <p style={{fontSize:26,fontWeight:800,color:"#1e293b"}}>{fw(incentiveData.adTotal)}<span style={{fontSize:11,color:"#94a3b8"}}>원</span></p>
                 </div>
                 <div style={{textAlign:"right"}}>
                   <p style={{fontSize:11,color:"#94a3b8"}}>다음 티어까지</p>
@@ -334,7 +335,7 @@ export default function CustomerDashboard() {
 
           {/* ⑤ 마일리지 및 리워드 상세 */}
           <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}>
-            <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:12}}>마일리지 및 리워드 상세</p>
+            <p style={{fontSize:15,fontWeight:700,color:"#222",marginBottom:14}}>마일리지 및 리워드 상세</p>
             {[
               {icon:"🎯",label:"하이타겟 마일리지",value:`${fw(stats.totalMileage)}P`,detail:execs.filter(e=>(e.hightarget_mileage||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.hightarget_mileage,unit:"P"}))},
               {icon:"🎯",label:"하이타겟 리워드",value:`${fw(stats.htReward)}원`,detail:execs.filter(e=>(e.hightarget_reward||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.hightarget_reward,unit:"원"}))},
@@ -368,7 +369,7 @@ export default function CustomerDashboard() {
 
           {/* ⑥ VIP 이용가이드 */}
           <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}>
-            <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:12}}>분양회 VIP 이용가이드</p>
+            <p style={{fontSize:15,fontWeight:700,color:"#222",marginBottom:14}}>분양회 VIP 이용가이드</p>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               {GUIDE_CATS.map(cat=>(
                 <button key={cat.id} onClick={()=>{setGuideOpen(true);setGuideSection(cat.id);}} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 14px",borderRadius:10,border:"1px solid #f1f1f1",background:"#fafafa",cursor:"pointer",textAlign:"left",fontFamily:"inherit",transition:"background 0.15s"}}>
