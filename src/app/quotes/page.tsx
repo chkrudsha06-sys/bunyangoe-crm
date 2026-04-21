@@ -12,15 +12,15 @@ interface AdItem {
 
 const MEDIA_OPTS = ["LMS","호갱노노"];
 const LMS_GROUPS = [
-  { label:"카드사", items:["국민카드","롯데멤버스(L.포인트)","비씨카드","삼성카드","신한카드","하나카드","현대카드","우리카드"] },
-  { label:"통신사", items:["SKT","LGU+","KT"] },
-  { label:"기타", items:["카카오","서울신문","조선일보","네이버"] },
+  { label:"카드사", items:["국민카드","BC카드","삼성카드","신한카드","롯데카드","하나카드"] },
+  { label:"통신사", items:["SKT","KT"] },
+  { label:"멤버십사 외", items:["롯데멤버스","스마트스코어","티맵","신세계포인트","OK캐시백"] },
 ];
 const HOEGANGNONO_TYPES = ["호갱노노_단지마커","호갱노노_채널톡","직방_채널톡"];
 
 const getUnitPrice = (media: string, type: string): string => {
   if (media === "호갱노노") { if (type === "호갱노노_채널톡") return "150"; if (type === "직방_채널톡") return "100"; return ""; }
-  if (media === "LMS") { if (type === "롯데멤버스(L.포인트)") return "80"; if (type) return "100"; }
+  if (media === "LMS") { if (type === "롯데멤버스") return "80"; if (type) return "100"; }
   return "";
 };
 const isUnitPriceFixed = (media: string, type: string): boolean => {
