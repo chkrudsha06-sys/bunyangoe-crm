@@ -147,9 +147,11 @@ export async function GET() {
       rowGroups.set(h.row, existing);
     });
 
-    for (const [headerRow, colOffsets] of rowGroups) {
+    for (const entry of Array.from(rowGroups.entries())) {
+      const headerRow = entry[0];
+      const colOffsets = entry[1];
       // Find next header row to determine data range
-      const sortedHeaderRows = [...rowGroups.keys()].sort((a, b) => a - b);
+      const sortedHeaderRows = Array.from(rowGroups.keys()).sort((a, b) => a - b);
       const nextHeaderIdx = sortedHeaderRows.indexOf(headerRow) + 1;
       const endRow = nextHeaderIdx < sortedHeaderRows.length ? sortedHeaderRows[nextHeaderIdx] - 2 : lines.length;
       const dataRows = lines.slice(headerRow + 1, endRow);
