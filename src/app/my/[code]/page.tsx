@@ -85,7 +85,6 @@ export default function CustomerDashboard() {
     {icon:"🎯",label:"하이타겟 리워드",value:`${fw(stats.htReward)}원`,detail:execs.filter(e=>(e.hightarget_reward||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.hightarget_reward,unit:"원"}))},
     {icon:"📱",label:"호갱노노 리워드",value:`${fw(stats.hogReward)}원`,detail:execs.filter(e=>(e.hogaengnono_reward||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.hogaengnono_reward,unit:"원"}))},
     {icon:"💬",label:"LMS 리워드",value:`${fw(stats.lmsReward)}원`,detail:execs.filter(e=>(e.lms_reward||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.lms_reward,unit:"원"}))},
-    {icon:"💸",label:"리워드 지급완료",value:`${fw(stats.totalPaid)}원`,detail:rewardPayments.filter(p=>p.paid_amount>0).map(p=>({date:p.paid_date||"",ch:p.quarter,amt:p.paid_amount,unit:"원"}))},
   ];
 
   if(loading)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#fff"}}><div style={{width:28,height:28,border:"3px solid #1E3A8A",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>;
@@ -230,9 +229,9 @@ export default function CustomerDashboard() {
                 <details style={{borderBottom:"1px solid #f8f8f8"}}>
                   <summary style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 0",cursor:"pointer",listStyle:"none"}}>
                     <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:18}}>💸</span><span style={{fontSize:15,color:"#666"}}>리워드 지급내역</span></div>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:15,fontWeight:600,color:"#16a34a"}}>내역 확인</span><span style={{fontSize:10,color:"#ccc"}}>▼</span></div>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:15,fontWeight:600,color:stats.totalPaid>0?"#7c3aed":"#16a34a"}}>{stats.totalPaid>0?`${fw(stats.totalPaid)}원`:"내역 확인"}</span><span style={{fontSize:10,color:"#ccc"}}>▼</span></div>
                   </summary>
-                  <p style={{padding:"8px 0 12px 28px",fontSize:13,color:"#ccc"}}>리워드 지급은 분기별 정산 후 진행됩니다</p>
+                  {rewardPayments.length>0?(<div style={{padding:"4px 0 12px 28px"}}>{rewardPayments.filter(p=>p.paid_amount>0).map((p:any)=>(<div key={p.id} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",fontSize:13}}><span style={{color:"#999"}}>{fDate(p.paid_date)} · {p.quarter}</span><span style={{fontWeight:600,color:"#7c3aed"}}>지급 {fw(p.paid_amount)}원</span></div>))}</div>):<p style={{padding:"8px 0 12px 28px",fontSize:13,color:"#ccc"}}>리워드 지급은 분기별 정산 후 진행됩니다</p>}
                 </details>
               </div>
             </div>
@@ -319,9 +318,9 @@ export default function CustomerDashboard() {
             <details style={{borderBottom:"1px solid #f8f8f8"}}>
               <summary style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",cursor:"pointer",listStyle:"none"}}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:14}}>💸</span><span style={{fontSize:13,color:"#666"}}>리워드 지급내역</span></div>
-                <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:13,fontWeight:600,color:"#16a34a"}}>내역 확인</span><span style={{fontSize:10,color:"#ccc"}}>▼</span></div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:13,fontWeight:600,color:stats.totalPaid>0?"#7c3aed":"#16a34a"}}>{stats.totalPaid>0?`${fw(stats.totalPaid)}원`:"내역 확인"}</span><span style={{fontSize:10,color:"#ccc"}}>▼</span></div>
               </summary>
-              <p style={{padding:"8px 0 12px 28px",fontSize:12,color:"#ccc"}}>리워드 지급은 분기별 정산 후 진행됩니다</p>
+              {rewardPayments.length>0?(<div style={{padding:"4px 0 12px 28px"}}>{rewardPayments.filter(p=>p.paid_amount>0).map((p:any)=>(<div key={p.id} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",fontSize:12}}><span style={{color:"#999"}}>{fDate(p.paid_date)} · {p.quarter}</span><span style={{fontWeight:600,color:"#7c3aed"}}>지급 {fw(p.paid_amount)}원</span></div>))}</div>):<p style={{padding:"8px 0 12px 28px",fontSize:12,color:"#ccc"}}>리워드 지급은 분기별 정산 후 진행됩니다</p>}
             </details>
           </div>
           <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}>
