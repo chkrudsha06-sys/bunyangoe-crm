@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { RefreshCw, Search, AlertTriangle, RotateCcw, ChevronUp, ChevronDown } from "lucide-react";
+import { RefreshCw, Search, AlertTriangle, ChevronUp, ChevronDown } from "lucide-react";
 
 interface AdSite {
   region: string; city: string; siteName: string;
@@ -213,10 +213,12 @@ export default function AdSitesPage() {
             <option value="active">운영중</option>
             <option value="suspended">수주중단</option>
           </select>
-          <button onClick={resetFilters} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-semibold rounded-xl transition-colors"
-            style={{ color: "var(--info)", border: "1px solid var(--border)", background: "var(--surface)" }}>
-            <RotateCcw size={13} />초기화
-          </button>
+          {(()=>{const hasFilter=!!(search||filterRegion!=="전체"||filterComp!=="전체"||filterSuspended!=="all");return(
+            <button onClick={resetFilters}
+              className={`text-xs px-2.5 py-2 font-semibold rounded-xl whitespace-nowrap transition-colors ${hasFilter ? "bg-red-500 text-white border border-red-500" : "text-red-400 border border-red-200 hover:bg-red-50"}`}>
+              ↺ 초기화
+            </button>
+          );})()}
           <span className="text-sm font-bold ml-auto" style={{ color: "var(--text-muted)" }}>{filtered.length}건</span>
         </div>
 
