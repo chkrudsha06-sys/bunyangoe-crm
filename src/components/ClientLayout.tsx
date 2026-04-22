@@ -76,7 +76,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     const u = getCurrentUser();
-    if (!u && pathname !== "/login" && !pathname.startsWith("/my")) router.push("/login");
+    if (!u && pathname !== "/login" && !pathname.startsWith("/my") && !pathname.startsWith("/sites")) router.push("/login");
     else { setUser(u); setChecked(true); }
   }, [pathname, router]);
 
@@ -203,7 +203,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     return () => timers.forEach(clearTimeout);
   }, [taskToasts]);
 
-  if (pathname === "/login" || pathname.startsWith("/my")) return <>{children}</>;
+  if (pathname === "/login" || pathname.startsWith("/my") || pathname.startsWith("/sites")) return <>{children}</>;
   if (!checked || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-brand-bg">
