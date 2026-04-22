@@ -229,7 +229,7 @@ export default function IncentivesPage() {
             <select value={filter} onChange={e=>setFilter(e.target.value)}
               className="px-3 py-2 text-sm font-semibold border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-blue-400 cursor-pointer">
               {ALL_MEMBERS.map(m=>(
-                <option key={m} value={m}>{m === "전체" ? "👥 전체" : m === "최웅" ? "👑 최웅 (파트장)" : EXEC_TEAM.includes(m) ? `🔵 ${m}` : `🟢 ${m}`}</option>
+                <option key={m} value={m}>{m === "전체" ? "👥 전체" : m === "최웅" ? "⭐ 최웅 (파트장)" : EXEC_TEAM.includes(m) ? `🔵 ${m}` : `🟢 ${m}`}</option>
               ))}
             </select>
             <span className="text-xs text-slate-400 hidden lg:block">목표 미달성 75% | 달성 100% | 6월까지 125%+100만</span>
