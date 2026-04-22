@@ -56,8 +56,8 @@ export async function POST(req: NextRequest) {
       set(13, 3, it.ageGroup);
       set(13, 6, it.sendType);
       set(14, 3, it.region1);
-      set(15, 3, it.region3);
-      set(16, 3, it.region2);
+      set(15, 3, it.region2);
+      set(16, 3, it.region3);
 
       // 합계 VAT포함 (G17) — 모든 항목 합산
       const totalAmount = items.reduce((sum: number, i: any) => {
