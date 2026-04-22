@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 const SHEET_ID = "1TmBP2k54P-XkS3X5z0tKMRFSfjB5SvQG0AFG9d8OfUo";
 const TABS = [
   { label: "2026", gid: "2076389318" },
-  { label: "2025", gid: "0" },
+  { label: "2025", gid: "1713049245" },
 ];
 
 interface Campaign {
