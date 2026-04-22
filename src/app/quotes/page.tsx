@@ -331,38 +331,38 @@ export default function QuotePage() {
                     return (
                       <div key={q.id}>
                         <button onClick={()=>setExpandedId(isOpen ? null : q.id)}
-                          className={`w-full px-4 py-2.5 text-left hover:bg-slate-50 transition-colors ${isOpen ? "bg-blue-50/50" : ""}`}>
+                          className={`w-full px-4 py-2.5 text-left transition-colors`} style={{background:isOpen?"var(--sidebar-active-bg)":"transparent"}}>
                           <div className="grid grid-cols-7 gap-1 items-center text-xs">
-                            <span className="text-slate-500 font-medium">{q.quote_date?.slice(5)||"-"}</span>
-                            <span className="text-slate-700 font-semibold truncate">{q.client_name||q.client_manager||"-"}</span>
-                            <span className="text-blue-600 font-semibold truncate">{it0.media||"-"}</span>
-                            <span className="text-slate-500 truncate">{it0.type||"-"}</span>
-                            <span className="text-right text-slate-600">{qtyLabel}</span>
-                            <span className="text-right font-black text-blue-700">{fmtV(q.total_vat||0)}</span>
-                            <span className="text-center text-slate-500 truncate">{q.supplier_manager||"-"}</span>
+                            <span style={{color:"var(--text-muted)"}} className="font-medium">{q.quote_date?.slice(5)||"-"}</span>
+                            <span style={{color:"var(--text)"}} className="font-semibold truncate">{q.client_name||q.client_manager||"-"}</span>
+                            <span style={{color:"var(--info)"}} className="font-semibold truncate">{it0.media||"-"}</span>
+                            <span style={{color:"var(--text-muted)"}} className="truncate">{it0.type||"-"}</span>
+                            <span style={{color:"var(--text)"}} className="text-right">{qtyLabel}</span>
+                            <span style={{color:"var(--info)"}} className="text-right font-black">{fmtV(q.total_vat||0)}</span>
+                            <span style={{color:"var(--text-muted)"}} className="text-center truncate">{q.supplier_manager||"-"}</span>
                           </div>
                         </button>
                         {isOpen && (
-                          <div className="px-4 pb-3 bg-slate-50/50 border-t border-slate-100">
-                            <div className="bg-white rounded-xl border border-slate-200 p-3 mt-2 space-y-1.5 text-xs">
-                              <div className="flex justify-between"><span className="text-slate-400">대상물건</span><span className="font-bold text-slate-800">{q.property}</span></div>
-                              <div className="flex justify-between"><span className="text-slate-400">견적일자</span><span className="text-slate-600">{q.quote_date||"-"}</span></div>
-                              <div className="border-t border-dashed border-slate-200 my-1.5"/>
-                              <div className="flex justify-between"><span className="text-slate-400">수급인 담당자</span><span className="font-semibold text-slate-700">{q.supplier_manager||"-"}</span></div>
-                              <div className="flex justify-between"><span className="text-slate-400">수급인 HP</span><span className="text-slate-600">{q.supplier_phone||"-"}</span></div>
-                              <div className="border-t border-dashed border-slate-200 my-1.5"/>
-                              <div className="flex justify-between"><span className="text-slate-400">위탁인 계약자</span><span className="font-semibold text-slate-700">{q.client_name||"-"}</span></div>
-                              <div className="flex justify-between"><span className="text-slate-400">위탁인 담당자</span><span className="text-slate-600">{q.client_manager||"-"}</span></div>
-                              <div className="flex justify-between"><span className="text-slate-400">위탁인 HP</span><span className="text-slate-600">{q.client_phone||"-"}</span></div>
-                              <div className="border-t border-dashed border-slate-200 my-1.5"/>
-                              <div className="flex justify-between"><span className="text-slate-400">매체</span><span className="text-blue-600 font-semibold">{it0.media||"-"} / {it0.type||"-"}</span></div>
-                              <div className="flex justify-between"><span className="text-slate-400">수량</span><span className="text-slate-600">{qtyLabel}</span></div>
-                              <div className="flex justify-between"><span className="text-slate-400">공급가액</span><span className="text-slate-600">{(q.total_amount||0).toLocaleString()}원</span></div>
-                              <div className="flex justify-between"><span className="text-slate-400">합계 (VAT포함)</span><span className="font-black text-blue-700">{(q.total_vat||0).toLocaleString()}원</span></div>
+                          <div className="px-4 pb-3 border-t" style={{background:"var(--surface)",borderColor:"var(--border)"}}>
+                            <div className="rounded-xl p-3 mt-2 space-y-1.5 text-xs" style={{background:"var(--sidebar-bg)",border:"1px solid var(--border)"}}>
+                              <div className="flex justify-between"><span style={{color:"var(--text-muted)"}}>대상물건</span><span className="font-bold" style={{color:"var(--text)"}}>{q.property}</span></div>
+                              <div className="flex justify-between"><span style={{color:"var(--text-muted)"}}>견적일자</span><span style={{color:"var(--text)"}}>{q.quote_date||"-"}</span></div>
+                              <div className="my-1.5" style={{borderTop:"1px dashed var(--border)"}}/>
+                              <div className="flex justify-between"><span style={{color:"var(--text-muted)"}}>수급인 담당자</span><span className="font-semibold" style={{color:"var(--text)"}}>{q.supplier_manager||"-"}</span></div>
+                              <div className="flex justify-between"><span style={{color:"var(--text-muted)"}}>수급인 HP</span><span style={{color:"var(--text)"}}>{q.supplier_phone||"-"}</span></div>
+                              <div className="my-1.5" style={{borderTop:"1px dashed var(--border)"}}/>
+                              <div className="flex justify-between"><span style={{color:"var(--text-muted)"}}>위탁인 계약자</span><span className="font-semibold" style={{color:"var(--text)"}}>{q.client_name||"-"}</span></div>
+                              <div className="flex justify-between"><span style={{color:"var(--text-muted)"}}>위탁인 담당자</span><span style={{color:"var(--text)"}}>{q.client_manager||"-"}</span></div>
+                              <div className="flex justify-between"><span style={{color:"var(--text-muted)"}}>위탁인 HP</span><span style={{color:"var(--text)"}}>{q.client_phone||"-"}</span></div>
+                              <div className="my-1.5" style={{borderTop:"1px dashed var(--border)"}}/>
+                              <div className="flex justify-between"><span style={{color:"var(--text-muted)"}}>매체</span><span className="font-semibold" style={{color:"var(--info)"}}>{it0.media||"-"} / {it0.type||"-"}</span></div>
+                              <div className="flex justify-between"><span style={{color:"var(--text-muted)"}}>수량</span><span style={{color:"var(--text)"}}>{qtyLabel}</span></div>
+                              <div className="flex justify-between"><span style={{color:"var(--text-muted)"}}>공급가액</span><span style={{color:"var(--text)"}}>{(q.total_amount||0).toLocaleString()}원</span></div>
+                              <div className="flex justify-between"><span style={{color:"var(--text-muted)"}}>합계 (VAT포함)</span><span className="font-black" style={{color:"var(--info)"}}>{(q.total_vat||0).toLocaleString()}원</span></div>
                             </div>
                             <div className="flex items-center gap-2 mt-3">
                               <button onClick={()=>loadQuote(q)}
-                                className="flex-1 text-xs py-2 bg-white text-slate-600 rounded-lg border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 font-semibold transition-colors text-center">불러오기</button>
+                                className="flex-1 text-xs py-2 rounded-lg font-semibold transition-colors text-center" style={{background:"var(--surface)",color:"var(--text)",border:"1px solid var(--border)"}}>불러오기</button>
                               <button onClick={()=>downloadSavedPdf(q)} disabled={isDl}
                                 className="flex-1 text-xs py-2 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-200 hover:bg-emerald-100 font-semibold transition-colors flex items-center justify-center gap-1 disabled:opacity-50">
                                 <Download size={11}/>{isDl ? "다운중..." : "PDF 다운받기"}
