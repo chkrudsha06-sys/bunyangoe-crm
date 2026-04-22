@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { RefreshCw, Search, AlertTriangle, ChevronUp, ChevronDown } from "lucide-react";
-import { authFetch } from "@/lib/auth-fetch";
+
 
 interface AdSite {
   region: string; city: string; siteName: string;
@@ -44,7 +44,7 @@ export default function AdSitesPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await authFetch("/api/fetch-ad-sites");
+      const res = await fetch("/api/fetch-ad-sites");
       const json = await res.json();
       setData(json);
     } catch { setData({ sites: [], error: "데이터를 불러올 수 없습니다" }); }
