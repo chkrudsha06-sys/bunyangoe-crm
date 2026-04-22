@@ -70,7 +70,7 @@ export default function SitesListPage() {
       <header className="bg-[#1a1a2e]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Image src="/bunyangeuisin-logo.png" alt="분양의신" width={120} height={58} className="h-8 sm:h-10 w-auto" />
+            <Image src="/company-logo.png" alt="분양의신" width={120} height={58} className="h-8 sm:h-10 w-auto" />
             <div className="hidden sm:block">
               <p className="text-[11px] text-white/40">현장정보 · 광고인㈜ 대외협력팀 제공</p>
             </div>
@@ -171,7 +171,7 @@ export default function SitesListPage() {
       <footer className="max-w-5xl mx-auto px-6 pb-10">
         <div className="text-center pt-8 border-t border-slate-200">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <Image src="/bunyangeuisin-logo.png" alt="분양의신" width={80} height={38} className="h-5 w-auto opacity-30"/>
+            <Image src="/company-logo.png" alt="분양의신" width={80} height={38} className="h-5 w-auto opacity-30"/>
           </div>
           <p className="text-[10px] text-slate-300">본 정보는 광고인㈜ 대외협력팀에서 제공합니다</p>
         </div>
