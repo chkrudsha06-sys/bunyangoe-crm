@@ -48,8 +48,8 @@ export const PUSH_TEMPLATES = {
     tag: "reward-paid",
   }),
   incentivePaid: (name: string, amount: number) => ({
-    title: "인센티브 지급 완료",
-    body: `${name}님, 누적리워드 인센티브 ${amount.toLocaleString()}원이 지급 처리되었습니다.`,
-    tag: "incentive-paid",
+    title: "🎉 인센티브 구간 달성!",
+    body: `${name}님, 축하합니다! 누적리워드 인센티브 ${amount.toLocaleString()}원 구간에 달성하셨습니다.`,
+    tag: "incentive-tier",
   }),
 };

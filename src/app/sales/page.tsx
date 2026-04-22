@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { CreditCard, Plus, Save, X, TrendingUp, Search, Edit2, FileText } from "lucide-react";
+import { sendPushNotification, PUSH_TEMPLATES } from "@/lib/push-notify";
 
 interface AdExecution {
   id: number;
@@ -416,6 +417,51 @@ export default function SalesPage() {
       console.error("저장 에러:", error);
       return;
     }
+
+    // ── 푸시 알림 발송 (신규 등록 + 환불 아닌 경우만) ──
+    if (!editId && !isRefundOnly && form.member_name) {
+      const name = form.member_name;
+      const ch = form.channel || "";
+
+      // 마일리지 적립 알림
+      if (rewards.hightarget_mileage > 0) {
+        sendPushNotification({ contactName: name, ...PUSH_TEMPLATES.mileageEarned(name, rewards.hightarget_mileage) });
+      }
+      // 리워드 적립 알림
+      const totalRwd = (rewards.hightarget_reward || 0) + (rewards.hogaengnono_reward || 0) + (rewards.lms_reward || 0);
+      if (totalRwd > 0) {
+        sendPushNotification({ contactName: name, ...PUSH_TEMPLATES.rewardEarned(name, totalRwd, ch) });
+      }
+
+      // 인센티브 구간 달성 체크 (분양회 경로만)
+      if (form.sales_type === "분양회") {
+        try {
+          const { data: contactRow } = await supabase.from("contacts").select("id,contract_date").eq("name", name).maybeSingle();
+          if (contactRow?.contract_date) {
+            const cDate = new Date(contactRow.contract_date + "T00:00:00");
+            const now = new Date();
+            let qStart = new Date(cDate);
+            let qEnd = new Date(cDate); qEnd.setDate(qEnd.getDate() + 89);
+            while (qEnd < now) { qStart = new Date(qEnd); qStart.setDate(qStart.getDate() + 1); qEnd = new Date(qStart); qEnd.setDate(qEnd.getDate() + 89); }
+            const sStr = qStart.toISOString().split("T")[0];
+            const eStr = qEnd.toISOString().split("T")[0];
+            const AD_CHS = ["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS","하이타겟"];
+            const { data: adRows } = await supabase.from("ad_executions").select("execution_amount").eq("member_name", name).in("channel", AD_CHS).gte("payment_date", sStr).lte("payment_date", eStr);
+            const total = (adRows || []).reduce((s: number, r: any) => s + (r.execution_amount || 0), 0);
+            const prevTotal = total - rawAmount;
+            // 구간 달성 체크 (이전에는 미달성 → 현재 달성)
+            const TIERS = [{ min: 100000000, label: "3구간 (1억)", amt: 10000000 }, { min: 70000000, label: "2구간 (7천만)", amt: 5000000 }, { min: 50000000, label: "1구간 (5천만)", amt: 3000000 }];
+            for (const tier of TIERS) {
+              if (total >= tier.min && prevTotal < tier.min) {
+                sendPushNotification({ contactName: name, ...PUSH_TEMPLATES.incentivePaid(name, tier.amt), tag: "incentive-tier" });
+                break;
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+
     setShowModal(false); setEditId(null);
     setForm(EMPTY_FORM); setVipSearch("");
     fetchExecutions();
