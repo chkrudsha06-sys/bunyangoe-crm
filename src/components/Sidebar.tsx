@@ -46,6 +46,7 @@ const OPS_MENUS = [
 
 const INFO_MENUS = [
   { href: "/new-sites", label: "신규현장", emoji: "🏗️" },
+  { href: "/ad-sites", label: "광고 현운예지", emoji: "📡" },
 ];
 
 const ADMIN_EXTRA = [
