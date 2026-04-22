@@ -201,7 +201,7 @@ export default function SiteDetailPage() {
             <InfoRow label="현장명" value={site.business_site_name||site.site_name}/>
             <InfoRow label="사업지 주소" value={site.business_address}/>
           </div>
-          {site.business_address&&site.business_address!==site.work_address&&(
+          {site.business_address&&(
             <KakaoMap address={site.business_address} mapId="map-biz"/>
           )}
         </section>
