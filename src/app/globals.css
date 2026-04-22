@@ -519,3 +519,62 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ═══════════════════════════════════════════
+   모바일 반응형 글로벌 룰 (<768px)
+   ═══════════════════════════════════════════ */
+
+/* 모든 페이지 헤더: 모바일에서 축소 */
+@media (max-width: 767px) {
+  /* 페이지 헤더 타이틀 축소 */
+  .text-lg { font-size: 15px !important; }
+  
+  /* 페이지 내부 패딩 축소 */
+  .p-5, .p-6 { padding: 12px !important; }
+  .px-5, .px-6 { padding-left: 12px !important; padding-right: 12px !important; }
+  .py-4 { padding-top: 10px !important; padding-bottom: 10px !important; }
+  
+  /* 그리드: 2열 이상 → 1열 (큰 카드 기준) */
+  .grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* 3~4열 → 2열 (중간 크기 카드) */
+  .grid-cols-3, .grid-cols-4 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  
+  /* 5열 → 가로 스크롤 (상태 카드 등) */
+  .grid-cols-5 {
+    grid-template-columns: repeat(5, minmax(100px, 1fr)) !important;
+    overflow-x: auto;
+  }
+  
+  /* 특별히 2열 유지가 필요한 경우 */
+  .mob-2col { grid-template-columns: 1fr 1fr !important; }
+  
+  /* gap 축소 */
+  .gap-5, .gap-6 { gap: 10px !important; }
+  .gap-4 { gap: 8px !important; }
+  
+  /* 넓은 테이블 가로 스크롤 보장 */
+  table { min-width: 600px; }
+  .overflow-x-auto { -webkit-overflow-scrolling: touch; }
+  
+  /* 모달 전체화면 */
+  .max-w-2xl, .max-w-lg, .max-w-xl {
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+  .max-h-\[90vh\], .max-h-\[85vh\] {
+    max-height: 95vh !important;
+  }
+  .rounded-2xl { border-radius: 16px !important; }
+
+  /* sticky 헤더 모바일 보정 (모바일 헤더 52px 아래) */
+  .sticky.top-0 { top: 52px !important; }
+  
+  /* 2분할 레이아웃 (견적서 등) → 1열 스택 */
+  .flex.gap-5.items-start { flex-direction: column !important; }
+  .flex-\[3\], .flex-\[2\] { flex: 1 1 100% !important; min-width: 100% !important; }
+}

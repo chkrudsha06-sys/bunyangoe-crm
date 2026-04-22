@@ -1055,29 +1055,29 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
-      <div className="bg-white border-b border-slate-200 px-8 py-4 sticky top-0 z-10">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-8 py-3 sm:py-4 sticky top-0 z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
-            <h1 className="text-xl font-black text-slate-800">
+            <h1 className="text-base sm:text-xl font-black text-slate-800">
               대외협력팀 {isExec ? <span className="text-blue-600">{user?.name} {user?.title}</span> : <span className="text-slate-500">종합</span>} 대시보드
             </h1>
             <div className="flex items-center gap-2 mt-1">
               <Clock size={13} className="text-blue-400"/>
-              <span className="text-sm font-semibold text-slate-500">{dateStr}</span>
-              <b style={{ fontSize:"16px", fontFamily:"'Montserrat', 'Arial Black', sans-serif", fontWeight:900, color: isExec ? "#1D4ED8" : "#334155", fontVariantNumeric:"tabular-nums", letterSpacing:"0.04em", WebkitTextStroke:"0.3px currentColor" }}>{timeStr}</b>
+              <span className="text-xs sm:text-sm font-semibold text-slate-500">{dateStr}</span>
+              <b style={{ fontSize:"clamp(13px,2vw,16px)", fontFamily:"'Montserrat', 'Arial Black', sans-serif", fontWeight:900, color: isExec ? "#1D4ED8" : "#334155", fontVariantNumeric:"tabular-nums", letterSpacing:"0.04em", WebkitTextStroke:"0.3px currentColor" }}>{timeStr}</b>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <select value={selMonth} onChange={e=>applyMonth(Number(e.target.value))}
               className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold outline-none cursor-pointer">
               {Array.from({length:12},(_,i)=>(<option key={i+1} value={i+1}>{i+1}월</option>))}
             </select>
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2 sm:px-3 py-2">
               <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}
-                className="text-xs text-slate-600 bg-transparent outline-none"/>
+                className="text-xs text-slate-600 bg-transparent outline-none w-[100px]"/>
               <span className="text-slate-300 text-xs">—</span>
               <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)}
-                className="text-xs text-slate-600 bg-transparent outline-none"/>
+                className="text-xs text-slate-600 bg-transparent outline-none w-[100px]"/>
             </div>
           </div>
         </div>

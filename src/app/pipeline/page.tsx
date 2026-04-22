@@ -269,7 +269,7 @@ export default function PipelinePage() {
         </div>
       ) : (
         <div className="flex-1 overflow-auto p-4">
-          <div className="grid grid-cols-5 gap-3 h-full">
+          <div className="grid gap-3 h-full" style={{gridTemplateColumns:"repeat(5, minmax(160px, 1fr))", minWidth:"850px"}}>
             {COLUMNS.map(col => {
               const colContacts = getColumnContacts(col.key);
               return (
