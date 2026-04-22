@@ -56,7 +56,9 @@ export async function POST(req: NextRequest) {
       set(13, 3, it.ageGroup);
       set(13, 6, it.sendType);
       set(14, 3, it.region1);
+      set(15, 2, "지역②");  // 템플릿 라벨 순서 보정 (원본: 지역③)
       set(15, 3, it.region2);
+      set(16, 2, "지역③");  // 템플릿 라벨 순서 보정 (원본: 지역②)
       set(16, 3, it.region3);
 
       // 합계 VAT포함 (G17) — 모든 항목 합산
