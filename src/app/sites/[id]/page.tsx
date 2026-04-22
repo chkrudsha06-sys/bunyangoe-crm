@@ -128,17 +128,31 @@ export default function SiteDetailPage() {
 
   const InfoRow = ({label,value}:{label:string;value:string}) => (
     <div className="flex border-b border-slate-100 last:border-b-0">
-      <div className="w-24 sm:w-32 flex-shrink-0 px-3 sm:px-4 py-3 bg-slate-50 text-xs font-bold text-slate-500 flex items-center">{label}</div>
+      <div className="w-28 sm:w-32 flex-shrink-0 px-3 sm:px-4 py-3 bg-slate-50 text-xs font-bold text-slate-500 flex items-center">{label}</div>
       <div className="flex-1 px-3 sm:px-4 py-3 text-sm text-slate-800">{value||"-"}</div>
     </div>
   );
   const InfoRow2 = ({l1,v1,l2,v2}:{l1:string;v1:string;l2:string;v2:string}) => (
-    <div className="flex border-b border-slate-100 last:border-b-0">
-      <div className="w-20 sm:w-28 flex-shrink-0 px-3 sm:px-4 py-3 bg-slate-50 text-xs font-bold text-slate-500 flex items-center">{l1}</div>
-      <div className="flex-1 px-3 sm:px-4 py-3 text-sm text-slate-800 border-r border-slate-100">{v1||"-"}</div>
-      <div className="w-20 sm:w-28 flex-shrink-0 px-3 sm:px-4 py-3 bg-slate-50 text-xs font-bold text-slate-500 flex items-center">{l2}</div>
-      <div className="flex-1 px-3 sm:px-4 py-3 text-sm text-slate-800">{v2||"-"}</div>
-    </div>
+    <>
+      {/* 모바일: 세로 배치 */}
+      <div className="sm:hidden">
+        <div className="flex border-b border-slate-100">
+          <div className="w-28 flex-shrink-0 px-3 py-3 bg-slate-50 text-xs font-bold text-slate-500 flex items-center">{l1}</div>
+          <div className="flex-1 px-3 py-3 text-sm text-slate-800">{v1||"-"}</div>
+        </div>
+        {l2 && <div className="flex border-b border-slate-100 last:border-b-0">
+          <div className="w-28 flex-shrink-0 px-3 py-3 bg-slate-50 text-xs font-bold text-slate-500 flex items-center">{l2}</div>
+          <div className="flex-1 px-3 py-3 text-sm text-slate-800">{v2||"-"}</div>
+        </div>}
+      </div>
+      {/* PC: 가로 배치 */}
+      <div className="hidden sm:flex border-b border-slate-100 last:border-b-0">
+        <div className="w-28 flex-shrink-0 px-4 py-3 bg-slate-50 text-xs font-bold text-slate-500 flex items-center">{l1}</div>
+        <div className="flex-1 px-4 py-3 text-sm text-slate-800 border-r border-slate-100">{v1||"-"}</div>
+        <div className="w-28 flex-shrink-0 px-4 py-3 bg-slate-50 text-xs font-bold text-slate-500 flex items-center">{l2}</div>
+        <div className="flex-1 px-4 py-3 text-sm text-slate-800">{v2||"-"}</div>
+      </div>
+    </>
   );
 
   return (
