@@ -57,6 +57,9 @@ export default function CustomerDashboard() {
   const [tab,setTab]=useState("전체");
   const [guideOpen,setGuideOpen]=useState(false);
   const [guideSection,setGuideSection]=useState("");
+  const [sitesList,setSitesList]=useState<any[]>([]);
+
+  useEffect(()=>{(async()=>{const{data}=await supabase.from("new_sites").select("id,site_name,property_type,unit_count,rt_fee,business_address,staff_start_date,grand_open_date,created_at").order("created_at",{ascending:false}).limit(10);setSitesList(data||[]);})();},[]);
 
   useEffect(()=>{if(!code)return;(async()=>{setLoading(true);const{data:c}=await supabase.from("contacts").select("id,name,title,bunyanghoe_number,consultant,assigned_to,contract_date,photo_url,phone").eq("dashboard_code",code).maybeSingle();if(!c){setNotFound(true);setLoading(false);return;}setContact(c as Contact);const[r1,r2]=await Promise.all([supabase.from("ad_executions").select("id,member_name,bunyanghoe_number,hightarget_mileage,hightarget_reward,hogaengnono_reward,lms_reward,payment_date,channel,execution_amount,vat_amount,contract_route").or(`member_name.eq.${c.name},bunyanghoe_number.eq.${c.bunyanghoe_number}`).order("payment_date",{ascending:false}),supabase.from("mileage_usages").select("*").eq("contact_id",c.id).order("usage_date",{ascending:false})]);setExecs((r1.data||[]) as ExecRow[]);setUsages((r2.data||[]) as MileUsage[]);setLoading(false);})();
   },[code]);
@@ -231,9 +234,35 @@ export default function CustomerDashboard() {
               </div>
             </div>
             <div style={{background:"#fff",borderRadius:16,border:"1px solid #f1f1f1",padding:"24px"}}>
-              <p style={{fontSize:16,fontWeight:700,color:"#222",marginBottom:16}}>분양회 VIP 이용가이드</p>
-              <GuideButtons sz="lg"/>
+              <p style={{fontSize:16,fontWeight:700,color:"#222",marginBottom:16}}>🏗️ 신규현장 정보</p>
+              {sitesList.length===0?<p style={{fontSize:13,color:"#ccc",textAlign:"center",padding:"20px 0"}}>등록된 현장이 없습니다</p>:(
+                <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:360,overflowY:"auto"}}>
+                  {sitesList.map(s=>{const isN=Date.now()-new Date(s.created_at).getTime()<2*24*60*60*1000;return(
+                    <a key={s.id} href={`/sites/${s.id}`} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",background:"#f8fafc",borderRadius:10,border:"1px solid #f1f1f1",textDecoration:"none",cursor:"pointer"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                          {s.property_type&&<span style={{fontSize:10,padding:"2px 6px",background:"#eff6ff",color:"#2563eb",borderRadius:4,fontWeight:700}}>{s.property_type}</span>}
+                          <span style={{fontSize:14,fontWeight:700,color:"#222"}}>{s.site_name}</span>
+                        </div>
+                        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                          {s.unit_count&&<span style={{fontSize:10,color:"#666"}}>{s.unit_count}세대</span>}
+                          {s.rt_fee&&<span style={{fontSize:10,color:"#d97706",fontWeight:600}}>R/T {s.rt_fee}</span>}
+                          {s.business_address&&<span style={{fontSize:10,color:"#999"}}>{s.business_address}</span>}
+                        </div>
+                      </div>
+                      {isN&&<span style={{fontSize:10,padding:"3px 8px",background:"linear-gradient(135deg,#f59e0b,#ef4444)",color:"#fff",borderRadius:20,fontWeight:800,whiteSpace:"nowrap",flexShrink:0}}>✨ 신규</span>}
+                    </a>
+                  );})}
+                </div>
+              )}
+              <a href="/sites" target="_blank" rel="noopener noreferrer" style={{display:"block",textAlign:"center",marginTop:12,fontSize:13,color:"#3b82f6",fontWeight:600,textDecoration:"none"}}>전체 현장정보 보기 →</a>
             </div>
+          </div>
+
+          {/* 이용가이드 (전체 폭) */}
+          <div style={{background:"#fff",borderRadius:16,border:"1px solid #f1f1f1",padding:"24px",marginBottom:20}}>
+            <p style={{fontSize:16,fontWeight:700,color:"#222",marginBottom:16}}>분양회 VIP 이용가이드</p>
+            <GuideButtons sz="lg"/>
           </div>
 
           {/* 4행: 거래 내역 */}
@@ -291,6 +320,29 @@ export default function CustomerDashboard() {
               </summary>
               <p style={{padding:"8px 0 12px 28px",fontSize:12,color:"#ccc"}}>리워드 지급은 분기별 정산 후 진행됩니다</p>
             </details>
+          </div>
+          <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}>
+            <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:12}}>🏗️ 신규현장 정보</p>
+            {sitesList.length===0?<p style={{fontSize:12,color:"#ccc",textAlign:"center",padding:"12px 0"}}>등록된 현장이 없습니다</p>:(
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {sitesList.slice(0,5).map(s=>{const isN=Date.now()-new Date(s.created_at).getTime()<2*24*60*60*1000;return(
+                  <a key={s.id} href={`/sites/${s.id}`} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:"#f8fafc",borderRadius:8,border:"1px solid #f1f1f1",textDecoration:"none"}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:2}}>
+                        {s.property_type&&<span style={{fontSize:9,padding:"1px 5px",background:"#eff6ff",color:"#2563eb",borderRadius:3,fontWeight:700}}>{s.property_type}</span>}
+                        <span style={{fontSize:13,fontWeight:700,color:"#222"}}>{s.site_name}</span>
+                      </div>
+                      <div style={{display:"flex",gap:6}}>
+                        {s.unit_count&&<span style={{fontSize:10,color:"#666"}}>{s.unit_count}세대</span>}
+                        {s.rt_fee&&<span style={{fontSize:10,color:"#d97706",fontWeight:600}}>R/T {s.rt_fee}</span>}
+                      </div>
+                    </div>
+                    {isN&&<span style={{fontSize:9,padding:"2px 6px",background:"linear-gradient(135deg,#f59e0b,#ef4444)",color:"#fff",borderRadius:20,fontWeight:800,flexShrink:0}}>✨ 신규</span>}
+                  </a>
+                );})}
+                <a href="/sites" target="_blank" rel="noopener noreferrer" style={{display:"block",textAlign:"center",marginTop:6,fontSize:12,color:"#3b82f6",fontWeight:600,textDecoration:"none"}}>전체 현장정보 보기 →</a>
+              </div>
+            )}
           </div>
           <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}><p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:12}}>분양회 VIP 이용가이드</p><GuideButtons sz="sm"/></div>
           <div style={{paddingTop:16,borderTop:"1px solid #f1f1f1",textAlign:"center"}}><p style={{fontSize:11,color:"#ccc"}}>© 2026 광고인㈜ · 분양의신</p></div>
