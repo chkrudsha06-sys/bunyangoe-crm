@@ -12,7 +12,9 @@ function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = atob(base64);
-  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
 }
 
 const CONSULTANT_INFO: Record<string,{title:string;phone:string}> = {"박경화":{title:"총괄본부장",phone:"010-7602-2564"},"박혜은":{title:"총괄본부장",phone:"010-7584-2564"},"박민경":{title:"본부장",phone:"010-2242-2564"},"조승현":{title:"본부장",phone:"010-7546-2564"},"백선중":{title:"팀장",phone:"010-7538-2564"},"강아름":{title:"팀장",phone:"010-8144-2564"},"전정훈":{title:"팀장",phone:"010-8449-2564"},"박나라":{title:"팀장",phone:"010-5817-2568"}};
