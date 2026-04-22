@@ -24,38 +24,47 @@ function KakaoMap({ address, mapId }: { address: string; mapId: string }) {
 
   // SDK 로드
   useEffect(() => {
-    if (!address) return;
-    if (window.kakao?.maps) { setSdkReady(true); return; }
-    const exists = document.getElementById("kakao-sdk");
-    if (exists) { const check = setInterval(() => { if (window.kakao?.maps) { setSdkReady(true); clearInterval(check); } }, 200); return; }
-    const s = document.createElement("script");
-    s.id = "kakao-sdk";
-    s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY || ""}&libraries=services&autoload=false`;
-    s.onload = () => { if (window.kakao) window.kakao.maps.load(() => setSdkReady(true)); };
-    document.head.appendChild(s);
+    try {
+      if (!address || typeof window === "undefined") return;
+      if (window.kakao?.maps) { setSdkReady(true); return; }
+      const exists = document.getElementById("kakao-sdk");
+      if (exists) { const check = setInterval(() => { if (window.kakao?.maps) { setSdkReady(true); clearInterval(check); } }, 200); setTimeout(()=>clearInterval(check),10000); return; }
+      const key = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
+      if (!key) return;
+      const s = document.createElement("script");
+      s.id = "kakao-sdk";
+      s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services&autoload=false`;
+      s.onload = () => { try { if (window.kakao) window.kakao.maps.load(() => setSdkReady(true)); } catch {} };
+      s.onerror = () => {};
+      document.head.appendChild(s);
+    } catch {}
   }, [address]);
 
   // 지도 렌더
   useEffect(() => {
-    if (!sdkReady || !mapRef.current || !address) return;
-    const geocoder = new window.kakao.maps.services.Geocoder();
-    geocoder.addressSearch(address, (result: any[], status: string) => {
-      if (status === window.kakao.maps.services.Status.OK && result.length > 0) {
-        renderMap(result[0].y, result[0].x);
-      } else {
-        const ps = new window.kakao.maps.services.Places();
-        ps.keywordSearch(address, (data: any[], st: string) => {
-          if (st === window.kakao.maps.services.Status.OK && data.length > 0) renderMap(data[0].y, data[0].x);
-        });
+    try {
+      if (!sdkReady || !mapRef.current || !address || !window.kakao?.maps) return;
+      const geocoder = new window.kakao.maps.services.Geocoder();
+      geocoder.addressSearch(address, (result: any[], status: string) => {
+        try {
+          if (status === window.kakao.maps.services.Status.OK && result.length > 0) {
+            renderMap(result[0].y, result[0].x);
+          } else {
+            const ps = new window.kakao.maps.services.Places();
+            ps.keywordSearch(address, (data: any[], st: string) => {
+              try { if (st === window.kakao.maps.services.Status.OK && data.length > 0) renderMap(data[0].y, data[0].x); } catch {}
+            });
+          }
+        } catch {}
+      });
+      function renderMap(lat: string, lng: string) {
+        try {
+          const coords = new window.kakao.maps.LatLng(lat, lng);
+          const map = new window.kakao.maps.Map(mapRef.current, { center: coords, level: 4 });
+          new window.kakao.maps.Marker({ map, position: coords });
+        } catch {}
       }
-    });
-    function renderMap(lat: string, lng: string) {
-      const coords = new window.kakao.maps.LatLng(lat, lng);
-      const map = new window.kakao.maps.Map(mapRef.current, { center: coords, level: 4 });
-      const marker = new window.kakao.maps.Marker({ map, position: coords });
-      const iw = new window.kakao.maps.InfoWindow({ content: `<div style="padding:4px 8px;font-size:12px;font-weight:700;white-space:nowrap;">${address.length > 20 ? address.slice(0, 20) + '...' : address}</div>` });
-      iw.open(map, marker);
-    }
+    } catch {}
   }, [sdkReady, address]);
 
   const kakaoUrl = `https://map.kakao.com/?q=${encodeURIComponent(address)}`;
@@ -98,8 +107,8 @@ export default function SiteDetailPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(()=>{
-    document.documentElement.removeAttribute("data-theme");
-    return()=>{const s=localStorage.getItem("crm_dark_mode");if(s!=="false")document.documentElement.setAttribute("data-theme","dark");};
+    try { document.documentElement.removeAttribute("data-theme"); } catch {}
+    return()=>{try{const s=localStorage.getItem("crm_dark_mode");if(s!=="false")document.documentElement.setAttribute("data-theme","dark");}catch{}};
   },[]);
 
   useEffect(()=>{
@@ -110,7 +119,7 @@ export default function SiteDetailPage() {
     })();
   },[params.id]);
 
-  const handleShare=()=>{navigator.clipboard.writeText(window.location.href);setCopied(true);setTimeout(()=>setCopied(false),2000);};
+  const handleShare=()=>{try{navigator.clipboard.writeText(window.location.href);}catch{const t=document.createElement("textarea");t.value=window.location.href;document.body.appendChild(t);t.select();document.execCommand("copy");document.body.removeChild(t);}setCopied(true);setTimeout(()=>setCopied(false),2000);};
 
   if(loading) return <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center"><div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin"/></div>;
   if(notFound||!site) return <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center"><div className="text-center"><p className="text-5xl mb-3">🏗️</p><p className="text-lg font-bold text-slate-700">현장 정보를 찾을 수 없습니다</p><a href="/sites" className="text-sm text-blue-500 mt-2 inline-block hover:underline">← 목록으로</a></div></div>;

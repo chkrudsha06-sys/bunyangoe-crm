@@ -72,7 +72,8 @@ export default function NewSitesPage() {
   };
 
   const copyLink=(id:number)=>{
-    navigator.clipboard.writeText(`${window.location.origin}/sites/${id}`);
+    const url=`${window.location.origin}/sites/${id}`;
+    try{navigator.clipboard.writeText(url);}catch{const t=document.createElement("textarea");t.value=url;document.body.appendChild(t);t.select();document.execCommand("copy");document.body.removeChild(t);}
     showToast("링크가 복사되었습니다");
   };
 

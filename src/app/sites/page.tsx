@@ -45,8 +45,8 @@ export default function SitesListPage() {
   const [search,setSearch] = useState("");
 
   useEffect(()=>{
-    document.documentElement.removeAttribute("data-theme");
-    return()=>{const s=localStorage.getItem("crm_dark_mode");if(s!=="false")document.documentElement.setAttribute("data-theme","dark");};
+    try { document.documentElement.removeAttribute("data-theme"); } catch {}
+    return()=>{try{const s=localStorage.getItem("crm_dark_mode");if(s!=="false")document.documentElement.setAttribute("data-theme","dark");}catch{}};
   },[]);
 
   useEffect(()=>{
