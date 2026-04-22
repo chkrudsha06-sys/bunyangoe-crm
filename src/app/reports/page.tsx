@@ -157,7 +157,7 @@ export default function ReportsPage() {
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2"><BarChart3 size={20} className="text-blue-500"/>팀 성과 분석</h1>
+            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">📈 팀 성과 분석</h1>
             <p className="text-xs text-slate-500 mt-0.5">{year}년 {month}월 · 실행파트 성과 종합</p>
           </div>
           <div className="flex items-center gap-2">

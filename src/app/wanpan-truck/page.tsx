@@ -312,7 +312,7 @@ export default function WanpanTruckPage() {
         <div className="flex items-center justify-between mb-1">
           <div>
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Truck size={20} className="text-blue-500" />완판트럭
+              🚚 완판트럭
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">완판트럭 진행 리스트 관리</p>
           </div>

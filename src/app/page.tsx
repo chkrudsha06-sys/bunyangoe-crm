@@ -1059,7 +1059,7 @@ export default function DashboardPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             <h1 className="text-base sm:text-xl font-black text-slate-800">
-              대외협력팀 {isExec ? <span className="text-blue-600">{user?.name} {user?.title}</span> : <span className="text-slate-500">종합</span>} 대시보드
+              📊 대외협력팀 {isExec ? <span className="text-blue-600">{user?.name} {user?.title}</span> : <span className="text-slate-500">종합</span>} 대시보드
             </h1>
             <div className="flex items-center gap-2 mt-1">
               <Clock size={13} className="text-blue-400"/>

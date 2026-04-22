@@ -176,7 +176,7 @@ export default function KpiSettingsPage() {
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Target size={20} className="text-amber-500"/>KPI 설정</h1>
+            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">🎯 KPI 설정</h1>
             <p className="text-xs text-slate-500 mt-0.5">월간 · 주간 목표 설정 ({year}년 {month}월)</p>
           </div>
           <div className="flex items-center gap-2">

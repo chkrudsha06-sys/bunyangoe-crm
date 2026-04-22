@@ -8,14 +8,14 @@ import Sidebar from "@/components/Sidebar";
 import { Truck, X, CheckCheck, Send, Bell } from "lucide-react";
 
 const MOBILE_TITLES: Record<string,string> = {
-  "/": "대시보드", "/tasks": "업무전달", "/contacts": "고객 DB",
-  "/pipeline": "파이프라인", "/vip-members": "분양회 입회자",
-  "/wanpan-truck": "완판트럭", "/calendar": "운영캘린더",
-  "/member-manage": "분양회 회원관리", "/sales": "통합매출관리",
-  "/rewards": "리워드 관리", "/customer-incentives": "인센티브 관리",
-  "/quotes": "견적서", "/new-sites": "신규현장",
-  "/reports": "팀 성과 분석", "/kpi-settings": "KPI 설정",
-  "/incentives": "인센티브 관리",
+  "/": "📊 대시보드", "/tasks": "📬 업무전달", "/contacts": "👥 고객 DB",
+  "/pipeline": "🔄 파이프라인", "/vip-members": "⭐ 분양회 입회자",
+  "/wanpan-truck": "🚚 완판트럭", "/calendar": "📅 운영캘린더",
+  "/member-manage": "🛡️ 분양회 회원관리", "/sales": "💳 통합매출관리",
+  "/rewards": "💎 리워드 관리", "/customer-incentives": "🏆 인센티브 관리",
+  "/quotes": "📄 견적서", "/new-sites": "🏗️ 신규현장",
+  "/reports": "📈 팀 성과 분석", "/kpi-settings": "🎯 KPI 설정",
+  "/incentives": "🏅 인센티브 관리",
 };
 function getMobileTitle(path: string) { return MOBILE_TITLES[path] || "분양회 CRM"; }
 

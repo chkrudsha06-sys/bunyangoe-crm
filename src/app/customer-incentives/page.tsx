@@ -149,7 +149,7 @@ export default function CustomerIncentivesPage() {
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Award size={20} className="text-amber-500"/>인센티브 관리</h1>
+            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">🏆 인센티브 관리</h1>
             <p className="text-xs text-slate-500 mt-0.5">계약완료 고객 · 90일 누적 광고비 구간별 인센티브 (집행금액 기준)</p>
           </div>
         </div>

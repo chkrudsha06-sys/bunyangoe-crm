@@ -222,7 +222,7 @@ export default function IncentivesPage() {
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Award size={20} className="text-amber-500"/>인센티브 관리</h1>
+            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">🏅 인센티브 관리</h1>
             <p className="text-xs text-slate-500 mt-0.5">대외협력팀 매출 인센티브 · {monthLabel} 기준 · 적용기간: 26.02.01 ~ 26.06.30</p>
           </div>
           <div className="flex items-center gap-3">

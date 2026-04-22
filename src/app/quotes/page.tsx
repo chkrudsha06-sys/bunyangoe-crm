@@ -200,7 +200,7 @@ export default function QuotePage() {
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FileText size={20} className="text-blue-500"/>견적서 작성</h1>
+            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">📄 견적서 작성</h1>
             <p className="text-sm text-slate-500 mt-0.5">㈜ 광고인 문자광고 대행 견적서</p>
           </div>
           <button onClick={handleDownload} disabled={downloading}

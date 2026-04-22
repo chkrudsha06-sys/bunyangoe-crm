@@ -270,7 +270,7 @@ export default function MemberManagePage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Shield size={20} className="text-blue-500"/>분양회 회원관리
+              🛡️ 분양회 회원관리
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">분양회 입회자 계좌 및 회원 정보 관리</p>
           </div>

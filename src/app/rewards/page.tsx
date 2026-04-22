@@ -350,7 +350,7 @@ export default function RewardsPage() {
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-lg font-bold text-slate-800">리워드 관리</h1>
+            <h1 className="text-lg font-bold text-slate-800">💎 리워드 관리</h1>
             <p className="text-xs text-slate-500 mt-0.5">분기별 리워드 지급 및 이월 관리</p>
           </div>
         </div>

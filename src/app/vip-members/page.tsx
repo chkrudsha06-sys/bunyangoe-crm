@@ -255,7 +255,7 @@ export default function VipMembersPage() {
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="mb-1">
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Award size={20} className="text-amber-500"/>분양회 입회자
+              ⭐ 분양회 입회자
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">계약완료 및 예약완료 고객 목록</p>
           </div>

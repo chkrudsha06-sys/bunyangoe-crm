@@ -477,7 +477,7 @@ export default function SalesPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <CreditCard size={20} className="text-blue-500"/>통합매출관리
+              💳 통합매출관리
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">광고 집행 내역 및 리워드 현황</p>
           </div>
