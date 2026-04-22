@@ -240,9 +240,9 @@ export default function SiteDetailPage() {
       <footer className="max-w-4xl mx-auto px-6 pb-10">
         <div className="text-center pt-8 border-t border-slate-200">
           <div className="flex items-center justify-center mb-2">
-            <Image src="/company-logo.png" alt="분양의신" width={80} height={38} className="h-5 w-auto opacity-30"/>
+            <Image src="/company-logo.png" alt="분양의신" width={160} height={52} className="h-10 sm:h-12 w-auto opacity-60"/>
           </div>
-          <p className="text-[10px] text-slate-300">본 정보는 광고인㈜ 대외협력팀에서 제공합니다</p>
+          <p className="text-xs text-slate-400 mt-1">본 정보는 광고인㈜ 대외협력팀에서 제공합니다</p>
         </div>
       </footer>
     </div>
