@@ -136,6 +136,7 @@ export default function IncentivesPage() {
   const [execData, setExecData] = useState<any[]>([]);
   const [opsData, setOpsData] = useState<any[]>([]);
   const [mgrData, setMgrData] = useState<any>(null);
+  const [filter, setFilter] = useState("전체");
 
   useEffect(() => { loadData(); }, []);
 
@@ -207,6 +208,12 @@ export default function IncentivesPage() {
     setLoading(false);
   };
 
+  const ALL_MEMBERS = ["전체", ...EXEC_TEAM, ...OPS_TEAM, "최웅"];
+  const isExec = EXEC_TEAM.includes(filter);
+  const isOps = OPS_TEAM.includes(filter);
+  const isMgr = filter === "최웅";
+  const showAll = filter === "전체";
+
   const now = new Date();
   const monthLabel = `${now.getFullYear()}년 ${now.getMonth()+1}월`;
 
@@ -218,8 +225,14 @@ export default function IncentivesPage() {
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Award size={20} className="text-amber-500"/>인센티브 관리</h1>
             <p className="text-xs text-slate-500 mt-0.5">대외협력팀 매출 인센티브 · {monthLabel} 기준 · 적용기간: 26.02.01 ~ 26.06.30</p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">목표 미달성 75% | 달성 100% | 6월까지 125%+100만</span>
+          <div className="flex items-center gap-3">
+            <select value={filter} onChange={e=>setFilter(e.target.value)}
+              className="px-3 py-2 text-sm font-semibold border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-blue-400 cursor-pointer">
+              {ALL_MEMBERS.map(m=>(
+                <option key={m} value={m}>{m === "전체" ? "👥 전체" : m === "최웅" ? "👑 최웅 (파트장)" : EXEC_TEAM.includes(m) ? `🔵 ${m}` : `🟢 ${m}`}</option>
+              ))}
+            </select>
+            <span className="text-xs text-slate-400 hidden lg:block">목표 미달성 75% | 달성 100% | 6월까지 125%+100만</span>
           </div>
         </div>
       </div>
@@ -230,19 +243,22 @@ export default function IncentivesPage() {
         ) : (
           <>
             {/* ═══ 실행파트 인센티브 표 ═══ */}
+            {(showAll || isExec) && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-              <h2 className="text-base font-black text-slate-800 mb-1">실행파트 인센티브 (팀원)</h2>
-              <p className="text-xs text-slate-400 mb-5">조계현 · 이세호 · 기여운 · 최연전</p>
+              <h2 className="text-base font-black text-slate-800 mb-1">실행파트 인센티브 {isExec ? `(${filter})` : "(팀원)"}</h2>
+              <p className="text-xs text-slate-400 mb-5">{isExec ? `${filter} 개인 인센티브 기준표` : "조계현 · 이세호 · 기여운 · 최연전"}</p>
               <div className="space-y-4">
                 <TierTable title="광고연계매출 (하이타겟)" tiers={EXEC_AD_TIERS} color="bg-[#1E3A8A]"/>
                 <TierTable title="분양회" tiers={EXEC_BH_TIERS} color="bg-[#1E3A8A]"/>
               </div>
             </div>
+            )}
 
             {/* 실행파트 실시간 계산 */}
+            {(showAll || isExec) && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
               <h2 className="text-base font-black text-slate-800 mb-1 flex items-center gap-2">
-                <TrendingUp size={16} className="text-blue-500"/>실행파트 당월 인센티브 현황
+                <TrendingUp size={16} className="text-blue-500"/>실행파트 당월 인센티브 현황 {isExec && `— ${filter}`}
               </h2>
               <p className="text-xs text-slate-400 mb-4">{monthLabel} · 환불 차감 반영</p>
               <div className="overflow-x-auto">
@@ -258,7 +274,7 @@ export default function IncentivesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {execData.map(d=>(
+                    {execData.filter(d=>showAll||d.name===filter).map(d=>(
                       <tr key={d.name} className="hover:bg-slate-50">
                         <td className="px-4 py-3 border border-slate-200 text-center font-bold text-slate-800">{d.name}</td>
                         <td className="px-4 py-3 border border-slate-200 text-center text-blue-600 font-semibold">{d.adAmt.toLocaleString()}원</td>
@@ -272,19 +288,23 @@ export default function IncentivesPage() {
                 </table>
               </div>
             </div>
+            )}
 
             {/* ═══ 운영파트 인센티브 표 ═══ */}
+            {(showAll || isOps) && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-              <h2 className="text-base font-black text-slate-800 mb-1">운영파트 인센티브 (광고운영)</h2>
-              <p className="text-xs text-slate-400 mb-5">김재영 · 최은정 · LMS/호갱노노 매출 기준</p>
+              <h2 className="text-base font-black text-slate-800 mb-1">운영파트 인센티브 {isOps ? `(${filter})` : "(광고운영)"}</h2>
+              <p className="text-xs text-slate-400 mb-5">{isOps ? `${filter} 개인 인센티브 기준표` : "김재영 · 최은정 · LMS/호갱노노 매출 기준"}</p>
               <TierTable title="광고운영 (LMS / 호갱노노)" tiers={OPS_AD_TIERS} color="bg-emerald-700"/>
               <p className="text-xs text-blue-500 mt-3 bg-blue-50 p-2 rounded-lg border border-blue-100">※ 기타광고 발굴 및 설계 시 해당 광고 인센티브 신설 추가 제공</p>
             </div>
+            )}
 
             {/* 운영파트 실시간 계산 */}
+            {(showAll || isOps) && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
               <h2 className="text-base font-black text-slate-800 mb-1 flex items-center gap-2">
-                <TrendingUp size={16} className="text-emerald-500"/>운영파트 당월 인센티브 현황
+                <TrendingUp size={16} className="text-emerald-500"/>운영파트 당월 인센티브 현황 {isOps && `— ${filter}`}
               </h2>
               <p className="text-xs text-slate-400 mb-4">{monthLabel} · 환불 차감 반영</p>
               <div className="overflow-x-auto">
@@ -299,7 +319,7 @@ export default function IncentivesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {opsData.map(d=>(
+                    {opsData.filter(d=>showAll||d.name===filter).map(d=>(
                       <tr key={d.name} className="hover:bg-slate-50">
                         <td className="px-4 py-3 border border-slate-200 text-center font-bold text-slate-800">{d.name}</td>
                         <td className="px-4 py-3 border border-slate-200 text-center text-blue-600 font-semibold">{d.lmsAmt.toLocaleString()}원</td>
@@ -312,8 +332,10 @@ export default function IncentivesPage() {
                 </table>
               </div>
             </div>
+            )}
 
             {/* ═══ 파트장(최웅) 인센티브 표 ═══ */}
+            {(showAll || isMgr) && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
               <h2 className="text-base font-black text-slate-800 mb-1">파트장 인센티브 (최웅)</h2>
               <p className="text-xs text-slate-400 mb-5">대외협력팀 전체 매출 기준</p>
@@ -322,9 +344,10 @@ export default function IncentivesPage() {
                 <TierTable title="분양회 (팀 전체)" tiers={MGR_BH_TIERS} color="bg-violet-700"/>
               </div>
             </div>
+            )}
 
             {/* 파트장 실시간 계산 */}
-            {mgrData && (
+            {(showAll || isMgr) && mgrData && (
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
                 <h2 className="text-base font-black text-slate-800 mb-1 flex items-center gap-2">
                   <TrendingUp size={16} className="text-violet-500"/>파트장(최웅) 당월 인센티브 현황
