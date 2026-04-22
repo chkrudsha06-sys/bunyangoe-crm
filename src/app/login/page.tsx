@@ -249,14 +249,6 @@ export default function LoginPage() {
 
   const cur = SLIDES[slide];
 
-  // 로고 — 상단 네비용 (영상 배경 위)
-  const navLogoStyle: React.CSSProperties = {
-    height: 38, objectFit: "contain" as const,
-  };
-  const modalLogoStyle: React.CSSProperties = {
-    height: 28, objectFit: "contain" as const,
-  };
-
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", fontFamily: "'Pretendard','Noto Sans KR',sans-serif" }}>
 
@@ -310,24 +302,24 @@ export default function LoginPage() {
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "28px 52px", zIndex: 40,
+        padding: "20px 20px", zIndex: 40,
         background: "linear-gradient(to bottom,rgba(0,0,0,0.4) 0%,transparent 100%)",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/company-logo.png" alt="광고인" style={navLogoStyle}
+          <img src="/company-logo.png" alt="광고인" style={{ height: "clamp(28px,4vw,38px)", objectFit: "contain" as const }}
             onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}/>
-          <div style={{ width: 1, height: 22, background: "rgba(255,255,255,0.25)" }}/>
+          <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.25)" }}/>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: "0.05em" }}>광고인㈜</div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em" }}>대외협력팀</div>
+            <div style={{ fontSize: "clamp(11px,1.2vw,13px)", fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: "0.05em" }}>광고인㈜</div>
+            <div style={{ fontSize: "clamp(8px,1vw,10px)", color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em" }}>대외협력팀</div>
           </div>
         </div>
         <button onClick={() => setShowModal(true)} style={{
-          padding: "12px 32px",
+          padding: "10px 24px",
           background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)",
           border: "1px solid rgba(255,255,255,0.25)", borderRadius: 50,
-          color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", letterSpacing: "0.06em",
+          color: "white", fontSize: "clamp(11px,1.2vw,13px)", fontWeight: 700, cursor: "pointer", letterSpacing: "0.06em",
           transition: "all 0.25s",
         }}
           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.2)"; }}
@@ -337,27 +329,27 @@ export default function LoginPage() {
 
       {/* 메인 카피 */}
       <div style={{
-        position: "absolute", bottom: "14vh", left: "52px",
+        position: "absolute", bottom: "clamp(80px,14vh,14vh)", left: "clamp(20px,5vw,52px)", right: "clamp(20px,5vw,52px)",
         zIndex: 10, maxWidth: "700px",
         opacity: visible && introDone ? 1 : 0,
         transform: visible && introDone ? "translateY(0)" : "translateY(18px)",
         transition: "opacity 0.6s ease, transform 0.6s ease",
       }}>
         <h1 style={{
-          margin: "0 0 18px 0",
-          fontSize: "clamp(36px,4.5vw,64px)", lineHeight: 1.12,
+          margin: "0 0 14px 0",
+          fontSize: "clamp(24px,4.5vw,64px)", lineHeight: 1.12,
           fontFamily: "'Montserrat','Pretendard',sans-serif",
           fontWeight: 300, color: "rgba(255,255,255,0.95)", letterSpacing: "-0.01em",
         }}>
           <strong style={{ fontWeight: 800 }}>{cur.engBold}</strong>{cur.engRest}
         </h1>
-        <p style={{ margin: 0, fontSize: "clamp(13px,1.3vw,17px)", color: "rgba(255,255,255,0.6)", lineHeight: 1.8 }}>
+        <p style={{ margin: 0, fontSize: "clamp(11px,1.3vw,17px)", color: "rgba(255,255,255,0.6)", lineHeight: 1.8 }}>
           {cur.kor1}<br/>{cur.kor2}
         </p>
       </div>
 
       {/* 슬라이드 인디케이터 */}
-      <div style={{ position: "absolute", bottom: "14vh", right: "52px", display: "flex", gap: "10px", zIndex: 10, alignItems: "center" }}>
+      <div style={{ position: "absolute", bottom: "clamp(80px,14vh,14vh)", right: "clamp(20px,5vw,52px)", display: "flex", gap: "10px", zIndex: 10, alignItems: "center" }}>
         {SLIDES.map((_, i) => (
           <button key={i}
             onClick={() => { setVisible(false); setTimeout(() => { setSlide(i); setVisible(true); }, 300); }}
@@ -387,14 +379,14 @@ export default function LoginPage() {
       )}
 
       {/* 카피라이트 */}
-      <div style={{ position: "absolute", bottom: "28px", left: "52px", zIndex: 10, fontSize: 11, color: "rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
+      <div style={{ position: "absolute", bottom: "20px", left: "clamp(20px,5vw,52px)", zIndex: 10, fontSize: "clamp(9px,1vw,11px)", color: "rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
         © 2026 광고인㈜ · 분양의신 · All rights reserved.
       </div>
 
       {/* 로그인 모달 */}
       <div style={{
         position: "fixed", inset: 0, zIndex: 50,
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+        display: "flex", alignItems: "center", justifyContent: "center", padding: "16px",
         opacity: showModal ? 1 : 0, pointerEvents: showModal ? "auto" : "none",
         transition: "opacity 0.35s ease",
         background: showModal ? "rgba(0,0,0,0.45)" : "transparent",
@@ -403,16 +395,17 @@ export default function LoginPage() {
         <div style={{
           background: "rgba(8,10,20,0.97)", backdropFilter: "blur(32px)",
           border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24,
-          padding: "44px 42px 40px", width: "100%", maxWidth: 440,
+          padding: "clamp(28px,5vw,44px) clamp(24px,4vw,42px) clamp(28px,5vw,40px)", width: "100%", maxWidth: 440,
           boxShadow: "0 40px 100px rgba(0,0,0,0.8)",
           transform: showModal ? "translateY(0) scale(1)" : "translateY(24px) scale(0.97)",
           transition: "transform 0.4s cubic-bezier(0.16,1,0.3,1)",
+          maxHeight: "90vh", overflowY: "auto" as const,
         }}>
           {/* 모달 헤더 */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/company-logo.png" alt="광고인" style={modalLogoStyle}
+              <img src="/company-logo.png" alt="광고인" style={{ height: "clamp(22px,3vw,28px)", objectFit: "contain" as const }}
                 onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}/>
               <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.15)" }}/>
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 600, letterSpacing: "0.04em" }}>광고인㈜ 대외협력팀</span>
@@ -420,8 +413,8 @@ export default function LoginPage() {
             <button onClick={() => setShowModal(false)} style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.08)", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
           </div>
 
-          <h3 style={{ fontSize: 26, fontWeight: 900, color: "white", margin: "0 0 6px 0", letterSpacing: "-0.01em" }}>CRM시스템 접속</h3>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.35)", margin: "0 0 30px 0" }}>아이디와 비밀번호를 입력하세요</p>
+          <h3 style={{ fontSize: "clamp(20px,4vw,26px)", fontWeight: 900, color: "white", margin: "0 0 6px 0", letterSpacing: "-0.01em" }}>CRM시스템 접속</h3>
+          <p style={{ fontSize: "clamp(12px,1.5vw,14px)", color: "rgba(255,255,255,0.35)", margin: "0 0 24px 0" }}>아이디와 비밀번호를 입력하세요</p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
