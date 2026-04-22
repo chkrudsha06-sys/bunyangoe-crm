@@ -22,13 +22,27 @@ function KakaoMap({ address, mapId }: { address: string; mapId: string }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [sdkReady, setSdkReady] = useState(false);
 
-  // SDK 로드
+  // SDK 로드 — LatLng 존재 여부로 완전 로드 확인
   useEffect(() => {
     try {
       if (!address || typeof window === "undefined") return;
-      if (window.kakao?.maps) { setSdkReady(true); return; }
+      const isFullyLoaded = () => !!window.kakao?.maps?.LatLng;
+
+      if (isFullyLoaded()) { setSdkReady(true); return; }
+
+      // 이미 스크립트 태그가 있으면 로드 완료 대기
       const exists = document.getElementById("kakao-sdk");
-      if (exists) { const check = setInterval(() => { if (window.kakao?.maps) { setSdkReady(true); clearInterval(check); } }, 200); setTimeout(()=>clearInterval(check),10000); return; }
+      if (exists) {
+        // maps 네임스페이스는 있지만 load() 안 된 경우 → load() 호출
+        if (window.kakao?.maps?.load && !isFullyLoaded()) {
+          try { window.kakao.maps.load(() => setSdkReady(true)); } catch {}
+        }
+        // 폴링으로 대기
+        const check = setInterval(() => { if (isFullyLoaded()) { setSdkReady(true); clearInterval(check); } }, 200);
+        setTimeout(() => clearInterval(check), 10000);
+        return;
+      }
+
       const key = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
       if (!key) return;
       const s = document.createElement("script");
@@ -43,7 +57,7 @@ function KakaoMap({ address, mapId }: { address: string; mapId: string }) {
   // 지도 렌더
   useEffect(() => {
     try {
-      if (!sdkReady || !mapRef.current || !address || !window.kakao?.maps) return;
+      if (!sdkReady || !mapRef.current || !address || !window.kakao?.maps?.LatLng) return;
       const renderMap = (lat: string, lng: string) => {
         try {
           const coords = new window.kakao.maps.LatLng(lat, lng);
