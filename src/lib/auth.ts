@@ -74,23 +74,34 @@ export async function validateSession(): Promise<boolean> {
   const user = getCurrentUser();
   if (!user || !user.id) return false;
 
-  // 세션 토큰이 없는 경우 → 이전 버전 호환: 유효로 간주 (재로그인 유도 안 함)
+  // 세션 토큰이 없는 경우 → 이전 버전 호환: 유효로 간주
   if (!user.sessionToken) return true;
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5초 타임아웃
+
     const res = await fetch("/api/auth/validate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: user.id, sessionToken: user.sessionToken }),
+      signal: controller.signal,
     });
 
-    // API 호출 실패 (네트워크 오류, 서버 에러) → 유효로 간주 (로그아웃 방지)
+    clearTimeout(timeout);
+
+    // API 호출 실패 → 유효로 간주
     if (!res.ok) return true;
 
     const data = await res.json();
-    return data.valid === true;
+
+    // 명확히 "다른 기기 로그인"인 경우만 false
+    if (data.valid === false && data.reason) return false;
+
+    // 그 외 모든 경우 유효로 간주
+    return data.valid !== false;
   } catch {
-    // 네트워크 에러 시 유효로 간주 (인터넷 끊김 등으로 불필요한 로그아웃 방지)
+    // 네트워크/타임아웃 에러 → 유효로 간주
     return true;
   }
 }
