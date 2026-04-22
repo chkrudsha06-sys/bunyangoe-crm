@@ -591,3 +591,62 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
   .flex.gap-5.items-start { flex-direction: column !important; }
   .flex-\[3\], .flex-\[2\] { flex: 1 1 100% !important; min-width: 100% !important; }
 }
+
+/* ═══ 다크모드 추가 보강 (2026.04.22) ═══ */
+
+/* input/select 다크모드 */
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+[data-theme="dark"] input::placeholder, [data-theme="dark"] textarea::placeholder {
+  color: var(--text-subtle) !important;
+}
+[data-theme="dark"] input:focus, [data-theme="dark"] select:focus, [data-theme="dark"] textarea:focus {
+  border-color: var(--info) !important;
+}
+[data-theme="dark"] option {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+/* 모달 배경 보강 */
+[data-theme="dark"] .shadow-2xl {
+  box-shadow: 0 25px 60px rgba(0,0,0,0.6) !important;
+}
+
+/* 호버 상태 보강 */
+[data-theme="dark"] .hover\:bg-white:hover { background: var(--surface-2) !important; }
+[data-theme="dark"] .hover\:bg-slate-100:hover { background: var(--surface-2) !important; }
+[data-theme="dark"] .hover\:bg-red-50:hover { background: rgba(239,68,68,0.1) !important; }
+[data-theme="dark"] .hover\:bg-blue-50:hover { background: rgba(59,130,246,0.1) !important; }
+
+/* 탭 버튼 비활성 */
+[data-theme="dark"] .bg-white.text-slate-500 { background: var(--surface) !important; color: var(--text-muted) !important; }
+
+/* 태그/뱃지 미세 보정 */
+[data-theme="dark"] .bg-slate-50.text-slate-600 { background: rgba(255,255,255,0.06) !important; color: var(--text-muted) !important; }
+[data-theme="dark"] .bg-slate-50.text-slate-400 { background: rgba(255,255,255,0.04) !important; color: var(--text-subtle) !important; }
+
+/* 캘린더 셀 보정 */
+[data-theme="dark"] .bg-blue-50\/30 { background: rgba(59,130,246,0.06) !important; }
+
+/* 프로그레스 바/차트 배경 */
+[data-theme="dark"] .bg-slate-50.rounded-xl { background: var(--surface-2) !important; }
+
+/* 초기화 버튼 다크모드 */
+[data-theme="dark"] .border-red-200 { border-color: rgba(239,68,68,0.3) !important; }
+[data-theme="dark"] .text-red-400 { color: #f87171 !important; }
+[data-theme="dark"] .hover\:bg-red-50:hover { background: rgba(239,68,68,0.1) !important; }
+
+/* cursor-not-allowed 필드 */
+[data-theme="dark"] .bg-slate-100.cursor-not-allowed { background: rgba(255,255,255,0.04) !important; color: var(--text-subtle) !important; }
+
+/* 테이블 행 호버 */
+[data-theme="dark"] .hover\:bg-slate-50:hover { background: rgba(255,255,255,0.04) !important; }
+[data-theme="dark"] tr:hover { background: rgba(255,255,255,0.02); }
+
+/* thead 고정 배경 */
+[data-theme="dark"] thead { background: var(--surface) !important; }
+[data-theme="dark"] thead .bg-slate-50 { background: var(--surface) !important; }
