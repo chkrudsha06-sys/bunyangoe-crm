@@ -183,13 +183,13 @@ export default function CustomerIncentivesPage() {
         {/* 검색+필터+다운로드 (테이블 바로 위) */}
         <div className="flex items-center gap-2">
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="넘버링, 고객명, 담당자..."
-            className="pl-3 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg w-52 outline-none focus:border-blue-400"/>
+            className="pl-3 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl w-52 outline-none focus:border-blue-400"/>
           <select value={filterPaid} onChange={e=>setFilterPaid(e.target.value)}
-            className="text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+            className="text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
             <option value="">지급여부</option><option value="unpaid">미지급</option><option value="paid">지급완료</option>
           </select>
           <button onClick={()=>{setSearch("");setFilterPaid("");}}
-            className={`text-xs px-3 py-2 font-semibold rounded-lg whitespace-nowrap transition-colors ${(search||filterPaid)?"bg-red-500 text-white border border-red-500":"text-red-400 border border-red-200 hover:bg-red-50"}`}>↺ 초기화</button>
+            className={`text-xs px-2.5 py-2 font-semibold rounded-xl whitespace-nowrap transition-colors ${(search||filterPaid)?"bg-red-500 text-white border border-red-500":"text-red-400 border border-red-200 hover:bg-red-50"}`}>↺ 초기화</button>
           <div className="flex items-center gap-1.5 ml-auto">
             <button onClick={downloadDataXLS} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 hover:bg-emerald-100"><FileSpreadsheet size={13}/>데이터다운(XLS)</button>
             <button onClick={downloadPaymentXLS} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100"><FileSpreadsheet size={13}/>지급정보(XLS)</button>

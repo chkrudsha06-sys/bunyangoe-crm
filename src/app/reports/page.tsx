@@ -162,7 +162,7 @@ export default function ReportsPage() {
           </div>
           <div className="flex items-center gap-2">
             <select value={month} onChange={e=>setMonth(Number(e.target.value))}
-              className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-semibold outline-none">
+              className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold outline-none">
               {Array.from({length:12},(_,i)=>i+1).map(m=><option key={m} value={m}>{m}월</option>)}
             </select>
           </div>

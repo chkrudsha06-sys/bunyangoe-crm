@@ -85,7 +85,7 @@ function Sel({ val, onChange, opts, placeholder, className="" }: {
   return (
     <div className={`relative ${className}`}>
       <select value={val} onChange={e=>onChange(e.target.value)}
-        className="w-full appearance-none px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-400 pr-7">
+        className="w-full appearance-none px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-blue-400 pr-7">
         <option value="">{placeholder}</option>
         {opts.map(o=><option key={o} value={o}>{o}</option>)}
       </select>
@@ -230,7 +230,7 @@ export default function ContactsPage() {
   };
 
   const f = (key: string, val: string) => setForm((p: any) => ({ ...p, [key]: val }));
-  const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
+  const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400";
   const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 
   const totalPages = Math.ceil(total / PER_PAGE);
@@ -268,13 +268,13 @@ export default function ContactsPage() {
           <select
             value={fAssigned}
             onChange={e=>{setFAssigned(e.target.value);setPage(1);}}
-            className="w-full appearance-none px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-400 pr-7" style={{minWidth:"110px",maxWidth:"140px"}}>
+            className="w-full appearance-none px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-blue-400 pr-7" style={{minWidth:"110px",maxWidth:"140px"}}>
             <option value="">담당자</option>
             <option value="__ALL__">전체</option>
             {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
           </select>
           <select value={fConsultant} onChange={e=>{setFConsultant(e.target.value);setPage(1);}}
-            className="w-full appearance-none px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-400 pr-7" style={{minWidth:"110px",maxWidth:"140px"}}>
+            className="w-full appearance-none px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-blue-400 pr-7" style={{minWidth:"110px",maxWidth:"140px"}}>
             <option value="">담당컨설턴트</option>
             {["박경화","박혜은","조승현","박민경","백선중","강아름","전정훈","박나라"].map((m: string)=><option key={m} value={m}>{m}</option>)}
           </select>
@@ -398,7 +398,7 @@ export default function ContactsPage() {
                 <p className="text-xs text-slate-400">{(page-1)*PER_PAGE+1}~{Math.min(page*PER_PAGE,total)} / 전체 {total.toLocaleString()}명</p>
                 <div className="flex gap-1">
                   <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}
-                    className="px-3 py-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg disabled:opacity-40">이전</button>
+                    className="px-3 py-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl disabled:opacity-40">이전</button>
                   {Array.from({length:Math.min(5,totalPages)},(_,i)=>{
                     const p = Math.max(1, Math.min(page-2,totalPages-4)) + i;
                     return (
@@ -409,7 +409,7 @@ export default function ContactsPage() {
                     );
                   })}
                   <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages}
-                    className="px-3 py-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg disabled:opacity-40">다음</button>
+                    className="px-3 py-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl disabled:opacity-40">다음</button>
                 </div>
               </div>
             )}

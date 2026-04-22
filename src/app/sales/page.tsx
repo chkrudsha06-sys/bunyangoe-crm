@@ -447,7 +447,7 @@ export default function SalesPage() {
     setShowModal(true);
   };
 
-  const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
+  const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400";
   const lbl = "block text-xs font-semibold text-slate-500 mb-1";
   const isBunyanghoe = form.sales_type === "분양회";
   const isWanpan     = form.sales_type === "완판트럭";
@@ -517,7 +517,7 @@ export default function SalesPage() {
               onChange={e=>setSalesSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
           </div>
-          <select value={filterIntake} onChange={e=>setFilterIntake(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+          <select value={filterIntake} onChange={e=>setFilterIntake(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none">
             <option value="">유입구분</option>
             <option value="영업부토스TM">영업부토스TM</option>
             <option value="신규고객TM">신규고객TM</option>
@@ -525,13 +525,13 @@ export default function SalesPage() {
             <option value="완판트럭">완판트럭</option>
             <option value="대협팀활동">대협팀활동</option>
           </select>
-          <select value={filterRoute} onChange={e=>setFilterRoute(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+          <select value={filterRoute} onChange={e=>setFilterRoute(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none">
             <option value="">매출구분</option>
             <option value="분양회">분양회</option>
             <option value="완판트럭">완판트럭</option>
             <option value="대협팀활동">대협팀활동</option>
           </select>
-          <select value={filterChannel} onChange={e=>setFilterChannel(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+          <select value={filterChannel} onChange={e=>setFilterChannel(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none">
             <option value="">광고채널</option>
             <option value="분양회 입회비">분양회 입회비</option>
             <option value="분양회 월회비">분양회 월회비</option>
@@ -542,22 +542,22 @@ export default function SalesPage() {
             <option value="호갱노노_기타">호갱노노_기타</option>
             <option value="LMS">LMS</option>
           </select>
-          <select value={filterMember} onChange={e=>setFilterMember(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+          <select value={filterMember} onChange={e=>setFilterMember(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none">
             <option value="">대협팀담당자</option>
             {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
           </select>
-          <select value={filterConsultant} onChange={e=>setFilterConsultant(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+          <select value={filterConsultant} onChange={e=>setFilterConsultant(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none">
             <option value="">담당컨설턴트</option>
             {["박경화","박혜은","조승현","박민경","백선중","강아름","전정훈","박나라"].map(m=><option key={m} value={m}>{m}</option>)}
           </select>
           <select value={filterMonth} onChange={e=>{ setFilterMonth(e.target.value); setFilterStart(""); setFilterEnd(""); }}
-            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none">
+            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none">
             <option value="">전체월</option>
             {Array.from({length:12},(_,i)=>i+1).map(m=>(
               <option key={m} value={String(m)}>{m}월</option>
             ))}
           </select>
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2">
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2">
             <span className="text-xs text-slate-400 font-medium whitespace-nowrap">기간</span>
             <input type="date" value={filterStart} onChange={e=>{ setFilterStart(e.target.value); setFilterMonth(""); }}
               className="text-xs text-slate-600 bg-transparent outline-none"/>
@@ -752,7 +752,7 @@ export default function SalesPage() {
                     <label className={lbl}>분양회 입회자 선택 *</label>
                     <div className="relative mb-2">
                       <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-                      <input className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"
+                      <input className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"
                         placeholder="이름으로 검색..." value={vipSearch} onChange={e=>setVipSearch(e.target.value)}/>
                     </div>
                     <div className="border border-slate-200 rounded-lg max-h-40 overflow-y-auto bg-slate-50">

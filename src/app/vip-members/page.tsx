@@ -264,16 +264,16 @@ export default function VipMembersPage() {
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
             <input type="text" placeholder="넘버링, 고객명, 연락처, 담당자 검색..." value={search}
               onChange={e=>setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
+              className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
           </div>
           <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}
-            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700">
+            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700">
             <option value="">전체 상태</option>
             <option value="계약완료">계약완료</option>
             <option value="예약완료">예약완료</option>
           </select>
           <select value={filterMember} onChange={e=>setFilterMember(e.target.value)}
-            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700">
+            className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700">
             <option value="">담당자</option>
             <option value="">전체</option>
             {TEAM.map(m=><option key={m} value={m}>{m}</option>)}

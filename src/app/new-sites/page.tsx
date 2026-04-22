@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Plus, X, Copy, ExternalLink, Trash2, Sparkles, Building2, MapPin, Calendar, FileText, Edit3 } from "lucide-react";
 
-const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
+const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400";
 const lbl = "block text-xs font-bold text-slate-500 mb-1.5";
 
 interface Site {

@@ -342,7 +342,7 @@ export default function RewardsPage() {
     return true;
   });
 
-  const inp = "w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400";
+  const inp = "w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400";
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
@@ -399,21 +399,21 @@ export default function RewardsPage() {
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
             <input value={search} onChange={e=>setSearch(e.target.value)}
               placeholder="이름, 대협팀, 컨설턴트, 넘버링..."
-              className="pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg w-52 outline-none focus:border-blue-400"/>
+              className="pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-xl w-52 outline-none focus:border-blue-400"/>
           </div>
           <select value={filterQuarter} onChange={e=>setFilterQuarter(e.target.value)}
-            className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+            className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl">
             <option value="">전체</option>
             {quarters.map(qq=><option key={qq} value={qq}>{qq}</option>)}
           </select>
           <select value={filterPaid} onChange={e=>setFilterPaid(e.target.value)}
-            className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+            className="text-sm px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl">
             <option value="">지급여부</option>
             <option value="unpaid">미지급</option>
             <option value="paid">지급완료</option>
           </select>
           <button onClick={()=>{setSearch("");setFilterQuarter(getCurrentQuarter());setFilterPaid("");}}
-            className={`text-sm px-3 py-1.5 font-semibold rounded-lg whitespace-nowrap transition-colors ${(search||filterPaid||filterQuarter!==getCurrentQuarter())?"bg-red-500 text-white border border-red-500":"text-red-400 border border-red-200 hover:bg-red-50"}`}>↺ 초기화</button>
+            className={`text-xs px-2.5 py-2 font-semibold rounded-xl whitespace-nowrap transition-colors ${(search||filterPaid||filterQuarter!==getCurrentQuarter())?"bg-red-500 text-white border border-red-500":"text-red-400 border border-red-200 hover:bg-red-50"}`}>↺ 초기화</button>
           <div className="flex items-center gap-1.5 ml-auto">
             <button onClick={downloadDataXLS}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 hover:bg-emerald-100">
@@ -723,10 +723,10 @@ export default function RewardsPage() {
             <div className="px-6 py-4 space-y-3">
               <div><label className="block text-xs font-semibold text-slate-500 mb-1.5">사용일</label>
                 <input type="date" value={mileEditDate} onChange={e=>setMileEditDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/></div>
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/></div>
               <div><label className="block text-xs font-semibold text-slate-500 mb-1.5">사용금액</label>
                 <input value={mileEditAmt} onChange={e=>setMileEditAmt(e.target.value.replace(/[^0-9]/g,"").replace(/\B(?=(\d{3})+(?!\d))/g,","))}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/></div>
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/></div>
             </div>
             <div className="flex gap-2 px-6 pb-5">
               <button onClick={handleMileEditDelete} className="px-3 py-2.5 text-sm text-red-500 border border-red-200 rounded-xl hover:bg-red-50">삭제</button>

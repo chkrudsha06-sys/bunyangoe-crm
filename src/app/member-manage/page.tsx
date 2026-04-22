@@ -294,23 +294,23 @@ export default function MemberManagePage() {
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
             <input type="text" placeholder="고객명, 직급, 연락처, 예금주 검색..." value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
+              className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
           </div>
-          <select value={filterPayStatus} onChange={e=>setFilterPayStatus(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none">
+          <select value={filterPayStatus} onChange={e=>setFilterPayStatus(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
             <option value="">상태</option>
             <option value="정상">정상</option>
             <option value="이상">이상</option>
             <option value="예약">예약</option>
           </select>
-          <select value={filterConsultant} onChange={e=>setFilterConsultant(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none">
+          <select value={filterConsultant} onChange={e=>setFilterConsultant(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
             <option value="">담당컨설턴트</option>
             {["박경화","박혜은","조승현","박민경","백선중","강아름","전정훈","박나라"].map(m=><option key={m} value={m}>{m}</option>)}
           </select>
-          <select value={filterMember} onChange={e=>setFilterMember(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none">
+          <select value={filterMember} onChange={e=>setFilterMember(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
             <option value="">대협팀담당자</option>
             {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
           </select>
-          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none">
+          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
             <option value="">계약상태</option>
             <option value="계약완료">계약완료</option>
             <option value="예약완료">예약완료</option>

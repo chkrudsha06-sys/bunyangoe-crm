@@ -27,7 +27,7 @@ function MoneyInput({ value, onChange }: { value: number; onChange: (v:number)=>
     <div className="relative">
       <input type="text" inputMode="numeric" value={value?value.toLocaleString("ko-KR"):""}
         onChange={e=>{const r=e.target.value.replace(/[^0-9]/g,""); onChange(r?parseInt(r):0);}}
-        placeholder="0" className="w-full px-3 py-2.5 pr-8 text-sm font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 text-right"/>
+        placeholder="0" className="w-full px-3 py-2.5 pr-8 text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400 text-right"/>
       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">원</span>
     </div>
   );
@@ -36,7 +36,7 @@ function CountInput({ value, onChange, unit }: { value: number; onChange: (v:num
   return (
     <div className="relative">
       <input type="number" min={0} value={value||""} onChange={e=>onChange(parseInt(e.target.value)||0)}
-        placeholder="0" className="w-full px-3 py-2.5 pr-10 text-sm font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 text-right"/>
+        placeholder="0" className="w-full px-3 py-2.5 pr-10 text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400 text-right"/>
       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">{unit}</span>
     </div>
   );
@@ -180,10 +180,10 @@ export default function KpiSettingsPage() {
             <p className="text-xs text-slate-500 mt-0.5">월간 · 주간 목표 설정 ({year}년 {month}월)</p>
           </div>
           <div className="flex items-center gap-2">
-            <select value={year} onChange={e=>setYear(parseInt(e.target.value))} className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none">
+            <select value={year} onChange={e=>setYear(parseInt(e.target.value))} className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
               {[2025,2026,2027,2028].map(y=><option key={y} value={y}>{y}년</option>)}
             </select>
-            <select value={month} onChange={e=>setMonth(parseInt(e.target.value))} className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none">
+            <select value={month} onChange={e=>setMonth(parseInt(e.target.value))} className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
               {Array.from({length:12},(_,i)=>i+1).map(m=><option key={m} value={m}>{m}월</option>)}
             </select>
             {savedAt && <span className="text-xs text-emerald-600 font-semibold">✓ {savedAt} 저장됨</span>}
