@@ -25,17 +25,24 @@ export async function POST(req: Request) {
 
     // contactId 또는 contactName으로 구독 조회
     let query = supabase.from("push_subscriptions").select("contact_id, subscription");
+    let dashboardUrl = url || "";
+
     if (contactId) {
       query = query.eq("contact_id", contactId);
+      // dashboard_code 조회
+      if (!dashboardUrl) {
+        const { data: c } = await supabase.from("contacts").select("dashboard_code").eq("id", contactId).maybeSingle();
+        if (c?.dashboard_code) dashboardUrl = `/my/${c.dashboard_code}`;
+      }
     } else if (contactName) {
-      // contact 테이블에서 이름으로 ID 찾기
       const { data: contacts } = await supabase
         .from("contacts")
-        .select("id")
+        .select("id, dashboard_code")
         .eq("name", contactName);
       if (!contacts || contacts.length === 0) {
         return NextResponse.json({ sent: 0, message: "해당 고객을 찾을 수 없습니다." });
       }
+      if (!dashboardUrl && contacts[0]?.dashboard_code) dashboardUrl = `/my/${contacts[0].dashboard_code}`;
       const ids = contacts.map(c => c.id);
       query = query.in("contact_id", ids);
     } else {
@@ -47,7 +54,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ sent: 0, message: "푸시 구독이 없습니다." });
     }
 
-    const payload = JSON.stringify({ title, body, url, tag });
+    const payload = JSON.stringify({ title, body, url: dashboardUrl, tag });
     let sent = 0;
     let failed = 0;
 

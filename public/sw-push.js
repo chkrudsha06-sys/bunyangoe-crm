@@ -19,12 +19,16 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
+  const path = event.notification.data?.url || "/";
+  // 전체 URL 구성 (상대 경로 → 절대 URL)
+  const url = path.startsWith("http") ? path : self.location.origin + path;
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      // 이미 열린 탭이 있으면 포커스
       for (const client of list) {
-        if (client.url.includes(url) && "focus" in client) return client.focus();
+        if (client.url.includes(path) && "focus" in client) return client.focus();
       }
+      // 없으면 새 창 열기
       return clients.openWindow(url);
     })
   );

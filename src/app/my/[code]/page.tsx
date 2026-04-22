@@ -83,6 +83,12 @@ export default function CustomerDashboard() {
 
   const togglePush = async () => {
     if (!contact) return;
+    // 카카오톡 인앱 브라우저 감지
+    const ua = navigator.userAgent || "";
+    if (ua.includes("KAKAOTALK") || ua.includes("NAVER") || ua.includes("FBAN") || ua.includes("Line")) {
+      alert("카카오톡(인앱 브라우저)에서는 알림을 설정할 수 없습니다.\n\n아래 방법으로 설정해주세요:\n① 우측 상단 ⋮ 메뉴 클릭\n② '다른 브라우저로 열기' 선택\n③ 삼성 인터넷 또는 Chrome에서 알림 설정");
+      return;
+    }
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       alert("이 브라우저는 푸시 알림을 지원하지 않습니다.\niPhone의 경우 홈 화면에 추가 후 이용해주세요.");
       return;
