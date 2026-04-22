@@ -197,16 +197,16 @@ export default function AccountManagePage() {
           <div className="flex items-center justify-center py-20"><div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : (
           <div className="rounded-xl overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-            <table className="w-full">
+            <table className="w-full" style={{ tableLayout: "fixed" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid var(--border)" }}>
-                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)" }}>ID</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)" }}>이름</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)" }}>직급</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)" }}>역할</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)" }}>비밀번호</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)" }}>정보수정</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)" }}>삭제</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)", width: 140 }}>ID</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)", width: 100 }}>이름</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)", width: 80 }}>직급</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)", width: 100 }}>역할</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)", width: 200 }}>비밀번호</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)", width: 100 }}>정보수정</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)", width: 60 }}>삭제</th>
                 </tr>
               </thead>
               <tbody>
