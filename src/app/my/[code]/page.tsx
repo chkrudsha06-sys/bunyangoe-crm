@@ -58,6 +58,7 @@ export default function CustomerDashboard() {
   const [notFound,setNotFound]=useState(false);
   const [tab,setTab]=useState("전체");
   const [guideOpen,setGuideOpen]=useState(false);
+  const [helpPopup,setHelpPopup]=useState<string|null>(null);
   const [guideSection,setGuideSection]=useState("");
   const [sitesList,setSitesList]=useState<any[]>([]);
 
@@ -91,6 +92,15 @@ export default function CustomerDashboard() {
   if(notFound)return<div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#fff"}}><div style={{fontSize:48,marginBottom:16}}>🔒</div><h1 style={{fontSize:20,fontWeight:700,color:"#334155"}}>접근할 수 없는 페이지입니다</h1></div>;
 
   // ═══ 공통 컴포넌트 ═══
+  const HELP_TEXTS: Record<string,{title:string;text:string}>={
+    mileage:{title:"하이타겟 마일리지 안내",text:"분양의신 하이타겟 광고 운영시에 마일리지를 사용할 수 있습니다."},
+    reward:{title:"리워드 안내",text:"리워드는 각 분기별 3개월 간 광고 매체별로 적립된 리워드를 분기가 끝나는 익월 15일 이내 지급됩니다."},
+    incentive:{title:"누적리워드 인센티브 안내",text:"누적리워드 인센티브는 분양회 입회일 기준으로 3개월 단위로 사용된 총 광고비에 따라 그레이드별 달성 구간 인센티브를 지급해 드립니다.\n인센티브는 각 분기가 마감되는 익월 15일 이내 일괄 지급됩니다."},
+  };
+  const HelpIcon=({type,size=16}:{type:string;size?:number})=>(<button onClick={(e)=>{e.stopPropagation();setHelpPopup(type);}} style={{width:size+4,height:size+4,borderRadius:"50%",background:"rgba(0,0,0,0.06)",border:"none",display:"inline-flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:size-4,fontWeight:700,color:"#999",flexShrink:0}}>?</button>);
+  const HelpPopup=()=>{if(!helpPopup||!HELP_TEXTS[helpPopup])return null;const h=HELP_TEXTS[helpPopup];return(<div onClick={()=>setHelpPopup(null)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}><div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:16,padding:"24px 20px",maxWidth:380,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.15)"}}><p style={{fontSize:16,fontWeight:700,color:"#222",marginBottom:12}}>{h.title}</p><p style={{fontSize:14,color:"#555",lineHeight:1.7,whiteSpace:"pre-line"}}>{h.text}</p><button onClick={()=>setHelpPopup(null)} style={{marginTop:16,width:"100%",padding:"10px",background:"#f1f5f9",border:"none",borderRadius:10,fontSize:14,fontWeight:600,color:"#475569",cursor:"pointer"}}>확인</button></div></div>);};
+  const NumBadge=({n,color}:{n:number;color:string})=>(<span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:20,height:20,borderRadius:"50%",background:color,color:"#fff",fontSize:11,fontWeight:700,flexShrink:0}}>{n}</span>);
+
   const ContactCard=({label,name,title,phone,sz}:{label:string;name:string;title:string;phone:string;sz:"sm"|"lg"})=>{
     const lg=sz==="lg";
     return(<div style={{padding:lg?"18px 20px":"12px 14px",background:"#f8fafc",borderRadius:lg?14:10,border:"1px solid #f1f1f1",marginBottom:lg?10:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -107,8 +117,8 @@ export default function CustomerDashboard() {
     if(!incData)return null;const lg=sz==="lg";
     return(<div style={{background:"linear-gradient(135deg,#f5f3ff,#ede9fe)",borderRadius:lg?16:14,padding:lg?"24px":"18px 16px",border:"1px solid #ddd6fe"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:lg?14:12}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:lg?17:13,fontWeight:700,color:"#5b21b6"}}>❷ 누적 리워드</span><span style={{fontSize:lg?12:10,padding:"2px 8px",background:"#7c3aed",color:"#fff",borderRadius:12,fontWeight:700}}>인센티브</span></div>
-        <span style={{fontSize:lg?15:12,fontWeight:700,color:"#7c3aed"}}>잔여기간 D-{incData.daysLeft}</span>
+        <div style={{display:"flex",alignItems:"center",gap:8}}><NumBadge n={3} color="#7c3aed"/><span style={{fontSize:lg?17:13,fontWeight:700,color:"#5b21b6"}}>누적 리워드</span><span style={{fontSize:lg?12:10,padding:"2px 8px",background:"#7c3aed",color:"#fff",borderRadius:12,fontWeight:700}}>인센티브</span></div>
+        <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:lg?13:11,fontWeight:700,color:"#7c3aed"}}>잔여기간 D-{incData.daysLeft}</span><HelpIcon type="incentive" size={lg?18:15}/></div>
       </div>
       <p style={{fontSize:lg?13:11,color:"#8b5cf6",marginBottom:lg?14:12}}>{fDate(incData.sStr)} ~ {fDate(incData.eStr)} 누적 집행액 기준</p>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
@@ -154,6 +164,7 @@ export default function CustomerDashboard() {
 
   return (
     <div style={{minHeight:"100vh",background:"#fff",fontFamily:"'Pretendard','Noto Sans KR',sans-serif"}}>
+      <HelpPopup/>
       <style>{`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.min.css');*{box-sizing:border-box;margin:0;padding:0}
         .pc-view{display:block}.mob-view{display:none}
         @media(max-width:768px){.pc-view{display:none}.mob-view{display:block}}
@@ -202,11 +213,11 @@ export default function CustomerDashboard() {
           {/* 2행: 마일리지 + 리워드 + 인센티브 */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 2fr",gap:20,marginBottom:20}}>
             <div style={{background:"#eff6ff",borderRadius:16,padding:"28px 24px",border:"1px solid #bfdbfe"}}>
-              <p style={{fontSize:14,fontWeight:600,color:"#3b82f6",marginBottom:12}}>하이타겟 마일리지</p>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}><div style={{display:"flex",alignItems:"center",gap:6}}><NumBadge n={1} color="#3b82f6"/><span style={{fontSize:14,fontWeight:600,color:"#3b82f6"}}>하이타겟 마일리지</span></div><HelpIcon type="mileage" size={18}/></div>
               <p style={{fontSize:36,fontWeight:800,color:"#1e293b"}}>{fw(stats.remainMileage)}<span style={{fontSize:14,color:"#94a3b8",marginLeft:4}}>P</span></p>
             </div>
             <div style={{background:"#fff7ed",borderRadius:16,padding:"28px 24px",border:"1px solid #fed7aa"}}>
-              <p style={{fontSize:14,fontWeight:600,color:"#ea580c",marginBottom:12}}>리워드</p>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}><div style={{display:"flex",alignItems:"center",gap:6}}><NumBadge n={2} color="#ea580c"/><span style={{fontSize:14,fontWeight:600,color:"#ea580c"}}>리워드</span></div><HelpIcon type="reward" size={18}/></div>
               <p style={{fontSize:36,fontWeight:800,color:"#1e293b"}}>{fw(stats.totalReward)}<span style={{fontSize:14,color:"#94a3b8",marginLeft:4}}>원</span></p>
             </div>
             <IncentiveBlock sz="lg"/>
@@ -301,8 +312,8 @@ export default function CustomerDashboard() {
           {contact?.consultant&&cInfo&&<ContactCard label="광고사업부 담당자" name={contact.consultant} title={cInfo.title} phone={cInfo.phone} sz="sm"/>}
           <div style={{marginTop:12,marginBottom:12}}><WeatherWidget size="sm"/></div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-            <div style={{background:"#eff6ff",borderRadius:14,padding:"18px 16px",border:"1px solid #bfdbfe"}}><p style={{fontSize:11,fontWeight:600,color:"#3b82f6",marginBottom:8}}>하이타겟 마일리지</p><p style={{fontSize:24,fontWeight:800,color:"#1e293b"}}>{fw(stats.remainMileage)}<span style={{fontSize:12,color:"#94a3b8"}}>P</span></p></div>
-            <div style={{background:"#fff7ed",borderRadius:14,padding:"18px 16px",border:"1px solid #fed7aa"}}><p style={{fontSize:11,fontWeight:600,color:"#ea580c",marginBottom:8}}>리워드</p><p style={{fontSize:24,fontWeight:800,color:"#1e293b"}}>{fw(stats.totalReward)}<span style={{fontSize:12,color:"#94a3b8"}}>원</span></p></div>
+            <div style={{background:"#eff6ff",borderRadius:14,padding:"18px 16px",border:"1px solid #bfdbfe"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:5}}><NumBadge n={1} color="#3b82f6"/><span style={{fontSize:11,fontWeight:600,color:"#3b82f6"}}>하이타겟 마일리지</span></div><HelpIcon type="mileage" size={15}/></div><p style={{fontSize:24,fontWeight:800,color:"#1e293b"}}>{fw(stats.remainMileage)}<span style={{fontSize:12,color:"#94a3b8"}}>P</span></p></div>
+            <div style={{background:"#fff7ed",borderRadius:14,padding:"18px 16px",border:"1px solid #fed7aa"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:5}}><NumBadge n={2} color="#ea580c"/><span style={{fontSize:11,fontWeight:600,color:"#ea580c"}}>리워드</span></div><HelpIcon type="reward" size={15}/></div><p style={{fontSize:24,fontWeight:800,color:"#1e293b"}}>{fw(stats.totalReward)}<span style={{fontSize:12,color:"#94a3b8"}}>원</span></p></div>
           </div>
           <div style={{marginBottom:16}}><IncentiveBlock sz="sm"/></div>
           <div style={{borderTop:"1px solid #f1f1f1",paddingTop:16,marginBottom:16}}><p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:12}}>마일리지 및 리워드 상세</p><RewardDetails sz="sm"/></div>
