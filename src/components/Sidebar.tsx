@@ -53,6 +53,7 @@ const ADMIN_EXTRA = [
   { href: "/reports",       label: "팀 성과 분석", emoji: "📈" },
   { href: "/kpi-settings",  label: "KPI 설정",    emoji: "🎯" },
   { href: "/incentives",     label: "인센티브 관리", emoji: "🏅" },
+  { href: "/account-manage", label: "계정관리",    emoji: "🔐" },
 ];
 
 // 역할 배지 스타일

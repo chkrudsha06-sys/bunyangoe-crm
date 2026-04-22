@@ -15,7 +15,7 @@ const MOBILE_TITLES: Record<string,string> = {
   "/rewards": "💎 리워드 관리", "/customer-incentives": "🏆 인센티브 관리",
   "/quotes": "📄 견적서", "/new-sites": "🏗️ 신규현장", "/ad-sites": "📡 광고 현운예지",
   "/reports": "📈 팀 성과 분석", "/kpi-settings": "🎯 KPI 설정",
-  "/incentives": "🏅 인센티브 관리",
+  "/incentives": "🏅 인센티브 관리", "/account-manage": "🔐 계정관리",
 };
 function getMobileTitle(path: string) { return MOBILE_TITLES[path] || "분양회 CRM"; }
 
