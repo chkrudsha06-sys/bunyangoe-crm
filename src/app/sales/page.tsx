@@ -49,7 +49,7 @@ const EMPTY_FORM = {
 };
 
 // ── 리워드 계산 (집행금액 기준) ──────────────────────────────
-// rewardType: "마일리지10%", "마일리지5%", "마일리지15%", "리워드5%" 등
+// rewardType: "마일리지10%", "마일리지5%", "마일리지15%", "리워드5%", "리워드15%" 등
 function calcRewards(channel: string, amount: number, rewardType: string) {
   let hightarget_mileage = 0, hightarget_reward = 0, hogaengnono_reward = 0, lms_reward = 0;
 
@@ -68,7 +68,7 @@ function calcRewards(channel: string, amount: number, rewardType: string) {
 
   } else if (channel === "LMS") {
     if (rewardType === "마일리지15%") hightarget_mileage = Math.floor(amount * 0.15);
-    else if (rewardType === "리워드5%") lms_reward = Math.floor(amount * 0.05);
+    else if (rewardType === "리워드15%") lms_reward = Math.floor(amount * 0.15);
     else lms_reward = Math.floor(amount * 0.15); // 기본: 리워드15% (미선택 시)
   }
 
@@ -851,7 +851,7 @@ export default function SalesPage() {
                         <select className={inp} value={form.hightarget_reward_type} onChange={e=>setForm({...form,hightarget_reward_type:e.target.value})}>
                           <option value="">선택</option>
                           <option value="마일리지15%">하이타겟 마일리지 15%</option>
-                          <option value="리워드5%">리워드 5%</option>
+                          <option value="리워드15%">리워드 15%</option>
                         </select>
                       </div>
                     )}
