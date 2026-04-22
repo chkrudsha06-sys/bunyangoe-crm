@@ -148,6 +148,7 @@ export default function SiteDetailPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <a href="/sites" className="flex items-center gap-3">
             <Image src="/company-logo.png" alt="분양의신" width={120} height={58} className="h-7 sm:h-9 w-auto"/>
+            <p className="text-[10px] sm:text-[11px] text-white/40">현장정보 · 광고인㈜ 대외협력팀 제공</p>
           </a>
           <div className="flex items-center gap-2">
             <a href="/sites" className="text-xs text-white/50 hover:text-white font-semibold hidden sm:inline">지역현장</a>
@@ -220,7 +221,7 @@ export default function SiteDetailPage() {
           <h2 className="text-base sm:text-lg font-black text-slate-800 mb-3 pb-2 border-b-2 border-slate-800">물건 정보</h2>
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <InfoRow2 l1="물건구분" v1={site.property_type} l2="세대수" v2={site.unit_count}/>
-            {site.rt_fee&&<InfoRow label="R/T (수수료)" value={site.rt_fee}/>}
+            {site.rt_fee&&<InfoRow2 l1="R/T (수수료)" v1={site.rt_fee} l2="" v2=""/>}
           </div>
         </section>
 

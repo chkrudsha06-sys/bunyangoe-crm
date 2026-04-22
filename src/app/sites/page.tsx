@@ -71,8 +71,8 @@ export default function SitesListPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image src="/company-logo.png" alt="분양의신" width={120} height={58} className="h-8 sm:h-10 w-auto" />
-            <div className="hidden sm:block">
-              <p className="text-[11px] text-white/40">현장정보 · 광고인㈜ 대외협력팀 제공</p>
+            <div>
+              <p className="text-[10px] sm:text-[11px] text-white/40">현장정보 · 광고인㈜ 대외협력팀 제공</p>
             </div>
           </div>
           {/* 검색 */}
