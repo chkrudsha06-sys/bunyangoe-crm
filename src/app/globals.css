@@ -271,6 +271,19 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 [data-theme="dark"] .bg-blue-50\/30 { background: rgba(74,123,247,0.03) !important; }
 [data-theme="dark"] .bg-slate-50\/30 { background: rgba(255,255,255,0.02) !important; }
 
+/* opacity 조합 배경색 다크모드 */
+[data-theme="dark"] .bg-blue-50\/20 { background: rgba(74,123,247,0.06) !important; }
+[data-theme="dark"] .bg-blue-50\/40 { background: rgba(74,123,247,0.08) !important; }
+[data-theme="dark"] .bg-blue-50\/50 { background: rgba(74,123,247,0.10) !important; }
+[data-theme="dark"] .bg-violet-50\/20 { background: rgba(139,92,246,0.06) !important; }
+[data-theme="dark"] .bg-violet-50\/40 { background: rgba(139,92,246,0.08) !important; }
+[data-theme="dark"] .bg-violet-50\/50 { background: rgba(139,92,246,0.10) !important; }
+[data-theme="dark"] .bg-emerald-50\/20 { background: rgba(16,185,129,0.06) !important; }
+[data-theme="dark"] .bg-emerald-50\/40 { background: rgba(16,185,129,0.08) !important; }
+[data-theme="dark"] .bg-emerald-50\/50 { background: rgba(16,185,129,0.10) !important; }
+[data-theme="dark"] .bg-amber-50\/50 { background: rgba(245,158,11,0.10) !important; }
+[data-theme="dark"] .hover\:bg-blue-50\/30:hover { background: rgba(74,123,247,0.05) !important; }
+
 /* 캘린더 */
 [data-theme="dark"] .bg-blue-600.text-white { background: #4A7BF7 !important; }
 
