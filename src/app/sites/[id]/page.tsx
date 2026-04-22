@@ -8,7 +8,7 @@ interface Site {
   id: number; site_name: string; work_address: string;
   developer: string; constructor: string; trustee: string; agency: string;
   business_site_name: string; business_address: string;
-  property_type: string; unit_count: string;
+  property_type: string; unit_count: string; rt_fee: string;
   staff_start_date: string; model_house_date: string; grand_open_date: string;
   selling_points: string; created_at: string;
 }
@@ -117,6 +117,7 @@ export default function SiteDetailPage() {
           <h2 className="text-base font-black text-slate-800 mb-3 pb-2 border-b-2 border-slate-800">물건 정보</h2>
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <InfoRow2 l1="물건구분" v1={site.property_type} l2="세대수" v2={site.unit_count} />
+            {site.rt_fee && <InfoRow label="R/T (수수료)" value={site.rt_fee} />}
           </div>
         </section>
 
