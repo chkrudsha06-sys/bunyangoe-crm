@@ -124,18 +124,25 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     }
   }, [pushNewToasts]);
 
-  // ── 세션 유효성 검증 (5초마다) ──
+  // ── 세션 유효성 검증 (30초마다) ──
   useEffect(() => {
     if (!user || pathname === "/login") return;
+    let failCount = 0;
     const checkSession = async () => {
       const valid = await validateSession();
       if (!valid) {
-        logout();
-        alert("다른 기기에서 로그인되어 자동 로그아웃됩니다.");
-        router.push("/login");
+        failCount++;
+        // 연속 2회 실패 시에만 로그아웃 (일시적 오류 방지)
+        if (failCount >= 2) {
+          logout();
+          alert("세션이 만료되었거나 다른 기기에서 로그인되었습니다.\n다시 로그인해주세요.");
+          router.push("/login");
+        }
+      } else {
+        failCount = 0;
       }
     };
-    const sessionTimer = setInterval(checkSession, 5000);
+    const sessionTimer = setInterval(checkSession, 30000);
     return () => clearInterval(sessionTimer);
   }, [user, pathname, router]);
 

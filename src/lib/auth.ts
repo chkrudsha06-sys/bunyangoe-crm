@@ -74,8 +74,8 @@ export async function validateSession(): Promise<boolean> {
   const user = getCurrentUser();
   if (!user || !user.id) return false;
 
-  // 세션 토큰이 없는 경우 → 재로그인 필요
-  if (!user.sessionToken) return false;
+  // 세션 토큰이 없는 경우 → 이전 버전 호환: 유효로 간주 (재로그인 유도 안 함)
+  if (!user.sessionToken) return true;
 
   try {
     const res = await fetch("/api/auth/validate", {
@@ -83,10 +83,15 @@ export async function validateSession(): Promise<boolean> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: user.id, sessionToken: user.sessionToken }),
     });
+
+    // API 호출 실패 (네트워크 오류, 서버 에러) → 유효로 간주 (로그아웃 방지)
+    if (!res.ok) return true;
+
     const data = await res.json();
     return data.valid === true;
   } catch {
-    return false;
+    // 네트워크 에러 시 유효로 간주 (인터넷 끊김 등으로 불필요한 로그아웃 방지)
+    return true;
   }
 }
 
