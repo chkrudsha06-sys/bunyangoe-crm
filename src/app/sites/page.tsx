@@ -59,6 +59,15 @@ export default function SitesListPage() {
   const [activeRegion, setActiveRegion] = useState("모든지역");
 
   useEffect(() => {
+    // 공개 페이지: 강제 라이트모드
+    document.documentElement.removeAttribute("data-theme");
+    return () => {
+      const saved = localStorage.getItem("crm_dark_mode");
+      if (saved !== "false") document.documentElement.setAttribute("data-theme", "dark");
+    };
+  }, []);
+
+  useEffect(() => {
     (async () => {
       const { data } = await supabase.from("new_sites").select("*").order("created_at", { ascending: false });
       setSites(data || []);
