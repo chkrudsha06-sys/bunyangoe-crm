@@ -44,6 +44,13 @@ function KakaoMap({ address, mapId }: { address: string; mapId: string }) {
   useEffect(() => {
     try {
       if (!sdkReady || !mapRef.current || !address || !window.kakao?.maps) return;
+      const renderMap = (lat: string, lng: string) => {
+        try {
+          const coords = new window.kakao.maps.LatLng(lat, lng);
+          const map = new window.kakao.maps.Map(mapRef.current, { center: coords, level: 4 });
+          new window.kakao.maps.Marker({ map, position: coords });
+        } catch {}
+      };
       const geocoder = new window.kakao.maps.services.Geocoder();
       geocoder.addressSearch(address, (result: any[], status: string) => {
         try {
@@ -57,13 +64,6 @@ function KakaoMap({ address, mapId }: { address: string; mapId: string }) {
           }
         } catch {}
       });
-      function renderMap(lat: string, lng: string) {
-        try {
-          const coords = new window.kakao.maps.LatLng(lat, lng);
-          const map = new window.kakao.maps.Map(mapRef.current, { center: coords, level: 4 });
-          new window.kakao.maps.Marker({ map, position: coords });
-        } catch {}
-      }
     } catch {}
   }, [sdkReady, address]);
 
