@@ -85,7 +85,7 @@
 body {
   background-color: var(--bg);
   color: var(--text);
-  font-family: 'Apple SD Gothic Neo', 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
