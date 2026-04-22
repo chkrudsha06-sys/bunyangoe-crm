@@ -27,13 +27,14 @@ export default function AdHistoryPage() {
   const [search, setSearch] = useState("");
   const [filterRegion, setFilterRegion] = useState("전체");
   const [filterType, setFilterType] = useState("전체");
+  const [filterYear, setFilterYear] = useState("전체");
   const [expandedSite, setExpandedSite] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"campaigns" | "calls" | "interest" | "budget">("campaigns");
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/fetch-ad-history?year=2026");
+      const res = await fetch("/api/fetch-ad-history?year=all");
       const json = await res.json();
       setData(json);
     } catch { setData({ sites: [], error: "데이터를 불러올 수 없습니다" }); }
@@ -42,8 +43,8 @@ export default function AdHistoryPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const resetFilters = () => { setSearch(""); setFilterRegion("전체"); setFilterType("전체"); setSortBy("campaigns"); };
-  const hasFilter = !!(search || filterRegion !== "전체" || filterType !== "전체");
+  const resetFilters = () => { setSearch(""); setFilterRegion("전체"); setFilterType("전체"); setFilterYear("전체"); setSortBy("campaigns"); };
+  const hasFilter = !!(search || filterRegion !== "전체" || filterType !== "전체" || filterYear !== "전체");
 
   const regions = useMemo(() => {
     const set = new Set(data.sites.map(s => s.지역.split(", ")[0]));
@@ -52,6 +53,20 @@ export default function AdHistoryPage() {
 
   const filtered = useMemo(() => {
     let list = [...data.sites];
+    // 연도 필터: 캠페인 수준에서 필터 후 사이트 재구성
+    if (filterYear !== "전체") {
+      list = list.map(s => {
+        const fc = s.캠페인.filter(c => c.연도 === filterYear);
+        if (fc.length === 0) return null;
+        return {
+          ...s,
+          캠페인: fc, 캠페인수: fc.length,
+          총콜: fc.reduce((sum, c) => sum + c.콜, 0),
+          총관심: fc.reduce((sum, c) => sum + c.관심, 0),
+          총광고비: fc.reduce((sum, c) => sum + c.광고비, 0),
+        };
+      }).filter(Boolean) as SiteGroup[];
+    }
     if (filterRegion !== "전체") list = list.filter(s => s.지역.includes(filterRegion));
     if (filterType !== "전체") list = list.filter(s => s.물건분류 === filterType);
     if (search.trim()) {
@@ -67,7 +82,7 @@ export default function AdHistoryPage() {
     else if (sortBy === "interest") list.sort((a, b) => b.총관심 - a.총관심);
     else list.sort((a, b) => b.총광고비 - a.총광고비);
     return list;
-  }, [data.sites, filterRegion, filterType, search, sortBy]);
+  }, [data.sites, filterRegion, filterType, filterYear, search, sortBy]);
 
   const s = data.summary;
 
@@ -139,6 +154,13 @@ export default function AdHistoryPage() {
             <option value="전체">전체 분류</option>
             <option value="미분양">미분양</option>
             <option value="지주택">지주택</option>
+          </select>
+          <select value={filterYear} onChange={e => setFilterYear(e.target.value)}
+            className="text-sm px-3 py-2.5 rounded-xl outline-none cursor-pointer"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+            <option value="전체">전체 연도</option>
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
           </select>
           <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
             className="text-sm px-3 py-2.5 rounded-xl outline-none cursor-pointer"

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 const SHEET_ID = "1TmBP2k54P-XkS3X5z0tKMRFSfjB5SvQG0AFG9d8OfUo";
 const TABS = [
   { label: "2026", gid: "2076389318" },
-  // 2025 탭은 gid 확인 후 추가
+  { label: "2025", gid: "0" },
 ];
 
 interface Campaign {
@@ -50,10 +50,28 @@ function parseSiteName(name: string): { base: string; campaign: string } {
   return { base: name, campaign: "1" };
 }
 
+// 광고기간에 연도 붙이기: "12/2-1/1" (2026탭) → "25.12.02 ~ 26.01.01"
+function formatPeriodWithYear(period: string, tabYear: string): string {
+  if (!period) return "-";
+  const yr = parseInt(tabYear);
+  const parts = period.split("-");
+  if (parts.length !== 2) return period;
+
+  const format = (part: string, isEnd: boolean) => {
+    const [m, d] = part.trim().split("/").map(Number);
+    if (!m || !d) return part.trim();
+    // 월이 7~12면 전년도, 1~6이면 해당 연도
+    const y = m >= 7 ? yr - 1 : yr;
+    return `${String(y).slice(2)}.${String(m).padStart(2, "0")}.${String(d).padStart(2, "0")}`;
+  };
+
+  return `${format(parts[0], false)} ~ ${format(parts[1], true)}`;
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const yearFilter = url.searchParams.get("year") || "2026";
+    const yearFilter = url.searchParams.get("year") || "all";
 
     const allCampaigns: Campaign[] = [];
 
@@ -78,7 +96,7 @@ export async function GET(req: Request) {
 
           allCampaigns.push({
             물건: cols[0] || "",
-            광고기간: cols[1] || "",
+            광고기간: formatPeriodWithYear(cols[1] || "", tab.label),
             지역: cols[2] || "",
             현장명원본: rawName,
             현장명: base,
