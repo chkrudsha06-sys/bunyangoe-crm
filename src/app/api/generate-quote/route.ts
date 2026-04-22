@@ -50,11 +50,21 @@ export async function POST(req: NextRequest) {
       set(12, 4, it.targeting);
       set(12, 5, Number(it.quantity) || 0);
       set(12, 6, Number(it.unitPrice) || 0);
+      // 금액 (G12)
+      const amount = Number(it.amount) || (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0);
+      set(12, 7, amount);
       set(13, 3, it.ageGroup);
       set(13, 6, it.sendType);
       set(14, 3, it.region1);
       set(15, 3, it.region3);
       set(16, 3, it.region2);
+
+      // 합계 VAT포함 (G17) — 모든 항목 합산
+      const totalAmount = items.reduce((sum: number, i: any) => {
+        const a = Number(i.amount) || (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0);
+        return sum + a;
+      }, 0);
+      set(17, 7, Math.round(totalAmount * 1.1));
     }
 
     // 2. Excel → Buffer → Base64
