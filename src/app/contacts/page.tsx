@@ -242,7 +242,8 @@ export default function ContactsPage() {
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-lg font-black text-slate-800">👥 고객 데이터</h1>
+            <h1 className="text-lg font-bold text-slate-800">👥 고객 데이터</h1>
+            <p className="text-xs text-slate-500 mt-0.5">분양회 고객 정보 및 영업 관리</p>
             <p className="text-xs text-slate-400 mt-0.5">전체 <span className="text-blue-600 font-bold">{total.toLocaleString()}</span>명</p>
           </div>
           <button onClick={openAdd}

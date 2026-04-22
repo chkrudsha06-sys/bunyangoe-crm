@@ -218,7 +218,7 @@ export default function PipelinePage() {
       <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-lg font-black text-slate-800">🔄 파이프라인</h1>
+            <h1 className="text-lg font-bold text-slate-800">🔄 파이프라인</h1>
             <p className="text-xs text-slate-400 mt-0.5">
               전체 <span className="text-blue-600 font-bold">{contacts.length}</span>명 중 <span className="text-blue-600 font-bold">{filtered.length}</span>명 표시
             </p>
