@@ -77,7 +77,7 @@ export default function NewSitesPage() {
   };
 
   const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(null),2000);};
-  const isNew=(d:string)=>Date.now()-new Date(d).getTime()<7*24*60*60*1000;
+  const isNew=(d:string)=>Date.now()-new Date(d).getTime()<2*24*60*60*1000;
   const fmtDate=(d:string)=>d?new Date(d).toLocaleDateString("ko-KR",{month:"numeric",day:"numeric"}):"";
 
   return (
