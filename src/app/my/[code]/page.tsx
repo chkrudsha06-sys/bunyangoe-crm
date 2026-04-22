@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 interface Contact { id:number; name:string; title:string; bunyanghoe_number:string; consultant:string; assigned_to:string; contract_date:string; photo_url:string; phone:string; }
 interface ExecRow { id:number; member_name:string; bunyanghoe_number:string; hightarget_mileage:number; hightarget_reward:number; hogaengnono_reward:number; lms_reward:number; payment_date:string; channel:string; execution_amount:number; vat_amount:number; contract_route:string; }
 interface MileUsage { id:number; contact_id:number; usage_date:string; usage_amount:number; }
+interface RewardPayment { id:number; contact_id:number; member_name:string; quarter:string; paid_amount:number; paid_date:string|null; is_paid:boolean; }
 
 const CONSULTANT_INFO: Record<string,{title:string;phone:string}> = {"박경화":{title:"총괄본부장",phone:"010-7602-2564"},"박혜은":{title:"총괄본부장",phone:"010-7584-2564"},"박민경":{title:"본부장",phone:"010-2242-2564"},"조승현":{title:"본부장",phone:"010-7546-2564"},"백선중":{title:"팀장",phone:"010-7538-2564"},"강아름":{title:"팀장",phone:"010-8144-2564"},"전정훈":{title:"팀장",phone:"010-8449-2564"},"박나라":{title:"팀장",phone:"010-5817-2568"}};
 const TEAM_INFO: Record<string,{title:string;phone:string}> = {"조계현":{title:"부장",phone:"010-3964-2564"},"이세호":{title:"과장",phone:"010-8336-2564"},"기여운":{title:"과장",phone:"010-6718-3301"},"최연전":{title:"과장",phone:"010-7760-2560"}};
@@ -52,6 +53,7 @@ export default function CustomerDashboard() {
   const [contact,setContact]=useState<Contact|null>(null);
   const [execs,setExecs]=useState<ExecRow[]>([]);
   const [usages,setUsages]=useState<MileUsage[]>([]);
+  const [rewardPayments,setRewardPayments]=useState<RewardPayment[]>([]);
   const [loading,setLoading]=useState(true);
   const [notFound,setNotFound]=useState(false);
   const [tab,setTab]=useState("전체");
@@ -61,18 +63,18 @@ export default function CustomerDashboard() {
 
   useEffect(()=>{(async()=>{const{data}=await supabase.from("new_sites").select("id,site_name,property_type,unit_count,rt_fee,business_address,staff_start_date,grand_open_date,created_at").order("created_at",{ascending:false}).limit(10);setSitesList(data||[]);})();},[]);
 
-  useEffect(()=>{if(!code)return;(async()=>{setLoading(true);const{data:c}=await supabase.from("contacts").select("id,name,title,bunyanghoe_number,consultant,assigned_to,contract_date,photo_url,phone").eq("dashboard_code",code).maybeSingle();if(!c){setNotFound(true);setLoading(false);return;}setContact(c as Contact);const[r1,r2]=await Promise.all([supabase.from("ad_executions").select("id,member_name,bunyanghoe_number,hightarget_mileage,hightarget_reward,hogaengnono_reward,lms_reward,payment_date,channel,execution_amount,vat_amount,contract_route").or(`member_name.eq.${c.name},bunyanghoe_number.eq.${c.bunyanghoe_number}`).order("payment_date",{ascending:false}),supabase.from("mileage_usages").select("*").eq("contact_id",c.id).order("usage_date",{ascending:false})]);setExecs((r1.data||[]) as ExecRow[]);setUsages((r2.data||[]) as MileUsage[]);setLoading(false);})();
+  useEffect(()=>{if(!code)return;(async()=>{setLoading(true);const{data:c}=await supabase.from("contacts").select("id,name,title,bunyanghoe_number,consultant,assigned_to,contract_date,photo_url,phone").eq("dashboard_code",code).maybeSingle();if(!c){setNotFound(true);setLoading(false);return;}setContact(c as Contact);const[r1,r2,r3]=await Promise.all([supabase.from("ad_executions").select("id,member_name,bunyanghoe_number,hightarget_mileage,hightarget_reward,hogaengnono_reward,lms_reward,payment_date,channel,execution_amount,vat_amount,contract_route").or(`member_name.eq.${c.name},bunyanghoe_number.eq.${c.bunyanghoe_number}`).order("payment_date",{ascending:false}),supabase.from("mileage_usages").select("*").eq("contact_id",c.id).order("usage_date",{ascending:false}),supabase.from("rewards").select("id,contact_id,member_name,quarter,paid_amount,paid_date,is_paid").or(`contact_id.eq.${c.id},member_name.eq.${c.name}`).eq("is_paid",true).order("paid_date",{ascending:false})]);setExecs((r1.data||[]) as ExecRow[]);setUsages((r2.data||[]) as MileUsage[]);setRewardPayments((r3.data||[]) as RewardPayment[]);setLoading(false);})();
   },[code]);
 
-  const stats=useMemo(()=>{const totalMileage=execs.reduce((s,e)=>s+(e.hightarget_mileage||0),0);const htReward=execs.reduce((s,e)=>s+(e.hightarget_reward||0),0);const hogReward=execs.reduce((s,e)=>s+(e.hogaengnono_reward||0),0);const lmsReward=execs.reduce((s,e)=>s+(e.lms_reward||0),0);const totalReward=htReward+hogReward+lmsReward;const totalUsed=usages.reduce((s,u)=>s+(u.usage_amount||0),0);return{totalMileage,htReward,hogReward,lmsReward,totalReward,totalUsed,remainMileage:totalMileage-totalUsed};},[execs,usages]);
+  const stats=useMemo(()=>{const totalMileage=execs.reduce((s,e)=>s+(e.hightarget_mileage||0),0);const htReward=execs.reduce((s,e)=>s+(e.hightarget_reward||0),0);const hogReward=execs.reduce((s,e)=>s+(e.hogaengnono_reward||0),0);const lmsReward=execs.reduce((s,e)=>s+(e.lms_reward||0),0);const totalReward=htReward+hogReward+lmsReward;const totalUsed=usages.reduce((s,u)=>s+(u.usage_amount||0),0);const totalPaid=rewardPayments.reduce((s,p)=>s+(p.paid_amount||0),0);return{totalMileage,htReward,hogReward,lmsReward,totalReward,totalUsed,totalPaid,remainMileage:totalMileage-totalUsed};},[execs,usages,rewardPayments]);
 
   const incData=useMemo(()=>{if(!contact?.contract_date)return null;const cDate=new Date(contact.contract_date+"T00:00:00");const now=new Date();let qNum=1;let qStart=new Date(cDate);let cur=null;while(qStart<now){const qEnd=new Date(qStart);qEnd.setDate(qEnd.getDate()+89);const sStr=qStart.toISOString().split("T")[0];const eStr=qEnd.toISOString().split("T")[0];const adStartDate=qNum===1?"2026-01-01":sStr;const adT=execs.filter(e=>AD_CHS.includes(e.channel)&&e.payment_date>=adStartDate&&e.payment_date<=eStr).reduce((s,e)=>s+(e.execution_amount||0),0);const diff=Math.ceil((qEnd.getTime()-now.getTime())/(1000*60*60*24));cur={qNum,sStr,eStr,adTotal:adT,daysLeft:diff<0?0:diff};qStart=new Date(qEnd);qStart.setDate(qStart.getDate()+1);qNum++;}return cur;},[contact,execs]);
   const incTier=incData?(incData.adTotal>=100000000?{label:"3구간",amt:10000000}:incData.adTotal>=70000000?{label:"2구간",amt:5000000}:incData.adTotal>=50000000?{label:"1구간",amt:3000000}:null):null;
   const incNext=incData?(incData.adTotal<50000000?50000000:incData.adTotal<70000000?70000000:incData.adTotal<100000000?100000000:100000000):50000000;
   const incPct=incData?Math.min(Math.round(incData.adTotal/incNext*100),100):0;
 
-  const history=useMemo(()=>{const items:any[]=[];execs.forEach(e=>{if(e.channel==="분양회 월회비"||e.channel==="분양회 입회비")return;if((e.hightarget_mileage||0)>0)items.push({date:e.payment_date,type:"마일리지 적립",channel:e.channel||"하이타겟",mileage:e.hightarget_mileage,reward:0,sign:"+",category:"적립"});const rwd=(e.hightarget_reward||0)+(e.hogaengnono_reward||0)+(e.lms_reward||0);if(rwd>0)items.push({date:e.payment_date,type:"리워드 적립",channel:e.channel||"기타",mileage:0,reward:rwd,sign:"+",category:"리워드지급"});});usages.forEach(u=>{items.push({date:u.usage_date,type:"마일리지 사용",channel:"",mileage:u.usage_amount,reward:0,sign:"-",category:"마일리지사용"});});return items.sort((a,b)=>b.date.localeCompare(a.date));},[execs,usages]);
-  const filtered=tab==="전체"?history:tab==="적립"?history.filter(h=>h.category==="적립"):tab==="마일리지사용"?history.filter(h=>h.category==="마일리지사용"):history.filter(h=>h.category==="리워드지급");
+  const history=useMemo(()=>{const items:any[]=[];execs.forEach(e=>{if(e.channel==="분양회 월회비"||e.channel==="분양회 입회비")return;if((e.hightarget_mileage||0)>0)items.push({date:e.payment_date,type:"마일리지 적립",channel:e.channel||"하이타겟",mileage:e.hightarget_mileage,reward:0,sign:"+",category:"적립"});const rwd=(e.hightarget_reward||0)+(e.hogaengnono_reward||0)+(e.lms_reward||0);if(rwd>0)items.push({date:e.payment_date,type:"리워드 적립",channel:e.channel||"기타",mileage:0,reward:rwd,sign:"+",category:"리워드적립"});});usages.forEach(u=>{items.push({date:u.usage_date,type:"마일리지 사용",channel:"",mileage:u.usage_amount,reward:0,sign:"-",category:"마일리지사용"});});rewardPayments.forEach(p=>{if(p.paid_amount>0)items.push({date:p.paid_date||"",type:"리워드 지급",channel:p.quarter||"",mileage:0,reward:p.paid_amount,sign:"✓",category:"리워드지급"});});return items.sort((a,b)=>b.date.localeCompare(a.date));},[execs,usages,rewardPayments]);
+  const filtered=tab==="전체"?history:tab==="적립"?history.filter(h=>h.category==="적립"):tab==="마일리지사용"?history.filter(h=>h.category==="마일리지사용"):tab==="리워드적립"?history.filter(h=>h.category==="리워드적립"):history.filter(h=>h.category==="리워드지급");
 
   const photoUrl=contact?.photo_url?`https://rlpdhufcsuewvwluydky.supabase.co/storage/v1/object/public/customer-photos/${contact.photo_url}`:null;
   const cInfo=contact?.consultant?CONSULTANT_INFO[contact.consultant]:null;
@@ -83,6 +85,7 @@ export default function CustomerDashboard() {
     {icon:"🎯",label:"하이타겟 리워드",value:`${fw(stats.htReward)}원`,detail:execs.filter(e=>(e.hightarget_reward||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.hightarget_reward,unit:"원"}))},
     {icon:"📱",label:"호갱노노 리워드",value:`${fw(stats.hogReward)}원`,detail:execs.filter(e=>(e.hogaengnono_reward||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.hogaengnono_reward,unit:"원"}))},
     {icon:"💬",label:"LMS 리워드",value:`${fw(stats.lmsReward)}원`,detail:execs.filter(e=>(e.lms_reward||0)>0).map(e=>({date:e.payment_date,ch:e.channel,amt:e.lms_reward,unit:"원"}))},
+    {icon:"💸",label:"리워드 지급완료",value:`${fw(stats.totalPaid)}원`,detail:rewardPayments.filter(p=>p.paid_amount>0).map(p=>({date:p.paid_date||"",ch:p.quarter,amt:p.paid_amount,unit:"원"}))},
   ];
 
   if(loading)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#fff"}}><div style={{width:28,height:28,border:"3px solid #1E3A8A",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>;
@@ -127,14 +130,14 @@ export default function CustomerDashboard() {
   const HistoryList=({maxH}:{maxH?:string})=>(<div style={{maxHeight:maxH,overflow:maxH?"auto":undefined}}>
     {filtered.length===0?<div style={{textAlign:"center",padding:"40px 0",color:"#ccc",fontSize:14}}>내역이 없습니다</div>:filtered.map((h:any,i:number)=>(
       <div key={i} style={{display:"flex",alignItems:"flex-start",gap:14,padding:"16px 0",borderBottom:"1px solid #f8f8f8"}}>
-        <div style={{width:42,height:42,borderRadius:12,flexShrink:0,background:h.sign==="+"?"#f0f7ff":"#fff5f5",display:"flex",alignItems:"center",justifyContent:"center",border:h.sign==="+"?"1px solid #dbeafe":"1px solid #fee2e2"}}><span style={{fontSize:16}}>{h.sign==="+"?"📥":"📤"}</span></div>
+        <div style={{width:42,height:42,borderRadius:12,flexShrink:0,background:h.sign==="+"?"#f0f7ff":h.sign==="✓"?"#f0fdf4":"#fff5f5",display:"flex",alignItems:"center",justifyContent:"center",border:h.sign==="+"?"1px solid #dbeafe":h.sign==="✓"?"1px solid #dcfce7":"1px solid #fee2e2"}}><span style={{fontSize:16}}>{h.sign==="+"?"📥":h.sign==="✓"?"💸":"📤"}</span></div>
         <div style={{flex:1}}>
           <span style={{fontSize:14,fontWeight:600,color:"#222"}}>{h.type}</span>
           {h.channel&&<p style={{fontSize:13,color:"#999",marginTop:2}}>{h.channel}</p>}
           <p style={{fontSize:12,color:"#bbb",marginTop:4}}>{fDate(h.date)}</p>
           <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap"}}>
             {h.mileage>0&&<span style={{fontSize:11,fontWeight:600,color:h.sign==="+"?"#2563eb":"#ef4444",padding:"3px 10px",background:h.sign==="+"?"#eff6ff":"#fef2f2",borderRadius:20,border:h.sign==="+"?"1px solid #dbeafe":"1px solid #fee2e2"}}>{h.sign==="+"?"마일리지 +":"마일리지 -"}{fw(h.mileage)}P</span>}
-            {h.reward>0&&<span style={{fontSize:11,fontWeight:600,color:"#16a34a",padding:"3px 10px",background:"#f0fdf4",borderRadius:20,border:"1px solid #dcfce7"}}>리워드 +{fw(h.reward)}원</span>}
+            {h.reward>0&&<span style={{fontSize:11,fontWeight:600,color:h.sign==="✓"?"#7c3aed":"#16a34a",padding:"3px 10px",background:h.sign==="✓"?"#f5f3ff":"#f0fdf4",borderRadius:20,border:h.sign==="✓"?"1px solid #e9d5ff":"1px solid #dcfce7"}}>{h.sign==="✓"?"지급완료 ":"리워드 +"}{fw(h.reward)}원</span>}
           </div>
         </div>
       </div>
@@ -142,7 +145,7 @@ export default function CustomerDashboard() {
   </div>);
 
   const TabBar=()=>(<div style={{display:"flex",alignItems:"center",gap:20,borderBottom:"1px solid #f1f1f1",position:"sticky",top:0,background:"#fff",zIndex:10,padding:"16px 0"}}>
-    {["전체","적립","마일리지사용","리워드지급"].map(t=>(<button key={t} onClick={()=>setTab(t)} style={{fontSize:15,fontWeight:tab===t?700:400,color:tab===t?"#222":"#999",background:"none",border:"none",cursor:"pointer",padding:"4px 0",borderBottom:tab===t?"2px solid #222":"2px solid transparent"}}>{t}</button>))}
+    {["전체","적립","리워드적립","마일리지사용","리워드지급"].map(t=>(<button key={t} onClick={()=>setTab(t)} style={{fontSize:15,fontWeight:tab===t?700:400,color:tab===t?"#222":"#999",background:"none",border:"none",cursor:"pointer",padding:"4px 0",borderBottom:tab===t?"2px solid #222":"2px solid transparent"}}>{t}</button>))}
     <span style={{fontSize:13,color:"#bbb",marginLeft:"auto"}}>{filtered.length}건</span>
   </div>);
 
