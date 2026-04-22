@@ -83,27 +83,35 @@ export default function CustomerDashboard() {
 
   const togglePush = async () => {
     if (!contact) return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      alert("이 브라우저는 푸시 알림을 지원하지 않습니다.\niPhone의 경우 홈 화면에 추가 후 이용해주세요.");
+      return;
+    }
+    if (!("Notification" in window)) {
+      alert("이 브라우저는 알림 기능을 지원하지 않습니다.");
+      return;
+    }
     setPushLoading(true);
     try {
       if (pushEnabled) {
-        // 구독 해제
         const reg = await navigator.serviceWorker.getRegistration("/sw-push.js");
         if (reg) { const sub = await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); }
         await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactId: contact.id }) });
         setPushEnabled(false);
       } else {
-        // 구독
         const permission = await Notification.requestPermission();
-        if (permission !== "granted") { alert("알림을 허용해주세요."); setPushLoading(false); return; }
+        if (permission !== "granted") { alert("알림 권한이 거부되었습니다.\n브라우저 설정에서 알림을 허용해주세요."); setPushLoading(false); return; }
         const reg = await navigator.serviceWorker.register("/sw-push.js");
         await navigator.serviceWorker.ready;
         const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (!vapidKey) { setPushLoading(false); return; }
+        if (!vapidKey) { alert("푸시 알림 설정이 아직 완료되지 않았습니다.\n관리자에게 문의해주세요."); setPushLoading(false); return; }
         const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) });
         await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactId: contact.id, subscription: sub.toJSON() }) });
         setPushEnabled(true);
       }
-    } catch (e) { console.error("Push toggle error:", e); }
+    } catch (e: any) {
+      alert("알림 설정 중 오류가 발생했습니다.\n" + (e?.message || ""));
+    }
     setPushLoading(false);
   };
 
