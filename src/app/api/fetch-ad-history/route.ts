@@ -7,10 +7,11 @@ const TABS = [
 ];
 
 interface Campaign {
-  물건: string; 광고기간: string; 지역: string; 현장명원본: string;
-  현장명: string; 캠페인번호: string; 광고주: string; 광고비: number;
-  광고비텍스트: string; 담당자: string; 분류: string; 물건분류: string;
-  콜: number; 관심: number; 연도: string;
+  물건: string; 광고기간: string; 광고기간원본: string; 지역: string;
+  현장명원본: string; 현장명: string; 캠페인번호: string;
+  광고주: string; 광고비: number; 담당자: string;
+  분류: string; 물건분류: string; 콜: number; 관심: number;
+  연도: string; 정렬키: string;
 }
 
 function parseCSVLine(line: string): string[] {
@@ -38,94 +39,111 @@ function parseAmount(s: string): number {
   return Number(s.replace(/[₩,원\s]/g, "")) || 0;
 }
 
-// 현장명에서 기본 이름과 캠페인 번호 분리
-// "리아츠인천9" → { base: "리아츠인천", campaign: "9" }
-// "진접더퍼스트2_2" → { base: "진접더퍼스트", campaign: "2_2" }
-// "더마크원20_2" → { base: "더마크원", campaign: "20_2" }
 function parseSiteName(name: string): { base: string; campaign: string } {
   const match = name.match(/^(.+?)(\d+(?:_\d+)?)$/);
-  if (match) {
-    return { base: match[1], campaign: match[2] };
-  }
+  if (match) return { base: match[1], campaign: match[2] };
   return { base: name, campaign: "1" };
 }
 
-// 광고기간에 연도 붙이기: "12/2-1/1" (2026탭) → "25.12.02 ~ 26.01.01"
-function formatPeriodWithYear(period: string, tabYear: string): string {
-  if (!period) return "-";
+// "12/2-1/1" (2026탭) → { display: "25.12.02 ~ 26.01.01", sortKey: "2025-12-02" }
+function formatPeriod(period: string, tabYear: string): { display: string; sortKey: string } {
+  if (!period) return { display: "-", sortKey: "9999-99-99" };
   const yr = parseInt(tabYear);
   const parts = period.split("-");
-  if (parts.length !== 2) return period;
+  if (parts.length !== 2) return { display: period, sortKey: "9999-99-99" };
 
-  const format = (part: string, isEnd: boolean) => {
+  const parseDate = (part: string) => {
     const [m, d] = part.trim().split("/").map(Number);
-    if (!m || !d) return part.trim();
-    // 월이 7~12면 전년도, 1~6이면 해당 연도
+    if (!m || !d) return { display: part.trim(), sort: "9999-99-99" };
     const y = m >= 7 ? yr - 1 : yr;
-    return `${String(y).slice(2)}.${String(m).padStart(2, "0")}.${String(d).padStart(2, "0")}`;
+    return {
+      display: `${String(y).slice(2)}.${String(m).padStart(2, "0")}.${String(d).padStart(2, "0")}`,
+      sort: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+    };
   };
 
-  return `${format(parts[0], false)} ~ ${format(parts[1], true)}`;
+  const start = parseDate(parts[0]);
+  const end = parseDate(parts[1]);
+  return { display: `${start.display} ~ ${end.display}`, sortKey: start.sort };
 }
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const yearFilter = url.searchParams.get("year") || "all";
-
     const allCampaigns: Campaign[] = [];
+    const errors: string[] = [];
 
     for (const tab of TABS) {
       if (yearFilter !== "all" && tab.label !== yearFilter) continue;
 
-      const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${tab.gid}`;
+      // gviz → export 순으로 시도
+      const urls = [
+        `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${tab.gid}`,
+        `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${tab.gid}`,
+      ];
 
-      try {
-        const res = await fetch(csvUrl, { next: { revalidate: 300 } });
-        if (!res.ok) continue;
-        const csvText = await res.text();
-        const lines = csvText.split("\n").map(l => parseCSVLine(l));
+      let csvText = "";
+      for (const csvUrl of urls) {
+        try {
+          const res = await fetch(csvUrl, { cache: "no-store" });
+          if (res.ok) {
+            const text = await res.text();
+            if (text.split("\n").length > 1 && !text.includes("<!DOCTYPE")) {
+              csvText = text;
+              break;
+            }
+          }
+        } catch {}
+      }
 
-        // 첫 행 = 헤더, 나머지 = 데이터
-        for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i];
-          if (!cols[3]) continue; // 현장명 없으면 스킵
+      if (!csvText) {
+        errors.push(`${tab.label}탭 데이터를 가져올 수 없습니다.`);
+        continue;
+      }
 
-          const rawName = cols[3] || "";
-          const { base, campaign } = parseSiteName(rawName);
+      const lines = csvText.split("\n").map(l => parseCSVLine(l));
 
-          allCampaigns.push({
-            물건: cols[0] || "",
-            광고기간: formatPeriodWithYear(cols[1] || "", tab.label),
-            지역: cols[2] || "",
-            현장명원본: rawName,
-            현장명: base,
-            캠페인번호: campaign,
-            광고주: cols[4] || "",
-            광고비: parseAmount(cols[5]),
-            광고비텍스트: cols[5] || "",
-            담당자: cols[6] || "",
-            분류: cols[7] || "",
-            물건분류: cols[8] || "",
-            콜: Number(cols[9]) || 0,
-            관심: Number(cols[10]) || 0,
-            연도: tab.label,
-          });
-        }
-      } catch {}
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i];
+        if (!cols || cols.length < 10 || !cols[3]) continue;
+
+        const rawName = cols[3];
+        const { base, campaign } = parseSiteName(rawName);
+        const { display, sortKey } = formatPeriod(cols[1] || "", tab.label);
+
+        allCampaigns.push({
+          물건: cols[0] || "",
+          광고기간: display,
+          광고기간원본: cols[1] || "",
+          지역: cols[2] || "",
+          현장명원본: rawName,
+          현장명: base,
+          캠페인번호: campaign,
+          광고주: cols[4] || "",
+          광고비: parseAmount(cols[5]),
+          담당자: cols[6] || "",
+          분류: cols[7] || "",
+          물건분류: cols[8] || "",
+          콜: Number(cols[9]) || 0,
+          관심: Number(cols[10]) || 0,
+          연도: tab.label,
+          정렬키: sortKey,
+        });
+      }
     }
 
     // 현장별 그룹핑
     const siteMap = new Map<string, Campaign[]>();
     for (const c of allCampaigns) {
-      const key = c.현장명;
-      if (!siteMap.has(key)) siteMap.set(key, []);
-      siteMap.get(key)!.push(c);
+      if (!siteMap.has(c.현장명)) siteMap.set(c.현장명, []);
+      siteMap.get(c.현장명)!.push(c);
     }
 
-    // 현장별 요약
     const sites = Array.from(siteMap.entries()).map(([name, campaigns]) => {
-      campaigns.sort((a, b) => Number(a.캠페인번호.split("_")[0]) - Number(b.캠페인번호.split("_")[0]));
+      // ★ 광고기간 오름차순 정렬 (먼저 진행된 캠페인이 위로)
+      campaigns.sort((a, b) => a.정렬키.localeCompare(b.정렬키));
+
       const totalCalls = campaigns.reduce((s, c) => s + c.콜, 0);
       const totalInterest = campaigns.reduce((s, c) => s + c.관심, 0);
       const totalBudget = campaigns.reduce((s, c) => s + c.광고비, 0);
@@ -144,7 +162,6 @@ export async function GET(req: Request) {
       };
     });
 
-    // 캠페인 수 + 총콜 기준 내림차순 정렬
     sites.sort((a, b) => b.캠페인수 - a.캠페인수 || b.총콜 - a.총콜);
 
     return NextResponse.json({
@@ -156,6 +173,7 @@ export async function GET(req: Request) {
         totalInterest: allCampaigns.reduce((s, c) => s + c.관심, 0),
         totalBudget: allCampaigns.reduce((s, c) => s + c.광고비, 0),
       },
+      errors: errors.length > 0 ? errors : undefined,
       lastSync: new Date().toISOString(),
     });
   } catch (err: any) {
