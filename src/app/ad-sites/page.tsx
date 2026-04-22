@@ -240,15 +240,15 @@ export default function AdSitesPage() {
               <table className="w-full" style={{ minWidth: "950px" }}>
                 <thead>
                   <tr style={{ borderBottom: "2px solid var(--border)" }}>
-                    <th className="px-4 py-3 text-left text-xs font-bold" style={{ color: "var(--text-muted)", width: 80 }}>경쟁도</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold cursor-pointer select-none" style={{ color: "var(--text-muted)" }} onClick={() => toggleSort("region")}>지역<SortIcon k="region" /></th>
-                    <th className="px-4 py-3 text-left text-xs font-bold" style={{ color: "var(--text-muted)" }}>도시</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold cursor-pointer select-none" style={{ color: "var(--text-muted)" }} onClick={() => toggleSort("name")}>현장명<SortIcon k="name" /></th>
-                    <th className="px-4 py-3 text-right text-xs font-bold cursor-pointer select-none" style={{ color: "var(--text-muted)" }} onClick={() => toggleSort("budget")}>총광고비<SortIcon k="budget" /></th>
-                    <th className="px-4 py-3 text-right text-xs font-bold cursor-pointer select-none" style={{ color: "var(--text-muted)" }} onClick={() => toggleSort("operating")}>운영금액<SortIcon k="operating" /></th>
-                    <th className="px-4 py-3 text-right text-xs font-bold cursor-pointer select-none" style={{ color: "var(--text-muted)" }} onClick={() => toggleSort("reservation")}>예약금<SortIcon k="reservation" /></th>
+                    <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)", width: 90 }}>경쟁도</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold cursor-pointer select-none" style={{ color: "var(--text-muted)" }} onClick={() => toggleSort("region")}>지역<SortIcon k="region" /></th>
+                    <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)" }}>도시</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold cursor-pointer select-none" style={{ color: "var(--text-muted)" }} onClick={() => toggleSort("name")}>현장명<SortIcon k="name" /></th>
+                    <th className="px-4 py-3 text-center text-xs font-bold cursor-pointer select-none" style={{ color: "var(--text-muted)" }} onClick={() => toggleSort("budget")}>총광고비<SortIcon k="budget" /></th>
+                    <th className="px-4 py-3 text-center text-xs font-bold cursor-pointer select-none" style={{ color: "var(--text-muted)" }} onClick={() => toggleSort("operating")}>운영금액<SortIcon k="operating" /></th>
+                    <th className="px-4 py-3 text-center text-xs font-bold cursor-pointer select-none" style={{ color: "var(--text-muted)" }} onClick={() => toggleSort("reservation")}>예약금<SortIcon k="reservation" /></th>
                     <th className="px-4 py-3 text-center text-xs font-bold cursor-pointer select-none" style={{ color: "var(--text-muted)" }} onClick={() => toggleSort("adCount")}>광고수<SortIcon k="adCount" /></th>
-                    <th className="px-4 py-3 text-left text-xs font-bold" style={{ color: "var(--text-muted)" }}>광고주</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)" }}>광고주</th>
                     <th className="px-4 py-3 text-center text-xs font-bold" style={{ color: "var(--text-muted)" }}>상태</th>
                   </tr>
                 </thead>
@@ -257,27 +257,27 @@ export default function AdSitesPage() {
                     const cs = COMP_STYLE[site.competition];
                     return (
                       <tr key={idx} className="transition-colors" style={{ borderBottom: "1px solid var(--border)", opacity: site.suspended ? 0.45 : 1 }}>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap"
                             style={{ background: cs.bg, color: cs.text, border: `1px solid ${cs.border}` }}>
-                            <span style={{ width: 7, height: 7, borderRadius: "50%", background: cs.dot, display: "inline-block" }} />
+                            <span style={{ width: 7, height: 7, borderRadius: "50%", background: cs.dot, display: "inline-block", flexShrink: 0 }} />
                             {site.competition}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm font-semibold" style={{ color: "var(--text)" }}>{site.region}</td>
-                        <td className="px-4 py-3 text-sm" style={{ color: "var(--text-muted)" }}>{site.city}</td>
-                        <td className="px-4 py-3 text-sm font-bold" style={{ color: "var(--text)" }}>{site.siteName}</td>
-                        <td className="px-4 py-3 text-sm text-right font-black" style={{ color: "var(--text)" }}>{fw(site.totalAdBudget)}</td>
-                        <td className="px-4 py-3 text-sm text-right" style={{ color: "var(--text)" }}>{site.operatingAmount ? fw(site.operatingAmount) : "-"}</td>
-                        <td className="px-4 py-3 text-sm text-right" style={{ color: "var(--info)" }}>{site.reservationAmount ? fw(site.reservationAmount) : "-"}</td>
+                        <td className="px-4 py-3 text-sm text-center font-semibold" style={{ color: "var(--text)" }}>{site.region}</td>
+                        <td className="px-4 py-3 text-sm text-center" style={{ color: "var(--text-muted)" }}>{site.city}</td>
+                        <td className="px-4 py-3 text-sm text-center font-bold" style={{ color: "var(--text)" }}>{site.siteName}</td>
+                        <td className="px-4 py-3 text-sm text-center font-black" style={{ color: "var(--text)" }}>{fw(site.totalAdBudget)}</td>
+                        <td className="px-4 py-3 text-sm text-center" style={{ color: "var(--text)" }}>{site.operatingAmount ? fw(site.operatingAmount) : "-"}</td>
+                        <td className="px-4 py-3 text-sm text-center" style={{ color: "var(--info)" }}>{site.reservationAmount ? fw(site.reservationAmount) : "-"}</td>
                         <td className="px-4 py-3 text-center">
                           <span className="inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-black"
                             style={{ background: site.adCount >= 5 ? "rgba(239,68,68,0.15)" : site.adCount >= 3 ? "rgba(245,158,11,0.15)" : "rgba(59,130,246,0.08)", color: site.adCount >= 5 ? "#ef4444" : site.adCount >= 3 ? "#f59e0b" : "var(--info)" }}>
                             {site.adCount}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1">
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex flex-wrap gap-1 justify-center">
                             {site.customers.slice(0, 3).map((c, i) => (
                               <span key={i} className="text-xs px-2 py-0.5 rounded-md font-medium" style={{ background: "var(--sidebar-active-bg)", color: "var(--text)" }}>{c}</span>
                             ))}
