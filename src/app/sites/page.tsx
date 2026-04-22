@@ -67,20 +67,19 @@ export default function SitesListPage() {
 .scrollbar-hide::-webkit-scrollbar{display:none}.scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none;}`}</style>
 
       {/* ═══ 헤더 ═══ */}
-      <header className="bg-white border-b border-slate-200">
+      <header className="bg-[#1a1a2e]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <Image src="/icon-logo.png" alt="분양의신" width={36} height={36} className="rounded-lg" />
-            <div>
-              <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight">분양의신 · 현장정보</h1>
-              <p className="text-[10px] sm:text-xs text-slate-400">광고인㈜ 대외협력팀 제공</p>
+          <div className="flex items-center gap-3">
+            <Image src="/bunyangeuisin-logo.png" alt="분양의신" width={120} height={58} className="h-8 sm:h-10 w-auto" />
+            <div className="hidden sm:block">
+              <p className="text-[11px] text-white/40">현장정보 · 광고인㈜ 대외협력팀 제공</p>
             </div>
           </div>
           {/* 검색 */}
           <div className="relative hidden sm:block">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="현장명, 주소, 시행사 검색..."
-              className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-full w-64 focus:outline-none focus:border-blue-400 bg-slate-50"/>
+              className="pl-9 pr-4 py-2 text-sm border border-white/10 rounded-full w-64 focus:outline-none focus:border-blue-400 bg-white/10 text-white placeholder-white/40"/>
           </div>
         </div>
       </header>
@@ -172,8 +171,7 @@ export default function SitesListPage() {
       <footer className="max-w-5xl mx-auto px-6 pb-10">
         <div className="text-center pt-8 border-t border-slate-200">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <Image src="/icon-logo.png" alt="분양의신" width={20} height={20} className="rounded opacity-50"/>
-            <p className="text-xs text-slate-400 font-semibold">광고인㈜ · 분양의신</p>
+            <Image src="/bunyangeuisin-logo.png" alt="분양의신" width={80} height={38} className="h-5 w-auto opacity-30"/>
           </div>
           <p className="text-[10px] text-slate-300">본 정보는 광고인㈜ 대외협력팀에서 제공합니다</p>
         </div>

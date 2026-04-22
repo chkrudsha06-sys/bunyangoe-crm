@@ -17,11 +17,25 @@ interface Site {
 
 function MapEmbed({ address }: { address: string }) {
   if (!address) return null;
-  const src = `https://maps.google.com/maps?q=${encodeURIComponent(address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+  const kakaoUrl = `https://map.kakao.com/?q=${encodeURIComponent(address)}`;
+  const naverUrl = `https://map.naver.com/p/search/${encodeURIComponent(address)}`;
+  const googleSrc = `https://maps.google.com/maps?q=${encodeURIComponent(address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
   return (
-    <div className="mt-3 rounded-xl overflow-hidden border border-slate-200">
-      <iframe src={src} width="100%" height="280" style={{border:0}} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="sm:h-[320px]"/>
-      <p className="text-[10px] text-slate-400 px-3 py-2 bg-slate-50">※ 지도를 클릭하면 자세히 확인할 수 있습니다.</p>
+    <div className="mt-3">
+      <div className="rounded-xl overflow-hidden border border-slate-200">
+        <iframe src={googleSrc} width="100%" height="250" style={{border:0}} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="sm:h-[300px]"/>
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        <a href={kakaoUrl} target="_blank" rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold bg-[#FEE500] text-[#3C1E1E] rounded-lg hover:brightness-95 transition-all">
+          🗺️ 카카오맵에서 보기
+        </a>
+        <a href={naverUrl} target="_blank" rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold bg-[#03C75A] text-white rounded-lg hover:brightness-95 transition-all">
+          🗺️ 네이버지도에서 보기
+        </a>
+      </div>
+      <p className="text-[10px] text-slate-400 mt-1.5">※ 지도를 클릭하면 자세히 확인할 수 있습니다.</p>
     </div>
   );
 }
@@ -74,18 +88,14 @@ export default function SiteDetailPage() {
   return (
     <div className="min-h-screen bg-[#F8F9FA]">
       {/* ═══ 헤더 ═══ */}
-      <header className="bg-white border-b border-slate-200">
+      <header className="bg-[#1a1a2e]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-          <a href="/sites" className="flex items-center gap-2.5">
-            <Image src="/icon-logo.png" alt="분양의신" width={32} height={32} className="rounded-lg"/>
-            <div>
-              <p className="text-sm sm:text-base font-black text-slate-800">분양의신 · 현장정보</p>
-              <p className="text-[10px] text-slate-400">광고인㈜ 대외협력팀 제공</p>
-            </div>
+          <a href="/sites" className="flex items-center gap-3">
+            <Image src="/bunyangeuisin-logo.png" alt="분양의신" width={120} height={58} className="h-7 sm:h-9 w-auto"/>
           </a>
           <div className="flex items-center gap-2">
-            <a href="/sites" className="text-xs text-slate-500 hover:text-blue-500 font-semibold hidden sm:inline">지역현장</a>
-            <button onClick={handleShare} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-500">
+            <a href="/sites" className="text-xs text-white/50 hover:text-white font-semibold hidden sm:inline">지역현장</a>
+            <button onClick={handleShare} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold border border-white/20 rounded-lg hover:bg-white/10 text-white/70">
               <Share2 size={12}/>{copied?"복사됨!":"공유"}
             </button>
           </div>
@@ -186,8 +196,7 @@ export default function SiteDetailPage() {
       <footer className="max-w-4xl mx-auto px-6 pb-10">
         <div className="text-center pt-8 border-t border-slate-200">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <Image src="/icon-logo.png" alt="분양의신" width={18} height={18} className="rounded opacity-50"/>
-            <p className="text-xs text-slate-400 font-semibold">광고인㈜ · 분양의신</p>
+            <Image src="/bunyangeuisin-logo.png" alt="분양의신" width={80} height={38} className="h-5 w-auto opacity-30"/>
           </div>
           <p className="text-[10px] text-slate-300">본 정보는 광고인㈜ 대외협력팀에서 제공합니다</p>
         </div>
