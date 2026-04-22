@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { verifyApiSession } from "@/lib/api-auth";
 
 const SHEET_ID = "1BMTKBgos_Tsz8Cdsf8gHomrVNqp7G0vdTGrqW5fGkW8";
 const GID = "516579075";
@@ -106,8 +107,13 @@ function extractSitesFromBlock(rows: string[][], colOffset: number): AdSite[] {
   return sites;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    // 인증 체크
+    const auth = await verifyApiSession(req);
+    if (!auth.valid) {
+      return NextResponse.json({ error: "인증이 필요합니다.", sites: [] }, { status: 401 });
+    }
     let csvText = "";
 
     // Try published CSV first, then gviz fallback

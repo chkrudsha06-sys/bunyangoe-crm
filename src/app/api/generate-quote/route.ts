@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import path from "path";
 import fs from "fs";
+import { verifyApiSession } from "@/lib/api-auth";
 
 // Vercel 함수 최대 실행시간 설정
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
+    // 인증 체크
+    const auth = await verifyApiSession(req);
+    if (!auth.valid) {
+      return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+    }
+
     const body = await req.json();
     const {
       property, quoteDate,
