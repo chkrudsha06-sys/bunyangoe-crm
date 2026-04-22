@@ -5,11 +5,12 @@ self.addEventListener("push", (event) => {
     const title = data.title || "분양회 알림";
     const options = {
       body: data.body || "",
-      icon: "/icon-logo.png",
-      badge: "/icon-logo.png",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
       tag: data.tag || "default",
       data: { url: data.url || "/" },
       vibrate: [200, 100, 200],
+      image: data.image || undefined,
     };
     event.waitUntil(self.registration.showNotification(title, options));
   } catch (e) {
