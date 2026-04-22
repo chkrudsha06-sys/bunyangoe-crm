@@ -22,6 +22,8 @@ interface SidebarProps {
   onBellClick?: () => void;
   onPanelClose?: () => void;
   onMarkAll?: () => Promise<void>;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 const EXEC_MENUS = [
@@ -59,7 +61,7 @@ const ROLE_STYLE: Record<string, { bg: string; text: string; label: string }> = 
   ops:   { bg: "bg-emerald-100", text: "text-emerald-700", label: "운영파트" },
 };
 
-export default function Sidebar({ user, unreadCount=0, notifications=[], showPanel=false, onBellClick, onPanelClose, onMarkAll }: SidebarProps) {
+export default function Sidebar({ user, unreadCount=0, notifications=[], showPanel=false, onBellClick, onPanelClose, onMarkAll, mobileOpen=false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const isAdmin = user.role === "admin";
@@ -98,7 +100,7 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
   const NavItem = ({ href, label, emoji }: { href: string; label: string; emoji: string }) => {
     const active = pathname === href;
     return (
-      <Link href={href} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all group"
+      <Link href={href} onClick={() => onMobileClose?.()} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all group"
         style={{
           background: active ? "var(--sidebar-active-bg)" : "transparent",
           color: active ? "var(--sidebar-active-text)" : "var(--sidebar-text)",
@@ -114,8 +116,8 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
     );
   };
 
-  return (
-    <aside className="w-56 flex-shrink-0 flex flex-col transition-colors duration-300" style={{background:"var(--sidebar-bg)",borderRight:"1px solid var(--sidebar-border)"}}>
+  const SidebarInner = () => (
+    <div className="flex flex-col h-full" style={{background:"var(--sidebar-bg)"}}>
       {/* 로고 */}
       <div className="px-4 py-4" style={{borderBottom:"1px solid var(--sidebar-border)"}}>
         <div className="flex items-center gap-2.5">
@@ -286,6 +288,39 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
           <span>로그아웃</span>
         </button>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* PC 사이드바 */}
+      <aside className="hidden md:flex w-56 flex-shrink-0 flex-col transition-colors duration-300" style={{background:"var(--sidebar-bg)",borderRight:"1px solid var(--sidebar-border)"}}>
+        <SidebarInner/>
+      </aside>
+
+      {/* 모바일 드로어 */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/50" onClick={onMobileClose}/>
+          <div className="absolute left-0 top-0 bottom-0 w-64 shadow-2xl overflow-hidden" style={{background:"var(--sidebar-bg)",animation:"slideDrawer 0.25s ease-out"}}>
+            <div className="absolute top-3 right-3 z-10">
+              <button onClick={onMobileClose} className="w-8 h-8 flex items-center justify-center rounded-lg" style={{color:"var(--text-muted)"}}>
+                <X size={18}/>
+              </button>
+            </div>
+            <div className="h-full overflow-y-auto">
+              <SidebarInner/>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideDrawer {
+          from { transform: translateX(-100%); }
+          to { transform: translateX(0); }
+        }
+      `}</style>
+    </>
   );
 }

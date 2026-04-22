@@ -5,7 +5,19 @@ import { useRouter, usePathname } from "next/navigation";
 import { getCurrentUser, CRMUser, validateSession, logout } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/Sidebar";
-import { Truck, X, CheckCheck, Send } from "lucide-react";
+import { Truck, X, CheckCheck, Send, Bell } from "lucide-react";
+
+const MOBILE_TITLES: Record<string,string> = {
+  "/": "대시보드", "/tasks": "업무전달", "/contacts": "고객 DB",
+  "/pipeline": "파이프라인", "/vip-members": "분양회 입회자",
+  "/wanpan-truck": "완판트럭", "/calendar": "운영캘린더",
+  "/member-manage": "분양회 회원관리", "/sales": "통합매출관리",
+  "/rewards": "리워드 관리", "/customer-incentives": "인센티브 관리",
+  "/quotes": "견적서", "/new-sites": "신규현장",
+  "/reports": "팀 성과 분석", "/kpi-settings": "KPI 설정",
+  "/incentives": "인센티브 관리",
+};
+function getMobileTitle(path: string) { return MOBILE_TITLES[path] || "분양회 CRM"; }
 
 interface Notification {
   id: number;
@@ -70,6 +82,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [toastQueue, setToastQueue] = useState<Notification[]>([]);
   const [showPanel, setShowPanel] = useState(false);
   const [taskToasts, setTaskToasts] = useState<{id:number;requester:string;category:string;content:string}[]>([]);
+  const [mobileMenu, setMobileMenu] = useState(false);
 
   // 이미 알고 있는 알림 ID 집합 — 중복 토스트 방지
   const knownIds = useRef<Set<number>>(new Set());
@@ -222,8 +235,25 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         onBellClick={() => setShowPanel(v => !v)}
         onPanelClose={() => setShowPanel(false)}
         onMarkAll={markAllRead}
+        mobileOpen={mobileMenu}
+        onMobileClose={() => setMobileMenu(false)}
       />
-      <main className="flex-1 overflow-auto">
+      {/* 모바일 헤더 */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3" style={{background:"var(--sidebar-bg)",borderBottom:"1px solid var(--sidebar-border)"}}>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setMobileMenu(true)} className="w-9 h-9 flex items-center justify-center rounded-lg" style={{color:"var(--text)"}}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <span className="text-sm font-bold" style={{color:"var(--text)"}}>{getMobileTitle(pathname)}</span>
+        </div>
+        <div className="relative">
+          <button onClick={() => setShowPanel(v => !v)} className="w-9 h-9 flex items-center justify-center rounded-lg" style={{color: unreadCount > 0 ? "var(--warning)" : "var(--text-muted)"}}>
+            <Bell size={18}/>
+            {unreadCount > 0 && <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 flex items-center justify-center text-[10px] font-bold text-white bg-red-500 rounded-full px-1">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+          </button>
+        </div>
+      </div>
+      <main className="flex-1 overflow-auto pt-[52px] md:pt-0">
         {children}
       </main>
 
