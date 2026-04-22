@@ -42,6 +42,10 @@ const OPS_MENUS = [
   { href: "/quotes", label: "견적서", emoji: "📄" },
 ];
 
+const INFO_MENUS = [
+  { href: "/new-sites", label: "신규현장", emoji: "🏗️" },
+];
+
 const ADMIN_EXTRA = [
   { href: "/reports",       label: "팀 성과 분석", emoji: "📈" },
   { href: "/kpi-settings",  label: "KPI 설정",    emoji: "🎯" },
@@ -255,6 +259,11 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
         <div className="my-2" style={{borderTop:"1px solid var(--sidebar-border)"}} />
         <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"var(--sidebar-section)"}}>■ 운영파트</div>
         {OPS_MENUS.map((m) => <NavItem key={m.href} {...m} />)}
+
+        {/* 정보제공 - 전체 공개 */}
+        <div className="my-2" style={{borderTop:"1px solid var(--sidebar-border)"}} />
+        <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"var(--sidebar-section)"}}>■ 정보제공</div>
+        {INFO_MENUS.map((m) => <NavItem key={m.href} {...m} />)}
 
         {/* 관리자 전용 */}
         {isAdmin && (
