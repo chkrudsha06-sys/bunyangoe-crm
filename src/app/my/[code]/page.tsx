@@ -8,6 +8,13 @@ interface ExecRow { id:number; member_name:string; bunyanghoe_number:string; hig
 interface MileUsage { id:number; contact_id:number; usage_date:string; usage_amount:number; }
 interface RewardPayment { id:number; contact_id:number; member_name:string; quarter:string; paid_amount:number; paid_date:string|null; is_paid:boolean; }
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
 const CONSULTANT_INFO: Record<string,{title:string;phone:string}> = {"박경화":{title:"총괄본부장",phone:"010-7602-2564"},"박혜은":{title:"총괄본부장",phone:"010-7584-2564"},"박민경":{title:"본부장",phone:"010-2242-2564"},"조승현":{title:"본부장",phone:"010-7546-2564"},"백선중":{title:"팀장",phone:"010-7538-2564"},"강아름":{title:"팀장",phone:"010-8144-2564"},"전정훈":{title:"팀장",phone:"010-8449-2564"},"박나라":{title:"팀장",phone:"010-5817-2568"}};
 const TEAM_INFO: Record<string,{title:string;phone:string}> = {"조계현":{title:"부장",phone:"010-3964-2564"},"이세호":{title:"과장",phone:"010-8336-2564"},"기여운":{title:"과장",phone:"010-6718-3301"},"최연전":{title:"과장",phone:"010-7760-2560"}};
 
@@ -61,6 +68,42 @@ export default function CustomerDashboard() {
   const [helpPopup,setHelpPopup]=useState<string|null>(null);
   const [guideSection,setGuideSection]=useState("");
   const [sitesList,setSitesList]=useState<any[]>([]);
+  const [pushEnabled,setPushEnabled]=useState(false);
+  const [pushLoading,setPushLoading]=useState(false);
+
+  // 푸시 알림 구독 상태 확인
+  useEffect(()=>{
+    if(!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    navigator.serviceWorker.getRegistration("/sw-push.js").then(reg=>{
+      if(reg) reg.pushManager.getSubscription().then(sub=>{ if(sub) setPushEnabled(true); });
+    });
+  },[]);
+
+  const togglePush = async () => {
+    if (!contact) return;
+    setPushLoading(true);
+    try {
+      if (pushEnabled) {
+        // 구독 해제
+        const reg = await navigator.serviceWorker.getRegistration("/sw-push.js");
+        if (reg) { const sub = await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); }
+        await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactId: contact.id }) });
+        setPushEnabled(false);
+      } else {
+        // 구독
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") { alert("알림을 허용해주세요."); setPushLoading(false); return; }
+        const reg = await navigator.serviceWorker.register("/sw-push.js");
+        await navigator.serviceWorker.ready;
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidKey) { setPushLoading(false); return; }
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) });
+        await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactId: contact.id, subscription: sub.toJSON() }) });
+        setPushEnabled(true);
+      }
+    } catch (e) { console.error("Push toggle error:", e); }
+    setPushLoading(false);
+  };
 
   useEffect(()=>{(async()=>{const{data}=await supabase.from("new_sites").select("id,site_name,property_type,unit_count,rt_fee,business_address,staff_start_date,grand_open_date,created_at").order("created_at",{ascending:false}).limit(10);setSitesList(data||[]);})();},[]);
 
@@ -184,7 +227,8 @@ export default function CustomerDashboard() {
                 <h1 style={{fontSize:36,fontWeight:800,color:"#fff",marginBottom:8}}>{contact?.name} <span style={{fontSize:20,fontWeight:500,color:"rgba(255,255,255,0.5)"}}>{contact?.title}</span></h1>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <span style={{fontSize:12,padding:"4px 12px",background:"#D4A843",color:"#1a1a1a",borderRadius:6,fontWeight:800}}>VIP</span>
-                  <span style={{fontSize:15,color:"#D4A843",fontWeight:600}}>분양회 프리미엄 멤버십</span>
+                  <span style={{fontSize:15,color:"#D4A843",fontWeight:600,flex:1}}>분양회 프리미엄 멤버십</span>
+                  {"serviceWorker" in (typeof navigator!=="undefined"?navigator:{}) && <button onClick={togglePush} disabled={pushLoading} style={{fontSize:12,padding:"5px 14px",background:pushEnabled?"rgba(34,197,94,0.15)":"rgba(255,255,255,0.1)",color:pushEnabled?"#22c55e":"#999",border:`1px solid ${pushEnabled?"rgba(34,197,94,0.3)":"rgba(255,255,255,0.15)"}`,borderRadius:8,fontWeight:700,cursor:"pointer"}}>{pushLoading?"...":pushEnabled?"🔔 알림 ON":"🔕 알림 OFF"}</button>}
                 </div>
               </div>
             </div>
@@ -302,7 +346,9 @@ export default function CustomerDashboard() {
               <h2 style={{fontSize:24,fontWeight:800,color:"#fff",textAlign:"center"}}>{contact?.name} <span style={{fontSize:16,fontWeight:500,color:"rgba(255,255,255,0.5)"}}>{contact?.title}</span></h2>
             </div>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,padding:"10px 14px",background:"linear-gradient(90deg,#1a1a1a,#2d2318)",borderRadius:10}}><span style={{fontSize:10,padding:"2px 8px",background:"#D4A843",color:"#1a1a1a",borderRadius:4,fontWeight:800}}>VIP</span><span style={{fontSize:12,color:"#D4A843",fontWeight:600}}>분양회 프리미엄 멤버십</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,padding:"10px 14px",background:"linear-gradient(90deg,#1a1a1a,#2d2318)",borderRadius:10}}><span style={{fontSize:10,padding:"2px 8px",background:"#D4A843",color:"#1a1a1a",borderRadius:4,fontWeight:800}}>VIP</span><span style={{fontSize:12,color:"#D4A843",fontWeight:600,flex:1}}>분양회 프리미엄 멤버십</span>
+            {"serviceWorker" in (typeof navigator!=="undefined"?navigator:{}) && <button onClick={togglePush} disabled={pushLoading} style={{fontSize:10,padding:"4px 10px",background:pushEnabled?"rgba(34,197,94,0.15)":"rgba(255,255,255,0.1)",color:pushEnabled?"#22c55e":"#999",border:`1px solid ${pushEnabled?"rgba(34,197,94,0.3)":"rgba(255,255,255,0.15)"}`,borderRadius:8,fontWeight:700,cursor:"pointer"}}>{pushLoading?"...":pushEnabled?"🔔 알림 ON":"🔕 알림 OFF"}</button>}
+          </div>
           <p style={{fontSize:13,fontWeight:700,color:"#222",marginBottom:10}}>내 정보</p>
           <div style={{padding:"8px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between"}}><span style={{fontSize:13,color:"#666"}}>성명 / 직급</span><span style={{fontSize:13,fontWeight:600,color:"#333"}}>{contact?.name} {contact?.title}</span></div>
           <div style={{padding:"8px 0",borderBottom:"1px solid #f8f8f8",display:"flex",justifyContent:"space-between"}}><span style={{fontSize:13,color:"#666"}}>가입일</span><span style={{fontSize:13,fontWeight:600,color:"#333"}}>{fDate(contact?.contract_date||"")}</span></div>

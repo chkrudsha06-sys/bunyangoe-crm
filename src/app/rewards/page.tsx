@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { X, Search, Copy, Check, FileSpreadsheet } from "lucide-react";
+import { sendPushNotification, PUSH_TEMPLATES } from "@/lib/push-notify";
 import * as XLSX from "xlsx";
 
 // ── 타입 ──────────────────────────────────────────────────
@@ -208,6 +209,9 @@ export default function RewardsPage() {
       carried_over: 0,
     });
     if (error) { alert(`저장 실패: ${error.message}`); return; }
+    // 푸시 알림 발송
+    const tmpl = PUSH_TEMPLATES.rewardPaid(contact.name, amt, q);
+    sendPushNotification({ contactId: contact.id, contactName: contact.name, ...tmpl, url: "" });
     setPayInline(prev => { const n={...prev}; delete n[contact.id]; return n; });
     fetchAll();
   };
@@ -236,6 +240,9 @@ export default function RewardsPage() {
     if (!amt||!date) return alert("사용일과 사용금액을 입력해주세요.");
     const { error } = await supabase.from("mileage_usages").insert({ contact_id:contact.id, usage_date:date, usage_amount:amt });
     if (error) { alert(`저장 실패: ${error.message}`); return; }
+    // 푸시 알림 발송
+    const tmpl = PUSH_TEMPLATES.mileageUsed(contact.name, amt);
+    sendPushNotification({ contactId: contact.id, contactName: contact.name, ...tmpl, url: "" });
     setMileInline(prev => { const n={...prev}; delete n[contact.id]; return n; });
     fetchAll();
   };
