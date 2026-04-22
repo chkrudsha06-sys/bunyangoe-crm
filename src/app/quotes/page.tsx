@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { FileText, Trash2, FileDown, Edit3, Download, Clock, List, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { authFetch } from "@/lib/auth-fetch";
 
 interface AdItem {
   id: number; isManual: boolean; media: string; type: string;
@@ -136,7 +135,7 @@ export default function QuotePage() {
     if (!property) return alert("대상물건을 입력하세요.");
     setDownloading(true);
     try {
-      const res = await authFetch("/api/generate-quote", {
+      const res = await fetch("/api/generate-quote", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ property, quoteDate, clientAddr, clientName, clientBizNo, clientCeo, clientMgr, clientPhone, supplierMgr, supplierPhone, items }),
       });
