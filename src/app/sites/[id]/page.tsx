@@ -66,6 +66,7 @@ export default function SiteDetailPage() {
       {/* 상단 헤더 */}
       <div className="bg-gradient-to-r from-[#1E3A8A] to-[#3B5CB8] text-white">
         <div className="max-w-3xl mx-auto px-6 py-8">
+          <a href="/sites" className="inline-flex items-center gap-1 text-xs text-white/60 hover:text-white/90 mb-3 transition-colors">← 현장 목록으로</a>
           <div className="flex items-center gap-2 mb-2">
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/20 text-white text-[11px] font-bold rounded-full backdrop-blur-sm">
               ✨ 신규현장
