@@ -205,16 +205,7 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 [data-theme="dark"] tbody td { border-color: rgba(255,255,255,0.03) !important; }
 [data-theme="dark"] tbody tr:hover { background: rgba(255,255,255,0.03) !important; }
 
-/* select / input 다크 */
-[data-theme="dark"] select {
-  background-color: rgba(255,255,255,0.06) !important;
-  color: rgba(255,255,255,0.8) !important;
-  border-color: rgba(255,255,255,0.1) !important;
-}
-[data-theme="dark"] select option {
-  background: #1a2550;
-  color: #fff;
-}
+/* select / input 다크 — 아래 통합 룰 참조 */
 
 /* 버튼 */
 [data-theme="dark"] .bg-blue-600 { background: #4A7BF7 !important; box-shadow: 0 0 20px rgba(74,123,247,0.3); }
@@ -483,11 +474,7 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
   color: rgba(255,255,255,0.7) !important;
 }
 
-/* ═══ 다크모드 input/select 밝기 ═══ */
-[data-theme="dark"] select option {
-  background: #0F1A42;
-  color: #fff;
-}
+/* ═══ 다크모드 input/select — 아래 통합 룰 참조 ═══ */
 
 /* ═══ 다크모드 divide 색상 통일 ═══ */
 [data-theme="dark"] .divide-slate-200 > * + * {
@@ -594,21 +581,34 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 
 /* ═══ 다크모드 추가 보강 (2026.04.22) ═══ */
 
-/* input/select 다크모드 */
-[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
-  background: var(--surface-2) !important;
-  color: var(--text) !important;
-  border-color: var(--border) !important;
+/* ═══ 다크모드 input/select/option 통합 (최종) ═══ */
+[data-theme="dark"] input, [data-theme="dark"] textarea {
+  background: rgba(255,255,255,0.08) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255,255,255,0.12) !important;
+}
+[data-theme="dark"] select {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  -webkit-appearance: none;
+}
+[data-theme="dark"] select option {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  padding: 8px 12px;
+}
+[data-theme="dark"] select option:checked,
+[data-theme="dark"] select option:hover {
+  background: #334155 !important;
+  color: #fff !important;
 }
 [data-theme="dark"] input::placeholder, [data-theme="dark"] textarea::placeholder {
-  color: var(--text-subtle) !important;
+  color: rgba(255,255,255,0.3) !important;
 }
 [data-theme="dark"] input:focus, [data-theme="dark"] select:focus, [data-theme="dark"] textarea:focus {
-  border-color: var(--info) !important;
-}
-[data-theme="dark"] option {
-  background: var(--surface) !important;
-  color: var(--text) !important;
+  border-color: #3b82f6 !important;
+  outline: none;
 }
 
 /* 모달 배경 보강 */
