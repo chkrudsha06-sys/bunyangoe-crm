@@ -205,8 +205,9 @@ export default function LoginPage() {
     if (v) { v.muted = true; v.play().catch(() => {}); }
   }, []);
 
-  // BGM: 유저 클릭/키 감지 시 재생 시작
+  // BGM + 인트로: 유저 클릭 시 동시에 시작
   const [bgmStarted, setBgmStarted] = useState(false);
+  const [userClicked, setUserClicked] = useState(false);
   const [mousePos, setMousePos] = useState({ x: -200, y: -200 });
   useEffect(() => {
     const handleMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
@@ -214,27 +215,29 @@ export default function LoginPage() {
     return () => window.removeEventListener("mousemove", handleMove);
   }, []);
   useEffect(() => {
+    if (userClicked) return;
     let audio: HTMLAudioElement | null = null;
 
-    const startBGM = () => {
-      if (audio) return;
-      setBgmStarted(true); // 즉시 아이콘 제거
+    const startAll = () => {
+      if (userClicked) return;
+      setUserClicked(true);
+      setBgmStarted(true);
       audio = new Audio("/bgm.mp3");
       audio.volume = 0.3;
       audio.loop = true;
       audio.play().catch(() => {});
       const evts = ["click","mousedown","keydown","touchstart","pointerdown"];
-      evts.forEach(e => window.removeEventListener(e, startBGM));
+      evts.forEach(e => window.removeEventListener(e, startAll));
     };
 
     const evts = ["click","mousedown","keydown","touchstart","pointerdown"];
-    evts.forEach(e => window.addEventListener(e, startBGM));
+    evts.forEach(e => window.addEventListener(e, startAll));
 
     return () => {
-      evts.forEach(e => window.removeEventListener(e, startBGM));
+      evts.forEach(e => window.removeEventListener(e, startAll));
       if (audio) { audio.pause(); audio.src = ""; }
     };
-  }, []);
+  }, [userClicked]);
 
   // 슬라이드 자동 전환
   useEffect(() => {
@@ -295,8 +298,13 @@ export default function LoginPage() {
         }}/>
       )}
 
-      {/* 인트로 오버레이 */}
-      <IntroOverlay onDone={handleIntroDone}/>
+      {/* 클릭 전: 검정 화면 */}
+      {!userClicked && (
+        <div style={{ position: "fixed", inset: 0, background: "#000", zIndex: 40 }} />
+      )}
+
+      {/* 인트로 오버레이 (클릭 후에만 시작) */}
+      {userClicked && <IntroOverlay onDone={handleIntroDone}/>}
       {/* 인트로 완료 후에도 가운데 텍스트 고정 유지 */}
       {introDone && (
         <div style={{
@@ -403,23 +411,6 @@ export default function LoginPage() {
             }}/>
         ))}
       </div>
-
-      {/* BGM 안내 */}
-      {introDone && !bgmStarted && (
-        <div style={{
-          position: "absolute", bottom: "52px", left: "50%", transform: "translateX(-50%)",
-          zIndex: 10, display: "flex", alignItems: "center", gap: 8,
-          padding: "10px 24px", borderRadius: 50,
-          background: "rgba(255,255,255,0.08)", backdropFilter: "blur(8px)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          animation: "pulse 2s ease-in-out infinite",
-        }}>
-          <span style={{ fontSize: 14 }}>🔊</span>
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontWeight: 500, letterSpacing: "0.03em" }}>
-            화면을 클릭하면 음악이 재생됩니다
-          </span>
-        </div>
-      )}
 
       {/* 카피라이트 */}
       <div style={{ position: "absolute", bottom: "20px", left: "clamp(20px,5vw,52px)", zIndex: 10, fontSize: "clamp(9px,1vw,11px)", color: "rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
