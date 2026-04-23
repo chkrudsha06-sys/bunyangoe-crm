@@ -8,17 +8,13 @@ const supabase = createClient(
 
 const GOOGLE_AI_KEY = process.env.GOOGLE_AI_KEY || process.env.ANTHROPIC_API_KEY;
 
-// 이번 주 월~일 범위
 function getThisWeek() {
   const now = new Date();
   const day = now.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   const mon = new Date(now); mon.setDate(now.getDate() + diff);
   const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-  return {
-    start: mon.toISOString().split("T")[0],
-    end: sun.toISOString().split("T")[0],
-  };
+  return { start: mon.toISOString().split("T")[0], end: sun.toISOString().split("T")[0] };
 }
 
 function getThisMonth() {
@@ -30,167 +26,119 @@ function getThisMonth() {
   };
 }
 
-async function fetchCRMContext() {
+// 질문 키워드에 따라 필요한 데이터만 조회 (토큰 절약)
+async function fetchCRMContext(question: string) {
+  const q = question.toLowerCase();
   const week = getThisWeek();
   const month = getThisMonth();
-  const context: Record<string, any> = {};
+  const parts: string[] = [];
 
-  // 1. 고객 데이터 요약
+  // 1. 항상 포함: 기본 요약
   const { data: contacts } = await supabase.from("contacts")
-    .select("id,name,title,phone,assigned_to,consultant,customer_type,prospect_type,meeting_result,meeting_date,meeting_location,contract_date,reservation_date,bunyanghoe_number,tm_sensitivity")
-    .order("id", { ascending: false }).limit(500);
-  context.고객DB = {
-    총고객수: contacts?.length || 0,
-    계약완료: contacts?.filter((c: any) => c.meeting_result === "계약완료").length || 0,
-    예약완료: contacts?.filter((c: any) => c.meeting_result === "예약완료").length || 0,
-    담당자별: {} as Record<string, number>,
-    최근고객: contacts?.slice(0, 30).map((c: any) => ({
-      이름: c.name, 직급: c.title, 담당자: c.assigned_to, 컨설턴트: c.consultant,
-      가망구분: c.prospect_type, 미팅결과: c.meeting_result, 미팅일정: c.meeting_date,
-      미팅지역: c.meeting_location, 계약일: c.contract_date, 넘버링: c.bunyanghoe_number,
-      TM감도: c.tm_sensitivity,
-    })),
-  };
+    .select("name,assigned_to,meeting_result,meeting_date,meeting_location,bunyanghoe_number,prospect_type,title,consultant").limit(500);
+  const total = contacts?.length || 0;
+  const byResult: Record<string, number> = {};
+  const byAssigned: Record<string, number> = {};
   contacts?.forEach((c: any) => {
-    if (c.assigned_to) context.고객DB.담당자별[c.assigned_to] = (context.고객DB.담당자별[c.assigned_to] || 0) + 1;
+    if (c.meeting_result) byResult[c.meeting_result] = (byResult[c.meeting_result] || 0) + 1;
+    if (c.assigned_to) byAssigned[c.assigned_to] = (byAssigned[c.assigned_to] || 0) + 1;
   });
+  parts.push(`[고객현황] 총${total}명, 결과별: ${JSON.stringify(byResult)}, 담당자별: ${JSON.stringify(byAssigned)}`);
 
-  // 2. 이번주 일정 (캘린더)
-  const { data: events } = await supabase.from("calendar_events")
-    .select("*").gte("date", week.start).lte("date", week.end).order("date");
-  context.이번주일정 = events?.map((e: any) => ({
-    날짜: e.date, 유형: e.type, 제목: e.title, 담당자: e.author, 장소: e.location,
-  }));
+  // 2. 일정 관련 질문
+  if (q.includes("일정") || q.includes("스케줄") || q.includes("미팅") || q.includes("이번주") || q.includes("이번달") || q.includes("캘린더") || q.includes("완판")) {
+    const { data: weekEvents } = await supabase.from("calendar_events")
+      .select("date,type,title,author,location").gte("date", week.start).lte("date", week.end).order("date");
+    parts.push(`[이번주일정 ${week.start}~${week.end}] ${JSON.stringify(weekEvents?.map(e => `${e.date} ${e.type} ${e.title} (${e.author}) ${e.location||""}`) || "없음")}`);
 
-  // 3. 이번달 일정
-  const { data: monthEvents } = await supabase.from("calendar_events")
-    .select("*").gte("date", month.start).lte("date", month.end).order("date");
-  context.이번달일정 = monthEvents?.map((e: any) => ({
-    날짜: e.date, 유형: e.type, 제목: e.title, 담당자: e.author, 장소: e.location,
-  }));
-
-  // 4. 매출 데이터 (이번달)
-  const { data: sales } = await supabase.from("ad_executions")
-    .select("id,member_name,bunyanghoe_number,execution_amount,vat_amount,channel,team_member,payment_date,contract_route,consultant,refund_amount,hightarget_mileage,hightarget_reward,hogaengnono_reward,lms_reward")
-    .gte("payment_date", month.start).lte("payment_date", month.end)
-    .order("payment_date", { ascending: false });
-  context.이번달매출 = {
-    총건수: sales?.length || 0,
-    총금액: sales?.reduce((s: number, x: any) => s + ((x.vat_amount && x.vat_amount !== x.execution_amount) ? x.vat_amount : x.execution_amount || 0), 0),
-    채널별: {} as Record<string, { 건수: number; 금액: number }>,
-    담당자별: {} as Record<string, { 건수: number; 금액: number }>,
-    상세: sales?.slice(0, 50).map((s: any) => ({
-      고객명: s.member_name, 넘버링: s.bunyanghoe_number, 집행금액: s.execution_amount,
-      VAT포함: s.vat_amount, 채널: s.channel, 담당자: s.team_member,
-      결제일: s.payment_date, 컨설턴트: s.consultant, 유입구분: s.contract_route,
-    })),
-  };
-  sales?.forEach((s: any) => {
-    const amt = (s.vat_amount && s.vat_amount !== s.execution_amount) ? s.vat_amount : s.execution_amount || 0;
-    if (s.channel) {
-      if (!context.이번달매출.채널별[s.channel]) context.이번달매출.채널별[s.channel] = { 건수: 0, 금액: 0 };
-      context.이번달매출.채널별[s.channel].건수++;
-      context.이번달매출.채널별[s.channel].금액 += amt;
+    if (q.includes("이번달")) {
+      const { data: monthEvents } = await supabase.from("calendar_events")
+        .select("date,type,title,author,location").gte("date", month.start).lte("date", month.end).order("date");
+      parts.push(`[이번달일정] ${JSON.stringify(monthEvents?.map(e => `${e.date} ${e.type} ${e.title} (${e.author})`) || "없음")}`);
     }
-    if (s.team_member) {
-      if (!context.이번달매출.담당자별[s.team_member]) context.이번달매출.담당자별[s.team_member] = { 건수: 0, 금액: 0 };
-      context.이번달매출.담당자별[s.team_member].건수++;
-      context.이번달매출.담당자별[s.team_member].금액 += amt;
-    }
-  });
+  }
 
-  // 5. 전체 매출 (누적)
-  const { data: allSales } = await supabase.from("ad_executions")
-    .select("execution_amount,vat_amount,channel,team_member,payment_date")
-    .order("payment_date", { ascending: false }).limit(1000);
-  context.누적매출요약 = {
-    총건수: allSales?.length || 0,
-    총금액: allSales?.reduce((s: number, x: any) => s + ((x.vat_amount && x.vat_amount !== x.execution_amount) ? x.vat_amount : x.execution_amount || 0), 0),
-  };
+  // 3. 매출 관련 질문
+  if (q.includes("매출") || q.includes("집계") || q.includes("월회비") || q.includes("입회비") || q.includes("실적") || q.includes("광고") || q.includes("리워드") || q.includes("하이타") || q.includes("호갱")) {
+    const { data: sales } = await supabase.from("ad_executions")
+      .select("member_name,execution_amount,vat_amount,channel,team_member,payment_date,consultant,contract_route")
+      .gte("payment_date", month.start).lte("payment_date", month.end);
+    const ch: Record<string, { n: number; a: number }> = {};
+    const tm: Record<string, { n: number; a: number }> = {};
+    let totalAmt = 0;
+    sales?.forEach((s: any) => {
+      const amt = (s.vat_amount && s.vat_amount !== s.execution_amount) ? s.vat_amount : s.execution_amount || 0;
+      totalAmt += amt;
+      const c = s.channel || "기타";
+      if (!ch[c]) ch[c] = { n: 0, a: 0 }; ch[c].n++; ch[c].a += amt;
+      const t = s.team_member || "미지정";
+      if (!tm[t]) tm[t] = { n: 0, a: 0 }; tm[t].n++; tm[t].a += amt;
+    });
+    parts.push(`[이번달매출 ${month.start}~${month.end}] 총${sales?.length||0}건 ${totalAmt.toLocaleString()}원`);
+    parts.push(`채널별: ${Object.entries(ch).map(([k, v]) => `${k}:${v.n}건/${v.a.toLocaleString()}원`).join(", ")}`);
+    parts.push(`담당자별: ${Object.entries(tm).map(([k, v]) => `${k}:${v.n}건/${v.a.toLocaleString()}원`).join(", ")}`);
 
-  // 6. 업무전달
-  const { data: tasks } = await supabase.from("tasks")
-    .select("*").order("created_at", { ascending: false }).limit(20);
-  context.최근업무 = tasks?.map((t: any) => ({
-    요청자: t.requester, 수신자: t.assignee, 카테고리: t.category,
-    내용: t.content?.substring(0, 100), 상태: t.status, 생성일: t.created_at?.split("T")[0],
-  }));
+    // 개별 매출 상세 (최근 15건만)
+    parts.push(`[최근매출상세] ${JSON.stringify(sales?.slice(0, 15).map(s => `${(s as any).payment_date} ${(s as any).member_name} ${(s as any).channel} ${((s as any).vat_amount||(s as any).execution_amount||0).toLocaleString()}원 (${(s as any).team_member})`) || "없음")}`);
+  }
+
+  // 4. 고객 관련 상세 질문
+  if (q.includes("고객") || q.includes("계약") || q.includes("예약") || q.includes("입회") || q.includes("분양회") || q.includes("넘버") || q.includes("B-")) {
+    const vip = contacts?.filter((c: any) => ["계약완료", "예약완료"].includes(c.meeting_result));
+    parts.push(`[분양회입회자] 총${vip?.length||0}명 (계약${vip?.filter((c:any)=>c.meeting_result==="계약완료").length||0}, 예약${vip?.filter((c:any)=>c.meeting_result==="예약완료").length||0})`);
+    parts.push(`목록: ${JSON.stringify(vip?.slice(0, 30).map(c => `${c.bunyanghoe_number||"-"} ${c.name} ${c.title||""} (${c.assigned_to})`) || "없음")}`);
+  }
+
+  // 5. 특정 이름 검색
+  const nameMatch = contacts?.filter((c: any) => q.includes(c.name?.substring(0, 2)));
+  if (nameMatch && nameMatch.length > 0 && nameMatch.length < 10) {
+    parts.push(`[이름매칭고객] ${JSON.stringify(nameMatch.map(c => ({ 이름: c.name, 직급: c.title, 담당: c.assigned_to, 컨설턴트: c.consultant, 가망: c.prospect_type, 결과: c.meeting_result, 미팅일: c.meeting_date, 미팅지역: c.meeting_location, 넘버: c.bunyanghoe_number })))}`);
+  }
+
+  // 6. 업무 관련
+  if (q.includes("업무") || q.includes("요청") || q.includes("태스크") || q.includes("할일")) {
+    const { data: tasks } = await supabase.from("tasks")
+      .select("requester,assignee,category,content,status,created_at").order("created_at", { ascending: false }).limit(10);
+    parts.push(`[최근업무] ${JSON.stringify(tasks?.map(t => `${(t as any).created_at?.split("T")[0]} ${(t as any).requester}→${(t as any).assignee} [${(t as any).category}] ${(t as any).status} ${(t as any).content?.substring(0, 50)}`) || "없음")}`);
+  }
 
   // 7. 완판트럭
-  const { data: trucks } = await supabase.from("wanpan_trucks")
-    .select("*").order("dispatch_date", { ascending: false }).limit(20);
-  context.완판트럭 = trucks?.map((t: any) => ({
-    출동일: t.dispatch_date, 현장: t.site_name, 지역: t.region,
-    담당자: t.members?.join(", "), 고객수: t.customers?.length,
-  }));
+  if (q.includes("완판") || q.includes("트럭") || q.includes("출동")) {
+    const { data: trucks } = await supabase.from("wanpan_trucks")
+      .select("dispatch_date,site_name,region,members,customers").order("dispatch_date", { ascending: false }).limit(10);
+    parts.push(`[완판트럭] ${JSON.stringify(trucks?.map(t => `${(t as any).dispatch_date} ${(t as any).site_name} ${(t as any).region} 담당:${(t as any).members?.join(",")} 고객${(t as any).customers?.length||0}명`) || "없음")}`);
+  }
 
-  // 8. 분양회 입회자 (계약완료/예약완료)
-  const vipContacts = contacts?.filter((c: any) => ["계약완료", "예약완료"].includes(c.meeting_result));
-  context.분양회입회자 = {
-    총인원: vipContacts?.length || 0,
-    계약완료: vipContacts?.filter((c: any) => c.meeting_result === "계약완료").length || 0,
-    예약완료: vipContacts?.filter((c: any) => c.meeting_result === "예약완료").length || 0,
-    목록: vipContacts?.map((c: any) => ({
-      이름: c.name, 직급: c.title, 넘버링: c.bunyanghoe_number,
-      담당자: c.assigned_to, 결과: c.meeting_result, 계약일: c.contract_date,
-    })),
-  };
-
-  return context;
+  return parts.join("\n");
 }
 
 export async function POST(req: Request) {
   try {
     const { message, history } = await req.json();
-    if (!message) {
-      return NextResponse.json({ error: "메시지를 입력해주세요." }, { status: 400 });
-    }
+    if (!message) return NextResponse.json({ error: "메시지를 입력해주세요." }, { status: 400 });
+    if (!GOOGLE_AI_KEY) return NextResponse.json({ error: "AI API 키가 설정되지 않았습니다." }, { status: 500 });
 
-    if (!GOOGLE_AI_KEY) {
-      return NextResponse.json({ error: "AI 기능이 설정되지 않았습니다. 관리자에게 문의하세요." }, { status: 500 });
-    }
-
-    // CRM 데이터 조회
-    const crmData = await fetchCRMContext();
+    const crmData = await fetchCRMContext(message);
     const today = new Date().toISOString().split("T")[0];
     const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
-    const todayDay = dayNames[new Date().getDay()];
 
-    const systemPrompt = `당신은 광고인㈜ 대외협력팀의 CRM AI 어시스턴트입니다.
-이름: 분양의신 AI
+    const systemPrompt = `당신은 광고인㈜ 대외협력팀 CRM AI 어시스턴트 "분양의신 AI"입니다.
 
-[기본 규칙]
-- 한국어로 답변
-- CRM 데이터를 기반으로 정확하게 답변
-- 데이터에 없는 것은 "해당 데이터를 찾을 수 없습니다"라고 솔직히 말하기
-- 금액은 원 단위로 표시 (예: 5,500,000원)
-- 날짜는 M월 D일 (요일) 형식 (예: 4월 23일 (수))
-- 간결하되 필요한 정보는 빠짐없이 전달
-- 이모지 적절히 사용
+[규칙] 한국어 답변, CRM 데이터 기반 정확 답변, 없는 데이터는 솔직히 "없음" 표시, 금액은 원 단위, 날짜는 M월 D일(요일)
 
-[오늘 날짜]
-${today} (${todayDay}요일)
+[오늘] ${today} (${dayNames[new Date().getDay()]}요일)
 
-[팀 구성]
-- 관리자: 김정후 본부장, 김창완 팀장, 최웅 파트장
-- 실행파트(대외협력팀): 조계현 메인, 이세호 어쏘, 기여운 어쏘, 최연전 CX
-- 운영파트: 김재영 어시, 최은정 어시
+[팀] 관리자: 김정후본부장/김창완팀장/최웅파트장 | 실행파트: 조계현메인/이세호어쏘/기여운어쏘/최연전CX | 운영파트: 김재영어시/최은정어시
 
-[별명/줄임말 매핑]
-- "계현", "조 메인" → 조계현
-- "세호" → 이세호
-- "여운" → 기여운
-- "연전" → 최연전
-- "재영" → 김재영
-- "은정" → 최은정
+[별명] 계현=조계현, 세호=이세호, 여운=기여운, 연전=최연전, 재영=김재영, 은정=최은정
 
-[CRM 데이터]
-${JSON.stringify(crmData, null, 0)}`;
+[CRM데이터]
+${crmData}`;
 
-    // 대화 히스토리 구성 (Gemini 형식: role = "user" | "model")
+    // Gemini 대화 구성
     const geminiContents = [];
     if (history && Array.isArray(history)) {
-      for (const h of history.slice(-10)) {
+      for (const h of history.slice(-6)) {
         geminiContents.push({
           role: h.role === "assistant" ? "model" : "user",
           parts: [{ text: h.content }],
@@ -199,19 +147,15 @@ ${JSON.stringify(crmData, null, 0)}`;
     }
     geminiContents.push({ role: "user", parts: [{ text: message }] });
 
-    // Google Gemini API 호출
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_AI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GOOGLE_AI_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents: geminiContents,
-          generationConfig: {
-            maxOutputTokens: 2000,
-            temperature: 0.7,
-          },
+          generationConfig: { maxOutputTokens: 1500, temperature: 0.7 },
         }),
       }
     );
@@ -219,7 +163,7 @@ ${JSON.stringify(crmData, null, 0)}`;
     if (!res.ok) {
       const errText = await res.text();
       console.error("Gemini API error:", res.status, errText);
-      return NextResponse.json({ error: `AI 응답 실패 (${res.status}): ${errText.substring(0, 200)}` }, { status: 500 });
+      return NextResponse.json({ error: `AI 오류 (${res.status}): ${errText.substring(0, 150)}` }, { status: 500 });
     }
 
     const data = await res.json();
