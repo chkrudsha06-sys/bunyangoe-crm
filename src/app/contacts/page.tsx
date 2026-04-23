@@ -224,14 +224,23 @@ export default function ContactsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("삭제하시겠습니까?")) return;
-    const { error } = await supabase.from("contacts").delete().eq("id", id);
-    if (error) {
-      alert(`삭제 실패: ${error.message}`);
-      console.error("Delete error:", error);
-      return;
+    if (!confirm("삭제하시겠습니까?\n(연결된 리워드, 마일리지, 메모 데이터도 함께 삭제됩니다)")) return;
+    try {
+      // 관련 데이터 먼저 삭제 (FK 제약 해소)
+      await supabase.from("rewards").delete().eq("contact_id", id);
+      await supabase.from("mileage_usages").delete().eq("contact_id", id);
+      await supabase.from("contact_notes").delete().eq("contact_id", id);
+      await supabase.from("notifications").delete().eq("contact_id", id);
+      // 본 레코드 삭제
+      const { error } = await supabase.from("contacts").delete().eq("id", id);
+      if (error) {
+        alert(`삭제 실패: ${error.message}`);
+        return;
+      }
+      fetchContacts();
+    } catch (e: any) {
+      alert(`삭제 실패: ${e.message || "알 수 없는 오류"}`);
     }
-    fetchContacts();
   };
 
   const f = (key: string, val: string) => setForm((p: any) => ({ ...p, [key]: val }));
