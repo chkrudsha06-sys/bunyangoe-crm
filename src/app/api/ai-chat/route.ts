@@ -6,20 +6,20 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || process.env.GOOGLE_AI_KEY || process.env.ANTHROPIC_API_KEY;
+const API_KEY = process.env.GROQ_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.GOOGLE_AI_KEY || process.env.ANTHROPIC_API_KEY;
 
-// DeepSeek API 호출 (한국어 우수, OpenAI 호환)
+// Groq API + Qwen3 (한국어 우수)
 async function callAI(systemPrompt: string, messages: { role: string; content: string }[]) {
-  if (!DEEPSEEK_KEY) return { reply: null, error: "API 키 없음" };
+  if (!API_KEY) return { reply: null, error: "API 키 없음" };
   try {
-    const res = await fetch("https://api.deepseek.com/chat/completions", {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${DEEPSEEK_KEY}`,
+        "Authorization": `Bearer ${API_KEY}`,
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "qwen-qwq-32b",
         messages: [{ role: "system", content: systemPrompt }, ...messages.filter(m => m.role !== "system")],
         max_tokens: 1500,
         temperature: 0.3,
@@ -27,13 +27,15 @@ async function callAI(systemPrompt: string, messages: { role: string; content: s
     });
     if (!res.ok) {
       const errText = await res.text();
-      return { reply: null, error: `DeepSeek ${res.status}: ${errText.substring(0, 200)}` };
+      return { reply: null, error: `AI ${res.status}: ${errText.substring(0, 200)}` };
     }
     const data = await res.json();
     const text = data.choices?.[0]?.message?.content;
-    return { reply: text || null, error: text ? null : "빈 응답" };
+    // Qwen QWQ는 <think> 태그로 사고 과정을 출력할 수 있음 → 제거
+    const cleaned = text?.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    return { reply: cleaned || null, error: cleaned ? null : "빈 응답" };
   } catch (e: any) {
-    return { reply: null, error: `DeepSeek 예외: ${e.message}` };
+    return { reply: null, error: `AI 예외: ${e.message}` };
   }
 }
 
@@ -204,7 +206,7 @@ export async function POST(req: Request) {
   try {
     const { message, history } = await req.json();
     if (!message) return NextResponse.json({ error: "메시지를 입력해주세요." }, { status: 400 });
-    if (!DEEPSEEK_KEY) return NextResponse.json({ error: "AI API 키가 설정되지 않았습니다." }, { status: 500 });
+    if (!API_KEY) return NextResponse.json({ error: "AI API 키가 설정되지 않았습니다." }, { status: 500 });
 
     const crmData = await buildContext(message);
     const today = new Date();
