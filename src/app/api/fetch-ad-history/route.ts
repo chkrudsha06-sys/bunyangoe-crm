@@ -45,26 +45,49 @@ function parseSiteName(name: string): { base: string; campaign: string } {
   return { base: name, campaign: "1" };
 }
 
-// "12/2-1/1" (2026탭) → { display: "25.12.02 ~ 26.01.01", sortKey: "2025-12-02" }
+// 광고기간 연도 계산 (시작-종료 관계 기반)
+// 탭 "2025" = 캠페인 종료가 2025년 초반에 해당하는 데이터
+// "12/20-1/5" (2025탭) → 24.12.20 ~ 25.01.05
+// "1/3-1/22" (2025탭) → 25.01.03 ~ 25.01.22
+// "8/19-9/11" (2025탭) → 24.08.19 ~ 24.09.11
 function formatPeriod(period: string, tabYear: string): { display: string; sortKey: string } {
   if (!period) return { display: "-", sortKey: "9999-99-99" };
   const yr = parseInt(tabYear);
   const parts = period.split("-");
   if (parts.length !== 2) return { display: period, sortKey: "9999-99-99" };
 
-  const parseDate = (part: string) => {
-    const [m, d] = part.trim().split("/").map(Number);
-    if (!m || !d) return { display: part.trim(), sort: "9999-99-99" };
-    const y = m >= 7 ? yr - 1 : yr;
-    return {
-      display: `${String(y).slice(2)}.${String(m).padStart(2, "0")}.${String(d).padStart(2, "0")}`,
-      sort: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
-    };
-  };
+  const [sm, sd] = parts[0].trim().split("/").map(Number);
+  const [em, ed] = parts[1].trim().split("/").map(Number);
+  if (!sm || !sd || !em || !ed) return { display: period, sortKey: "9999-99-99" };
 
-  const start = parseDate(parts[0]);
-  const end = parseDate(parts[1]);
-  return { display: `${start.display} ~ ${end.display}`, sortKey: start.sort };
+  let startYear: number, endYear: number;
+
+  if (sm > em) {
+    // 년도 넘김 (12→1 등): 시작은 전년도, 종료는 탭 연도
+    startYear = yr - 1;
+    endYear = yr;
+  } else {
+    // 같은 해 내 (8→9, 1→3 등)
+    if (sm >= 7) {
+      // 하반기: 전년도 (2025탭의 8/19-9/11 = 2024년)
+      startYear = yr - 1;
+      endYear = yr - 1;
+    } else {
+      // 상반기: 탭 연도 (2025탭의 1/3-1/22 = 2025년)
+      startYear = yr;
+      endYear = yr;
+    }
+  }
+
+  const fmt = (y: number, m: number, d: number) =>
+    `${String(y).slice(2)}.${String(m).padStart(2, "0")}.${String(d).padStart(2, "0")}`;
+  const sortFmt = (y: number, m: number, d: number) =>
+    `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+  return {
+    display: `${fmt(startYear, sm, sd)} ~ ${fmt(endYear, em, ed)}`,
+    sortKey: sortFmt(startYear, sm, sd),
+  };
 }
 
 export async function GET(req: Request) {
