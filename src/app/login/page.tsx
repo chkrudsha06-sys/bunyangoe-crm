@@ -206,6 +206,13 @@ export default function LoginPage() {
 
   // BGM: 유저 클릭/키 감지 시 재생 시작
   const [bgmStarted, setBgmStarted] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: -200, y: -200 });
+  useEffect(() => {
+    if (bgmStarted) return;
+    const handleMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
+    window.addEventListener("mousemove", handleMove);
+    return () => window.removeEventListener("mousemove", handleMove);
+  }, [bgmStarted]);
   useEffect(() => {
     let audio: HTMLAudioElement | null = null;
 
@@ -250,7 +257,29 @@ export default function LoginPage() {
   const cur = SLIDES[slide];
 
   return (
-    <div style={{ position: "fixed", inset: 0, overflow: "hidden", fontFamily: "'Pretendard','Noto Sans KR',sans-serif" }}>
+    <div style={{ position: "fixed", inset: 0, overflow: "hidden", fontFamily: "'Pretendard','Noto Sans KR',sans-serif", cursor: bgmStarted ? "auto" : "none" }}>
+
+      {/* 마우스 따라다니는 클릭 유도 커서 */}
+      {!bgmStarted && (
+        <div style={{
+          position: "fixed", left: mousePos.x, top: mousePos.y,
+          transform: "translate(-50%, -50%)",
+          width: 80, height: 80, borderRadius: "50%",
+          background: "rgba(10,15,40,0.85)",
+          border: "1.5px solid rgba(255,255,255,0.15)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          pointerEvents: "none", zIndex: 9999,
+          transition: "left 0.08s ease-out, top 0.08s ease-out",
+          boxShadow: "0 0 30px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,255,255,0.03)",
+        }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.9, marginBottom: 2 }}>
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          </svg>
+          <span style={{ color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: 800, letterSpacing: "0.12em" }}>CLICK</span>
+        </div>
+      )}
 
       {/* 인트로 오버레이 */}
       <IntroOverlay onDone={() => setIntroDone(true)}/>
