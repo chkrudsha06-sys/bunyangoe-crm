@@ -1,4 +1,5 @@
 "use client";
+import EmptyState from "@/components/EmptyState";
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
@@ -311,8 +312,7 @@ export default function ContactsPage() {
           </div>
         ) : contacts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-            <p className="text-sm mb-2">등록된 고객이 없습니다</p>
-            <button onClick={openAdd} className="text-xs text-blue-600 underline">첫 번째 고객 등록하기</button>
+            <EmptyState icon="👥" title="등록된 고객이 없습니다" description="첫 번째 고객을 등록해보세요" actionLabel="고객 등록하기" onAction={openAdd}/>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-auto" style={{maxHeight:"calc(100vh - 200px)"}}>

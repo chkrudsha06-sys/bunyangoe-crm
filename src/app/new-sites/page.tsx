@@ -1,4 +1,5 @@
 "use client";
+import EmptyState from "@/components/EmptyState";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
@@ -101,7 +102,7 @@ export default function NewSitesPage() {
       {/* 테이블 */}
       <div className="flex-1 overflow-auto">
         {loading?<div className="flex items-center justify-center py-20"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"/></div>
-        :sites.length===0?<div className="text-center py-20 text-slate-300"><Building2 size={48} className="mx-auto mb-3 opacity-40"/><p className="text-sm font-semibold">등록된 현장이 없습니다</p></div>
+        :sites.length===0?<EmptyState icon="🏗️" title="등록된 현장이 없습니다" description="신규현장을 등록해주세요"/>
         :(
           <div className="overflow-x-auto" style={{maxHeight:"calc(100vh - 100px)"}}>
             <table className="w-full text-sm">

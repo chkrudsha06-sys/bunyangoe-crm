@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import EmptyState from "@/components/EmptyState";
 import { supabase } from "@/lib/supabase";
 import { Award, Phone, Calendar, Search, CreditCard, Copy, Check, Trash2 } from "lucide-react";
 import BankAccountDialog from "@/components/BankAccountDialog";
@@ -139,7 +140,7 @@ function VipTable({ title, color, rows, onSaved, fmtBun }: {
       </div>
 
       {rows.length === 0 ? (
-        <div className="py-8 text-center text-slate-300 text-sm">데이터가 없습니다</div>
+        <EmptyState icon="⭐" title="입회자가 없습니다" description="계약완료 또는 예약완료 고객이 표시됩니다"/>
       ) : (
         <div className="overflow-auto max-h-[480px]">
           <table className="w-full text-sm table-fixed">

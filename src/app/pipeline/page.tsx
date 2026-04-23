@@ -1,4 +1,5 @@
 "use client";
+import EmptyState from "@/components/EmptyState";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";

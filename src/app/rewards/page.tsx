@@ -645,7 +645,7 @@ export default function RewardsPage() {
                   );
                 })}
                 {filteredContacts.length===0 && (
-                  <tr><td colSpan={20} className="text-center py-12 text-slate-300 text-sm">분양회 회원이 없습니다</td></tr>
+                  <tr><td colSpan={20} className="text-center py-12" style={{color:"var(--text-muted)"}}><div className="text-3xl mb-2 opacity-40">💎</div><p className="text-sm font-bold">분양회 회원이 없습니다</p><p className="text-xs mt-1" style={{color:"var(--text-subtle)"}}>분양회 입회자 등록 후 표시됩니다</p></td></tr>
                 )}
               </tbody>
             </table>

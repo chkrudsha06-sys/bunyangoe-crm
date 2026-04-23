@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import EmptyState from "@/components/EmptyState";
 import { supabase } from "@/lib/supabase";
 import { Shield, Phone, Calendar, Search, Copy, Check, Edit3 } from "lucide-react";
 import BankAccountDialog from "@/components/BankAccountDialog";
@@ -330,7 +331,7 @@ export default function MemberManagePage() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">
             <Shield size={40} className="mb-3 opacity-30"/>
-            <p className="text-sm">회원 데이터가 없습니다</p>
+            <EmptyState icon="🛡️" title="회원 데이터가 없습니다" description="분양회 입회자에서 회원을 등록해주세요"/>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto" style={{maxHeight:"calc(100vh - 200px)"}}>

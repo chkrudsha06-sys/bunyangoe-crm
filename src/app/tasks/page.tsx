@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import EmptyState from "@/components/EmptyState";
 import { supabase } from "@/lib/supabase";
 import { Send, Paperclip, MessageCircle, Check, Clock, AlertCircle, Pause, X, Download, Trash2 } from "lucide-react";
 
@@ -202,7 +203,7 @@ export default function TasksPage() {
         </div>
 
         <div className="space-y-2">
-          {filtered.length===0?<div className="text-center py-16 text-slate-300 text-sm">업무가 없습니다</div>:
+          {filtered.length===0?<EmptyState icon="📬" title="업무가 없습니다" description="새 업무를 요청해보세요"/>:
           filtered.map(t=>{const p=getPri(t.priority);const s=getSt(t.status);const Icon=s.icon;const cmts=taskComments(t.id);
             return(<div key={t.id} onClick={()=>setSelectedTask(t)} className="group bg-white rounded-xl border border-slate-200 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all">
               <div className="flex items-start justify-between">

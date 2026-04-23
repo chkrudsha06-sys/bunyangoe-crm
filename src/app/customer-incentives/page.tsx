@@ -1,4 +1,5 @@
 "use client";
+import EmptyState from "@/components/EmptyState";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { Award, CheckCircle, Clock, FileSpreadsheet, X, Copy, Check } from "lucide-react";

@@ -147,7 +147,7 @@ export default function CalendarPage() {
             const todayEv = events.filter(e => e.date === todayStr);
             const total = todayWp.length + todayMt.length + todayEv.length;
             if (total === 0) return (
-              <p className="text-sm text-slate-300 text-center py-6">오늘 등록된 일정이 없습니다</p>
+              <div className="text-center py-6"><div className="text-2xl mb-1 opacity-40">📅</div><p className="text-xs font-bold" style={{color:"var(--text-muted)"}}>등록된 일정이 없습니다</p></div>
             );
             return (
               <div className="space-y-2 max-h-[140px] overflow-y-auto">

@@ -1,4 +1,5 @@
 "use client";
+import EmptyState from "@/components/EmptyState";
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import * as XLSX from "xlsx";
@@ -671,7 +672,7 @@ export default function SalesPage() {
         ) : executions.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">
             <TrendingUp size={40} className="mb-3 opacity-30"/>
-            <p className="text-sm">집행 내역이 없습니다</p>
+            <EmptyState icon="💳" title="집행 내역이 없습니다" description="매출을 등록해주세요"/>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto" style={{maxHeight:"calc(100vh - 380px)"}}>

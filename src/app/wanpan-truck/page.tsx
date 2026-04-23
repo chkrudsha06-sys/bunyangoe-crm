@@ -1,4 +1,5 @@
 "use client";
+import EmptyState from "@/components/EmptyState";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
@@ -342,8 +343,7 @@ export default function WanpanTruckPage() {
         ) : trucks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">
             <Truck size={40} className="mb-3 opacity-30" />
-            <p className="text-sm">완판트럭 데이터가 없습니다</p>
-            <button onClick={openAdd} className="mt-3 text-xs text-blue-600 underline">첫 번째 회차 등록하기</button>
+            <EmptyState icon="🚚" title="완판트럭 데이터가 없습니다" description="첫 번째 회차를 등록해보세요" actionLabel="회차 등록하기" onAction={openAdd}/>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto" style={{maxHeight:"calc(100vh - 180px)"}}>
