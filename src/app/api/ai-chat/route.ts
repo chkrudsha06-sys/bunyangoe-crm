@@ -107,12 +107,27 @@ async function buildContext(question: string) {
   }
 
   // ── 일정 (항상 이번주 포함) ──
+  // 캘린더 이벤트
   const { data: weekEvents } = await supabase.from("calendar_events")
-    .select("date,type,title,author,location").gte("date", week.start).lte("date", week.end).order("date");
-  if (weekEvents && weekEvents.length > 0) {
+    .select("date,event_type,title,content,author").gte("date", week.start).lte("date", week.end).order("date");
+  // 완판트럭 (이번주)
+  const { data: weekTrucks } = await supabase.from("wanpan_trucks")
+    .select("dispatch_date,location,site_name,agency,staff_members,consultant_members,team_size")
+    .gte("dispatch_date", week.start).lte("dispatch_date", week.end).order("dispatch_date");
+  // 미팅 예정 (이번주, contacts)
+  const weekMeetings = c.filter((x: any) => x.meeting_date && x.meeting_date >= week.start && x.meeting_date <= week.end);
+
+  const hasWeekData = (weekEvents && weekEvents.length > 0) || (weekTrucks && weekTrucks.length > 0) || weekMeetings.length > 0;
+  if (hasWeekData) {
     lines.push(`\n## 이번주 일정 (${fmtDate(week.start)} ~ ${fmtDate(week.end)})`);
-    weekEvents.forEach((e: any) => {
-      lines.push(`- ${fmtDate(e.date)} | ${e.type} | ${e.title || ""} | 담당: ${e.author || "-"} | 장소: ${e.location || "-"}`);
+    weekEvents?.forEach((e: any) => {
+      lines.push(`- ${fmtDate(e.date)} | [캘린더] ${e.event_type} | ${e.title || ""} | 담당: ${e.author || "-"}`);
+    });
+    weekTrucks?.forEach((t: any) => {
+      lines.push(`- ${fmtDate(t.dispatch_date)} | [완판트럭] ${t.site_name || "-"} | 위치: ${t.location || "-"} | 대행사: ${t.agency || "-"} | 인원: ${t.team_size || "-"}명 | 직원: ${t.staff_members || "-"} | 컨설턴트: ${t.consultant_members || "-"}`);
+    });
+    weekMeetings.forEach((x: any) => {
+      lines.push(`- ${fmtDate(x.meeting_date)} | [미팅] ${x.name} ${x.title || ""} | 담당: ${x.assigned_to || "-"} | 장소: ${x.meeting_location || "-"}`);
     });
   } else {
     lines.push(`\n## 이번주 일정: 등록된 일정 없음`);
@@ -121,11 +136,17 @@ async function buildContext(question: string) {
   // ── 이번달 일정 (키워드 매칭) ──
   if (q.includes("이번달") || q.includes("월") || q.includes("캘린더") || q.includes("전체")) {
     const { data: monthEvents } = await supabase.from("calendar_events")
-      .select("date,type,title,author,location").gte("date", month.start).lte("date", month.end).order("date");
-    if (monthEvents && monthEvents.length > 0) {
+      .select("date,event_type,title,author").gte("date", month.start).lte("date", month.end).order("date");
+    const { data: monthTrucks } = await supabase.from("wanpan_trucks")
+      .select("dispatch_date,location,site_name,agency,team_size,staff_members,consultant_members")
+      .gte("dispatch_date", month.start).lte("dispatch_date", month.end).order("dispatch_date");
+    if ((monthEvents && monthEvents.length > 0) || (monthTrucks && monthTrucks.length > 0)) {
       lines.push(`\n## 이번달 일정 (${month.label})`);
-      monthEvents.forEach((e: any) => {
-        lines.push(`- ${fmtDate(e.date)} | ${e.type} | ${e.title || ""} | ${e.author || "-"} | ${e.location || "-"}`);
+      monthEvents?.forEach((e: any) => {
+        lines.push(`- ${fmtDate(e.date)} | [캘린더] ${e.event_type} | ${e.title || ""} | ${e.author || "-"}`);
+      });
+      monthTrucks?.forEach((t: any) => {
+        lines.push(`- ${fmtDate(t.dispatch_date)} | [완판트럭] ${t.site_name || "-"} | ${t.location || "-"} | ${t.agency || "-"} | ${t.team_size || "-"}명`);
       });
     }
   }
@@ -188,14 +209,15 @@ async function buildContext(question: string) {
     }
   }
 
-  // ── 완판트럭 ──
-  if (q.includes("완판") || q.includes("트럭") || q.includes("출동") || q.includes("현장")) {
+  // ── 완판트럭 (최근 전체) ──
+  if (q.includes("완판") || q.includes("트럭") || q.includes("출동")) {
     const { data: trucks } = await supabase.from("wanpan_trucks")
-      .select("dispatch_date,site_name,region,members,customers").order("dispatch_date", { ascending: false }).limit(10);
+      .select("dispatch_date,site_name,location,agency,team_size,staff_members,consultant_members,is_ordered")
+      .order("dispatch_date", { ascending: false }).limit(10);
     if (trucks && trucks.length > 0) {
-      lines.push(`\n## 최근 완판트럭`);
+      lines.push(`\n## 최근 완판트럭 (전체)`);
       trucks.forEach((t: any) => {
-        lines.push(`- ${fmtDate(t.dispatch_date)} | ${t.site_name || "-"} | ${t.region || "-"} | 담당: ${t.members?.join(", ") || "-"} | 고객: ${t.customers?.length || 0}명`);
+        lines.push(`- ${fmtDate(t.dispatch_date)} | ${t.site_name || "-"} | ${t.location || "-"} | 대행사: ${t.agency || "-"} | ${t.team_size || "-"}명 | 직원: ${t.staff_members || "-"} | 컨설턴트: ${t.consultant_members || "-"} | 발주: ${t.is_ordered ? "완료" : "미완료"}`);
       });
     }
   }
