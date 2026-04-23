@@ -209,11 +209,10 @@ export default function LoginPage() {
   const [bgmStarted, setBgmStarted] = useState(false);
   const [mousePos, setMousePos] = useState({ x: -200, y: -200 });
   useEffect(() => {
-    if (bgmStarted) return;
     const handleMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
     window.addEventListener("mousemove", handleMove);
     return () => window.removeEventListener("mousemove", handleMove);
-  }, [bgmStarted]);
+  }, []);
   useEffect(() => {
     let audio: HTMLAudioElement | null = null;
 
@@ -258,7 +257,7 @@ export default function LoginPage() {
   const cur = SLIDES[slide];
 
   return (
-    <div style={{ position: "fixed", inset: 0, overflow: "hidden", fontFamily: "'Pretendard','Noto Sans KR',sans-serif", cursor: bgmStarted ? "auto" : "none" }}>
+    <div style={{ position: "fixed", inset: 0, overflow: "hidden", fontFamily: "'Pretendard','Noto Sans KR',sans-serif", cursor: bgmStarted ? "auto" : "pointer" }}>
 
       {/* 마우스 따라다니는 클릭 유도 커서 */}
       {!bgmStarted && (
@@ -280,6 +279,19 @@ export default function LoginPage() {
           </svg>
           <span style={{ color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: 800, letterSpacing: "0.12em" }}>CLICK</span>
         </div>
+      )}
+
+      {/* 황금색 따라다니는 점 (음악 시작 후) */}
+      {bgmStarted && (
+        <div style={{
+          position: "fixed", left: mousePos.x, top: mousePos.y,
+          transform: "translate(-50%, -50%)",
+          width: 8, height: 8, borderRadius: "50%",
+          background: "#E2A83A",
+          pointerEvents: "none", zIndex: 9999,
+          transition: "left 0.25s cubic-bezier(0.23,1,0.32,1), top 0.25s cubic-bezier(0.23,1,0.32,1)",
+          boxShadow: "0 0 12px rgba(226,168,58,0.6), 0 0 4px rgba(226,168,58,0.9)",
+        }}/>
       )}
 
       {/* 인트로 오버레이 */}
