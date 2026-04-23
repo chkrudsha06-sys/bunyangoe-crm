@@ -298,8 +298,10 @@ export default function LoginPage() {
     if (v) { v.muted = true; v.play().catch(() => {}); }
   }, []);
 
-  // BGM + 인트로: 유저 클릭 시 동시에 시작
+  // BGM 제어
   const [bgmStarted, setBgmStarted] = useState(false);
+  const [bgmPlaying, setBgmPlaying] = useState(false);
+  const bgmRef = useRef<HTMLAudioElement | null>(null);
   const [mousePos, setMousePos] = useState({ x: -200, y: -200 });
   useEffect(() => {
     const handleMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
@@ -308,15 +310,17 @@ export default function LoginPage() {
   }, []);
   useEffect(() => {
     if (bgmStarted) return;
-    let audio: HTMLAudioElement | null = null;
 
     const startBGM = () => {
-      if (bgmStarted) return;
-      setBgmStarted(true);
-      audio = new Audio("/bgm.mp3");
+      if (bgmRef.current) return;
+      const audio = new Audio("/bgm.mp3");
       audio.volume = 0.3;
       audio.loop = true;
-      audio.play().catch(() => {});
+      audio.play().then(() => {
+        bgmRef.current = audio;
+        setBgmStarted(true);
+        setBgmPlaying(true);
+      }).catch(() => {});
       const evts = ["click","mousedown","keydown","touchstart","pointerdown"];
       evts.forEach(e => window.removeEventListener(e, startBGM));
     };
@@ -326,9 +330,26 @@ export default function LoginPage() {
 
     return () => {
       evts.forEach(e => window.removeEventListener(e, startBGM));
-      if (audio) { audio.pause(); audio.src = ""; }
     };
   }, [bgmStarted]);
+
+  // 페이지 벗어나면 BGM 정리
+  useEffect(() => {
+    return () => {
+      if (bgmRef.current) { bgmRef.current.pause(); bgmRef.current.src = ""; bgmRef.current = null; }
+    };
+  }, []);
+
+  const toggleBgm = () => {
+    if (!bgmRef.current) return;
+    if (bgmPlaying) {
+      bgmRef.current.pause();
+      setBgmPlaying(false);
+    } else {
+      bgmRef.current.play().catch(() => {});
+      setBgmPlaying(true);
+    }
+  };
 
   // 슬라이드 자동 전환
   useEffect(() => {
@@ -492,6 +513,19 @@ export default function LoginPage() {
       <div style={{ position: "absolute", bottom: "20px", left: "clamp(20px,5vw,52px)", zIndex: 10, fontSize: "clamp(9px,1vw,11px)", color: "rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
         © 2026 광고인㈜ · 분양의신 · All rights reserved.
       </div>
+
+      {/* 사운드 토글 */}
+      <button onClick={toggleBgm}
+        style={{
+          position: "absolute", bottom: "20px", right: "clamp(20px,5vw,52px)", zIndex: 10,
+          width: 36, height: 36, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.15)",
+          background: "rgba(255,255,255,0.06)", backdropFilter: "blur(8px)",
+          color: bgmPlaying ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)",
+          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 16, transition: "all 0.3s ease",
+        }}>
+        {bgmPlaying ? "🔊" : "🔇"}
+      </button>
 
       {/* 로그인 모달 */}
       <div style={{
