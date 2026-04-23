@@ -43,6 +43,7 @@
 }
 
 [data-theme="dark"] {
+  color-scheme: dark;
   --bg: #0B1437;
   --bg-2: #0F1A42;
   --surface: rgba(255,255,255,0.04);
@@ -591,12 +592,22 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
   background: #1e293b !important;
   color: #e2e8f0 !important;
   border-color: rgba(255,255,255,0.12) !important;
-  -webkit-appearance: none;
+  color-scheme: dark;
 }
 [data-theme="dark"] select option {
   background: #1e293b !important;
   color: #e2e8f0 !important;
   padding: 8px 12px;
+}
+[data-theme="dark"] select optgroup {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+  font-weight: bold;
+}
+[data-theme="dark"] select optgroup option {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  font-weight: normal;
 }
 [data-theme="dark"] select option:checked,
 [data-theme="dark"] select option:hover {
