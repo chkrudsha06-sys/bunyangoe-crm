@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const GOOGLE_AI_KEY = process.env.GOOGLE_AI_KEY;
+const GOOGLE_AI_KEY = process.env.GOOGLE_AI_KEY || process.env.ANTHROPIC_API_KEY;
 
 // 이번 주 월~일 범위
 function getThisWeek() {
@@ -218,8 +218,8 @@ ${JSON.stringify(crmData, null, 0)}`;
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("Gemini API error:", errText);
-      return NextResponse.json({ error: "AI 응답 생성에 실패했습니다." }, { status: 500 });
+      console.error("Gemini API error:", res.status, errText);
+      return NextResponse.json({ error: `AI 응답 실패 (${res.status}): ${errText.substring(0, 200)}` }, { status: 500 });
     }
 
     const data = await res.json();
