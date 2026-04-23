@@ -225,7 +225,12 @@ export default function ContactsPage() {
 
   const handleDelete = async (id: number) => {
     if (!confirm("삭제하시겠습니까?")) return;
-    await supabase.from("contacts").delete().eq("id", id);
+    const { error } = await supabase.from("contacts").delete().eq("id", id);
+    if (error) {
+      alert(`삭제 실패: ${error.message}`);
+      console.error("Delete error:", error);
+      return;
+    }
     fetchContacts();
   };
 

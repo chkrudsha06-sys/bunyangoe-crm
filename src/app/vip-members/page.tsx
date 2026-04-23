@@ -190,7 +190,8 @@ function VipTable({ title, color, rows, onSaved, fmtBun }: {
                   <td className="px-3 py-3 text-center align-middle">
                     <button onClick={async()=>{
                       if(!confirm(`${c.name} 회원을 삭제하시겠습니까?\n(고객DB에서 미팅결과가 초기화됩니다)`)) return;
-                      await supabase.from("contacts").update({meeting_result:"",contract_date:null,reservation_date:null,bunyanghoe_number:null}).eq("id",c.id);
+                      const { error } = await supabase.from("contacts").update({meeting_result:"",contract_date:null,reservation_date:null,bunyanghoe_number:null}).eq("id",c.id);
+                      if (error) { alert(`삭제 실패: ${error.message}`); return; }
                       onSaved();
                     }} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
                       <Trash2 size={13}/>
