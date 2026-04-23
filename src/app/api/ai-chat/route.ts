@@ -19,10 +19,11 @@ async function callAI(systemPrompt: string, messages: { role: string; content: s
         "Authorization": `Bearer ${API_KEY}`,
       },
       body: JSON.stringify({
-        model: "qwen-qwq-32b",
+        model: "qwen/qwen3-32b",
         messages: [{ role: "system", content: systemPrompt }, ...messages.filter(m => m.role !== "system")],
         max_tokens: 1500,
-        temperature: 0.3,
+        temperature: 0.7,
+        reasoning_effort: "none",
       }),
     });
     if (!res.ok) {
