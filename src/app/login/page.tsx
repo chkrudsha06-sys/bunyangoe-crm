@@ -300,7 +300,6 @@ export default function LoginPage() {
 
   // BGM + 인트로: 유저 클릭 시 동시에 시작
   const [bgmStarted, setBgmStarted] = useState(false);
-  const [userClicked, setUserClicked] = useState(false);
   const [mousePos, setMousePos] = useState({ x: -200, y: -200 });
   useEffect(() => {
     const handleMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
@@ -308,29 +307,28 @@ export default function LoginPage() {
     return () => window.removeEventListener("mousemove", handleMove);
   }, []);
   useEffect(() => {
-    if (userClicked) return;
+    if (bgmStarted) return;
     let audio: HTMLAudioElement | null = null;
 
-    const startAll = () => {
-      if (userClicked) return;
-      setUserClicked(true);
+    const startBGM = () => {
+      if (bgmStarted) return;
       setBgmStarted(true);
       audio = new Audio("/bgm.mp3");
       audio.volume = 0.3;
       audio.loop = true;
       audio.play().catch(() => {});
       const evts = ["click","mousedown","keydown","touchstart","pointerdown"];
-      evts.forEach(e => window.removeEventListener(e, startAll));
+      evts.forEach(e => window.removeEventListener(e, startBGM));
     };
 
     const evts = ["click","mousedown","keydown","touchstart","pointerdown"];
-    evts.forEach(e => window.addEventListener(e, startAll));
+    evts.forEach(e => window.addEventListener(e, startBGM));
 
     return () => {
-      evts.forEach(e => window.removeEventListener(e, startAll));
+      evts.forEach(e => window.removeEventListener(e, startBGM));
       if (audio) { audio.pause(); audio.src = ""; }
     };
-  }, [userClicked]);
+  }, [bgmStarted]);
 
   // 슬라이드 자동 전환
   useEffect(() => {
@@ -381,13 +379,8 @@ export default function LoginPage() {
       {/* 황금 가루 파티클 트레일 (음악 시작 후) */}
       {bgmStarted && <GoldenDust mousePos={mousePos}/>}
 
-      {/* 클릭 전: 검정 화면 */}
-      {!userClicked && (
-        <div style={{ position: "fixed", inset: 0, background: "#000", zIndex: 40 }} />
-      )}
-
-      {/* 인트로 오버레이 (클릭 후에만 시작) */}
-      {userClicked && <IntroOverlay onDone={handleIntroDone}/>}
+      {/* 인트로 오버레이 (접속 시 자동 시작) */}
+      <IntroOverlay onDone={handleIntroDone}/>
       {/* 인트로 완료 후에도 가운데 텍스트 고정 유지 */}
       {introDone && (
         <div style={{
