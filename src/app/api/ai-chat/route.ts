@@ -6,37 +6,37 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const API_KEY = process.env.GROQ_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.GOOGLE_AI_KEY || process.env.ANTHROPIC_API_KEY;
+const API_KEY = process.env.GOOGLE_AI_KEY || process.env.ANTHROPIC_API_KEY || process.env.GROQ_API_KEY;
 
-// Groq API + Qwen3 (한국어 우수)
+// Google Gemini API 호출
 async function callAI(systemPrompt: string, messages: { role: string; content: string }[]) {
   if (!API_KEY) return { reply: null, error: "API 키 없음" };
   try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "qwen/qwen3-32b",
-        messages: [{ role: "system", content: systemPrompt }, ...messages.filter(m => m.role !== "system")],
-        max_tokens: 1500,
-        temperature: 0.7,
-        reasoning_effort: "none",
-      }),
-    });
+    const contents = messages.filter(m => m.role !== "system").map(m => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: { maxOutputTokens: 1500, temperature: 0.3 },
+        }),
+      }
+    );
     if (!res.ok) {
       const errText = await res.text();
-      return { reply: null, error: `AI ${res.status}: ${errText.substring(0, 200)}` };
+      return { reply: null, error: `Gemini ${res.status}: ${errText.substring(0, 200)}` };
     }
     const data = await res.json();
-    const text = data.choices?.[0]?.message?.content;
-    // Qwen QWQ는 <think> 태그로 사고 과정을 출력할 수 있음 → 제거
-    const cleaned = text?.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-    return { reply: cleaned || null, error: cleaned ? null : "빈 응답" };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    return { reply: text || null, error: text ? null : "빈 응답" };
   } catch (e: any) {
-    return { reply: null, error: `AI 예외: ${e.message}` };
+    return { reply: null, error: `Gemini 예외: ${e.message}` };
   }
 }
 
