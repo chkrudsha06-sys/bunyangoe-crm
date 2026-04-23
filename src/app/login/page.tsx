@@ -4,6 +4,99 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { login, getCurrentUser } from "@/lib/auth";
 
+// ─── 황금 가루 파티클 트레일 ─────────────────────────────────
+interface Particle {
+  x: number; y: number; vx: number; vy: number;
+  size: number; opacity: number; life: number; maxLife: number;
+  color: string;
+}
+
+const GOLD_COLORS = ["#E2A83A", "#F0C040", "#C9982A", "#FFD700", "#D4A843", "#F5D67B"];
+
+function GoldenDust({ mousePos }: { mousePos: { x: number; y: number } }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const particles = useRef<Particle[]>([]);
+  const lastMouse = useRef({ x: -200, y: -200 });
+  const animRef = useRef<number>(0);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+    resize();
+    window.addEventListener("resize", resize);
+
+    const animate = () => {
+      if (!ctx || !canvas) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 마우스 이동 시 파티클 생성 (이동 거리에 비례)
+      const dx = mousePos.x - lastMouse.current.x;
+      const dy = mousePos.y - lastMouse.current.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist > 2 && mousePos.x > 0) {
+        const count = Math.min(Math.floor(dist / 4) + 1, 5);
+        for (let i = 0; i < count; i++) {
+          const t = i / count;
+          particles.current.push({
+            x: lastMouse.current.x + dx * t + (Math.random() - 0.5) * 16,
+            y: lastMouse.current.y + dy * t + (Math.random() - 0.5) * 16,
+            vx: (Math.random() - 0.5) * 1.2,
+            vy: (Math.random() - 0.5) * 1.2 - 0.5,
+            size: Math.random() * 3 + 1.5,
+            opacity: Math.random() * 0.5 + 0.5,
+            life: 0,
+            maxLife: Math.random() * 40 + 30,
+            color: GOLD_COLORS[Math.floor(Math.random() * GOLD_COLORS.length)],
+          });
+        }
+      }
+      lastMouse.current = { x: mousePos.x, y: mousePos.y };
+
+      // 파티클 업데이트 + 렌더링
+      particles.current = particles.current.filter(p => {
+        p.life++;
+        if (p.life > p.maxLife) return false;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy -= 0.01; // 살짝 위로 떠오름
+        const progress = p.life / p.maxLife;
+        const alpha = p.opacity * (1 - progress * progress);
+        const scale = 1 - progress * 0.5;
+        
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return true;
+      });
+
+      animRef.current = requestAnimationFrame(animate);
+    };
+
+    animRef.current = requestAnimationFrame(animate);
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      window.removeEventListener("resize", resize);
+    };
+  }, [mousePos]);
+
+  return (
+    <canvas ref={canvasRef} style={{
+      position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9998,
+    }}/>
+  );
+}
+
 // ─── 인트로 오버레이 ─────────────────────────────────────────
 // MOVER 글자: M O V E R (인덱스 0~4)
 const MOVER_CHARS = ['M','O','V','E','R'];
@@ -285,18 +378,8 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* 황금색 따라다니는 점 (음악 시작 후) */}
-      {bgmStarted && (
-        <div style={{
-          position: "fixed", left: mousePos.x, top: mousePos.y,
-          transform: "translate(-50%, -50%)",
-          width: 8, height: 8, borderRadius: "50%",
-          background: "#E2A83A",
-          pointerEvents: "none", zIndex: 9999,
-          transition: "left 0.25s cubic-bezier(0.23,1,0.32,1), top 0.25s cubic-bezier(0.23,1,0.32,1)",
-          boxShadow: "0 0 12px rgba(226,168,58,0.6), 0 0 4px rgba(226,168,58,0.9)",
-        }}/>
-      )}
+      {/* 황금 가루 파티클 트레일 (음악 시작 후) */}
+      {bgmStarted && <GoldenDust mousePos={mousePos}/>}
 
       {/* 클릭 전: 검정 화면 */}
       {!userClicked && (
