@@ -184,14 +184,32 @@ async function fetchTodayEvents(user: CRMUser, date: string): Promise<TodayEvent
 }
 
 // ── 카드 컴포넌트 ──
-function DashCard({ icon, label, main, subs, cumLabel }: {
+function DashCard({ icon, label, main, subs, cumLabel, prevValue, currentValue }: {
   icon: string; label: string; main: string;
   subs?: { label: string; value: string; color?: string }[];
   cumLabel: string;
+  prevValue?: number; currentValue?: number;
 }) {
+  // 전월 대비 증감률 계산
+  let growthRate: number | null = null;
+  if (prevValue !== undefined && currentValue !== undefined && prevValue > 0) {
+    growthRate = Math.round(((currentValue - prevValue) / prevValue) * 100);
+  } else if (prevValue !== undefined && currentValue !== undefined && prevValue === 0 && currentValue > 0) {
+    growthRate = 100;
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{ minWidth: 180, flex: "1 1 0" }}>
-      <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl mb-3 bg-slate-50">{icon}</div>
+      <div className="flex items-start justify-between mb-3">
+        <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl bg-slate-50">{icon}</div>
+        {growthRate !== null && (
+          <div className={`flex items-center gap-0.5 px-2 py-1 rounded-lg text-xs font-bold ${
+            growthRate > 0 ? "bg-emerald-50 text-emerald-600" : growthRate < 0 ? "bg-red-50 text-red-500" : "bg-slate-50 text-slate-400"
+          }`}>
+            {growthRate > 0 ? "▲" : growthRate < 0 ? "▼" : "─"}{Math.abs(growthRate)}%
+          </div>
+        )}
+      </div>
       <p className="text-sm text-slate-400 font-semibold mb-1.5">{label}</p>
       <p className="text-3xl font-black text-slate-800 leading-tight">{main}</p>
       {subs && subs.length > 0 && (
@@ -205,8 +223,9 @@ function DashCard({ icon, label, main, subs, cumLabel }: {
         </div>
       )}
       {!subs && <div className="flex-1" />}
-      <div className="mt-4 pt-3 border-t border-slate-100">
+      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
         <p className="text-sm font-bold text-slate-700">누적 {cumLabel}</p>
+        {prevValue !== undefined && <p className="text-[10px] text-slate-400">전월 {prevValue.toLocaleString()}</p>}
       </div>
     </div>
   );
@@ -1014,6 +1033,7 @@ export default function DashboardPage() {
   const [startDate, setStartDate] = useState(initStart);
   const [endDate, setEndDate] = useState(initEnd);
   const [selMonth, setSelMonth] = useState(new Date().getMonth()+1);
+  const [prevMonth, setPrevMonth] = useState<Stats>(EMPTY);
 
   useEffect(()=>{const t=setInterval(()=>setNow(new Date()),1000);return()=>clearInterval(t);},[]);
   useEffect(()=>{setUser(getCurrentUser());},[]);
@@ -1021,13 +1041,20 @@ export default function DashboardPage() {
   useEffect(()=>{
     if (!user) return;
     setLoading(true);
+    // 전월 날짜 계산
+    const sd = new Date(startDate);
+    const prevStart = new Date(sd.getFullYear(), sd.getMonth()-1, 1);
+    const prevEnd = new Date(sd.getFullYear(), sd.getMonth(), 0);
+    const prevS = prevStart.toISOString().split("T")[0];
+    const prevE = prevEnd.toISOString().split("T")[0];
     Promise.all([
       fetchStats(user, startDate, endDate, false),
       fetchStats(user, startDate, endDate, true),
+      fetchStats(user, prevS, prevE, false),
       fetchMonthlyRevenue(user, new Date().getFullYear(), new Date().getMonth()+1),
       fetchTodayEvents(user, eventDate),
-    ]).then(([c,cum,rev,ev])=>{
-      setCurrent(c); setCumulative(cum); setMonthlyRev(rev); setTodayEvents(ev); setLoading(false);
+    ]).then(([c,cum,prev,rev,ev])=>{
+      setCurrent(c); setCumulative(cum); setPrevMonth(prev); setMonthlyRev(rev); setTodayEvents(ev); setLoading(false);
     });
   },[user, startDate, endDate, eventDate]);
 
@@ -1045,12 +1072,12 @@ export default function DashboardPage() {
   const isExec = user?.role === "exec";
 
   const CARDS = [
-    { icon:"💰", label:"총매출(광고특전)", main: current.totalRevenue.toLocaleString()+"원", subs: undefined, cumLabel: cumulative.totalRevenue.toLocaleString()+"원" },
-    { icon:"⚡", label:"연계매출(하이타겟)", main: current.linkedRevenue.toLocaleString()+"원", subs: undefined, cumLabel: cumulative.linkedRevenue.toLocaleString()+"원" },
-    { icon:"💳", label:"분양회 입회비", main: current.membershipFeeAmt.toLocaleString()+"원", subs:[{label:"당월", value:`${current.membershipCount}건`, color:"text-slate-600"}], cumLabel: cumulative.membershipFeeAmt.toLocaleString()+"원" },
-    { icon:"🔄", label:"분양회 월회비", main: current.monthlyFeeAmt.toLocaleString()+"원", subs:[{label:"당월", value:`${current.monthlyFeeCount}건`, color:"text-slate-600"}], cumLabel: cumulative.monthlyFeeAmt.toLocaleString()+"원" },
-    { icon:"🎯", label:"가망고객", main:`${current.hotProspect+current.meetingProspect+current.linkedProspect}명`, subs:[{label:"즉가입가망", value:`${current.hotProspect}명`, color:"text-red-500"},{label:"미팅예정가망", value:`${current.meetingProspect}명`, color:"text-amber-500"},{label:"연계매출가망", value:`${current.linkedProspect}명`, color:"text-slate-500"}], cumLabel:`${cumulative.hotProspect+cumulative.meetingProspect+cumulative.linkedProspect}명` },
-    { icon:"📅", label:"미팅", main:`${current.upcomingMeetings}건`, subs:[{label:"미팅예정", value:`${current.upcomingMeetings}건`, color:"text-blue-500"},{label:"미팅완료", value:`${current.meetingDone}건`, color:"text-emerald-500"}], cumLabel:`${cumulative.upcomingMeetings + cumulative.meetingDone}건` },
+    { icon:"💰", label:"총매출(광고특전)", main: current.totalRevenue.toLocaleString()+"원", subs: undefined, cumLabel: cumulative.totalRevenue.toLocaleString()+"원", currentValue: current.totalRevenue, prevValue: prevMonth.totalRevenue },
+    { icon:"⚡", label:"연계매출(하이타겟)", main: current.linkedRevenue.toLocaleString()+"원", subs: undefined, cumLabel: cumulative.linkedRevenue.toLocaleString()+"원", currentValue: current.linkedRevenue, prevValue: prevMonth.linkedRevenue },
+    { icon:"💳", label:"분양회 입회비", main: current.membershipFeeAmt.toLocaleString()+"원", subs:[{label:"당월", value:`${current.membershipCount}건`, color:"text-slate-600"}], cumLabel: cumulative.membershipFeeAmt.toLocaleString()+"원", currentValue: current.membershipFeeAmt, prevValue: prevMonth.membershipFeeAmt },
+    { icon:"🔄", label:"분양회 월회비", main: current.monthlyFeeAmt.toLocaleString()+"원", subs:[{label:"당월", value:`${current.monthlyFeeCount}건`, color:"text-slate-600"}], cumLabel: cumulative.monthlyFeeAmt.toLocaleString()+"원", currentValue: current.monthlyFeeAmt, prevValue: prevMonth.monthlyFeeAmt },
+    { icon:"🎯", label:"가망고객", main:`${current.hotProspect+current.meetingProspect+current.linkedProspect}명`, subs:[{label:"즉가입가망", value:`${current.hotProspect}명`, color:"text-red-500"},{label:"미팅예정가망", value:`${current.meetingProspect}명`, color:"text-amber-500"},{label:"연계매출가망", value:`${current.linkedProspect}명`, color:"text-slate-500"}], cumLabel:`${cumulative.hotProspect+cumulative.meetingProspect+cumulative.linkedProspect}명`, currentValue: current.hotProspect+current.meetingProspect+current.linkedProspect, prevValue: prevMonth.hotProspect+prevMonth.meetingProspect+prevMonth.linkedProspect },
+    { icon:"📅", label:"미팅", main:`${current.upcomingMeetings}건`, subs:[{label:"미팅예정", value:`${current.upcomingMeetings}건`, color:"text-blue-500"},{label:"미팅완료", value:`${current.meetingDone}건`, color:"text-emerald-500"}], cumLabel:`${cumulative.upcomingMeetings + cumulative.meetingDone}건`, currentValue: current.upcomingMeetings+current.meetingDone, prevValue: prevMonth.upcomingMeetings+prevMonth.meetingDone },
   ];
 
   return (
@@ -1094,7 +1121,7 @@ export default function DashboardPage() {
             {loading && <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>}
           </div>
           <div className="p-5 flex gap-4 overflow-x-auto">
-            {CARDS.map(card=>(<DashCard key={card.label} icon={card.icon} label={card.label} main={card.main} subs={card.subs} cumLabel={card.cumLabel}/>))}
+            {CARDS.map(card=>(<DashCard key={card.label} icon={card.icon} label={card.label} main={card.main} subs={card.subs} cumLabel={card.cumLabel} currentValue={card.currentValue} prevValue={card.prevValue}/>))}
           </div>
         </div>
 
