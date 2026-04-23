@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X, Search, Check, RotateCcw } from "lucide-react";
 import { BANK_LIST, GROUP_LABELS, searchBanks, findBankByCode, findBankByName, Bank } from "@/lib/banks";
 import { supabase } from "@/lib/supabase";
@@ -104,7 +105,7 @@ export default function BankAccountDialog({
     color: "var(--text)",
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}>
       <div className="rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
@@ -235,6 +236,7 @@ export default function BankAccountDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
