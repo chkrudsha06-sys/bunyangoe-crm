@@ -270,6 +270,11 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
         <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"var(--sidebar-section)"}}>■ 정보제공</div>
         {INFO_MENUS.map((m) => <NavItem key={m.href} {...m} />)}
 
+        {/* AI 어시스턴트 */}
+        <div className="my-2" style={{borderTop:"1px solid var(--sidebar-border)"}} />
+        <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"#8b5cf6"}}>★ AI</div>
+        <NavItem href="/ai-assistant" label="AI 어시스턴트" emoji="🤖" />
+
         {/* 관리자 전용 */}
         {isAdmin && (
           <>
