@@ -661,3 +661,29 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 /* thead 고정 배경 */
 [data-theme="dark"] thead { background: var(--surface) !important; }
 [data-theme="dark"] thead .bg-slate-50 { background: var(--surface) !important; }
+
+/* ═══ VIP Membership 황금 텍스트 애니메이션 ═══ */
+@keyframes goldTextShimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.gold-shimmer-text {
+  background: linear-gradient(
+    90deg,
+    #C9982A 0%,
+    #E2A83A 15%,
+    #FFD700 30%,
+    #F5D67B 45%,
+    #FFFFFF 50%,
+    #F5D67B 55%,
+    #FFD700 70%,
+    #E2A83A 85%,
+    #C9982A 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: goldTextShimmer 6s linear infinite;
+  text-shadow: none;
+}
