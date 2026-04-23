@@ -11,45 +11,61 @@ const GROQ_KEY = process.env.GROQ_API_KEY;
 
 // Gemini API 호출 (한국어 최적)
 async function callGemini(systemPrompt: string, messages: { role: string; content: string }[]) {
-  if (!GOOGLE_KEY) return null;
-  const contents = messages.filter(m => m.role !== "system").map(m => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents,
-        generationConfig: { maxOutputTokens: 1500, temperature: 0.3 },
-      }),
+  if (!GOOGLE_KEY) return { reply: null, error: "GOOGLE_KEY 없음" };
+  try {
+    const contents = messages.filter(m => m.role !== "system").map(m => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: { maxOutputTokens: 1500, temperature: 0.3 },
+        }),
+      }
+    );
+    if (!res.ok) {
+      const errText = await res.text();
+      return { reply: null, error: `Gemini ${res.status}: ${errText.substring(0, 200)}` };
     }
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    return { reply: text || null, error: text ? null : "빈 응답" };
+  } catch (e: any) {
+    return { reply: null, error: `Gemini 예외: ${e.message}` };
+  }
 }
 
 // Groq API 호출 (폴백)
 async function callGroq(systemPrompt: string, messages: { role: string; content: string }[]) {
-  const key = GROQ_KEY || GOOGLE_KEY; // Groq키 없으면 기존 키 시도
-  if (!key) return null;
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: [{ role: "system", content: systemPrompt }, ...messages.filter(m => m.role !== "system")],
-      max_tokens: 1500,
-      temperature: 0.3,
-    }),
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || null;
+  const key = GROQ_KEY;
+  if (!key) return { reply: null, error: "GROQ_KEY 없음" };
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "system", content: systemPrompt }, ...messages.filter(m => m.role !== "system")],
+        max_tokens: 1500,
+        temperature: 0.3,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      return { reply: null, error: `Groq ${res.status}: ${errText.substring(0, 200)}` };
+    }
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content;
+    return { reply: text || null, error: text ? null : "빈 응답" };
+  } catch (e: any) {
+    return { reply: null, error: `Groq 예외: ${e.message}` };
+  }
 }
 
 function getWeekRange() {
@@ -264,15 +280,20 @@ ${crmData}`;
     chatMessages.push({ role: "user", content: message });
 
     // 1차: Google Gemini 시도 (한국어 최적)
-    let reply = await callGemini(systemPrompt, chatMessages);
+    const geminiResult = await callGemini(systemPrompt, chatMessages);
+    let reply = geminiResult.reply;
 
     // 2차: Groq 폴백 (Gemini 실패 시)
+    let groqError = "";
     if (!reply) {
-      reply = await callGroq(systemPrompt, chatMessages);
+      const groqResult = await callGroq(systemPrompt, chatMessages);
+      reply = groqResult.reply;
+      groqError = groqResult.error || "";
     }
 
     if (!reply) {
-      return NextResponse.json({ error: "AI 응답 생성에 실패했습니다. 잠시 후 다시 시도해주세요." }, { status: 500 });
+      const errorDetail = [geminiResult.error, groqError].filter(Boolean).join(" | ");
+      return NextResponse.json({ error: `AI 응답 실패: ${errorDetail}` }, { status: 500 });
     }
 
     return NextResponse.json({ reply });
