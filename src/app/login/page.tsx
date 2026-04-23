@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { login, getCurrentUser } from "@/lib/auth";
 
@@ -193,6 +193,7 @@ export default function LoginPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [introDone, setIntroDone] = useState(false);
+  const handleIntroDone = useCallback(() => setIntroDone(true), []);
 
   useEffect(() => {
     const user = getCurrentUser();
@@ -282,7 +283,7 @@ export default function LoginPage() {
       )}
 
       {/* 인트로 오버레이 */}
-      <IntroOverlay onDone={() => setIntroDone(true)}/>
+      <IntroOverlay onDone={handleIntroDone}/>
       {/* 인트로 완료 후에도 가운데 텍스트 고정 유지 */}
       {introDone && (
         <div style={{
