@@ -237,11 +237,11 @@ function IntroOverlay({ onDone }: { onDone: () => void }) {
             transition: 'opacity 0.7s ease, transform 0.7s cubic-bezier(0.16,1,0.3,1)',
             textAlign: 'center',
           }}>
-            <div className="gold-shimmer-text" style={{
+            <div style={{
               fontFamily: "'Montserrat','Pretendard',sans-serif",
               fontSize: 'clamp(48px, 8vw, 120px)',
               fontWeight: 800, letterSpacing: '0.04em',
-              lineHeight: 1,
+              color: '#ffffff', lineHeight: 1,
             }}>VIP Membership</div>
             <div style={{
               fontFamily: "'Montserrat','Pretendard',sans-serif",
@@ -391,11 +391,11 @@ export default function LoginPage() {
           pointerEvents: 'none',
         }}>
           <div style={{ textAlign: 'center' }}>
-            <div className="gold-shimmer-text" style={{
+            <div style={{
               fontFamily: "'Montserrat','Pretendard',sans-serif",
               fontSize: 'clamp(48px, 8vw, 120px)',
               fontWeight: 800, letterSpacing: '0.04em',
-              lineHeight: 1,
+              color: '#ffffff', lineHeight: 1,
             }}>VIP Membership</div>
             <div style={{
               fontFamily: "'Montserrat','Pretendard',sans-serif",
