@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const GOOGLE_AI_KEY = process.env.GOOGLE_AI_KEY;
 
 // 이번 주 월~일 범위
 function getThisWeek() {
@@ -146,7 +146,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "메시지를 입력해주세요." }, { status: 400 });
     }
 
-    if (!ANTHROPIC_API_KEY) {
+    if (!GOOGLE_AI_KEY) {
       return NextResponse.json({ error: "AI 기능이 설정되지 않았습니다. 관리자에게 문의하세요." }, { status: 500 });
     }
 
@@ -187,39 +187,43 @@ ${today} (${todayDay}요일)
 [CRM 데이터]
 ${JSON.stringify(crmData, null, 0)}`;
 
-    // 대화 히스토리 구성
-    const messages = [];
+    // 대화 히스토리 구성 (Gemini 형식: role = "user" | "model")
+    const geminiContents = [];
     if (history && Array.isArray(history)) {
       for (const h of history.slice(-10)) {
-        messages.push({ role: h.role, content: h.content });
+        geminiContents.push({
+          role: h.role === "assistant" ? "model" : "user",
+          parts: [{ text: h.content }],
+        });
       }
     }
-    messages.push({ role: "user", content: message });
+    geminiContents.push({ role: "user", parts: [{ text: message }] });
 
-    // Claude API 호출
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2000,
-        system: systemPrompt,
-        messages,
-      }),
-    });
+    // Google Gemini API 호출
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_AI_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: geminiContents,
+          generationConfig: {
+            maxOutputTokens: 2000,
+            temperature: 0.7,
+          },
+        }),
+      }
+    );
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("Claude API error:", errText);
+      console.error("Gemini API error:", errText);
       return NextResponse.json({ error: "AI 응답 생성에 실패했습니다." }, { status: 500 });
     }
 
     const data = await res.json();
-    const reply = data.content?.[0]?.text || "응답을 생성할 수 없습니다.";
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성할 수 없습니다.";
 
     return NextResponse.json({ reply });
   } catch (err: any) {
