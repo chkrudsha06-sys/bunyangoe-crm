@@ -218,10 +218,11 @@ export default function LoginPage() {
 
     const startBGM = () => {
       if (audio) return;
+      setBgmStarted(true); // 즉시 아이콘 제거
       audio = new Audio("/bgm.mp3");
       audio.volume = 0.3;
       audio.loop = true;
-      audio.play().then(() => setBgmStarted(true)).catch(() => {});
+      audio.play().catch(() => {});
       const evts = ["click","mousedown","keydown","touchstart","pointerdown"];
       evts.forEach(e => window.removeEventListener(e, startBGM));
     };
