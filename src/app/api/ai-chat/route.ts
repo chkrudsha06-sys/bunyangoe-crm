@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const GOOGLE_AI_KEY = process.env.GOOGLE_AI_KEY || process.env.ANTHROPIC_API_KEY;
+const AI_API_KEY = process.env.GOOGLE_AI_KEY || process.env.ANTHROPIC_API_KEY || process.env.GROQ_API_KEY;
 
 function getThisWeek() {
   const now = new Date();
@@ -116,7 +116,7 @@ export async function POST(req: Request) {
   try {
     const { message, history } = await req.json();
     if (!message) return NextResponse.json({ error: "메시지를 입력해주세요." }, { status: 400 });
-    if (!GOOGLE_AI_KEY) return NextResponse.json({ error: "AI API 키가 설정되지 않았습니다." }, { status: 500 });
+    if (!AI_API_KEY) return NextResponse.json({ error: "AI API 키가 설정되지 않았습니다." }, { status: 500 });
 
     const crmData = await fetchCRMContext(message);
     const today = new Date().toISOString().split("T")[0];
@@ -135,39 +135,40 @@ export async function POST(req: Request) {
 [CRM데이터]
 ${crmData}`;
 
-    // Gemini 대화 구성
-    const geminiContents = [];
+    // 대화 히스토리 구성 (OpenAI 형식)
+    const messages: { role: string; content: string }[] = [
+      { role: "system", content: systemPrompt },
+    ];
     if (history && Array.isArray(history)) {
       for (const h of history.slice(-6)) {
-        geminiContents.push({
-          role: h.role === "assistant" ? "model" : "user",
-          parts: [{ text: h.content }],
-        });
+        messages.push({ role: h.role, content: h.content });
       }
     }
-    geminiContents.push({ role: "user", parts: [{ text: message }] });
+    messages.push({ role: "user", content: message });
 
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GOOGLE_AI_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: geminiContents,
-          generationConfig: { maxOutputTokens: 1500, temperature: 0.7 },
-        }),
-      }
-    );
+    // Groq API 호출 (OpenAI 호환, 무료)
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${AI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages,
+        max_tokens: 1500,
+        temperature: 0.7,
+      }),
+    });
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("Gemini API error:", res.status, errText);
+      console.error("AI API error:", res.status, errText);
       return NextResponse.json({ error: `AI 오류 (${res.status}): ${errText.substring(0, 150)}` }, { status: 500 });
     }
 
     const data = await res.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성할 수 없습니다.";
+    const reply = data.choices?.[0]?.message?.content || "응답을 생성할 수 없습니다.";
 
     return NextResponse.json({ reply });
   } catch (err: any) {
