@@ -38,7 +38,7 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
   const monthEnd   = end;
 
   let joinQ = supabase.from("contacts")
-    .select("meeting_result,tm_sensitivity,contract_date,reservation_date,meeting_date,assigned_to");
+    .select("meeting_result,prospect_type,contract_date,reservation_date,meeting_date,assigned_to");
   if (isExec) joinQ = joinQ.eq("assigned_to", user.name);
   const { data: allContacts = [] } = await joinQ;
 
@@ -135,9 +135,9 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     reservationCount: isAll
       ? allJoined.filter((x:any)=>x.meeting_result==="예약완료").length
       : monthJoined.filter((x:any)=>x.meeting_result==="예약완료").length,
-    hotProspect: prospects.filter((x:any)=>x.tm_sensitivity==="즉가입가망").length,
-    meetingProspect: prospects.filter((x:any)=>x.tm_sensitivity==="미팅예정가망").length,
-    linkedProspect: prospects.filter((x:any)=>x.tm_sensitivity==="연계매출가망").length,
+    hotProspect: prospects.filter((x:any)=>x.prospect_type==="즉가입가망").length,
+    meetingProspect: prospects.filter((x:any)=>x.prospect_type==="미팅예정가망").length,
+    linkedProspect: prospects.filter((x:any)=>x.prospect_type==="연계매출가망").length,
     upcomingMeetings: isAll ? totalMeetings : monthMeetings.length,
     meetingDone: isAll ? totalMeetingDone : monthMeetingDone.length,
     membershipFeeAmt: isAll ? cumMembershipFee : membershipFeeAmt,
@@ -176,7 +176,7 @@ async function fetchMonthlyRevenue(user: CRMUser, year: number, month: number): 
 
 async function fetchTodayEvents(user: CRMUser, date: string): Promise<TodayEvent[]> {
   const isExec = user.role === "exec";
-  let q = supabase.from("contacts").select("id,name,phone,meeting_date,meeting_address,assigned_to")
+  let q = supabase.from("contacts").select("id,name,phone,meeting_date,meeting_address,assigned_to,prospect_type,meeting_result")
     .eq("meeting_date", date).order("meeting_date");
   if (isExec) q = q.eq("assigned_to", user.name);
   const { data = [] } = await q;
