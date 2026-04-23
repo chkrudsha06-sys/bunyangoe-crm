@@ -46,10 +46,12 @@ function parseSiteName(name: string): { base: string; campaign: string } {
 }
 
 // 광고기간 연도 계산 (시작-종료 관계 기반)
-// 탭 "2025" = 캠페인 종료가 2025년 초반에 해당하는 데이터
-// "12/20-1/5" (2025탭) → 24.12.20 ~ 25.01.05
-// "1/3-1/22" (2025탭) → 25.01.03 ~ 25.01.22
-// "8/19-9/11" (2025탭) → 24.08.19 ~ 24.09.11
+// 광고기간 연도 계산
+// 탭 "2025" = 2025년도에 운영된 캠페인 데이터
+// 유일한 예외: 시작월 > 종료월 (년도 넘김) → 시작은 전년도
+// "12/20-1/5" (2025탭) → 24.12.20 ~ 25.01.05 (년도 넘김)
+// "8/19-9/11" (2025탭) → 25.08.19 ~ 25.09.11 (2025년 내)
+// "1/3-1/22" (2025탭) → 25.01.03 ~ 25.01.22 (2025년 내)
 function formatPeriod(period: string, tabYear: string): { display: string; sortKey: string } {
   if (!period) return { display: "-", sortKey: "9999-99-99" };
   const yr = parseInt(tabYear);
@@ -63,20 +65,13 @@ function formatPeriod(period: string, tabYear: string): { display: string; sortK
   let startYear: number, endYear: number;
 
   if (sm > em) {
-    // 년도 넘김 (12→1 등): 시작은 전년도, 종료는 탭 연도
+    // 년도 넘김 (12→1, 11→2 등): 시작만 전년도
     startYear = yr - 1;
     endYear = yr;
   } else {
-    // 같은 해 내 (8→9, 1→3 등)
-    if (sm >= 7) {
-      // 하반기: 전년도 (2025탭의 8/19-9/11 = 2024년)
-      startYear = yr - 1;
-      endYear = yr - 1;
-    } else {
-      // 상반기: 탭 연도 (2025탭의 1/3-1/22 = 2025년)
-      startYear = yr;
-      endYear = yr;
-    }
+    // 같은 해: 모두 탭 연도
+    startYear = yr;
+    endYear = yr;
   }
 
   const fmt = (y: number, m: number, d: number) =>
