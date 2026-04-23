@@ -8,7 +8,7 @@ const supabase = createClient(
 
 const AI_API_KEY = process.env.GOOGLE_AI_KEY || process.env.ANTHROPIC_API_KEY || process.env.GROQ_API_KEY;
 
-function getThisWeek() {
+function getWeekRange() {
   const now = new Date();
   const day = now.getDay();
   const diff = day === 0 ? -6 : 1 - day;
@@ -17,99 +17,158 @@ function getThisWeek() {
   return { start: mon.toISOString().split("T")[0], end: sun.toISOString().split("T")[0] };
 }
 
-function getThisMonth() {
+function getMonthRange() {
   const now = new Date();
   const y = now.getFullYear(), m = now.getMonth() + 1;
   return {
     start: `${y}-${String(m).padStart(2, "0")}-01`,
     end: `${y}-${String(m).padStart(2, "0")}-${new Date(y, m, 0).getDate()}`,
+    label: `${y}년 ${m}월`,
   };
 }
 
-// 질문 키워드에 따라 필요한 데이터만 조회 (토큰 절약)
-async function fetchCRMContext(question: string) {
+function fmtDate(d: string) {
+  if (!d) return "";
+  const dt = new Date(d);
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  return `${dt.getMonth() + 1}월 ${dt.getDate()}일(${days[dt.getDay()]})`;
+}
+
+function fmtMoney(n: number) { return n.toLocaleString() + "원"; }
+
+async function buildContext(question: string) {
   const q = question.toLowerCase();
-  const week = getThisWeek();
-  const month = getThisMonth();
-  const parts: string[] = [];
+  const week = getWeekRange();
+  const month = getMonthRange();
+  const lines: string[] = [];
 
-  // 1. 항상 포함: 기본 요약
+  // ── 항상 포함: 고객 요약 ──
   const { data: contacts } = await supabase.from("contacts")
-    .select("name,assigned_to,meeting_result,meeting_date,meeting_location,bunyanghoe_number,prospect_type,title,consultant").limit(500);
-  const total = contacts?.length || 0;
-  const byResult: Record<string, number> = {};
-  const byAssigned: Record<string, number> = {};
-  contacts?.forEach((c: any) => {
-    if (c.meeting_result) byResult[c.meeting_result] = (byResult[c.meeting_result] || 0) + 1;
-    if (c.assigned_to) byAssigned[c.assigned_to] = (byAssigned[c.assigned_to] || 0) + 1;
+    .select("name,title,assigned_to,consultant,prospect_type,meeting_result,meeting_date,meeting_location,bunyanghoe_number,contract_date,phone")
+    .limit(500);
+  const c = contacts || [];
+  const resultCount: Record<string, number> = {};
+  const assignCount: Record<string, number> = {};
+  const prospectCount: Record<string, number> = {};
+  c.forEach((x: any) => {
+    if (x.meeting_result) resultCount[x.meeting_result] = (resultCount[x.meeting_result] || 0) + 1;
+    if (x.assigned_to) assignCount[x.assigned_to] = (assignCount[x.assigned_to] || 0) + 1;
+    if (x.prospect_type) prospectCount[x.prospect_type] = (prospectCount[x.prospect_type] || 0) + 1;
   });
-  parts.push(`[고객현황] 총${total}명, 결과별: ${JSON.stringify(byResult)}, 담당자별: ${JSON.stringify(byAssigned)}`);
 
-  // 2. 일정 관련 질문
-  if (q.includes("일정") || q.includes("스케줄") || q.includes("미팅") || q.includes("이번주") || q.includes("이번달") || q.includes("캘린더") || q.includes("완판")) {
-    const { data: weekEvents } = await supabase.from("calendar_events")
-      .select("date,type,title,author,location").gte("date", week.start).lte("date", week.end).order("date");
-    parts.push(`[이번주일정 ${week.start}~${week.end}] ${JSON.stringify(weekEvents?.map(e => `${e.date} ${e.type} ${e.title} (${e.author}) ${e.location||""}`) || "없음")}`);
+  lines.push("## 고객 현황");
+  lines.push(`총 고객: ${c.length}명`);
+  lines.push(`미팅결과별: ${Object.entries(resultCount).map(([k, v]) => `${k} ${v}명`).join(", ")}`);
+  lines.push(`가망구분별: ${Object.entries(prospectCount).map(([k, v]) => `${k} ${v}명`).join(", ")}`);
+  lines.push(`담당자별: ${Object.entries(assignCount).map(([k, v]) => `${k} ${v}명`).join(", ")}`);
 
-    if (q.includes("이번달")) {
-      const { data: monthEvents } = await supabase.from("calendar_events")
-        .select("date,type,title,author,location").gte("date", month.start).lte("date", month.end).order("date");
-      parts.push(`[이번달일정] ${JSON.stringify(monthEvents?.map(e => `${e.date} ${e.type} ${e.title} (${e.author})`) || "없음")}`);
+  // ── 특정 사람 이름이 질문에 포함된 경우 ──
+  const nameMatches = c.filter((x: any) => {
+    const name = x.name || "";
+    return name.length >= 2 && (q.includes(name) || q.includes(name.substring(0, 2)));
+  });
+  if (nameMatches.length > 0 && nameMatches.length <= 15) {
+    lines.push("\n## 이름 매칭 고객");
+    nameMatches.forEach((x: any) => {
+      lines.push(`- ${x.name} (${x.title || "-"}) | 담당: ${x.assigned_to || "-"} | 컨설턴트: ${x.consultant || "-"} | 가망: ${x.prospect_type || "-"} | 미팅결과: ${x.meeting_result || "-"} | 미팅일: ${x.meeting_date || "-"} | 미팅지역: ${x.meeting_location || "-"} | 넘버링: ${x.bunyanghoe_number || "-"} | 계약일: ${x.contract_date || "-"} | 연락처: ${x.phone || "-"}`);
+    });
+  }
+
+  // ── 일정 (항상 이번주 포함) ──
+  const { data: weekEvents } = await supabase.from("calendar_events")
+    .select("date,type,title,author,location").gte("date", week.start).lte("date", week.end).order("date");
+  if (weekEvents && weekEvents.length > 0) {
+    lines.push(`\n## 이번주 일정 (${fmtDate(week.start)} ~ ${fmtDate(week.end)})`);
+    weekEvents.forEach((e: any) => {
+      lines.push(`- ${fmtDate(e.date)} | ${e.type} | ${e.title || ""} | 담당: ${e.author || "-"} | 장소: ${e.location || "-"}`);
+    });
+  } else {
+    lines.push(`\n## 이번주 일정: 등록된 일정 없음`);
+  }
+
+  // ── 이번달 일정 (키워드 매칭) ──
+  if (q.includes("이번달") || q.includes("월") || q.includes("캘린더") || q.includes("전체")) {
+    const { data: monthEvents } = await supabase.from("calendar_events")
+      .select("date,type,title,author,location").gte("date", month.start).lte("date", month.end).order("date");
+    if (monthEvents && monthEvents.length > 0) {
+      lines.push(`\n## 이번달 일정 (${month.label})`);
+      monthEvents.forEach((e: any) => {
+        lines.push(`- ${fmtDate(e.date)} | ${e.type} | ${e.title || ""} | ${e.author || "-"} | ${e.location || "-"}`);
+      });
     }
   }
 
-  // 3. 매출 관련 질문
-  if (q.includes("매출") || q.includes("집계") || q.includes("월회비") || q.includes("입회비") || q.includes("실적") || q.includes("광고") || q.includes("리워드") || q.includes("하이타") || q.includes("호갱")) {
-    const { data: sales } = await supabase.from("ad_executions")
-      .select("member_name,execution_amount,vat_amount,channel,team_member,payment_date,consultant,contract_route")
-      .gte("payment_date", month.start).lte("payment_date", month.end);
-    const ch: Record<string, { n: number; a: number }> = {};
-    const tm: Record<string, { n: number; a: number }> = {};
+  // ── 매출 (항상 이번달 요약 포함) ──
+  const { data: sales } = await supabase.from("ad_executions")
+    .select("member_name,execution_amount,vat_amount,channel,team_member,payment_date,consultant,contract_route,bunyanghoe_number")
+    .gte("payment_date", month.start).lte("payment_date", month.end);
+  if (sales && sales.length > 0) {
+    const chMap: Record<string, { n: number; a: number }> = {};
+    const tmMap: Record<string, { n: number; a: number }> = {};
     let totalAmt = 0;
-    sales?.forEach((s: any) => {
-      const amt = (s.vat_amount && s.vat_amount !== s.execution_amount) ? s.vat_amount : s.execution_amount || 0;
+    sales.forEach((s: any) => {
+      const amt = (s.vat_amount && s.vat_amount !== s.execution_amount) ? s.vat_amount : (s.execution_amount || 0);
       totalAmt += amt;
-      const c = s.channel || "기타";
-      if (!ch[c]) ch[c] = { n: 0, a: 0 }; ch[c].n++; ch[c].a += amt;
-      const t = s.team_member || "미지정";
-      if (!tm[t]) tm[t] = { n: 0, a: 0 }; tm[t].n++; tm[t].a += amt;
+      const ch = s.channel || "기타";
+      if (!chMap[ch]) chMap[ch] = { n: 0, a: 0 }; chMap[ch].n++; chMap[ch].a += amt;
+      const tm = s.team_member || "미지정";
+      if (!tmMap[tm]) tmMap[tm] = { n: 0, a: 0 }; tmMap[tm].n++; tmMap[tm].a += amt;
     });
-    parts.push(`[이번달매출 ${month.start}~${month.end}] 총${sales?.length||0}건 ${totalAmt.toLocaleString()}원`);
-    parts.push(`채널별: ${Object.entries(ch).map(([k, v]) => `${k}:${v.n}건/${v.a.toLocaleString()}원`).join(", ")}`);
-    parts.push(`담당자별: ${Object.entries(tm).map(([k, v]) => `${k}:${v.n}건/${v.a.toLocaleString()}원`).join(", ")}`);
 
-    // 개별 매출 상세 (최근 15건만)
-    parts.push(`[최근매출상세] ${JSON.stringify(sales?.slice(0, 15).map(s => `${(s as any).payment_date} ${(s as any).member_name} ${(s as any).channel} ${((s as any).vat_amount||(s as any).execution_amount||0).toLocaleString()}원 (${(s as any).team_member})`) || "없음")}`);
+    lines.push(`\n## ${month.label} 매출 현황`);
+    lines.push(`총 ${sales.length}건, 총액 ${fmtMoney(totalAmt)}`);
+    lines.push(`\n채널별:`);
+    Object.entries(chMap).forEach(([k, v]) => lines.push(`- ${k}: ${v.n}건, ${fmtMoney(v.a)}`));
+    lines.push(`\n담당자별:`);
+    Object.entries(tmMap).forEach(([k, v]) => lines.push(`- ${k}: ${v.n}건, ${fmtMoney(v.a)}`));
+
+    // 최근 매출 상세 (20건)
+    if (q.includes("매출") || q.includes("실적") || q.includes("집계") || q.includes("월회비") || q.includes("하이타") || q.includes("광고")) {
+      lines.push(`\n최근 매출 상세:`);
+      sales.slice(0, 20).forEach((s: any) => {
+        const amt = (s.vat_amount && s.vat_amount !== s.execution_amount) ? s.vat_amount : (s.execution_amount || 0);
+        lines.push(`- ${s.payment_date} | ${s.member_name || "-"} (${s.bunyanghoe_number || "-"}) | ${s.channel} | ${fmtMoney(amt)} | 담당: ${s.team_member || "-"} | 컨설턴트: ${s.consultant || "-"}`);
+      });
+    }
+  } else {
+    lines.push(`\n## ${month.label} 매출: 데이터 없음`);
   }
 
-  // 4. 고객 관련 상세 질문
-  if (q.includes("고객") || q.includes("계약") || q.includes("예약") || q.includes("입회") || q.includes("분양회") || q.includes("넘버") || q.includes("B-")) {
-    const vip = contacts?.filter((c: any) => ["계약완료", "예약완료"].includes(c.meeting_result));
-    parts.push(`[분양회입회자] 총${vip?.length||0}명 (계약${vip?.filter((c:any)=>c.meeting_result==="계약완료").length||0}, 예약${vip?.filter((c:any)=>c.meeting_result==="예약완료").length||0})`);
-    parts.push(`목록: ${JSON.stringify(vip?.slice(0, 30).map(c => `${c.bunyanghoe_number||"-"} ${c.name} ${c.title||""} (${c.assigned_to})`) || "없음")}`);
+  // ── 분양회 입회자 ──
+  if (q.includes("입회") || q.includes("분양회") || q.includes("계약") || q.includes("예약") || q.includes("넘버") || q.includes("B-") || q.includes("회원")) {
+    const vip = c.filter((x: any) => ["계약완료", "예약완료"].includes(x.meeting_result));
+    lines.push(`\n## 분양회 입회자 (${vip.length}명)`);
+    lines.push(`계약완료: ${vip.filter((x: any) => x.meeting_result === "계약완료").length}명 | 예약완료: ${vip.filter((x: any) => x.meeting_result === "예약완료").length}명`);
+    vip.forEach((x: any) => {
+      lines.push(`- ${x.bunyanghoe_number || "-"} | ${x.name} ${x.title || ""} | 담당: ${x.assigned_to || "-"} | ${x.meeting_result} | 계약일: ${x.contract_date || "-"}`);
+    });
   }
 
-  // 5. 특정 이름 검색
-  const nameMatch = contacts?.filter((c: any) => q.includes(c.name?.substring(0, 2)));
-  if (nameMatch && nameMatch.length > 0 && nameMatch.length < 10) {
-    parts.push(`[이름매칭고객] ${JSON.stringify(nameMatch.map(c => ({ 이름: c.name, 직급: c.title, 담당: c.assigned_to, 컨설턴트: c.consultant, 가망: c.prospect_type, 결과: c.meeting_result, 미팅일: c.meeting_date, 미팅지역: c.meeting_location, 넘버: c.bunyanghoe_number })))}`);
-  }
-
-  // 6. 업무 관련
-  if (q.includes("업무") || q.includes("요청") || q.includes("태스크") || q.includes("할일")) {
+  // ── 업무전달 ──
+  if (q.includes("업무") || q.includes("요청") || q.includes("태스크") || q.includes("할일") || q.includes("전달")) {
     const { data: tasks } = await supabase.from("tasks")
       .select("requester,assignee,category,content,status,created_at").order("created_at", { ascending: false }).limit(10);
-    parts.push(`[최근업무] ${JSON.stringify(tasks?.map(t => `${(t as any).created_at?.split("T")[0]} ${(t as any).requester}→${(t as any).assignee} [${(t as any).category}] ${(t as any).status} ${(t as any).content?.substring(0, 50)}`) || "없음")}`);
+    if (tasks && tasks.length > 0) {
+      lines.push(`\n## 최근 업무전달`);
+      tasks.forEach((t: any) => {
+        lines.push(`- ${fmtDate(t.created_at?.split("T")[0])} | ${t.requester} → ${t.assignee} | [${t.category}] ${t.status} | ${(t.content || "").substring(0, 80)}`);
+      });
+    }
   }
 
-  // 7. 완판트럭
-  if (q.includes("완판") || q.includes("트럭") || q.includes("출동")) {
+  // ── 완판트럭 ──
+  if (q.includes("완판") || q.includes("트럭") || q.includes("출동") || q.includes("현장")) {
     const { data: trucks } = await supabase.from("wanpan_trucks")
       .select("dispatch_date,site_name,region,members,customers").order("dispatch_date", { ascending: false }).limit(10);
-    parts.push(`[완판트럭] ${JSON.stringify(trucks?.map(t => `${(t as any).dispatch_date} ${(t as any).site_name} ${(t as any).region} 담당:${(t as any).members?.join(",")} 고객${(t as any).customers?.length||0}명`) || "없음")}`);
+    if (trucks && trucks.length > 0) {
+      lines.push(`\n## 최근 완판트럭`);
+      trucks.forEach((t: any) => {
+        lines.push(`- ${fmtDate(t.dispatch_date)} | ${t.site_name || "-"} | ${t.region || "-"} | 담당: ${t.members?.join(", ") || "-"} | 고객: ${t.customers?.length || 0}명`);
+      });
+    }
   }
 
-  return parts.join("\n");
+  return lines.join("\n");
 }
 
 export async function POST(req: Request) {
@@ -118,24 +177,40 @@ export async function POST(req: Request) {
     if (!message) return NextResponse.json({ error: "메시지를 입력해주세요." }, { status: 400 });
     if (!AI_API_KEY) return NextResponse.json({ error: "AI API 키가 설정되지 않았습니다." }, { status: 500 });
 
-    const crmData = await fetchCRMContext(message);
-    const today = new Date().toISOString().split("T")[0];
+    const crmData = await buildContext(message);
+    const today = new Date();
     const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+    const todayStr = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일 (${dayNames[today.getDay()]}요일)`;
 
-    const systemPrompt = `당신은 광고인㈜ 대외협력팀 CRM AI 어시스턴트 "분양의신 AI"입니다.
+    const systemPrompt = `You are "분양의신 AI", a CRM assistant for 광고인㈜ 대외협력팀.
+You MUST answer in Korean only. Be accurate, specific, and helpful.
 
-[규칙] 한국어 답변, CRM 데이터 기반 정확 답변, 없는 데이터는 솔직히 "없음" 표시, 금액은 원 단위, 날짜는 M월 D일(요일)
+IMPORTANT RULES:
+1. Answer ONLY based on the CRM data provided below. Do NOT make up data.
+2. If the data doesn't contain the answer, say "해당 데이터를 찾을 수 없습니다."
+3. Format money as "5,500,000원" (with commas).
+4. Format dates as "4월 23일(수)" style.
+5. Use bullet points and clean formatting.
+6. Be concise but complete.
 
-[오늘] ${today} (${dayNames[new Date().getDay()]}요일)
+TODAY: ${todayStr}
 
-[팀] 관리자: 김정후본부장/김창완팀장/최웅파트장 | 실행파트: 조계현메인/이세호어쏘/기여운어쏘/최연전CX | 운영파트: 김재영어시/최은정어시
+TEAM MEMBERS (use these exact names):
+- 관리자: 김정후 본부장, 김창완 팀장, 최웅 파트장
+- 실행파트(대외협력팀): 조계현 메인, 이세호 어쏘, 기여운 어쏘, 최연전 CX
+- 운영파트: 김재영 어시, 최은정 어시
 
-[별명] 계현=조계현, 세호=이세호, 여운=기여운, 연전=최연전, 재영=김재영, 은정=최은정
+NICKNAME MAPPING (user may use these):
+- 계현, 조메인 → 조계현
+- 세호 → 이세호
+- 여운 → 기여운
+- 연전 → 최연전
+- 재영 → 김재영
+- 은정 → 최은정
 
-[CRM데이터]
+CRM DATA:
 ${crmData}`;
 
-    // 대화 히스토리 구성 (OpenAI 형식)
     const messages: { role: string; content: string }[] = [
       { role: "system", content: systemPrompt },
     ];
@@ -146,7 +221,6 @@ ${crmData}`;
     }
     messages.push({ role: "user", content: message });
 
-    // Groq API 호출 (OpenAI 호환, 무료)
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -157,7 +231,7 @@ ${crmData}`;
         model: "llama-3.3-70b-versatile",
         messages,
         max_tokens: 1500,
-        temperature: 0.7,
+        temperature: 0.3,
       }),
     });
 
