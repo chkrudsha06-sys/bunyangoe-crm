@@ -61,7 +61,11 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
   };
 
   // 키보드 핸들러 (엑셀 동작)
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const atStart = input.selectionStart === 0 && input.selectionEnd === 0;
+    const atEnd = input.selectionStart === input.value.length;
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       commitAndMove(1, 0); // Enter = 아래로
@@ -74,20 +78,20 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
     } else if (e.key === "Tab" && e.shiftKey) {
       e.preventDefault();
       commitAndMove(0, -1); // Shift+Tab = 왼쪽
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      commitAndMove(1, 0); // ↓ 아래
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      commitAndMove(-1, 0); // ↑ 위
+    } else if (e.key === "ArrowRight" && atEnd) {
+      e.preventDefault();
+      commitAndMove(0, 1); // → 오른쪽 (커서가 맨 끝일 때)
+    } else if (e.key === "ArrowLeft" && atStart) {
+      e.preventDefault();
+      commitAndMove(0, -1); // ← 왼쪽 (커서가 맨 앞일 때)
     } else if (e.key === "Escape") {
       setEditCell(null); // Esc = 취소
-    } else if (e.key === "ArrowDown" && e.ctrlKey) {
-      e.preventDefault();
-      commitAndMove(1, 0);
-    } else if (e.key === "ArrowUp" && e.ctrlKey) {
-      e.preventDefault();
-      commitAndMove(-1, 0);
-    } else if (e.key === "ArrowRight" && e.ctrlKey) {
-      e.preventDefault();
-      commitAndMove(0, 1);
-    } else if (e.key === "ArrowLeft" && e.ctrlKey) {
-      e.preventDefault();
-      commitAndMove(0, -1);
     }
   };
 
@@ -124,7 +128,7 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
           <Minus size={12} /> 열 삭제
         </button>
         <span className="text-xs" style={{ color: "var(--text-subtle)" }}>{ROWS}행 × {COLS}열</span>
-        <span className="text-[10px] ml-auto" style={{ color: "var(--text-subtle)" }}>Enter↓  Tab→  Shift+Enter↑  Shift+Tab←  Esc취소</span>
+        <span className="text-[10px] ml-auto" style={{ color: "var(--text-subtle)" }}>Enter↓  Tab→  ↑↓←→이동  Esc취소</span>
       </div>
       <div className="overflow-auto rounded-xl flex-1" style={{ border: "1px solid var(--border)" }}>
         <table className="w-full border-collapse text-sm" style={{ minWidth: COLS * 100 }}>
