@@ -34,6 +34,7 @@ const EXEC_MENUS = [
   { href: "/vip-members", label: "분양회 입회자", emoji: "⭐" },
   { href: "/wanpan-truck", label: "완판트럭", emoji: "🚚" },
   { href: "/calendar", label: "운영캘린더", emoji: "📅" },
+  { href: "/memo", label: "메모장", emoji: "📝" },
 ];
 
 const OPS_MENUS = [
