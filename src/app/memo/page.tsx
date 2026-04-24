@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Save, Trash2, FileText, Grid3X3, Calculator, Clock, Plus, Download, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Save, Trash2, FileText, Grid3X3, Clock, Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -15,80 +15,6 @@ interface Memo {
   created_by: string;
   created_at: string;
   updated_at: string;
-}
-
-// ── 계산기 컴포넌트 ──
-function CalcWidget() {
-  const [display, setDisplay] = useState("0");
-  const [prev, setPrev] = useState<number | null>(null);
-  const [op, setOp] = useState<string | null>(null);
-  const [fresh, setFresh] = useState(true);
-
-  const input = (v: string) => {
-    if (fresh) { setDisplay(v); setFresh(false); }
-    else setDisplay(d => d === "0" ? v : d + v);
-  };
-  const dot = () => { if (!display.includes(".")) setDisplay(d => d + "."); setFresh(false); };
-  const clear = () => { setDisplay("0"); setPrev(null); setOp(null); setFresh(true); };
-  const operate = (nextOp: string) => {
-    const cur = parseFloat(display);
-    if (prev !== null && op) {
-      let r = prev;
-      if (op === "+") r = prev + cur;
-      if (op === "-") r = prev - cur;
-      if (op === "×") r = prev * cur;
-      if (op === "÷") r = cur !== 0 ? prev / cur : 0;
-      if (op === "%") r = prev * (cur / 100);
-      setDisplay(String(Math.round(r * 1e10) / 1e10));
-      setPrev(r);
-    } else { setPrev(cur); }
-    setOp(nextOp);
-    setFresh(true);
-  };
-  const equals = () => { operate("="); setOp(null); };
-  const percent = () => {
-    const cur = parseFloat(display);
-    if (prev !== null) { setDisplay(String(Math.round(prev * (cur / 100) * 1e10) / 1e10)); }
-    else { setDisplay(String(cur / 100)); }
-    setFresh(true);
-  };
-  const plusMinus = () => setDisplay(d => String(-parseFloat(d)));
-
-  const Btn = ({ label, onClick, span = 1, accent = false, dark = false }: any) => (
-    <button onClick={onClick} className="flex items-center justify-center text-lg font-semibold rounded-xl transition-all active:scale-95"
-      style={{
-        gridColumn: `span ${span}`, height: 52,
-        background: accent ? "#3b82f6" : dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
-        color: accent ? "#fff" : dark ? "#f1f5f9" : "var(--text)",
-        border: "1px solid var(--border)",
-      }}>{label}</button>
-  );
-
-  return (
-    <div className="rounded-2xl p-5 max-w-xs mx-auto" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-      <div className="text-right text-3xl font-bold mb-4 px-2 overflow-hidden" style={{ color: "var(--text)", minHeight: 44 }}>
-        {parseFloat(display).toLocaleString("en-US", { maximumFractionDigits: 10 })}
-      </div>
-      <div className="text-right text-xs mb-3 px-2" style={{ color: "var(--text-muted)", minHeight: 16 }}>
-        {prev !== null && op ? `${prev.toLocaleString()} ${op}` : ""}
-      </div>
-      <div className="grid grid-cols-4 gap-2">
-        <Btn label="C" onClick={clear} dark />
-        <Btn label="±" onClick={plusMinus} dark />
-        <Btn label="%" onClick={percent} dark />
-        <Btn label="÷" onClick={() => operate("÷")} accent />
-        {["7","8","9"].map(n => <Btn key={n} label={n} onClick={() => input(n)} />)}
-        <Btn label="×" onClick={() => operate("×")} accent />
-        {["4","5","6"].map(n => <Btn key={n} label={n} onClick={() => input(n)} />)}
-        <Btn label="-" onClick={() => operate("-")} accent />
-        {["1","2","3"].map(n => <Btn key={n} label={n} onClick={() => input(n)} />)}
-        <Btn label="+" onClick={() => operate("+")} accent />
-        <Btn label="0" onClick={() => input("0")} span={2} />
-        <Btn label="." onClick={dot} />
-        <Btn label="=" onClick={equals} accent />
-      </div>
-    </div>
-  );
 }
 
 // ── 스프레드시트 컴포넌트 ──
@@ -127,7 +53,7 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
         </button>
         <span className="text-xs" style={{ color: "var(--text-subtle)" }}>{data.length}행 × {COLS}열</span>
       </div>
-      <div className="overflow-auto rounded-xl" style={{ border: "1px solid var(--border)", maxHeight: 420 }}>
+      <div className="overflow-auto rounded-xl flex-1" style={{ border: "1px solid var(--border)" }}>
         <table className="w-full border-collapse text-sm" style={{ minWidth: COLS * 100 }}>
           <thead>
             <tr>
@@ -171,7 +97,7 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
 
 // ── 메인 페이지 ──
 export default function MemoPage() {
-  const [tab, setTab] = useState<"text" | "sheet" | "calc" | "history">("text");
+  const [tab, setTab] = useState<"text" | "sheet" | "history">("text");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [sheetData, setSheetData] = useState<string[][]>(
@@ -263,7 +189,6 @@ export default function MemoPage() {
   const tabs = [
     { key: "text", label: "메모", icon: FileText },
     { key: "sheet", label: "스프레드시트", icon: Grid3X3 },
-    { key: "calc", label: "계산기", icon: Calculator },
     { key: "history", label: "저장 기록", icon: Clock },
   ] as const;
 
@@ -272,7 +197,7 @@ export default function MemoPage() {
       {/* 헤더 */}
       <div className="px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
         <h1 className="text-lg font-bold" style={{ color: "var(--text)" }}>📝 메모장</h1>
-        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>텍스트 메모, 스프레드시트, 계산기</p>
+        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>텍스트 메모, 스프레드시트</p>
       </div>
 
       {/* 탭 */}
@@ -302,12 +227,12 @@ export default function MemoPage() {
       </div>
 
       {/* 본문 */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 flex flex-col">
         {/* 메모 / 스프레드시트 */}
         {(tab === "text" || tab === "sheet") && (
-          <div className="max-w-4xl mx-auto space-y-4">
+          <div className="flex-1 flex flex-col space-y-3">
             {/* 제목 + 저장 */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-shrink-0">
               <input value={title} onChange={e => setTitle(e.target.value)}
                 placeholder="제목을 입력하세요"
                 className="flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl outline-none focus:ring-1 focus:ring-blue-400"
@@ -325,22 +250,17 @@ export default function MemoPage() {
               )}
             </div>
 
-            {/* 편집 영역 */}
+            {/* 편집 영역 - 전체 화면 */}
             {tab === "text" ? (
               <textarea value={content} onChange={e => setContent(e.target.value)}
                 placeholder="메모 내용을 입력하세요..."
-                className="w-full rounded-xl outline-none focus:ring-1 focus:ring-blue-400 resize-none text-sm leading-relaxed"
-                style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)", minHeight: 400, padding: 20 }} />
+                className="flex-1 w-full rounded-xl outline-none focus:ring-1 focus:ring-blue-400 resize-none text-sm leading-relaxed"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)", padding: 20, minHeight: 0 }} />
             ) : (
-              <SheetEditor data={sheetData} onChange={setSheetData} />
+              <div className="flex-1">
+                <SheetEditor data={sheetData} onChange={setSheetData} />
+              </div>
             )}
-          </div>
-        )}
-
-        {/* 계산기 */}
-        {tab === "calc" && (
-          <div className="max-w-xs mx-auto pt-4">
-            <CalcWidget />
           </div>
         )}
 
