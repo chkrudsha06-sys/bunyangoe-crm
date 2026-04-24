@@ -302,26 +302,45 @@ export default function LoginPage() {
   const [bgmStarted, setBgmStarted] = useState(false);
   const [bgmPlaying, setBgmPlaying] = useState(false);
   const bgmRef = useRef<HTMLAudioElement | null>(null);
+
+  // 오디오 객체 미리 생성 (모바일 호환)
+  useEffect(() => {
+    const audio = new Audio("/bgm.mp3");
+    audio.volume = 0.3;
+    audio.loop = true;
+    audio.preload = "auto";
+    bgmRef.current = audio;
+    return () => { audio.pause(); audio.src = ""; bgmRef.current = null; };
+  }, []);
+
   const [mousePos, setMousePos] = useState({ x: -200, y: -200 });
   useEffect(() => {
     const handleMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
+    const handleTouch = (e: TouchEvent) => {
+      if (e.touches.length > 0) setMousePos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    };
     window.addEventListener("mousemove", handleMove);
-    return () => window.removeEventListener("mousemove", handleMove);
+    window.addEventListener("touchmove", handleTouch);
+    window.addEventListener("touchstart", handleTouch);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("touchmove", handleTouch);
+      window.removeEventListener("touchstart", handleTouch);
+    };
   }, []);
+
   useEffect(() => {
     if (bgmStarted) return;
 
     const startBGM = () => {
-      if (bgmRef.current) return;
-      const audio = new Audio("/bgm.mp3");
-      audio.volume = 0.3;
-      audio.loop = true;
-      bgmRef.current = audio;
-      setBgmStarted(true);
-      setBgmPlaying(true);
-      audio.play().catch(() => {
+      if (!bgmRef.current || bgmStarted) return;
+      // 사용자 제스처 직후 즉시 play (모바일 필수)
+      bgmRef.current.play().then(() => {
+        setBgmPlaying(true);
+      }).catch(() => {
         setBgmPlaying(false);
       });
+      setBgmStarted(true);
       const evts = ["click","mousedown","keydown","touchstart","pointerdown"];
       evts.forEach(e => window.removeEventListener(e, startBGM));
     };
@@ -334,32 +353,13 @@ export default function LoginPage() {
     };
   }, [bgmStarted]);
 
-  // 페이지 벗어나면 BGM 정리
-  useEffect(() => {
-    return () => {
-      if (bgmRef.current) { bgmRef.current.pause(); bgmRef.current.src = ""; bgmRef.current = null; }
-    };
-  }, []);
-
   const toggleBgm = () => {
-    if (!bgmRef.current) {
-      // BGM이 아직 생성 안 됐으면 생성 시도
-      const audio = new Audio("/bgm.mp3");
-      audio.volume = 0.3;
-      audio.loop = true;
-      audio.play().then(() => {
-        bgmRef.current = audio;
-        setBgmPlaying(true);
-        setBgmStarted(true);
-      }).catch(() => {});
-      return;
-    }
+    if (!bgmRef.current) return;
     if (bgmPlaying) {
       bgmRef.current.pause();
       setBgmPlaying(false);
     } else {
-      bgmRef.current.play().catch(() => {});
-      setBgmPlaying(true);
+      bgmRef.current.play().then(() => setBgmPlaying(true)).catch(() => {});
     }
   };
 
