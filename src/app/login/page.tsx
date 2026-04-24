@@ -318,9 +318,14 @@ export default function LoginPage() {
       audio.loop = true;
       audio.play().then(() => {
         bgmRef.current = audio;
-        setBgmStarted(true);
         setBgmPlaying(true);
-      }).catch(() => {});
+      }).catch(() => {
+        // 오디오 실패해도 audio 객체는 유지 (토글 버튼으로 재시도 가능)
+        bgmRef.current = audio;
+        setBgmPlaying(false);
+      });
+      // 오디오 성공/실패와 관계없이 항상 전환 (황금가루 활성화)
+      setBgmStarted(true);
       const evts = ["click","mousedown","keydown","touchstart","pointerdown"];
       evts.forEach(e => window.removeEventListener(e, startBGM));
     };
@@ -341,7 +346,18 @@ export default function LoginPage() {
   }, []);
 
   const toggleBgm = () => {
-    if (!bgmRef.current) return;
+    if (!bgmRef.current) {
+      // BGM이 아직 생성 안 됐으면 생성 시도
+      const audio = new Audio("/bgm.mp3");
+      audio.volume = 0.3;
+      audio.loop = true;
+      audio.play().then(() => {
+        bgmRef.current = audio;
+        setBgmPlaying(true);
+        setBgmStarted(true);
+      }).catch(() => {});
+      return;
+    }
     if (bgmPlaying) {
       bgmRef.current.pause();
       setBgmPlaying(false);
