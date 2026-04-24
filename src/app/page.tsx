@@ -151,11 +151,14 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
 
 async function fetchMonthlyRevenue(user: CRMUser, year: number, month: number): Promise<MonthlyRevenue[]> {
   const isExec = user.role === "exec";
+  const today = new Date().toISOString().split("T")[0];
   const offsets = Array.from({length: 3}, (_, i) => i - 2);
   const months = offsets.map(offset => {
     const d = new Date(year, month - 1 + offset, 1);
     const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0];
-    const e = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().split("T")[0];
+    let e = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().split("T")[0];
+    // 현재 월은 오늘까지만 집계
+    if (e > today) e = today;
     return { label: `${String(d.getFullYear()).slice(2)}.${String(d.getMonth()+1).padStart(2,"0")}`, s, e };
   });
   const results: MonthlyRevenue[] = [];
@@ -168,7 +171,7 @@ async function fetchMonthlyRevenue(user: CRMUser, year: number, month: number): 
     results.push({
       month: m.label,
       hightarget: (a||[]).filter((x:any)=>x.channel==="하이타겟").reduce((s:number,x:any)=>s+eff(x),0),
-      special: (a||[]).filter((x:any)=>["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"].includes(x.channel)).reduce((s:number,x:any)=>s+eff(x),0),
+      special: (a||[]).filter((x:any)=>x.contract_route==="분양회" && ["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"].includes(x.channel)).reduce((s:number,x:any)=>s+eff(x),0),
       bunyanghoe: (a||[]).filter((x:any)=>["분양회 입회비","분양회 월회비"].includes(x.channel)).reduce((s:number,x:any)=>s+eff(x),0),
     });
   }
@@ -381,6 +384,7 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
       const lastDay = new Date(year, month, 0).getDate();
       const monthStart = `${year}-${monthStr}-01`;
       const monthEnd = `${year}-${monthStr}-${String(lastDay).padStart(2,"0")}`;
+      const todayEnd = now.toISOString().split("T")[0]; // KPI 집계는 오늘까지만
 
       // 주간 날짜 범위
       const wStart = (curWeek - 1) * 7 + 1;
@@ -408,10 +412,10 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
         setWMine(wm as KpiRow | null);
       }
 
-      // 전체 매출 데이터 로드 (당월)
+      // 전체 매출 데이터 로드 (당월, 오늘까지)
       const { data: execRows = [] } = await supabase.from("ad_executions")
         .select("id,execution_amount,vat_amount,refund_amount,channel,contract_route,payment_date,team_member")
-        .gte("payment_date", monthStart).lte("payment_date", monthEnd);
+        .gte("payment_date", monthStart).lte("payment_date", todayEnd);
       const allExecs = (execRows || []) as any[];
 
       const { data: contactRows = [] } = await supabase.from("contacts")
@@ -448,7 +452,7 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
       };
 
       // 월간 실적
-      setActuals(calcActuals(allExecs, monthStart, monthEnd));
+      setActuals(calcActuals(allExecs, monthStart, todayEnd));
       // 주간 실적
       const weekExecs = allExecs.filter(e => e.payment_date >= weekStart && e.payment_date <= weekEnd);
       setWActuals(calcActuals(weekExecs, weekStart, weekEnd));
