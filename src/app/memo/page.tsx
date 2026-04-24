@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Trash2, FileText, Grid3X3, Clock, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { Save, Trash2, FileText, Grid3X3, Clock, Plus, Minus, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -22,36 +22,109 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
   const [editCell, setEditCell] = useState<[number, number] | null>(null);
   const [editVal, setEditVal] = useState("");
 
+  const ROWS = data.length;
   const COLS = data[0]?.length || 10;
-  const colLabel = (i: number) => String.fromCharCode(65 + i);
+  const colLabel = (i: number) => i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(64 + Math.floor(i / 26)) + String.fromCharCode(65 + (i % 26));
 
+  // 셀 편집 시작
   const startEdit = (r: number, c: number) => {
+    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
     setEditCell([r, c]);
     setEditVal(data[r]?.[c] || "");
   };
-  const endEdit = () => {
-    if (editCell) {
-      const [r, c] = editCell;
-      const nd = data.map((row, ri) => row.map((cell, ci) => (ri === r && ci === c) ? editVal : cell));
-      onChange(nd);
+
+  // 현재 셀 저장 후 다음 셀로 이동
+  const commitAndMove = (dr: number, dc: number) => {
+    if (!editCell) return;
+    const [r, c] = editCell;
+    // 현재 셀 저장
+    const nd = data.map((row, ri) => row.map((cell, ci) => (ri === r && ci === c) ? editVal : cell));
+    onChange(nd);
+    // 다음 셀로 이동
+    const nr = r + dr;
+    const nc = c + dc;
+    if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+      setEditCell([nr, nc]);
+      setEditVal(nd[nr]?.[nc] || "");
+    } else {
+      setEditCell(null);
     }
+  };
+
+  // 현재 셀 저장만 (이동 없음)
+  const commitOnly = () => {
+    if (!editCell) return;
+    const [r, c] = editCell;
+    const nd = data.map((row, ri) => row.map((cell, ci) => (ri === r && ci === c) ? editVal : cell));
+    onChange(nd);
     setEditCell(null);
   };
+
+  // 키보드 핸들러 (엑셀 동작)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      commitAndMove(1, 0); // Enter = 아래로
+    } else if (e.key === "Enter" && e.shiftKey) {
+      e.preventDefault();
+      commitAndMove(-1, 0); // Shift+Enter = 위로
+    } else if (e.key === "Tab" && !e.shiftKey) {
+      e.preventDefault();
+      commitAndMove(0, 1); // Tab = 오른쪽
+    } else if (e.key === "Tab" && e.shiftKey) {
+      e.preventDefault();
+      commitAndMove(0, -1); // Shift+Tab = 왼쪽
+    } else if (e.key === "Escape") {
+      setEditCell(null); // Esc = 취소
+    } else if (e.key === "ArrowDown" && e.ctrlKey) {
+      e.preventDefault();
+      commitAndMove(1, 0);
+    } else if (e.key === "ArrowUp" && e.ctrlKey) {
+      e.preventDefault();
+      commitAndMove(-1, 0);
+    } else if (e.key === "ArrowRight" && e.ctrlKey) {
+      e.preventDefault();
+      commitAndMove(0, 1);
+    } else if (e.key === "ArrowLeft" && e.ctrlKey) {
+      e.preventDefault();
+      commitAndMove(0, -1);
+    }
+  };
+
+  // 행/열 추가/삭제
   const addRow = () => onChange([...data, Array(COLS).fill("")]);
   const addCol = () => onChange(data.map(row => [...row, ""]));
+  const removeRow = () => {
+    if (ROWS <= 1) return;
+    onChange(data.slice(0, -1));
+    if (editCell && editCell[0] >= ROWS - 1) setEditCell(null);
+  };
+  const removeCol = () => {
+    if (COLS <= 1) return;
+    onChange(data.map(row => row.slice(0, -1)));
+    if (editCell && editCell[1] >= COLS - 1) setEditCell(null);
+  };
+
+  const btnStyle = { background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" };
+  const btnDangerStyle = { background: "var(--surface)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444" };
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-3">
-        <button onClick={addRow} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-colors"
-          style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 mb-3 flex-shrink-0 flex-wrap">
+        <button onClick={addRow} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-colors" style={btnStyle}>
           <Plus size={12} /> 행 추가
         </button>
-        <button onClick={addCol} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-colors"
-          style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>
+        <button onClick={addCol} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-colors" style={btnStyle}>
           <Plus size={12} /> 열 추가
         </button>
-        <span className="text-xs" style={{ color: "var(--text-subtle)" }}>{data.length}행 × {COLS}열</span>
+        <button onClick={removeRow} disabled={ROWS <= 1} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30" style={btnDangerStyle}>
+          <Minus size={12} /> 행 삭제
+        </button>
+        <button onClick={removeCol} disabled={COLS <= 1} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30" style={btnDangerStyle}>
+          <Minus size={12} /> 열 삭제
+        </button>
+        <span className="text-xs" style={{ color: "var(--text-subtle)" }}>{ROWS}행 × {COLS}열</span>
+        <span className="text-[10px] ml-auto" style={{ color: "var(--text-subtle)" }}>Enter↓  Tab→  Shift+Enter↑  Shift+Tab←  Esc취소</span>
       </div>
       <div className="overflow-auto rounded-xl flex-1" style={{ border: "1px solid var(--border)" }}>
         <table className="w-full border-collapse text-sm" style={{ minWidth: COLS * 100 }}>
@@ -71,21 +144,24 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
             {data.map((row, ri) => (
               <tr key={ri}>
                 <td className="text-center text-[10px] py-1" style={{ background: "var(--bg)", color: "var(--text-muted)", borderBottom: "1px solid var(--border)", borderRight: "1px solid var(--border)" }}>{ri + 1}</td>
-                {row.map((cell, ci) => (
-                  <td key={ci} onClick={() => startEdit(ri, ci)} className="cursor-pointer"
-                    style={{ borderBottom: "1px solid var(--border)", borderRight: "1px solid var(--border)", padding: 0 }}>
-                    {editCell && editCell[0] === ri && editCell[1] === ci ? (
-                      <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)}
-                        onBlur={endEdit} onKeyDown={e => { if (e.key === "Enter") endEdit(); if (e.key === "Tab") { e.preventDefault(); endEdit(); if (ci < COLS - 1) startEdit(ri, ci + 1); } }}
-                        className="w-full px-2 py-1.5 text-sm outline-none"
-                        style={{ background: "rgba(59,130,246,0.1)", color: "var(--text)", border: "2px solid #3b82f6" }} />
-                    ) : (
-                      <div className="px-2 py-1.5 min-h-[32px] text-sm" style={{ color: cell ? "var(--text)" : "transparent" }}>
-                        {cell || "."}
-                      </div>
-                    )}
-                  </td>
-                ))}
+                {row.map((cell, ci) => {
+                  const isEditing = editCell && editCell[0] === ri && editCell[1] === ci;
+                  return (
+                    <td key={ci} onClick={() => startEdit(ri, ci)} className="cursor-pointer"
+                      style={{ borderBottom: "1px solid var(--border)", borderRight: "1px solid var(--border)", padding: 0 }}>
+                      {isEditing ? (
+                        <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)}
+                          onBlur={commitOnly} onKeyDown={handleKeyDown}
+                          className="w-full px-2 py-1.5 text-sm outline-none"
+                          style={{ background: "rgba(59,130,246,0.1)", color: "var(--text)", border: "2px solid #3b82f6" }} />
+                      ) : (
+                        <div className="px-2 py-1.5 min-h-[32px] text-sm" style={{ color: cell ? "var(--text)" : "transparent" }}>
+                          {cell || "."}
+                        </div>
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
