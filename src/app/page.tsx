@@ -160,15 +160,16 @@ async function fetchMonthlyRevenue(user: CRMUser, year: number, month: number): 
   });
   const results: MonthlyRevenue[] = [];
   for (const m of months) {
-    let q = supabase.from("ad_executions").select("execution_amount,channel")
+    let q = supabase.from("ad_executions").select("execution_amount,vat_amount,refund_amount,channel,contract_route")
       .gte("payment_date", m.s).lte("payment_date", m.e);
     if (isExec) q = q.eq("team_member", user.name);
     const { data: a = [] } = await q;
+    const eff = (x:any) => ((x.vat_amount && x.vat_amount !== x.execution_amount) ? (x.vat_amount||0) : (x.execution_amount||0)) - (x.refund_amount||0);
     results.push({
       month: m.label,
-      hightarget: (a||[]).filter((x:any)=>x.channel==="하이타겟").reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
-      special: (a||[]).filter((x:any)=>["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"].includes(x.channel)).reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
-      bunyanghoe: (a||[]).filter((x:any)=>["분양회 입회비","분양회 월회비"].includes(x.channel)).reduce((s:number,x:any)=>s+(x.execution_amount||0),0),
+      hightarget: (a||[]).filter((x:any)=>x.channel==="하이타겟").reduce((s:number,x:any)=>s+eff(x),0),
+      special: (a||[]).filter((x:any)=>["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"].includes(x.channel)).reduce((s:number,x:any)=>s+eff(x),0),
+      bunyanghoe: (a||[]).filter((x:any)=>["분양회 입회비","분양회 월회비"].includes(x.channel)).reduce((s:number,x:any)=>s+eff(x),0),
     });
   }
   return results;
@@ -330,9 +331,9 @@ const OPS_MAPPING: Record<string, string[]> = {
   "최은정": ["조계현", "최연전"],
 };
 
-function effAmtKpi(e: { vat_amount: number | null; execution_amount: number | null }): number {
-  if (e.vat_amount && e.vat_amount > 0) return e.vat_amount;
-  return e.execution_amount || 0;
+function effAmtKpi(e: { vat_amount: number | null; execution_amount: number | null; refund_amount?: number | null }): number {
+  const base = (e.vat_amount && e.vat_amount !== (e.execution_amount || 0)) ? (e.vat_amount || 0) : (e.execution_amount || 0);
+  return base - (e.refund_amount || 0);
 }
 
 interface Actuals {
@@ -409,7 +410,7 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
 
       // 전체 매출 데이터 로드 (당월)
       const { data: execRows = [] } = await supabase.from("ad_executions")
-        .select("id,execution_amount,vat_amount,channel,contract_route,payment_date,team_member")
+        .select("id,execution_amount,vat_amount,refund_amount,channel,contract_route,payment_date,team_member")
         .gte("payment_date", monthStart).lte("payment_date", monthEnd);
       const allExecs = (execRows || []) as any[];
 
