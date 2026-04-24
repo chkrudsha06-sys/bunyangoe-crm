@@ -526,18 +526,23 @@ export default function LoginPage() {
         © 2026 광고인㈜ · 분양의신 · All rights reserved.
       </div>
 
-      {/* 사운드 토글 */}
-      <button onClick={toggleBgm}
-        style={{
-          position: "absolute", bottom: "20px", right: "clamp(20px,5vw,52px)", zIndex: 10,
-          width: 36, height: 36, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.15)",
-          background: "rgba(255,255,255,0.06)", backdropFilter: "blur(8px)",
-          color: bgmPlaying ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)",
-          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 16, transition: "all 0.3s ease",
-        }}>
-        {bgmPlaying ? "🔊" : "🔇"}
-      </button>
+      {/* 사운드 토글 (BGM 시작 후에만 표시) */}
+      {bgmStarted && (
+        <button onClick={toggleBgm}
+          style={{
+            position: "absolute", bottom: "20px", right: "clamp(20px,5vw,52px)", zIndex: 10,
+            width: 40, height: 40, borderRadius: "50%",
+            border: bgmPlaying ? "1.5px solid rgba(226,168,58,0.6)" : "1px solid rgba(255,255,255,0.15)",
+            background: bgmPlaying ? "rgba(226,168,58,0.15)" : "rgba(255,255,255,0.06)",
+            backdropFilter: "blur(8px)",
+            color: bgmPlaying ? "#E2A83A" : "rgba(255,255,255,0.35)",
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18, transition: "all 0.3s ease",
+            boxShadow: bgmPlaying ? "0 0 12px rgba(226,168,58,0.3)" : "none",
+          }}>
+          {bgmPlaying ? "🔊" : "🔇"}
+        </button>
+      )}
 
       {/* 로그인 모달 */}
       <div style={{
