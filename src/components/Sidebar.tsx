@@ -7,10 +7,10 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { CRMUser, logout } from "@/lib/auth";
 import {
-  LayoutDashboard, Users, Kanban, BarChart3,
-  CalendarDays, Truck, Shield, Award,
-  CreditCard, LogOut, ChevronRight, FileText, Target, Moon, Sun,
-  Bell, CheckCheck, X, Send, Clock, MessageCircle,
+  LayoutDashboard, Inbox, Users, GitBranch, Crown, Truck, CalendarDays,
+  ShieldCheck, CreditCard, Gem, Trophy, FileText,
+  Building2, Radio, BarChart3, Target, Lock, Sparkles,
+  LogOut, ChevronRight, Moon, Sun, Bell, CheckCheck, X, Send, Clock, MessageCircle,
 } from "lucide-react";
 
 interface NotificationItem { id: number; message: string | null; created_at: string; is_read: boolean; assignee_name?: string; title?: string; source_type?: string; source_id?: number | null; }
@@ -26,35 +26,44 @@ interface SidebarProps {
   onMobileClose?: () => void;
 }
 
+const ICON_MAP: Record<string, any> = {
+  "layout-dashboard": LayoutDashboard, "inbox": Inbox, "users": Users,
+  "git-branch": GitBranch, "crown": Crown, "truck": Truck, "calendar-days": CalendarDays,
+  "shield-check": ShieldCheck, "credit-card": CreditCard, "gem": Gem,
+  "trophy": Trophy, "file-text": FileText, "building-2": Building2, "radio": Radio,
+  "bar-chart-3": BarChart3, "target": Target, "lock": Lock, "sparkles": Sparkles,
+  "bar-chart": BarChart3,
+};
+
 const EXEC_MENUS = [
-  { href: "/", label: "대시보드", emoji: "📊" },
-  { href: "/tasks", label: "업무전달", emoji: "📬" },
-  { href: "/contacts", label: "고객 DB", emoji: "👥" },
-  { href: "/pipeline", label: "파이프라인", emoji: "🔄" },
-  { href: "/vip-members", label: "분양회 입회자", emoji: "⭐" },
-  { href: "/wanpan-truck", label: "완판트럭", emoji: "🚚" },
-  { href: "/calendar", label: "운영캘린더", emoji: "📅" },
+  { href: "/", label: "대시보드", icon: "layout-dashboard" },
+  { href: "/tasks", label: "업무전달", icon: "inbox" },
+  { href: "/contacts", label: "고객 DB", icon: "users" },
+  { href: "/pipeline", label: "파이프라인", icon: "git-branch" },
+  { href: "/vip-members", label: "분양회 입회자", icon: "crown" },
+  { href: "/wanpan-truck", label: "완판트럭", icon: "truck" },
+  { href: "/calendar", label: "운영캘린더", icon: "calendar-days" },
 ];
 
 const OPS_MENUS = [
-  { href: "/member-manage", label: "분양회 회원관리", emoji: "🛡️" },
-  { href: "/sales", label: "통합매출관리", emoji: "💳" },
-  { href: "/rewards", label: "리워드 관리", emoji: "💎" },
-  { href: "/customer-incentives", label: "인센티브 관리", emoji: "🏆" },
-  { href: "/quotes", label: "견적서", emoji: "📄" },
+  { href: "/member-manage", label: "분양회 회원관리", icon: "shield-check" },
+  { href: "/sales", label: "통합매출관리", icon: "credit-card" },
+  { href: "/rewards", label: "리워드 관리", icon: "gem" },
+  { href: "/customer-incentives", label: "인센티브 관리", icon: "trophy" },
+  { href: "/quotes", label: "견적서", icon: "file-text" },
 ];
 
 const INFO_MENUS = [
-  { href: "/new-sites", label: "신규현장", emoji: "🏗️" },
-  { href: "/ad-sites", label: "광고 현운예지", emoji: "📡" },
-  { href: "/ad-history", label: "광고내역기록", emoji: "📊" },
+  { href: "/new-sites", label: "신규현장", icon: "building-2" },
+  { href: "/ad-sites", label: "광고 현운예지", icon: "radio" },
+  { href: "/ad-history", label: "광고내역기록", icon: "bar-chart" },
 ];
 
 const ADMIN_EXTRA = [
-  { href: "/reports",       label: "팀 성과 분석", emoji: "📈" },
-  { href: "/kpi-settings",  label: "KPI 설정",    emoji: "🎯" },
-  { href: "/incentives",     label: "인센티브 관리", emoji: "🏅" },
-  { href: "/account-manage", label: "계정관리",    emoji: "🔐" },
+  { href: "/reports",       label: "팀 성과 분석", icon: "bar-chart-3" },
+  { href: "/kpi-settings",  label: "KPI 설정",    icon: "target" },
+  { href: "/incentives",     label: "인센티브 관리", icon: "trophy" },
+  { href: "/account-manage", label: "계정관리",    icon: "lock" },
 ];
 
 // 역할 배지 스타일
@@ -100,8 +109,9 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
     return () => document.removeEventListener("mousedown", handler);
   }, [showPanel, onPanelClose]);
 
-  const NavItem = ({ href, label, emoji }: { href: string; label: string; emoji: string }) => {
+  const NavItem = ({ href, label, icon }: { href: string; label: string; icon: string }) => {
     const active = pathname === href;
+    const IconComp = ICON_MAP[icon];
     return (
       <Link href={href} onClick={() => onMobileClose?.()} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all group"
         style={{
@@ -112,7 +122,7 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
         }}
         onMouseEnter={e=>{if(!active)(e.currentTarget as HTMLElement).style.background="var(--sidebar-hover)";}}
         onMouseLeave={e=>{if(!active)(e.currentTarget as HTMLElement).style.background="transparent";}}>
-        <span style={{fontSize:16,width:20,textAlign:"center"}}>{emoji}</span>
+        {IconComp && <IconComp size={16} strokeWidth={active ? 2.25 : 2} style={{flexShrink:0, color: active ? "var(--info)" : "var(--sidebar-text)"}} />}
         <span className="flex-1">{label}</span>
         {active && <ChevronRight size={12} style={{color:"var(--info)"}} />}
       </Link>
@@ -257,29 +267,29 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
       {/* 네비게이션 */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
         {/* 실행파트 - 전체 공개 */}
-        <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"var(--sidebar-section)"}}>■ 실행파트</div>
+        <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"var(--sidebar-section)"}}>실행파트</div>
         {EXEC_MENUS.map((m) => <NavItem key={m.href} {...m} />)}
 
         {/* 운영파트 - 전체 공개 */}
         <div className="my-2" style={{borderTop:"1px solid var(--sidebar-border)"}} />
-        <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"var(--sidebar-section)"}}>■ 운영파트</div>
+        <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"var(--sidebar-section)"}}>운영파트</div>
         {OPS_MENUS.map((m) => <NavItem key={m.href} {...m} />)}
 
         {/* 정보제공 - 전체 공개 */}
         <div className="my-2" style={{borderTop:"1px solid var(--sidebar-border)"}} />
-        <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"var(--sidebar-section)"}}>■ 정보제공</div>
+        <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"var(--sidebar-section)"}}>정보제공</div>
         {INFO_MENUS.map((m) => <NavItem key={m.href} {...m} />)}
 
         {/* AI 어시스턴트 */}
         <div className="my-2" style={{borderTop:"1px solid var(--sidebar-border)"}} />
-        <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"#8b5cf6"}}>★ AI</div>
-        <NavItem href="/ai-assistant" label="AI 어시스턴트" emoji="🤖" />
+        <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"#8b5cf6"}}>AI</div>
+        <NavItem href="/ai-assistant" label="AI 어시스턴트" icon="sparkles" />
 
         {/* 관리자 전용 */}
         {isAdmin && (
           <>
             <div className="my-2" style={{borderTop:"1px solid var(--sidebar-border)"}} />
-            <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"var(--warning)"}}>★ 관리자 전용</div>
+            <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"var(--warning)"}}>관리자 전용</div>
             {ADMIN_EXTRA.map((m) => <NavItem key={m.href} {...m} />)}
           </>
         )}
