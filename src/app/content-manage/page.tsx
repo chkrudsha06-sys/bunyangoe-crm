@@ -60,6 +60,7 @@ export default function ContentManagePage() {
   const [searchQ, setSearchQ] = useState("");
   const [filterAssigned, setFilterAssigned] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [cardFilter, setCardFilter] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadTarget, setUploadTarget] = useState<number | null>(null);
 
@@ -284,18 +285,27 @@ export default function ContentManagePage() {
       {/* 요약 카드 */}
       <div className="px-6 py-3 flex gap-3 flex-shrink-0 flex-wrap">
         {[
-          { label: "총 회원", value: members.length, color: "#3b82f6" },
-          { label: "사진 수취", value: Object.values(statuses).filter(s => s.photo_received).length, color: "#8b5cf6" },
-          { label: "정보 수취", value: Object.values(statuses).filter(s => s.info_received).length, color: "#f59e0b" },
-          { label: "TF2 전달", value: Object.values(statuses).filter(s => s.tf2_delivered).length, color: "#10b981" },
-          { label: "PR 완료", value: Object.values(statuses).filter(s => s.pr_completed).length, color: "#ef4444" },
-          { label: "제작불가", value: Object.values(statuses).filter(s => s.production_impossible).length, color: "#6b7280" },
-        ].map(c => (
-          <div key={c.label} className="px-4 py-2 rounded-xl text-center" style={{ background: "var(--surface)", border: "1px solid var(--border)", minWidth: 90 }}>
-            <p className="text-lg font-black" style={{ color: c.color }}>{c.value}</p>
-            <p className="text-[10px] font-semibold" style={{ color: "var(--text-muted)" }}>{c.label}</p>
-          </div>
-        ))}
+          { key: "all", label: "총 회원", value: members.length, color: "#3b82f6" },
+          { key: "photo", label: "사진 수취", value: Object.values(statuses).filter(s => s.photo_received).length, color: "#8b5cf6" },
+          { key: "info", label: "정보 수취", value: Object.values(statuses).filter(s => s.info_received).length, color: "#f59e0b" },
+          { key: "tf2", label: "TF2 전달", value: Object.values(statuses).filter(s => s.tf2_delivered).length, color: "#10b981" },
+          { key: "pr", label: "PR 완료", value: Object.values(statuses).filter(s => s.pr_completed).length, color: "#ef4444" },
+          { key: "impossible", label: "제작불가", value: Object.values(statuses).filter(s => s.production_impossible).length, color: "#6b7280" },
+        ].map(c => {
+          const isActive = cardFilter === c.key;
+          return (
+            <button key={c.key} onClick={() => setCardFilter(isActive ? "" : c.key)}
+              className="px-4 py-2 rounded-xl text-center transition-all"
+              style={{
+                background: isActive ? `${c.color}15` : "var(--surface)",
+                border: isActive ? `2px solid ${c.color}` : "1px solid var(--border)",
+                minWidth: 90, cursor: "pointer",
+              }}>
+              <p className="text-lg font-black" style={{ color: c.color }}>{c.value}</p>
+              <p className="text-[10px] font-semibold" style={{ color: isActive ? c.color : "var(--text-muted)" }}>{c.label}</p>
+            </button>
+          );
+        })}
       </div>
 
       {/* 필터 */}
@@ -330,8 +340,8 @@ export default function ContentManagePage() {
           <option value="pr">PR 완료</option>
           <option value="pr_no">PR 미완료</option>
         </select>
-        {(searchQ || filterAssigned || filterStatus) && (
-          <button onClick={() => { setSearchQ(""); setFilterAssigned(""); setFilterStatus(""); }}
+        {(searchQ || filterAssigned || filterStatus || cardFilter) && (
+          <button onClick={() => { setSearchQ(""); setFilterAssigned(""); setFilterStatus(""); setCardFilter(""); }}
             className="text-xs px-2.5 py-2 rounded-xl font-semibold transition-colors"
             style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>
             초기화
@@ -344,6 +354,19 @@ export default function ContentManagePage() {
         {(() => {
           // 필터 적용
           let filtered = members;
+          if (cardFilter && cardFilter !== "all") {
+            filtered = filtered.filter(m => {
+              const s = getStatus(m.id);
+              switch (cardFilter) {
+                case "photo": return s.photo_received;
+                case "info": return s.info_received;
+                case "tf2": return s.tf2_delivered;
+                case "pr": return s.pr_completed;
+                case "impossible": return s.production_impossible;
+                default: return true;
+              }
+            });
+          }
           if (searchQ) {
             const q = searchQ.toLowerCase();
             filtered = filtered.filter(m => 
