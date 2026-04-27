@@ -156,13 +156,15 @@ export default function ContentManagePage() {
       };
 
       let error;
+      let res_id: number | undefined;
       if (s.id) {
         const res = await supabase.from("content_statuses").update(payload).eq("id", s.id);
         error = res.error;
+        res_id = s.id;
       } else {
         const res = await supabase.from("content_statuses").insert(payload).select().single();
         error = res.error;
-        if (res.data) updateField(contactId, "id", res.data.id);
+        res_id = res.data?.id;
       }
 
       if (error) {
@@ -171,8 +173,16 @@ export default function ContentManagePage() {
         return;
       }
 
-      updateField(contactId, "files", existingFiles);
-      updateField(contactId, "photo_received", true);
+      setStatuses(prev => ({
+        ...prev,
+        [contactId]: {
+          ...prev[contactId],
+          contact_id: contactId,
+          id: res_id || prev[contactId]?.id,
+          files: existingFiles,
+          photo_received: true,
+        },
+      }));
       showToast(`${Array.from(fileList).length}개 파일 업로드 완료`);
     } catch (e: any) {
       showToast(`업로드 오류: ${e.message}`);
