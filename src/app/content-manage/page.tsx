@@ -180,17 +180,20 @@ export default function ContentManagePage() {
   const deleteFile = async (contactId: number, fileIndex: number) => {
     if (!confirm("이 파일을 삭제하시겠습니까?")) return;
     const s = getStatus(contactId);
-    const newFiles = s.files.filter((_, i) => i !== fileIndex);
+    const newFiles = (s.files || []).filter((_: any, i: number) => i !== fileIndex);
     const payload = {
       files: newFiles,
       photo_received: newFiles.length > 0,
       updated_at: new Date().toISOString(),
     };
     if (s.id) {
-      await supabase.from("content_statuses").update(payload).eq("id", s.id);
+      const { error } = await supabase.from("content_statuses").update(payload).eq("id", s.id);
+      if (error) { showToast(`삭제 실패: ${error.message}`); return; }
     }
-    updateField(contactId, "files", newFiles);
-    updateField(contactId, "photo_received", newFiles.length > 0);
+    setStatuses(prev => ({
+      ...prev,
+      [contactId]: { ...prev[contactId], files: newFiles, photo_received: newFiles.length > 0 },
+    }));
     showToast("파일 삭제 완료");
   };
 
@@ -426,11 +429,11 @@ export default function ContentManagePage() {
                                     <p className="text-xs font-semibold truncate" style={{ color: "var(--text)" }}>{file.name}</p>
                                     <p className="text-[10px]" style={{ color: "var(--text-subtle)" }}>{fmtSize(file.size)}</p>
                                   </div>
-                                  <button onClick={() => downloadFile(file)} title="다운로드"
+                                  <button onClick={e => { e.stopPropagation(); downloadFile(file); }} title="다운로드"
                                     className="p-1.5 rounded-lg transition-colors flex-shrink-0" style={{ color: "#3b82f6" }}>
                                     <Download size={13} />
                                   </button>
-                                  <button onClick={() => deleteFile(m.id, fi)} title="삭제"
+                                  <button onClick={e => { e.stopPropagation(); deleteFile(m.id, fi); }} title="삭제"
                                     className="p-1.5 rounded-lg transition-colors flex-shrink-0" style={{ color: "#ef4444" }}>
                                     <X size={13} />
                                   </button>
