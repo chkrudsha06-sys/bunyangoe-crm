@@ -48,6 +48,9 @@ export default function ContentManagePage() {
   const [saving, setSaving] = useState<number | null>(null);
   const [uploading, setUploading] = useState<number | null>(null);
   const [toast, setToast] = useState("");
+  const [searchQ, setSearchQ] = useState("");
+  const [filterAssigned, setFilterAssigned] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadTarget, setUploadTarget] = useState<number | null>(null);
 
@@ -232,19 +235,94 @@ export default function ContentManagePage() {
         ))}
       </div>
 
+      {/* 필터 */}
+      <div className="px-6 py-3 flex items-center gap-2 flex-shrink-0 flex-wrap" style={{ borderBottom: "1px solid var(--border)" }}>
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
+            placeholder="고객명, 넘버링 검색"
+            className="w-full pl-8 pr-3 py-2 text-sm rounded-xl outline-none focus:ring-1 focus:ring-blue-400"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)" }}>
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+        </div>
+        <select value={filterAssigned} onChange={e => setFilterAssigned(e.target.value)}
+          className="px-3 py-2 text-sm rounded-xl outline-none"
+          style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+          <option value="">전체 담당자</option>
+          {[...new Set(members.map(m => m.assigned_to).filter(Boolean))].sort().map(a => (
+            <option key={a!} value={a!}>{a}</option>
+          ))}
+        </select>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          className="px-3 py-2 text-sm rounded-xl outline-none"
+          style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+          <option value="">전체 상태</option>
+          <option value="photo">사진 수취 완료</option>
+          <option value="photo_no">사진 미수취</option>
+          <option value="info">정보 수취 완료</option>
+          <option value="info_no">정보 미수취</option>
+          <option value="tf2">TF2팀 전달 완료</option>
+          <option value="tf2_no">TF2팀 미전달</option>
+          <option value="pr">PR 완료</option>
+          <option value="pr_no">PR 미완료</option>
+        </select>
+        {(searchQ || filterAssigned || filterStatus) && (
+          <button onClick={() => { setSearchQ(""); setFilterAssigned(""); setFilterStatus(""); }}
+            className="text-xs px-2.5 py-2 rounded-xl font-semibold transition-colors"
+            style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>
+            초기화
+          </button>
+        )}
+      </div>
+
       {/* 회원 목록 */}
       <div className="flex-1 overflow-y-auto px-6 pb-6">
+        {(() => {
+          // 필터 적용
+          let filtered = members;
+          if (searchQ) {
+            const q = searchQ.toLowerCase();
+            filtered = filtered.filter(m => 
+              m.name.toLowerCase().includes(q) || 
+              (m.bunyanghoe_number || "").toLowerCase().includes(q) ||
+              `b-${(m.bunyanghoe_number || "").replace(/[^0-9]/g, "")}`.includes(q)
+            );
+          }
+          if (filterAssigned) {
+            filtered = filtered.filter(m => m.assigned_to === filterAssigned);
+          }
+          if (filterStatus) {
+            filtered = filtered.filter(m => {
+              const s = getStatus(m.id);
+              switch (filterStatus) {
+                case "photo": return s.photo_received;
+                case "photo_no": return !s.photo_received;
+                case "info": return s.info_received;
+                case "info_no": return !s.info_received;
+                case "tf2": return s.tf2_delivered;
+                case "tf2_no": return !s.tf2_delivered;
+                case "pr": return s.pr_completed;
+                case "pr_no": return !s.pr_completed;
+                default: return true;
+              }
+            });
+          }
+          return (<>
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
           </div>
-        ) : members.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="text-center py-20" style={{ color: "var(--text-muted)" }}>
-            <p className="text-sm">입회자가 없습니다.</p>
+            <p className="text-sm">{members.length > 0 ? "검색 결과가 없습니다." : "입회자가 없습니다."}</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {members.map(m => {
+            <p className="text-xs py-2" style={{ color: "var(--text-muted)" }}>
+              {filtered.length === members.length ? `총 ${members.length}명` : `${filtered.length}명 / ${members.length}명`}
+            </p>
+            {filtered.map(m => {
               const s = getStatus(m.id);
               const isExpanded = expandedId === m.id;
               return (
@@ -378,6 +456,8 @@ export default function ContentManagePage() {
             })}
           </div>
         )}
+        </>);
+        })()}
       </div>
 
       {/* 숨겨진 파일 입력 */}
