@@ -12,6 +12,7 @@ const ROLE_LABEL: Record<string, { label: string; color: string }> = {
   admin: { label: "관리자", color: "#f59e0b" },
   exec: { label: "실행파트", color: "#3b82f6" },
   ops: { label: "운영파트", color: "#22c55e" },
+  ad: { label: "광고사업부", color: "#a855f7" },
 };
 
 export default function AccountManagePage() {
@@ -181,6 +182,7 @@ export default function AccountManagePage() {
                   <option value="admin">관리자</option>
                   <option value="exec">실행파트</option>
                   <option value="ops">운영파트</option>
+                  <option value="ad">광고사업부</option>
                 </select>
                 <button onClick={handleAddUser} disabled={addingUser}
                   className="px-4 py-2 text-sm font-bold rounded-xl text-white disabled:opacity-50"
@@ -239,6 +241,7 @@ export default function AccountManagePage() {
                             <option value="admin">관리자</option>
                             <option value="exec">실행파트</option>
                             <option value="ops">운영파트</option>
+                            <option value="ad">광고사업부</option>
                           </select>
                         ) : (
                           <span className="text-xs px-2.5 py-1 rounded-full font-bold" style={{ background: `${rl.color}15`, color: rl.color, border: `1px solid ${rl.color}30` }}>

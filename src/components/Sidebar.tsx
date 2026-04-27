@@ -63,6 +63,7 @@ const ROLE_STYLE: Record<string, { bg: string; text: string; label: string }> = 
   admin: { bg: "bg-amber-100", text: "text-amber-700", label: "관리자" },
   exec:  { bg: "bg-blue-100",  text: "text-blue-700",  label: "실행파트" },
   ops:   { bg: "bg-emerald-100", text: "text-emerald-700", label: "운영파트" },
+  ad:    { bg: "bg-purple-100", text: "text-purple-700", label: "광고사업부" },
 };
 
 export default function Sidebar({ user, unreadCount=0, notifications=[], showPanel=false, onBellClick, onPanelClose, onMarkAll, mobileOpen=false, onMobileClose }: SidebarProps) {
