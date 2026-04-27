@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24시간
 
-    await supabase.from("sessions").upsert(
+    const { error: sessionError } = await supabase.from("sessions").upsert(
       {
         user_id: user.id,
         session_token: token,
@@ -49,6 +49,11 @@ export async function POST(req: Request) {
       },
       { onConflict: "user_id" }
     );
+
+    if (sessionError) {
+      console.error("Session upsert error:", sessionError);
+      return NextResponse.json({ error: `세션 생성 실패: ${sessionError.message}` }, { status: 500 });
+    }
 
     return NextResponse.json({
       user: {
