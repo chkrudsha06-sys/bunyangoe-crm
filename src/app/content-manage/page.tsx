@@ -123,6 +123,11 @@ export default function ContentManagePage() {
     const existingFiles = [...(s.files || [])];
 
     for (const file of Array.from(fileList)) {
+      // 파일 크기 제한 (2MB per file - base64는 ~33% 증가)
+      if (file.size > 2 * 1024 * 1024) {
+        showToast(`${file.name}: 2MB 이하 파일만 업로드 가능합니다`);
+        continue;
+      }
       const reader = new FileReader();
       await new Promise<void>((resolve) => {
         reader.onload = () => {
@@ -134,27 +139,42 @@ export default function ContentManagePage() {
           });
           resolve();
         };
+        reader.onerror = () => resolve();
         reader.readAsDataURL(file);
       });
     }
 
-    const payload = {
-      contact_id: contactId,
-      files: existingFiles,
-      photo_received: true,
-      updated_at: new Date().toISOString(),
-    };
+    try {
+      const payload = {
+        contact_id: contactId,
+        files: existingFiles,
+        photo_received: true,
+        updated_at: new Date().toISOString(),
+      };
 
-    if (s.id) {
-      await supabase.from("content_statuses").update(payload).eq("id", s.id);
-    } else {
-      const { data } = await supabase.from("content_statuses").insert(payload).select().single();
-      if (data) updateField(contactId, "id", data.id);
+      let error;
+      if (s.id) {
+        const res = await supabase.from("content_statuses").update(payload).eq("id", s.id);
+        error = res.error;
+      } else {
+        const res = await supabase.from("content_statuses").insert(payload).select().single();
+        error = res.error;
+        if (res.data) updateField(contactId, "id", res.data.id);
+      }
+
+      if (error) {
+        showToast(`업로드 실패: ${error.message}`);
+        setUploading(null);
+        return;
+      }
+
+      updateField(contactId, "files", existingFiles);
+      updateField(contactId, "photo_received", true);
+      showToast(`${Array.from(fileList).length}개 파일 업로드 완료`);
+    } catch (e: any) {
+      showToast(`업로드 오류: ${e.message}`);
     }
-    updateField(contactId, "files", existingFiles);
-    updateField(contactId, "photo_received", true);
     setUploading(null);
-    showToast(`${Array.from(fileList).length}개 파일 업로드 완료`);
   };
 
   const deleteFile = async (contactId: number, fileIndex: number) => {
