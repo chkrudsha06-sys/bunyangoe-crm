@@ -27,6 +27,8 @@ interface ContentStatus {
   info_received: boolean;
   tf2_delivered: boolean;
   pr_completed: boolean;
+  production_impossible: boolean;
+  impossible_reason: string;
   files: UploadedFile[];
   pr_name: string;
   pr_title_position: string;
@@ -41,6 +43,7 @@ interface ContentStatus {
 
 const EMPTY_STATUS: Omit<ContentStatus, "contact_id"> = {
   photo_received: false, info_received: false, tf2_delivered: false, pr_completed: false,
+  production_impossible: false, impossible_reason: "",
   files: [],
   pr_name: "", pr_title_position: "", pr_age: "", pr_height: "", pr_body_type: "",
   pr_site_info: "", pr_photo_desc: "", pr_intro: "", updated_at: null,
@@ -266,6 +269,7 @@ export default function ContentManagePage() {
           { label: "정보 수취", value: Object.values(statuses).filter(s => s.info_received).length, color: "#f59e0b" },
           { label: "TF2 전달", value: Object.values(statuses).filter(s => s.tf2_delivered).length, color: "#10b981" },
           { label: "PR 완료", value: Object.values(statuses).filter(s => s.pr_completed).length, color: "#ef4444" },
+          { label: "제작불가", value: Object.values(statuses).filter(s => s.production_impossible).length, color: "#6b7280" },
         ].map(c => (
           <div key={c.label} className="px-4 py-2 rounded-xl text-center" style={{ background: "var(--surface)", border: "1px solid var(--border)", minWidth: 90 }}>
             <p className="text-lg font-black" style={{ color: c.color }}>{c.value}</p>
@@ -383,6 +387,7 @@ export default function ContentManagePage() {
                       <StatusBadge done={s.info_received} label="정보" />
                       <StatusBadge done={s.tf2_delivered} label="TF2" />
                       <StatusBadge done={s.pr_completed} label="PR" />
+                      {s.production_impossible && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>제작불가</span>}
                     </div>
                     {isExpanded ? <ChevronUp size={16} style={{ color: "var(--text-muted)" }} /> : <ChevronDown size={16} style={{ color: "var(--text-muted)" }} />}
                   </div>
@@ -397,12 +402,13 @@ export default function ContentManagePage() {
                           { field: "info_received", label: "기본정보 수취", icon: FileText },
                           { field: "tf2_delivered", label: "TF2팀 전달", icon: Send },
                           { field: "pr_completed", label: "PR패키지 완료", icon: CheckCircle },
+                          { field: "production_impossible", label: "제작불가", icon: X },
                         ].map(item => (
                           <label key={item.field} className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: "var(--text)" }}>
                             <input type="checkbox" checked={(s as any)[item.field] || false}
                               onChange={() => toggleCheckbox(m.id, item.field)}
                               className="w-4 h-4 rounded accent-blue-500" />
-                            <item.icon size={13} style={{ color: (s as any)[item.field] ? "#10b981" : "var(--text-muted)" }} />
+                            <item.icon size={13} style={{ color: (s as any)[item.field] ? (item.field === "production_impossible" ? "#ef4444" : "#10b981") : "var(--text-muted)" }} />
                             {item.label}
                           </label>
                         ))}
@@ -462,36 +468,63 @@ export default function ContentManagePage() {
                           </div>
                         </div>
 
-                        {/* 기본정보 작성 */}
+                        {/* 기본정보 또는 불가사유 */}
                         <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                          <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}>
-                            <FileText size={14} /> PR패키지 기본정보
-                          </h4>
-                          <div className="space-y-2">
-                            {[
-                              { key: "pr_name", label: "1. 성명", placeholder: m.name },
-                              { key: "pr_title_position", label: "2. 직함", placeholder: m.title || "본부장" },
-                              { key: "pr_age", label: "3. 나이", placeholder: "45세" },
-                              { key: "pr_height", label: "4. 키", placeholder: "178cm" },
-                              { key: "pr_body_type", label: "5. 체형", placeholder: "보통" },
-                              { key: "pr_site_info", label: "6. 현장정보", placeholder: "수도권 아파트 분양 전문" },
-                              { key: "pr_photo_desc", label: "7. 사진 설명", placeholder: "정장 프로필 사진" },
-                              { key: "pr_intro", label: "8. 소개 한 줄 문구", placeholder: "20년 분양 경력의 신뢰할 수 있는 파트너" },
-                            ].map(f => (
-                              <div key={f.key}>
-                                <label className={lbl} style={{ color: "var(--text-muted)" }}>{f.label}</label>
-                                <input className={inp} value={(s as any)[f.key] || ""}
-                                  onChange={e => updateField(m.id, f.key, e.target.value)}
-                                  placeholder={f.placeholder}
-                                  style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                          {s.production_impossible ? (
+                            <>
+                              <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "#ef4444" }}>
+                                <X size={14} /> 제작불가 사유
+                              </h4>
+                              <textarea value={s.impossible_reason || ""}
+                                onChange={e => updateField(m.id, "impossible_reason", e.target.value)}
+                                placeholder="제작불가 사유를 작성해주세요..."
+                                className="w-full rounded-xl outline-none focus:ring-1 focus:ring-red-400 resize-none text-sm leading-relaxed"
+                                style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)", padding: 16, minHeight: 200 }} />
+                              <button onClick={async () => {
+                                setSaving(m.id);
+                                const payload = { contact_id: m.id, impossible_reason: s.impossible_reason || "", production_impossible: true, updated_at: new Date().toISOString() };
+                                if (s.id) { await supabase.from("content_statuses").update(payload).eq("id", s.id); }
+                                else { const { data } = await supabase.from("content_statuses").insert(payload).select().single(); if (data) updateField(m.id, "id", data.id); }
+                                setSaving(null);
+                                showToast("불가사유 저장 완료");
+                              }} disabled={saving === m.id}
+                                className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-red-500 rounded-xl hover:bg-red-600 disabled:opacity-50 mt-3">
+                                <Save size={14} />
+                                {saving === m.id ? "저장 중..." : "불가사유 저장"}
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}>
+                                <FileText size={14} /> PR패키지 기본정보
+                              </h4>
+                              <div className="space-y-2">
+                                {[
+                                  { key: "pr_name", label: "1. 성명", placeholder: m.name },
+                                  { key: "pr_title_position", label: "2. 직함", placeholder: m.title || "본부장" },
+                                  { key: "pr_age", label: "3. 나이", placeholder: "45세" },
+                                  { key: "pr_height", label: "4. 키", placeholder: "178cm" },
+                                  { key: "pr_body_type", label: "5. 체형", placeholder: "보통" },
+                                  { key: "pr_site_info", label: "6. 현장정보", placeholder: "수도권 아파트 분양 전문" },
+                                  { key: "pr_photo_desc", label: "7. 사진 설명", placeholder: "정장 프로필 사진" },
+                                  { key: "pr_intro", label: "8. 소개 한 줄 문구", placeholder: "20년 분양 경력의 신뢰할 수 있는 파트너" },
+                                ].map(f => (
+                                  <div key={f.key}>
+                                    <label className={lbl} style={{ color: "var(--text-muted)" }}>{f.label}</label>
+                                    <input className={inp} value={(s as any)[f.key] || ""}
+                                      onChange={e => updateField(m.id, f.key, e.target.value)}
+                                      placeholder={f.placeholder}
+                                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                                  </div>
+                                ))}
+                                <button onClick={() => saveInfo(m.id)} disabled={saving === m.id}
+                                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 mt-3">
+                                  <Save size={14} />
+                                  {saving === m.id ? "저장 중..." : "기본정보 저장"}
+                                </button>
                               </div>
-                            ))}
-                            <button onClick={() => saveInfo(m.id)} disabled={saving === m.id}
-                              className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 mt-3">
-                              <Save size={14} />
-                              {saving === m.id ? "저장 중..." : "기본정보 저장"}
-                            </button>
-                          </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
