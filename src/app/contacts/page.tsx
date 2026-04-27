@@ -11,6 +11,8 @@ interface Contact {
   id: number;
   name: string;
   title: string | null;
+  birth_date: string | null;
+  gender: string | null;
   phone: string | null;
   customer_type: string | null;
   tm_sensitivity: string | null;
@@ -28,7 +30,7 @@ interface Contact {
 }
 
 const EMPTY_FORM = {
-  name: "", title: "", phone: "",
+  name: "", title: "", birth_date: "", gender: "", phone: "",
   customer_type: "", tm_sensitivity: "", prospect_type: "",
   meeting_date: "", meeting_date_text: "", meeting_address: "",
   meeting_result: "", management_stage: "", memo: "", assigned_to: "", consultant: "", contract_date: "", reservation_date: "", regular_payment_date: "", intake_route: "", 
@@ -170,7 +172,7 @@ export default function ContactsPage() {
   const openEdit = (c: Contact) => {
     setEditContact(c);
     setForm({
-      name: c.name || "", title: c.title || "", phone: c.phone || "",
+      name: c.name || "", title: c.title || "", birth_date: (c as any).birth_date || "", gender: (c as any).gender || "", phone: c.phone || "",
       customer_type: c.customer_type || "", tm_sensitivity: c.tm_sensitivity || "",
       prospect_type: c.prospect_type || "", meeting_date: c.meeting_date?.split("T")[0] || "",
       meeting_date_text: c.meeting_date_text || "", meeting_address: c.meeting_address || "",
@@ -189,6 +191,8 @@ export default function ContactsPage() {
     const payload = {
       name: form.name || null,
       title: form.title || null,
+      birth_date: (form as any).birth_date || null,
+      gender: (form as any).gender || null,
       phone: form.phone || null,
       customer_type: form.customer_type || null,
       tm_sensitivity: form.tm_sensitivity || null,
@@ -320,7 +324,7 @@ export default function ContactsPage() {
               <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                 <tr>
                   {[
-                    ["#","w-10"], ["유입경로","w-20"], ["고객명","w-24"], ["직급","w-20"], ["연락처","w-32"],
+                    ["#","w-10"], ["유입경로","w-20"], ["고객명","w-24"], ["직급","w-20"], ["생년월일","w-24"], ["연락처","w-32"],
                     ["고객유형","w-20"], ["TM감도","w-28"], ["가망구분","w-28"],
                     ["미팅일정","w-24"], ["미팅지역","w-24"], ["미팅결과","w-28"], ["완료/예약일","w-24"], ["정기출금일","w-24"],
                     ["관리구간","w-24"], ["담당자","w-20"], ["담당컨설턴트","w-24"], ["비고","w-32"], ["","w-20"],
@@ -340,6 +344,11 @@ export default function ContactsPage() {
                     </td>
                     <td className="px-3 py-3 text-center align-middle font-bold text-slate-800 truncate">{c.name}</td>
                     <td className="px-3 py-3 text-center align-middle text-slate-500 text-sm truncate">{c.title||"-"}</td>
+                    <td className="px-3 py-3 text-center align-middle text-slate-500 text-sm truncate">{
+                      (c as any).birth_date 
+                        ? `${(c as any).birth_date}${(c as any).gender ? ` ${(c as any).gender}` : ""}` 
+                        : (c as any).gender || "-"
+                    }</td>
                     <td className="px-3 py-3 text-center align-middle text-slate-600 text-sm">{c.phone||"-"}</td>
                     <td className="px-3 py-3 text-center align-middle">
                       {c.customer_type ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${BADGE[c.customer_type]||"bg-slate-100 text-slate-600"}`}>{c.customer_type}</span> : <span className="text-slate-300 text-sm">-</span>}
@@ -448,6 +457,21 @@ export default function ContactsPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div><label className={lbl}>고객명 *</label><input className={inp} value={form.name} onChange={e=>f("name",e.target.value)} placeholder="홍길동"/></div>
                 <div><label className={lbl}>직급</label><input className={inp} value={form.title} onChange={e=>f("title",e.target.value)} placeholder="본부장"/></div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className={lbl}>생년월일</label><input className={inp} value={(form as any).birth_date} onChange={e=>{
+                    let v = e.target.value.replace(/[^0-9]/g,"");
+                    if(v.length>2&&v.length<=4) v=v.slice(0,2)+"."+v.slice(2);
+                    else if(v.length>4) v=v.slice(0,2)+"."+v.slice(2,4)+"."+v.slice(4,6);
+                    f("birth_date",v);
+                  }} placeholder="88.11.16" maxLength={8}/></div>
+                  <div><label className={lbl}>성별</label>
+                    <select className={inp} value={(form as any).gender||""} onChange={e=>f("gender",e.target.value)}>
+                      <option value="">선택</option>
+                      <option value="남">남</option>
+                      <option value="여">여</option>
+                    </select>
+                  </div>
+                </div>
                 <div><label className={lbl}>연락처</label><input className={inp} value={form.phone} onChange={e=>{
                   let v = e.target.value.replace(/[^0-9]/g,"");
                   if(v.length>3&&v.length<=7) v=v.slice(0,3)+"-"+v.slice(3);
