@@ -206,11 +206,17 @@ export default function PipelinePage() {
   });
 
   const getColumnContacts = (colKey: string) => {
-    return filtered.filter(c =>
-      c.prospect_type === colKey ||
-      c.tm_sensitivity === colKey ||
-      c.meeting_result === colKey
-    );
+    return filtered.filter(c => {
+      const isCompleted = c.meeting_result === "계약완료" || c.meeting_result === "예약완료";
+      
+      if (colKey === "계약완료") {
+        // 계약완료 컬럼: meeting_result가 계약완료/예약완료인 고객만
+        return isCompleted;
+      } else {
+        // 가망 컬럼: prospect_type이 일치하되, 계약완료/예약완료는 제외
+        return !isCompleted && (c.prospect_type === colKey || c.tm_sensitivity === colKey);
+      }
+    });
   };
 
   return (
