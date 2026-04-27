@@ -109,14 +109,24 @@ export default function ContentManagePage() {
   const toggleCheckbox = async (contactId: number, field: string) => {
     const s = getStatus(contactId);
     const newVal = !(s as any)[field];
-    updateField(contactId, field, newVal);
+
+    // 즉시 UI 반영
+    setStatuses(prev => ({
+      ...prev,
+      [contactId]: { ...getStatus(contactId), contact_id: contactId, [field]: newVal },
+    }));
 
     const payload = { contact_id: contactId, [field]: newVal, updated_at: new Date().toISOString() };
     if (s.id) {
       await supabase.from("content_statuses").update(payload).eq("id", s.id);
     } else {
       const { data } = await supabase.from("content_statuses").insert(payload).select().single();
-      if (data) updateField(contactId, "id", data.id);
+      if (data) {
+        setStatuses(prev => ({
+          ...prev,
+          [contactId]: { ...prev[contactId], id: data.id },
+        }));
+      }
     }
   };
 
