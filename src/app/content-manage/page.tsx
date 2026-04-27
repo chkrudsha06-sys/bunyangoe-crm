@@ -266,7 +266,7 @@ export default function ContentManagePage() {
           className="px-3 py-2 text-sm rounded-xl outline-none"
           style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
           <option value="">전체 담당자</option>
-          {[...new Set(members.map(m => m.assigned_to).filter(Boolean))].sort().map(a => (
+          {Array.from(new Set(members.map(m => m.assigned_to).filter(Boolean))).sort().map(a => (
             <option key={a!} value={a!}>{a}</option>
           ))}
         </select>
