@@ -13,6 +13,13 @@ interface VipMember {
   assigned_to: string | null;
 }
 
+interface UploadedFile {
+  name: string;
+  url: string;
+  size?: number;
+  uploaded_at: string;
+}
+
 interface ContentStatus {
   id?: number;
   contact_id: number;
@@ -20,8 +27,7 @@ interface ContentStatus {
   info_received: boolean;
   tf2_delivered: boolean;
   pr_completed: boolean;
-  photo_url: string | null;
-  photo_filename: string | null;
+  files: UploadedFile[];
   pr_name: string;
   pr_title_position: string;
   pr_age: string;
@@ -35,7 +41,7 @@ interface ContentStatus {
 
 const EMPTY_STATUS: Omit<ContentStatus, "contact_id"> = {
   photo_received: false, info_received: false, tf2_delivered: false, pr_completed: false,
-  photo_url: null, photo_filename: null,
+  files: [],
   pr_name: "", pr_title_position: "", pr_age: "", pr_height: "", pr_body_type: "",
   pr_site_info: "", pr_photo_desc: "", pr_intro: "", updated_at: null,
 };
@@ -76,7 +82,12 @@ export default function ContentManagePage() {
     // 컨텐츠 현황
     const { data: cs } = await supabase.from("content_statuses").select("*");
     const map: Record<number, ContentStatus> = {};
-    (cs || []).forEach((s: any) => { map[s.contact_id] = s; });
+    (cs || []).forEach((s: any) => {
+      map[s.contact_id] = {
+        ...s,
+        files: Array.isArray(s.files) ? s.files : (s.files ? JSON.parse(s.files) : []),
+      };
+    });
     setStatuses(map);
     setLoading(false);
   };
@@ -106,61 +117,77 @@ export default function ContentManagePage() {
     }
   };
 
-  const handlePhotoUpload = async (contactId: number, file: File) => {
+  const handleFileUpload = async (contactId: number, fileList: FileList | File[]) => {
     setUploading(contactId);
-    const ext = file.name.split(".").pop();
-    const path = `content-photos/${contactId}_${Date.now()}.${ext}`;
+    const s = getStatus(contactId);
+    const existingFiles = [...(s.files || [])];
 
-    const { error: upErr } = await supabase.storage.from("uploads").upload(path, file);
-    if (upErr) {
-      // storage 없으면 base64로 저장
+    for (const file of Array.from(fileList)) {
       const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result as string;
-        const s = getStatus(contactId);
-        const payload = {
-          contact_id: contactId,
-          photo_url: base64,
-          photo_filename: file.name,
-          photo_received: true,
-          updated_at: new Date().toISOString(),
+      await new Promise<void>((resolve) => {
+        reader.onload = () => {
+          existingFiles.push({
+            name: file.name,
+            url: reader.result as string,
+            size: file.size,
+            uploaded_at: new Date().toISOString(),
+          });
+          resolve();
         };
-        if (s.id) {
-          await supabase.from("content_statuses").update(payload).eq("id", s.id);
-        } else {
-          const { data } = await supabase.from("content_statuses").insert(payload).select().single();
-          if (data) updateField(contactId, "id", data.id);
-        }
-        updateField(contactId, "photo_url", base64);
-        updateField(contactId, "photo_filename", file.name);
-        updateField(contactId, "photo_received", true);
-        setUploading(null);
-        showToast("사진 업로드 완료");
-      };
-      reader.readAsDataURL(file);
-      return;
+        reader.readAsDataURL(file);
+      });
     }
 
-    const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(path);
-    const s = getStatus(contactId);
     const payload = {
       contact_id: contactId,
-      photo_url: urlData.publicUrl,
-      photo_filename: file.name,
+      files: existingFiles,
       photo_received: true,
       updated_at: new Date().toISOString(),
     };
+
     if (s.id) {
       await supabase.from("content_statuses").update(payload).eq("id", s.id);
     } else {
       const { data } = await supabase.from("content_statuses").insert(payload).select().single();
       if (data) updateField(contactId, "id", data.id);
     }
-    updateField(contactId, "photo_url", urlData.publicUrl);
-    updateField(contactId, "photo_filename", file.name);
+    updateField(contactId, "files", existingFiles);
     updateField(contactId, "photo_received", true);
     setUploading(null);
-    showToast("사진 업로드 완료");
+    showToast(`${Array.from(fileList).length}개 파일 업로드 완료`);
+  };
+
+  const deleteFile = async (contactId: number, fileIndex: number) => {
+    if (!confirm("이 파일을 삭제하시겠습니까?")) return;
+    const s = getStatus(contactId);
+    const newFiles = s.files.filter((_, i) => i !== fileIndex);
+    const payload = {
+      files: newFiles,
+      photo_received: newFiles.length > 0,
+      updated_at: new Date().toISOString(),
+    };
+    if (s.id) {
+      await supabase.from("content_statuses").update(payload).eq("id", s.id);
+    }
+    updateField(contactId, "files", newFiles);
+    updateField(contactId, "photo_received", newFiles.length > 0);
+    showToast("파일 삭제 완료");
+  };
+
+  const downloadFile = (file: UploadedFile) => {
+    const a = document.createElement("a");
+    a.href = file.url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const fmtSize = (bytes?: number) => {
+    if (!bytes) return "";
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
   };
 
   const saveInfo = async (contactId: number) => {
@@ -183,17 +210,6 @@ export default function ContentManagePage() {
     updateField(contactId, "info_received", true);
     setSaving(null);
     showToast("기본정보 저장 완료");
-  };
-
-  const downloadPhoto = (s: ContentStatus) => {
-    if (!s.photo_url) return;
-    const a = document.createElement("a");
-    a.href = s.photo_url;
-    a.download = s.photo_filename || "photo";
-    a.target = "_blank";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
   };
 
   const StatusBadge = ({ done, label }: { done: boolean; label: string }) => (
@@ -373,48 +389,54 @@ export default function ContentManagePage() {
                         {/* 사진 업로드 */}
                         <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
                           <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}>
-                            <Camera size={14} /> 사진 파일
+                            <Camera size={14} /> 파일 관리 <span className="text-[11px] font-normal" style={{ color: "var(--text-muted)" }}>({s.files.length}개)</span>
                           </h4>
-                          {s.photo_url ? (
-                            <div className="space-y-2">
-                              {s.photo_url.startsWith("data:image") ? (
-                                <img src={s.photo_url} alt="사진" className="w-full max-h-48 object-contain rounded-lg" style={{ background: "#f1f5f9" }} />
-                              ) : (
-                                <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                                  <FileText size={16} style={{ color: "#3b82f6" }} />
-                                  <span className="text-sm flex-1 truncate" style={{ color: "var(--text)" }}>{s.photo_filename || "파일"}</span>
+
+                          {/* 업로드된 파일 목록 */}
+                          {s.files.length > 0 && (
+                            <div className="space-y-1.5 mb-3">
+                              {s.files.map((file, fi) => (
+                                <div key={fi} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                                  {file.url.startsWith("data:image") ? (
+                                    <img src={file.url} alt="" className="w-8 h-8 object-cover rounded" />
+                                  ) : (
+                                    <FileText size={16} style={{ color: "#3b82f6", flexShrink: 0 }} />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-semibold truncate" style={{ color: "var(--text)" }}>{file.name}</p>
+                                    <p className="text-[10px]" style={{ color: "var(--text-subtle)" }}>{fmtSize(file.size)}</p>
+                                  </div>
+                                  <button onClick={() => downloadFile(file)} title="다운로드"
+                                    className="p-1.5 rounded-lg transition-colors flex-shrink-0" style={{ color: "#3b82f6" }}>
+                                    <Download size={13} />
+                                  </button>
+                                  <button onClick={() => deleteFile(m.id, fi)} title="삭제"
+                                    className="p-1.5 rounded-lg transition-colors flex-shrink-0" style={{ color: "#ef4444" }}>
+                                    <X size={13} />
+                                  </button>
                                 </div>
-                              )}
-                              <div className="flex gap-2">
-                                <button onClick={() => downloadPhoto(s)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg"
-                                  style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>
-                                  <Download size={12} /> 다운로드
-                                </button>
-                                <button onClick={() => { setUploadTarget(m.id); fileRef.current?.click(); }}
-                                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg"
-                                  style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>
-                                  <Upload size={12} /> 변경
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div
-                              onDragOver={e => { e.preventDefault(); e.stopPropagation(); e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.background = "rgba(59,130,246,0.05)"; }}
-                              onDragLeave={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "transparent"; }}
-                              onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "transparent"; const file = e.dataTransfer.files?.[0]; if (file) handlePhotoUpload(m.id, file); }}
-                              onClick={() => { setUploadTarget(m.id); fileRef.current?.click(); }}
-                              className="w-full py-8 rounded-xl text-sm font-semibold flex flex-col items-center gap-2 transition-all cursor-pointer"
-                              style={{ border: "2px dashed var(--border)", color: "var(--text-muted)", background: "transparent" }}>
-                              {uploading === m.id ? (
-                                <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
-                              ) : (
-                                <>
-                                  <Upload size={20} />
-                                  클릭 또는 파일을 드래그하여 업로드
-                                </>
-                              )}
+                              ))}
                             </div>
                           )}
+
+                          {/* 업로드 영역 (드래그앤드롭 + 클릭) */}
+                          <div
+                            onDragOver={e => { e.preventDefault(); e.stopPropagation(); e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.background = "rgba(59,130,246,0.05)"; }}
+                            onDragLeave={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "transparent"; }}
+                            onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "transparent"; if (e.dataTransfer.files.length > 0) handleFileUpload(m.id, e.dataTransfer.files); }}
+                            onClick={() => { setUploadTarget(m.id); fileRef.current?.click(); }}
+                            className="w-full py-6 rounded-xl text-sm font-semibold flex flex-col items-center gap-2 transition-all cursor-pointer"
+                            style={{ border: "2px dashed var(--border)", color: "var(--text-muted)", background: "transparent" }}>
+                            {uploading === m.id ? (
+                              <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
+                            ) : (
+                              <>
+                                <Upload size={18} />
+                                <span className="text-xs">클릭 또는 파일을 드래그하여 업로드</span>
+                                <span className="text-[10px]" style={{ color: "var(--text-subtle)" }}>여러 파일 동시 업로드 가능</span>
+                              </>
+                            )}
+                          </div>
                         </div>
 
                         {/* 기본정보 작성 */}
@@ -461,10 +483,10 @@ export default function ContentManagePage() {
       </div>
 
       {/* 숨겨진 파일 입력 */}
-      <input ref={fileRef} type="file" accept="image/*,.pdf,.zip" className="hidden"
+      <input ref={fileRef} type="file" accept="image/*,.pdf,.zip,.doc,.docx,.ppt,.pptx" multiple className="hidden"
         onChange={e => {
-          const file = e.target.files?.[0];
-          if (file && uploadTarget) handlePhotoUpload(uploadTarget, file);
+          const files = e.target.files;
+          if (files && files.length > 0 && uploadTarget) handleFileUpload(uploadTarget, files);
           e.target.value = "";
         }} />
 
