@@ -76,11 +76,11 @@ function NotesPopup({ contactId, name, onClose }: { contactId: number; name: str
   );
 }
 
-function ContactCard({ contact, col, onNotesClick, refreshKey }: {
+function ContactCard({ contact, col, onNotesClick, refreshContactId }: {
   contact: Contact;
   col: typeof COLUMNS[0];
   onNotesClick: (contactId: number, name: string) => void;
-  refreshKey?: number;
+  refreshContactId?: number | null;
 }) {
 
 
@@ -151,7 +151,7 @@ function ContactCard({ contact, col, onNotesClick, refreshKey }: {
         onDoubleClick={e => { e.stopPropagation(); onNotesClick(contact.id, contact.name); }}
         onClick={e => e.stopPropagation()}
       >
-        <ContactNotes contactId={contact.id} compact refreshKey={refreshKey}/>
+        <ContactNotes contactId={contact.id} compact refreshKey={refreshContactId === contact.id ? Date.now() : undefined}/>
         <p
           onClick={() => onNotesClick(contact.id, contact.name)}
           className="text-xs text-slate-800 font-semibold mt-2 text-right cursor-pointer hover:text-blue-600 select-none">
@@ -166,7 +166,7 @@ export default function PipelinePage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [notesPopup, setNotesPopup] = useState<{ contactId: number; name: string } | null>(null);
-  const [notesRefreshKey, setNotesRefreshKey] = useState(0);
+  const [refreshContactId, setRefreshContactId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [fProspect, setFProspect] = useState("");
   const [fAssigned, setFAssigned] = useState("");
@@ -296,7 +296,7 @@ export default function PipelinePage() {
                           key={c.id}
                           contact={c}
                           col={col}
-                          refreshKey={notesRefreshKey}
+                          refreshContactId={refreshContactId}
                           onNotesClick={(id, name) => setNotesPopup({ contactId: id, name })}
                         />
                       ))
@@ -314,7 +314,13 @@ export default function PipelinePage() {
         <NotesPopup
           contactId={notesPopup.contactId}
           name={notesPopup.name}
-          onClose={() => { setNotesPopup(null); setNotesRefreshKey(k => k + 1); }}
+          onClose={() => {
+            const cid = notesPopup.contactId;
+            setNotesPopup(null);
+            setRefreshContactId(cid);
+            // 리셋 (다음 열기 시 다시 새로고침 가능하도록)
+            setTimeout(() => setRefreshContactId(null), 500);
+          }}
         />
       )}
 

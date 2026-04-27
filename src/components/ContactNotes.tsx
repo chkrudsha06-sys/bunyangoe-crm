@@ -29,8 +29,8 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
 
-  const fetchNotes = async () => {
-    setLoading(true);
+  const fetchNotes = async (silent?: boolean) => {
+    if (!silent) setLoading(true);
     const { data } = await supabase
       .from("contact_notes")
       .select("*")
@@ -40,7 +40,8 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
     setLoading(false);
   };
 
-  useEffect(() => { fetchNotes(); }, [contactId, refreshKey]);
+  useEffect(() => { fetchNotes(); }, [contactId]);
+  useEffect(() => { if (refreshKey) fetchNotes(true); }, [refreshKey]);
 
   const getAuthor = () => {
     if (authorName) return authorName;
