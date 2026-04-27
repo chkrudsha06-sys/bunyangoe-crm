@@ -3,10 +3,10 @@ import { NextResponse } from "next/server";
 const SHEET_ID = "1BMTKBgos_Tsz8Cdsf8gHomrVNqp7G0vdTGrqW5fGkW8";
 const GID = "516579075";
 
-// CSV published URL (user needs to publish sheet to web)
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/pub?gid=${GID}&single=true&output=csv`;
-// Fallback: gviz endpoint (works if sheet is publicly viewable)
+// gviz endpoint (works if sheet is publicly viewable)
 const GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}`;
+// export endpoint (fallback)
+const EXPORT_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 
 interface AdSite {
   region: string;
@@ -110,19 +110,22 @@ export async function GET(req: Request) {
   try {
     let csvText = "";
 
-    // Try published CSV first, then gviz fallback
-    for (const url of [CSV_URL, GVIZ_URL]) {
+    // gviz → export 순으로 시도 (광고내역기록과 동일 패턴)
+    for (const url of [GVIZ_URL, EXPORT_URL]) {
       try {
-        const res = await fetch(url, { next: { revalidate: 300 } }); // cache 5min
+        const res = await fetch(url, { cache: "no-store" });
         if (res.ok) {
-          csvText = await res.text();
-          if (csvText.length > 100) break;
+          const text = await res.text();
+          if (text.split("\n").length > 1 && !text.includes("<!DOCTYPE")) {
+            csvText = text;
+            break;
+          }
         }
       } catch {}
     }
 
     if (!csvText) {
-      return NextResponse.json({ error: "시트 데이터를 불러올 수 없습니다. 시트를 '웹에 게시'해주세요.", sites: [] }, { status: 200 });
+      return NextResponse.json({ error: "시트 데이터를 불러올 수 없습니다. 시트 공유 설정을 확인해주세요.", sites: [] }, { status: 200 });
     }
 
     const lines = csvText.split("\n").map(l => parseCSVLine(l));
