@@ -10,6 +10,7 @@ interface VipMember {
   title: string | null;
   bunyanghoe_number: string | null;
   meeting_result: string | null;
+  assigned_to: string | null;
 }
 
 interface ContentStatus {
@@ -58,10 +59,16 @@ export default function ContentManagePage() {
     setLoading(true);
     // VIP 입회자 (계약완료/예약완료)
     const { data: contacts } = await supabase.from("contacts")
-      .select("id,name,title,bunyanghoe_number,meeting_result")
-      .in("meeting_result", ["계약완료", "예약완료"])
-      .order("bunyanghoe_number", { ascending: true });
-    setMembers((contacts || []) as VipMember[]);
+      .select("id,name,title,bunyanghoe_number,meeting_result,assigned_to")
+      .in("meeting_result", ["계약완료", "예약완료"]);
+    
+    // 넘버링 기준 정렬 (B-1, B-2, ... B-10, B-11)
+    const sorted = (contacts || []).sort((a: any, b: any) => {
+      const numA = parseInt((a.bunyanghoe_number || "").replace(/[^0-9]/g, "")) || 9999;
+      const numB = parseInt((b.bunyanghoe_number || "").replace(/[^0-9]/g, "")) || 9999;
+      return numA - numB;
+    });
+    setMembers(sorted as VipMember[]);
 
     // 컨텐츠 현황
     const { data: cs } = await supabase.from("content_statuses").select("*");
@@ -244,12 +251,15 @@ export default function ContentManagePage() {
                 <div key={m.id} className="rounded-xl overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                   {/* 행 */}
                   <div className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : m.id)}>
-                    <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", minWidth: 44, textAlign: "center" }}>
-                      {m.bunyanghoe_number || "-"}
+                    <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", minWidth: 48, textAlign: "center" }}>
+                      {m.bunyanghoe_number ? `B-${m.bunyanghoe_number.replace(/[^0-9]/g, "")}` : "-"}
                     </span>
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{m.name}</span>
                       <span className="text-xs ml-2" style={{ color: "var(--text-muted)" }}>{m.title || ""}</span>
+                      {m.assigned_to && (
+                        <span className="text-[11px] ml-2 px-1.5 py-0.5 rounded" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{m.assigned_to}</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <StatusBadge done={s.photo_received} label="사진" />
@@ -310,19 +320,22 @@ export default function ContentManagePage() {
                               </div>
                             </div>
                           ) : (
-                            <button onClick={() => { setUploadTarget(m.id); fileRef.current?.click(); }}
-                              disabled={uploading === m.id}
-                              className="w-full py-8 rounded-xl text-sm font-semibold flex flex-col items-center gap-2 transition-colors"
+                            <div
+                              onDragOver={e => { e.preventDefault(); e.stopPropagation(); e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.background = "rgba(59,130,246,0.05)"; }}
+                              onDragLeave={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "transparent"; }}
+                              onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "transparent"; const file = e.dataTransfer.files?.[0]; if (file) handlePhotoUpload(m.id, file); }}
+                              onClick={() => { setUploadTarget(m.id); fileRef.current?.click(); }}
+                              className="w-full py-8 rounded-xl text-sm font-semibold flex flex-col items-center gap-2 transition-all cursor-pointer"
                               style={{ border: "2px dashed var(--border)", color: "var(--text-muted)", background: "transparent" }}>
                               {uploading === m.id ? (
                                 <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
                               ) : (
                                 <>
                                   <Upload size={20} />
-                                  클릭하여 사진 업로드
+                                  클릭 또는 파일을 드래그하여 업로드
                                 </>
                               )}
-                            </button>
+                            </div>
                           )}
                         </div>
 
