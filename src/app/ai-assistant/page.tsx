@@ -101,7 +101,7 @@ export default function AiAssistantPage() {
               <h1 className="text-lg font-bold flex items-center gap-2" style={{ color: "var(--text)" }}>
                 분양의신 AI
               </h1>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>CRM 데이터 기반 AI 어시스턴트</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>CRM 데이터 기반 AI 어시스턴트 (개발중)</p>
             </div>
           </div>
           {messages.length > 0 && (

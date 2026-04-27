@@ -275,7 +275,7 @@ export default function Sidebar({ user, unreadCount=0, notifications=[], showPan
         {/* AI 어시스턴트 */}
         <div className="my-2" style={{borderTop:"1px solid var(--sidebar-border)"}} />
         <div className="px-1 pb-1.5 text-[10px] font-semibold tracking-widest uppercase" style={{color:"#8b5cf6"}}>★ AI</div>
-        <NavItem href="/ai-assistant" label="AI 어시스턴트" emoji="🤖" />
+        <NavItem href="/ai-assistant" label="AI 어시스턴트 (개발중)" emoji="🤖" />
 
         {/* 관리자 전용 */}
         {isAdmin && (
