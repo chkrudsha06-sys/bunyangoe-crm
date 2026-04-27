@@ -120,7 +120,7 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
 
   const btnStyle = { background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" };
   const btnDangerStyle = { background: "var(--surface)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444" };
-  const borderColor = "#d1d5db";
+  const borderColor = "#94a3b8";
 
   return (
     <div className="flex flex-col h-full">
@@ -149,10 +149,10 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
           <thead>
             <tr>
               <th className="text-center text-[10px] font-semibold py-2 sticky top-0 z-10"
-                style={{ background: "#f1f5f9", color: "#64748b", borderBottom: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}` }}>#</th>
+                style={{ background: "#e2e8f0", color: "#64748b", borderBottom: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}` }}>#</th>
               {Array.from({ length: COLS }, (_, i) => (
                 <th key={i} className="text-center text-[10px] font-semibold py-2 sticky top-0 z-10 relative select-none"
-                  style={{ background: "#f1f5f9", color: "#64748b", borderBottom: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}` }}>
+                  style={{ background: "#e2e8f0", color: "#64748b", borderBottom: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}` }}>
                   {colLabel(i)}
                   {/* 리사이즈 핸들 */}
                   <div onMouseDown={e => startResize(i, e)}
@@ -166,7 +166,7 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
             {data.map((row, ri) => (
               <tr key={ri}>
                 <td className="text-center text-[10px] py-1"
-                  style={{ background: "#f1f5f9", color: "#64748b", borderBottom: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}` }}>{ri + 1}</td>
+                  style={{ background: "#e2e8f0", color: "#64748b", borderBottom: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}` }}>{ri + 1}</td>
                 {row.map((cell, ci) => {
                   const isEditing = editCell && editCell[0] === ri && editCell[1] === ci;
                   return (
