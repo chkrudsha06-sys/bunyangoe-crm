@@ -9,9 +9,9 @@ const supabase = createClient(
 );
 
 // 관리자 권한 확인
-async function verifyAdmin(req: Request): Promise<{ valid: boolean; userId?: string }> {
+async function verifyAdmin(req: Request): Promise<{ valid: boolean; userId?: string; reason?: string }> {
   const auth = await verifyApiSession(req);
-  if (!auth.valid || !auth.userId) return { valid: false };
+  if (!auth.valid || !auth.userId) return { valid: false, reason: "세션 인증 실패 (로그아웃 후 재로그인 필요)" };
 
   const { data } = await supabase
     .from("crm_users")
@@ -19,7 +19,8 @@ async function verifyAdmin(req: Request): Promise<{ valid: boolean; userId?: str
     .eq("id", auth.userId)
     .maybeSingle();
 
-  if (!data || data.role !== "admin") return { valid: false };
+  if (!data) return { valid: false, reason: `사용자 '${auth.userId}'가 crm_users 테이블에 없음` };
+  if (data.role !== "admin") return { valid: false, reason: `현재 역할: '${data.role}' (admin 필요)` };
   return { valid: true, userId: auth.userId };
 }
 
@@ -27,7 +28,7 @@ async function verifyAdmin(req: Request): Promise<{ valid: boolean; userId?: str
 export async function PUT(req: Request) {
   const admin = await verifyAdmin(req);
   if (!admin.valid) {
-    return NextResponse.json({ error: "관리자 권한이 필요합니다." }, { status: 403 });
+    return NextResponse.json({ error: `관리자 권한이 필요합니다. (${admin.reason})` }, { status: 403 });
   }
 
   try {
@@ -46,7 +47,7 @@ export async function PUT(req: Request) {
     }
     if (name) updates.name = name;
     if (title) updates.title = title;
-    if (role && ["admin", "exec", "ops"].includes(role)) updates.role = role;
+    if (role && ["admin", "exec", "ops", "ad"].includes(role)) updates.role = role;
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "변경할 항목이 없습니다." }, { status: 400 });
@@ -76,7 +77,7 @@ export async function PUT(req: Request) {
 export async function POST(req: Request) {
   const admin = await verifyAdmin(req);
   if (!admin.valid) {
-    return NextResponse.json({ error: "관리자 권한이 필요합니다." }, { status: 403 });
+    return NextResponse.json({ error: `관리자 권한이 필요합니다. (${admin.reason})` }, { status: 403 });
   }
 
   try {
@@ -108,7 +109,7 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   const admin = await verifyAdmin(req);
   if (!admin.valid) {
-    return NextResponse.json({ error: "관리자 권한이 필요합니다." }, { status: 403 });
+    return NextResponse.json({ error: `관리자 권한이 필요합니다. (${admin.reason})` }, { status: 403 });
   }
 
   try {
