@@ -109,6 +109,7 @@ function extractSitesFromBlock(rows: string[][], colOffset: number): AdSite[] {
 export async function GET(req: Request) {
   try {
     let csvText = "";
+    const fetchErrors: string[] = [];
 
     // gviz → export 순으로 시도 (광고내역기록과 동일 패턴)
     for (const url of [GVIZ_URL, EXPORT_URL]) {
@@ -119,13 +120,22 @@ export async function GET(req: Request) {
           if (text.split("\n").length > 1 && !text.includes("<!DOCTYPE")) {
             csvText = text;
             break;
+          } else {
+            fetchErrors.push(`${url.includes("gviz") ? "gviz" : "export"}: OK but invalid (${text.length}chars, lines=${text.split("\\n").length})`);
           }
+        } else {
+          fetchErrors.push(`${url.includes("gviz") ? "gviz" : "export"}: HTTP ${res.status}`);
         }
-      } catch {}
+      } catch (e: any) {
+        fetchErrors.push(`${url.includes("gviz") ? "gviz" : "export"}: ${e.message}`);
+      }
     }
 
     if (!csvText) {
-      return NextResponse.json({ error: "시트 데이터를 불러올 수 없습니다. 시트 공유 설정을 확인해주세요.", sites: [] }, { status: 200 });
+      return NextResponse.json({ 
+        error: `시트 데이터를 불러올 수 없습니다. (${fetchErrors.join(" | ")})`, 
+        sites: [] 
+      }, { status: 200 });
     }
 
     const lines = csvText.split("\n").map(l => parseCSVLine(l));
