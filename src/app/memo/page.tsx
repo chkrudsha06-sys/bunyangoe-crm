@@ -120,7 +120,6 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
 
   const btnStyle = { background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" };
   const btnDangerStyle = { background: "var(--surface)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444" };
-  const borderColor = "#94a3b8";
 
   return (
     <div className="flex flex-col h-full">
@@ -140,8 +139,8 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
         <span className="text-xs" style={{ color: "var(--text-subtle)" }}>{ROWS}행 × {COLS}열</span>
         <span className="text-[10px] ml-auto" style={{ color: "var(--text-subtle)" }}>Enter↓  Tab→  ↑↓←→이동  Esc취소  |  열 헤더 경계선을 드래그하여 너비 조정</span>
       </div>
-      <div className="overflow-auto rounded-xl flex-1" style={{ border: `1px solid ${borderColor}` }}>
-        <table className="border-collapse text-sm" style={{ tableLayout: "fixed", width: 40 + colWidths.reduce((a, b) => a + b, 0) }}>
+      <div className="overflow-auto rounded-xl flex-1" style={{ border: "2px solid #64748b" }}>
+        <table className="text-sm" style={{ tableLayout: "fixed", width: 40 + colWidths.reduce((a, b) => a + b, 0), borderCollapse: "separate", borderSpacing: "1px", background: "#94a3b8" }}>
           <colgroup>
             <col style={{ width: 40 }} />
             {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
@@ -149,12 +148,11 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
           <thead>
             <tr>
               <th className="text-center text-[10px] font-semibold py-2 sticky top-0 z-10"
-                style={{ background: "#e2e8f0", color: "#64748b", borderBottom: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}` }}>#</th>
+                style={{ background: "#cbd5e1", color: "#475569" }}>#</th>
               {Array.from({ length: COLS }, (_, i) => (
                 <th key={i} className="text-center text-[10px] font-semibold py-2 sticky top-0 z-10 relative select-none"
-                  style={{ background: "#e2e8f0", color: "#64748b", borderBottom: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}` }}>
+                  style={{ background: "#cbd5e1", color: "#475569" }}>
                   {colLabel(i)}
-                  {/* 리사이즈 핸들 */}
                   <div onMouseDown={e => startResize(i, e)}
                     style={{ position: "absolute", right: -2, top: 0, bottom: 0, width: 5, cursor: "col-resize", zIndex: 20 }}
                     className="hover:bg-blue-400 transition-colors" />
@@ -166,17 +164,17 @@ function SheetEditor({ data, onChange }: { data: string[][]; onChange: (d: strin
             {data.map((row, ri) => (
               <tr key={ri}>
                 <td className="text-center text-[10px] py-1"
-                  style={{ background: "#e2e8f0", color: "#64748b", borderBottom: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}` }}>{ri + 1}</td>
+                  style={{ background: "#cbd5e1", color: "#475569" }}>{ri + 1}</td>
                 {row.map((cell, ci) => {
                   const isEditing = editCell && editCell[0] === ri && editCell[1] === ci;
                   return (
                     <td key={ci} onClick={() => startEdit(ri, ci)} className="cursor-pointer"
-                      style={{ background: "#ffffff", borderBottom: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}`, padding: 0 }}>
+                      style={{ background: "#ffffff", padding: 0 }}>
                       {isEditing ? (
                         <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)}
                           onBlur={commitOnly} onKeyDown={handleKeyDown}
                           className="w-full px-2 py-1.5 text-sm outline-none"
-                          style={{ background: "#e0edff", color: "#1e293b", border: "2px solid #3b82f6" }} />
+                          style={{ background: "#dbeafe", color: "#1e293b", border: "2px solid #3b82f6" }} />
                       ) : (
                         <div className="px-2 py-1.5 min-h-[32px] text-sm truncate" style={{ color: cell ? "#1e293b" : "transparent" }}>
                           {cell || "."}
