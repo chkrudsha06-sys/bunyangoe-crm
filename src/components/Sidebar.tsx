@@ -39,6 +39,7 @@ const EXEC_MENUS = [
 
 const OPS_MENUS = [
   { href: "/member-manage", label: "분양회 회원관리", emoji: "🛡️" },
+  { href: "/content-manage", label: "회원 컨텐츠 관리", emoji: "🎬" },
   { href: "/sales", label: "통합매출관리", emoji: "💳" },
   { href: "/rewards", label: "리워드 관리", emoji: "💎" },
   { href: "/customer-incentives", label: "인센티브 관리", emoji: "🏆" },

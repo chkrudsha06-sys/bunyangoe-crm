@@ -16,6 +16,7 @@ const MOBILE_TITLES: Record<string,string> = {
   "/quotes": "📄 견적서", "/new-sites": "🏗️ 신규현장", "/ad-sites": "📡 광고 현운예지", "/ad-history": "📊 광고내역기록",
   "/ai-assistant": "🤖 AI 어시스턴트 (개발중)",
   "/memo": "📝 메모장",
+  "/content-manage": "🎬 회원 컨텐츠 관리",
   "/reports": "📈 팀 성과 분석", "/kpi-settings": "🎯 KPI 설정",
   "/incentives": "🏅 인센티브 관리", "/account-manage": "🔐 계정관리",
 };
