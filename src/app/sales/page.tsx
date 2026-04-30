@@ -325,9 +325,10 @@ export default function SalesPage() {
 
   const calc = (list: AdExecution[]) => {
     const bunyanList  = list.filter(e=>e.contract_route==="분양회");
-    const adBunyan    = filterCh(bunyanList, ["하이타겟","호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"]);
+    const AD_SPECIAL_CHS = ["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
+    const adSpecialList = bunyanList.filter(e=>AD_SPECIAL_CHS.includes(e.channel||""));
     const refundTotal = list.reduce((s,e)=>s+(e.refund_amount||0),0);
-    const refundBunyan = bunyanList.reduce((s,e)=>s+(e.refund_amount||0),0);
+    const refundAdSpecial = adSpecialList.reduce((s,e)=>s+(e.refund_amount||0),0);
     // 채널별 환불 차감
     const refundByChannel = (ch: string) =>
       filterCh(list, ch).reduce((s,e)=>s+(e.refund_amount||0),0);
@@ -336,7 +337,7 @@ export default function SalesPage() {
       total:     sumEff(list) - refundTotal,
       inBunyan:  sumEff(filterCh(list,"분양회 입회비")),
       monBunyan: sumEff(filterCh(list,"분양회 월회비")),
-      adSpecial: sumEff(adBunyan) - refundBunyan,
+      adSpecial: sumEff(adSpecialList) - refundAdSpecial,
       hightarget:sumEff(filterCh(list,"하이타겟")) - refundByChannel("하이타겟"),
       hogaengCh: sumEff(filterCh(list,"호갱노노_채널톡")) - refundByChannel("호갱노노_채널톡"),
       hogaengDan:sumEff(filterCh(list,"호갱노노_단지마커")) - refundByChannel("호갱노노_단지마커"),
