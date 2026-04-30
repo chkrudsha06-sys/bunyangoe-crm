@@ -58,6 +58,31 @@ export default function ContentManagePage() {
   const [statuses, setStatuses] = useState<Record<number, ContentStatus>>({});
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [loadedFiles, setLoadedFiles] = useState<Set<number>>(new Set());
+
+  // 회원 펼칠 때 파일 데이터 로드 (lazy loading)
+  const expandMember = async (contactId: number) => {
+    if (expandedId === contactId) { setExpandedId(null); return; }
+    setExpandedId(contactId);
+
+    // 이미 파일을 로드한 회원이면 스킵
+    if (loadedFiles.has(contactId)) return;
+
+    const s = getStatus(contactId);
+    if (!s.id) return;
+
+    const { data } = await supabase.from("content_statuses")
+      .select("files").eq("id", s.id).single();
+
+    if (data) {
+      const files = Array.isArray(data.files) ? data.files : (data.files ? JSON.parse(data.files) : []);
+      setStatuses(prev => ({
+        ...prev,
+        [contactId]: { ...prev[contactId], files },
+      }));
+      setLoadedFiles(prev => new Set(prev).add(contactId));
+    }
+  };
   const [saving, setSaving] = useState<number | null>(null);
   const [uploading, setUploading] = useState<number | null>(null);
   const [toast, setToast] = useState("");
@@ -88,14 +113,12 @@ export default function ContentManagePage() {
     });
     setMembers(sorted as VipMember[]);
 
-    // 컨텐츠 현황
-    const { data: cs } = await supabase.from("content_statuses").select("*");
+    // 컨텐츠 현황 (파일 데이터 제외 — 경량 로드)
+    const { data: cs } = await supabase.from("content_statuses")
+      .select("id,contact_id,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_site_info,pr_photo_desc,pr_intro,pr_feed_text,pr_career,updated_at");
     const map: Record<number, ContentStatus> = {};
     (cs || []).forEach((s: any) => {
-      map[s.contact_id] = {
-        ...s,
-        files: Array.isArray(s.files) ? s.files : (s.files ? JSON.parse(s.files) : []),
-      };
+      map[s.contact_id] = { ...s, files: [] }; // 파일은 빈 배열로 초기화
     });
     setStatuses(map);
     setLoading(false);
@@ -199,6 +222,7 @@ export default function ContentManagePage() {
           photo_received: true,
         },
       }));
+      setLoadedFiles(prev => new Set(prev).add(contactId));
       showToast(`${Array.from(fileList).length}개 파일 업로드 완료`);
     } catch (e: any) {
       showToast(`업로드 오류: ${e.message}`);
@@ -524,7 +548,7 @@ export default function ContentManagePage() {
               return (
                 <div key={m.id} className="rounded-xl overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                   {/* 행 */}
-                  <div className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : m.id)}>
+                  <div className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={() => expandMember(m.id)}>
                     <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", minWidth: 48, textAlign: "center" }}>
                       {m.bunyanghoe_number ? `B-${m.bunyanghoe_number.replace(/[^0-9]/g, "")}` : "-"}
                     </span>
@@ -571,7 +595,10 @@ export default function ContentManagePage() {
                         {/* 사진 업로드 */}
                         <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
                           <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}>
-                            <Camera size={14} /> 파일 관리 <span className="text-[11px] font-normal" style={{ color: "var(--text-muted)" }}>({s.files.length}개)</span>
+                            <Camera size={14} /> 파일 관리 
+                            <span className="text-[11px] font-normal" style={{ color: "var(--text-muted)" }}>
+                              {!loadedFiles.has(m.id) && s.photo_received ? "(로딩 중...)" : `(${s.files.length}개)`}
+                            </span>
                           </h4>
 
                           {/* 업로드된 파일 목록 */}
