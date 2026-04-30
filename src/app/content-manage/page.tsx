@@ -206,24 +206,36 @@ export default function ContentManagePage() {
     setUploading(null);
   };
 
-  const deleteFile = async (contactId: number, fileIndex: number) => {
-    if (!confirm("이 파일을 삭제하시겠습니까?")) return;
+  const deleteFile = async (contactId: number, fileIndex: number, fileName: string) => {
     const s = getStatus(contactId);
-    const newFiles = (s.files || []).filter((_: any, i: number) => i !== fileIndex);
-    const payload = {
-      files: newFiles,
-      photo_received: newFiles.length > 0,
-      updated_at: new Date().toISOString(),
-    };
-    if (s.id) {
-      const { error } = await supabase.from("content_statuses").update(payload).eq("id", s.id);
-      if (error) { showToast(`삭제 실패: ${error.message}`); return; }
-    }
+    if (!s.files || s.files.length === 0) { showToast("삭제할 파일이 없습니다"); return; }
+    
+    const newFiles = s.files.filter((_: any, i: number) => i !== fileIndex);
+
+    // 즉시 UI 반영
     setStatuses(prev => ({
       ...prev,
       [contactId]: { ...prev[contactId], files: newFiles, photo_received: newFiles.length > 0 },
     }));
-    showToast("파일 삭제 완료");
+
+    // DB 업데이트
+    if (s.id) {
+      const { error } = await supabase.from("content_statuses").update({
+        files: newFiles,
+        photo_received: newFiles.length > 0,
+        updated_at: new Date().toISOString(),
+      }).eq("id", s.id);
+      if (error) {
+        // 실패 시 롤백
+        setStatuses(prev => ({
+          ...prev,
+          [contactId]: { ...prev[contactId], files: s.files, photo_received: true },
+        }));
+        showToast(`삭제 실패: ${error.message}`);
+        return;
+      }
+    }
+    showToast(`${fileName} 삭제 완료`);
   };
 
   const downloadFile = (file: UploadedFile) => {
@@ -576,13 +588,15 @@ export default function ContentManagePage() {
                                     <p className="text-xs font-semibold truncate" style={{ color: "var(--text)" }}>{file.name}</p>
                                     <p className="text-[10px]" style={{ color: "var(--text-subtle)" }}>{fmtSize(file.size)}</p>
                                   </div>
-                                  <button onClick={e => { e.stopPropagation(); downloadFile(file); }} title="다운로드"
-                                    className="p-1.5 rounded-lg transition-colors flex-shrink-0" style={{ color: "#3b82f6" }}>
-                                    <Download size={13} />
+                                  <button onClick={e => { e.stopPropagation(); e.preventDefault(); downloadFile(file); }} title="다운로드"
+                                    className="px-2 py-1 rounded-lg transition-colors flex-shrink-0 text-[10px] font-semibold"
+                                    style={{ color: "#3b82f6", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                                    저장
                                   </button>
-                                  <button onClick={e => { e.stopPropagation(); deleteFile(m.id, fi); }} title="삭제"
-                                    className="p-1.5 rounded-lg transition-colors flex-shrink-0" style={{ color: "#ef4444" }}>
-                                    <X size={13} />
+                                  <button onClick={e => { e.stopPropagation(); e.preventDefault(); deleteFile(m.id, fi, file.name); }} title="삭제"
+                                    className="px-2 py-1 rounded-lg transition-colors flex-shrink-0 text-[10px] font-semibold"
+                                    style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                                    삭제
                                   </button>
                                 </div>
                               ))}
