@@ -31,6 +31,8 @@ interface ContentStatus {
   impossible_reason: string;
   files: UploadedFile[];
   pr_name: string;
+  pr_gender: string;
+  pr_birth_date: string;
   pr_title_position: string;
   pr_age: string;
   pr_height: string;
@@ -38,6 +40,8 @@ interface ContentStatus {
   pr_site_info: string;
   pr_photo_desc: string;
   pr_intro: string;
+  pr_feed_text: string;
+  pr_career: string;
   updated_at: string | null;
 }
 
@@ -45,8 +49,8 @@ const EMPTY_STATUS: Omit<ContentStatus, "contact_id"> = {
   photo_received: false, info_received: false, tf2_delivered: false, pr_completed: false,
   production_impossible: false, impossible_reason: "",
   files: [],
-  pr_name: "", pr_title_position: "", pr_age: "", pr_height: "", pr_body_type: "",
-  pr_site_info: "", pr_photo_desc: "", pr_intro: "", updated_at: null,
+  pr_name: "", pr_gender: "", pr_birth_date: "", pr_title_position: "", pr_age: "", pr_height: "", pr_body_type: "",
+  pr_site_info: "", pr_photo_desc: "", pr_intro: "", pr_feed_text: "", pr_career: "", updated_at: null,
 };
 
 export default function ContentManagePage() {
@@ -61,6 +65,7 @@ export default function ContentManagePage() {
   const [filterAssigned, setFilterAssigned] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [cardFilter, setCardFilter] = useState<string>("");
+  const [showStats, setShowStats] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadTarget, setUploadTarget] = useState<number | null>(null);
 
@@ -242,9 +247,11 @@ export default function ContentManagePage() {
     const s = getStatus(contactId);
     const payload = {
       contact_id: contactId,
-      pr_name: s.pr_name, pr_title_position: s.pr_title_position, pr_age: s.pr_age,
+      pr_name: s.pr_name, pr_gender: s.pr_gender, pr_birth_date: s.pr_birth_date,
+      pr_title_position: s.pr_title_position, pr_age: s.pr_age,
       pr_height: s.pr_height, pr_body_type: s.pr_body_type, pr_site_info: s.pr_site_info,
       pr_photo_desc: s.pr_photo_desc, pr_intro: s.pr_intro,
+      pr_feed_text: s.pr_feed_text, pr_career: s.pr_career,
       info_received: true,
       updated_at: new Date().toISOString(),
     };
@@ -306,6 +313,97 @@ export default function ContentManagePage() {
             </button>
           );
         })}
+      </div>
+
+      {/* 회원 통계 */}
+      <div className="px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
+        <div className="flex items-center gap-2 mb-3 cursor-pointer" onClick={() => setShowStats(!showStats)}>
+          <h3 className="text-sm font-bold" style={{ color: "var(--text)" }}>📊 회원 통계</h3>
+          <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
+            {showStats ? "접기" : "펼치기"}
+          </span>
+        </div>
+        {showStats && (() => {
+          // 성별 통계
+          const genderData: Record<string, number> = { "남": 0, "여": 0, "미입력": 0 };
+          // 연령대 통계
+          const ageData: Record<string, number> = {};
+          const total = members.length;
+
+          Object.values(statuses).forEach((s: any) => {
+            // 성별
+            const g = s.pr_gender?.trim();
+            if (g === "남" || g === "여") genderData[g]++;
+            else genderData["미입력"]++;
+            // 연령대 (pr_age에서 숫자 추출)
+            const ageStr = s.pr_age?.replace(/[^0-9]/g, "");
+            if (ageStr) {
+              const age = parseInt(ageStr);
+              const decade = `${Math.floor(age / 10) * 10}대`;
+              ageData[decade] = (ageData[decade] || 0) + 1;
+            }
+          });
+          // 정보 미입력 회원도 미입력으로 카운트
+          const infoCount = Object.values(statuses).length;
+          if (infoCount < total) genderData["미입력"] += (total - infoCount);
+
+          const genderColors: Record<string, string> = { "남": "#3b82f6", "여": "#ec4899", "미입력": "#94a3b8" };
+          const ageKeys = Object.keys(ageData).sort();
+          const maxAge = Math.max(...Object.values(ageData), 1);
+
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* 성별 분포 */}
+              <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <h4 className="text-xs font-bold mb-3" style={{ color: "var(--text-muted)" }}>성별 분포</h4>
+                <div className="flex items-center gap-4 mb-3">
+                  {Object.entries(genderData).filter(([_, v]) => v > 0).map(([k, v]) => (
+                    <div key={k} className="text-center">
+                      <p className="text-2xl font-black" style={{ color: genderColors[k] }}>{v}</p>
+                      <p className="text-[10px] font-semibold" style={{ color: "var(--text-muted)" }}>{k}</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-subtle)" }}>{total > 0 ? `${Math.round(v / total * 100)}%` : "0%"}</p>
+                    </div>
+                  ))}
+                </div>
+                {/* 비율 바 */}
+                <div className="flex rounded-full overflow-hidden h-5">
+                  {Object.entries(genderData).filter(([_, v]) => v > 0).map(([k, v]) => (
+                    <div key={k} className="flex items-center justify-center text-[10px] font-bold text-white"
+                      style={{ width: `${total > 0 ? (v / total * 100) : 0}%`, background: genderColors[k], minWidth: v > 0 ? 24 : 0 }}>
+                      {total > 0 && v > 0 ? `${Math.round(v / total * 100)}%` : ""}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 연령대 분포 */}
+              <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <h4 className="text-xs font-bold mb-3" style={{ color: "var(--text-muted)" }}>연령대 분포</h4>
+                {ageKeys.length === 0 ? (
+                  <p className="text-sm py-4 text-center" style={{ color: "var(--text-subtle)" }}>나이 데이터가 입력되면 표시됩니다</p>
+                ) : (
+                  <div className="space-y-2">
+                    {ageKeys.map(k => {
+                      const v = ageData[k];
+                      const pct = total > 0 ? Math.round(v / total * 100) : 0;
+                      return (
+                        <div key={k} className="flex items-center gap-2">
+                          <span className="text-xs font-bold w-10 text-right" style={{ color: "var(--text)" }}>{k}</span>
+                          <div className="flex-1 h-6 rounded-lg overflow-hidden" style={{ background: "var(--bg)" }}>
+                            <div className="h-full rounded-lg flex items-center px-2 transition-all"
+                              style={{ width: `${Math.max((v / maxAge) * 100, 8)}%`, background: "linear-gradient(90deg, #6366f1, #8b5cf6)" }}>
+                              <span className="text-[10px] font-bold text-white whitespace-nowrap">{v}명 ({pct}%)</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* 필터 */}
@@ -544,13 +642,17 @@ export default function ContentManagePage() {
                               <div className="space-y-2">
                                 {[
                                   { key: "pr_name", label: "1. 성명", placeholder: m.name },
-                                  { key: "pr_title_position", label: "2. 직함", placeholder: m.title || "본부장" },
-                                  { key: "pr_age", label: "3. 나이", placeholder: "45세" },
-                                  { key: "pr_height", label: "4. 키", placeholder: "178cm" },
-                                  { key: "pr_body_type", label: "5. 체형", placeholder: "보통" },
-                                  { key: "pr_site_info", label: "6. 현장정보", placeholder: "수도권 아파트 분양 전문" },
-                                  { key: "pr_photo_desc", label: "7. 사진 설명", placeholder: "정장 프로필 사진" },
-                                  { key: "pr_intro", label: "8. 소개 한 줄 문구", placeholder: "20년 분양 경력의 신뢰할 수 있는 파트너" },
+                                  { key: "pr_gender", label: "2. 성별", placeholder: "남 / 여" },
+                                  { key: "pr_birth_date", label: "3. 생년월일", placeholder: "88.11.16" },
+                                  { key: "pr_title_position", label: "4. 직함", placeholder: m.title || "본부장" },
+                                  { key: "pr_age", label: "5. 나이", placeholder: "45세" },
+                                  { key: "pr_height", label: "6. 키", placeholder: "178cm" },
+                                  { key: "pr_body_type", label: "7. 체형", placeholder: "보통" },
+                                  { key: "pr_site_info", label: "8. 현장정보", placeholder: "수도권 아파트 분양 전문" },
+                                  { key: "pr_career", label: "9. 업계경력", placeholder: "분양 20년 / 부동산 마케팅 15년" },
+                                  { key: "pr_photo_desc", label: "10. 사진 설명", placeholder: "정장 프로필 사진" },
+                                  { key: "pr_intro", label: "11. 소개 한 줄 문구", placeholder: "20년 분양 경력의 신뢰할 수 있는 파트너" },
+                                  { key: "pr_feed_text", label: "12. 활동피드문구", placeholder: "현장의 가치를 전달하는 분양 전문가" },
                                 ].map(f => (
                                   <div key={f.key}>
                                     <label className={lbl} style={{ color: "var(--text-muted)" }}>{f.label}</label>
