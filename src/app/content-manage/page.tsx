@@ -37,9 +37,19 @@ interface ContentStatus {
   pr_age: string;
   pr_height: string;
   pr_body_type: string;
+  pr_activity_region: string;
+  pr_company: string;
+  pr_site_history_1: string;
+  pr_site_history_2: string;
+  pr_site_history_3: string;
+  pr_site_history_4: string;
+  pr_site_history_5: string;
+  pr_intro: string;
+  pr_video_copy_1: string;
+  pr_video_performance: string;
+  pr_video_copy_2: string;
   pr_site_info: string;
   pr_photo_desc: string;
-  pr_intro: string;
   pr_feed_text: string;
   pr_career: string;
   updated_at: string | null;
@@ -50,7 +60,10 @@ const EMPTY_STATUS: Omit<ContentStatus, "contact_id"> = {
   production_impossible: false, impossible_reason: "",
   files: [],
   pr_name: "", pr_gender: "", pr_birth_date: "", pr_title_position: "", pr_age: "", pr_height: "", pr_body_type: "",
-  pr_site_info: "", pr_photo_desc: "", pr_intro: "", pr_feed_text: "", pr_career: "", updated_at: null,
+  pr_activity_region: "", pr_company: "",
+  pr_site_history_1: "", pr_site_history_2: "", pr_site_history_3: "", pr_site_history_4: "", pr_site_history_5: "",
+  pr_intro: "", pr_video_copy_1: "", pr_video_performance: "", pr_video_copy_2: "",
+  pr_site_info: "", pr_photo_desc: "", pr_feed_text: "", pr_career: "", updated_at: null,
 };
 
 export default function ContentManagePage() {
@@ -115,7 +128,7 @@ export default function ContentManagePage() {
 
     // 컨텐츠 현황 (파일 데이터 제외 — 경량 로드)
     const { data: cs } = await supabase.from("content_statuses")
-      .select("id,contact_id,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_site_info,pr_photo_desc,pr_intro,pr_feed_text,pr_career,updated_at");
+      .select("id,contact_id,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_activity_region,pr_company,pr_site_history_1,pr_site_history_2,pr_site_history_3,pr_site_history_4,pr_site_history_5,pr_intro,pr_video_copy_1,pr_video_performance,pr_video_copy_2,pr_site_info,pr_photo_desc,pr_feed_text,pr_career,updated_at");
     const map: Record<number, ContentStatus> = {};
     (cs || []).forEach((s: any) => {
       map[s.contact_id] = { ...s, files: [] }; // 파일은 빈 배열로 초기화
@@ -285,8 +298,15 @@ export default function ContentManagePage() {
       contact_id: contactId,
       pr_name: s.pr_name, pr_gender: s.pr_gender, pr_birth_date: s.pr_birth_date,
       pr_title_position: s.pr_title_position, pr_age: s.pr_age,
-      pr_height: s.pr_height, pr_body_type: s.pr_body_type, pr_site_info: s.pr_site_info,
-      pr_photo_desc: s.pr_photo_desc, pr_intro: s.pr_intro,
+      pr_height: s.pr_height, pr_body_type: s.pr_body_type,
+      pr_activity_region: s.pr_activity_region, pr_company: s.pr_company,
+      pr_site_history_1: s.pr_site_history_1, pr_site_history_2: s.pr_site_history_2,
+      pr_site_history_3: s.pr_site_history_3, pr_site_history_4: s.pr_site_history_4,
+      pr_site_history_5: s.pr_site_history_5,
+      pr_intro: s.pr_intro,
+      pr_video_copy_1: s.pr_video_copy_1, pr_video_performance: s.pr_video_performance,
+      pr_video_copy_2: s.pr_video_copy_2,
+      pr_site_info: s.pr_site_info, pr_photo_desc: s.pr_photo_desc,
       pr_feed_text: s.pr_feed_text, pr_career: s.pr_career,
       info_received: true,
       updated_at: new Date().toISOString(),
@@ -680,35 +700,95 @@ export default function ContentManagePage() {
                               <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}>
                                 <FileText size={14} /> PR패키지 기본정보
                               </h4>
-                              <div className="space-y-2">
-                                {[
-                                  { key: "pr_name", label: "1. 성명", placeholder: m.name },
-                                  { key: "pr_gender", label: "2. 성별", placeholder: "남 / 여" },
-                                  { key: "pr_birth_date", label: "3. 생년월일", placeholder: "88.11.16" },
-                                  { key: "pr_title_position", label: "4. 직함", placeholder: m.title || "본부장" },
-                                  { key: "pr_age", label: "5. 나이", placeholder: "45세" },
-                                  { key: "pr_height", label: "6. 키", placeholder: "178cm" },
-                                  { key: "pr_body_type", label: "7. 체형", placeholder: "보통" },
-                                  { key: "pr_site_info", label: "8. 현장정보", placeholder: "수도권 아파트 분양 전문" },
-                                  { key: "pr_career", label: "9. 업계경력", placeholder: "분양 20년 / 부동산 마케팅 15년" },
-                                  { key: "pr_photo_desc", label: "10. 사진 설명", placeholder: "정장 프로필 사진" },
-                                  { key: "pr_intro", label: "11. 소개 한 줄 문구", placeholder: "20년 분양 경력의 신뢰할 수 있는 파트너" },
-                                  { key: "pr_feed_text", label: "12. 활동피드문구", placeholder: "현장의 가치를 전달하는 분양 전문가" },
-                                ].map(f => (
-                                  <div key={f.key}>
-                                    <label className={lbl} style={{ color: "var(--text-muted)" }}>{f.label}</label>
-                                    <input className={inp} value={(s as any)[f.key] || ""}
-                                      onChange={e => updateField(m.id, f.key, e.target.value)}
-                                      placeholder={f.placeholder}
-                                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                {/* 좌측: 고객기본정보 */}
+                                <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                                  <h5 className="text-xs font-bold mb-3 pb-2" style={{ color: "#3b82f6", borderBottom: "1px solid var(--border)" }}>📋 고객기본정보</h5>
+                                  <div className="space-y-2">
+                                    {[
+                                      { key: "pr_name", label: "성명", placeholder: m.name },
+                                      { key: "pr_title_position", label: "직함", placeholder: "본부장" },
+                                      { key: "pr_gender", label: "성별", placeholder: "남 / 여" },
+                                      { key: "pr_age", label: "나이", placeholder: "1987년 (40세)" },
+                                      { key: "pr_height", label: "키 (대략적)", placeholder: "175cm" },
+                                      { key: "pr_body_type", label: "체형 (대략적)", placeholder: "근육질" },
+                                      { key: "pr_activity_region", label: "활동지역", placeholder: "경기 수도권" },
+                                      { key: "pr_company", label: "소속회사명", placeholder: "마켓리더" },
+                                    ].map(f => (
+                                      <div key={f.key}>
+                                        <label className={lbl} style={{ color: "var(--text-muted)" }}>{f.label}</label>
+                                        <input className={inp} value={(s as any)[f.key] || ""}
+                                          onChange={e => updateField(m.id, f.key, e.target.value)}
+                                          placeholder={f.placeholder}
+                                          style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                                      </div>
+                                    ))}
+                                    {/* 대표현장이력 (5칸) */}
+                                    <div>
+                                      <label className={lbl} style={{ color: "var(--text-muted)" }}>대표현장이력</label>
+                                      <div className="space-y-1.5">
+                                        {[1,2,3,4,5].map(n => (
+                                          <input key={n} className={inp} value={(s as any)[`pr_site_history_${n}`] || ""}
+                                            onChange={e => updateField(m.id, `pr_site_history_${n}`, e.target.value)}
+                                            placeholder={n === 1 ? "안동코오롱하늘채" : n === 2 ? "사천삼정그린코아" : n === 3 ? "대구만촌자이르네" : `현장이력 ${n}`}
+                                            style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                                        ))}
+                                      </div>
+                                    </div>
+                                    {/* 한줄소개 */}
+                                    <div>
+                                      <label className={lbl} style={{ color: "var(--text-muted)" }}>한줄소개</label>
+                                      <input className={inp} value={(s as any).pr_intro || ""}
+                                        onChange={e => updateField(m.id, "pr_intro", e.target.value)}
+                                        placeholder="다름을 만드는 경험, 결과로 답하는 리더"
+                                        style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                                    </div>
                                   </div>
-                                ))}
-                                <button onClick={() => saveInfo(m.id)} disabled={saving === m.id}
-                                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 mt-3">
-                                  <Save size={14} />
-                                  {saving === m.id ? "저장 중..." : "기본정보 저장"}
-                                </button>
+                                </div>
+
+                                {/* 우측: 영상카피 기본정보 */}
+                                <div className="space-y-4">
+                                  {/* ①영상카피 기본정보 */}
+                                  <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                                    <h5 className="text-xs font-bold mb-3 pb-2" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ①영상카피 기본정보</h5>
+                                    <div>
+                                      <label className={lbl} style={{ color: "var(--text-muted)" }}>문구기재</label>
+                                      <input className={inp} value={(s as any).pr_video_copy_1 || ""}
+                                        onChange={e => updateField(m.id, "pr_video_copy_1", e.target.value)}
+                                        placeholder="성과로 말하는 현장전문가"
+                                        style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                                    </div>
+                                  </div>
+
+                                  {/* ②영상카피 기본정보 */}
+                                  <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                                    <h5 className="text-xs font-bold mb-3 pb-2" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ②영상카피 기본정보</h5>
+                                    <div className="space-y-2">
+                                      <div>
+                                        <label className={lbl} style={{ color: "var(--text-muted)" }}>핵심성과수치</label>
+                                        <input className={inp} value={(s as any).pr_video_performance || ""}
+                                          onChange={e => updateField(m.id, "pr_video_performance", e.target.value)}
+                                          placeholder="누적 계약180%, 완판현장4개"
+                                          style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                                      </div>
+                                      <div>
+                                        <label className={lbl} style={{ color: "var(--text-muted)" }}>한 줄 소구카피</label>
+                                        <input className={inp} value={(s as any).pr_video_copy_2 || ""}
+                                          onChange={e => updateField(m.id, "pr_video_copy_2", e.target.value)}
+                                          placeholder="신뢰를 성과로 완성하는 본부장"
+                                          style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
+
+                              {/* 저장 버튼 */}
+                              <button onClick={() => saveInfo(m.id)} disabled={saving === m.id}
+                                className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 mt-4">
+                                <Save size={14} />
+                                {saving === m.id ? "저장 중..." : "기본정보 저장"}
+                              </button>
                             </>
                           )}
                         </div>
