@@ -52,6 +52,7 @@ interface ContentStatus {
   pr_photo_desc: string;
   pr_feed_text: string;
   pr_career: string;
+  pr_years: string;
   updated_at: string | null;
 }
 
@@ -63,7 +64,7 @@ const EMPTY_STATUS: Omit<ContentStatus, "contact_id"> = {
   pr_activity_region: "", pr_company: "",
   pr_site_history_1: "", pr_site_history_2: "", pr_site_history_3: "", pr_site_history_4: "", pr_site_history_5: "",
   pr_intro: "", pr_video_copy_1: "", pr_video_performance: "", pr_video_copy_2: "",
-  pr_site_info: "", pr_photo_desc: "", pr_feed_text: "", pr_career: "", updated_at: null,
+  pr_site_info: "", pr_photo_desc: "", pr_feed_text: "", pr_career: "", pr_years: "", updated_at: null,
 };
 
 // 이미지 압축 (max 800px, quality 0.5 → ~50-100KB)
@@ -164,7 +165,7 @@ export default function ContentManagePage() {
 
     // 컨텐츠 현황 (파일 데이터 제외 — 경량 로드)
     const { data: cs } = await supabase.from("content_statuses")
-      .select("id,contact_id,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_activity_region,pr_company,pr_site_history_1,pr_site_history_2,pr_site_history_3,pr_site_history_4,pr_site_history_5,pr_intro,pr_video_copy_1,pr_video_performance,pr_video_copy_2,pr_site_info,pr_photo_desc,pr_feed_text,pr_career,updated_at");
+      .select("id,contact_id,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_activity_region,pr_company,pr_site_history_1,pr_site_history_2,pr_site_history_3,pr_site_history_4,pr_site_history_5,pr_intro,pr_video_copy_1,pr_video_performance,pr_video_copy_2,pr_site_info,pr_photo_desc,pr_feed_text,pr_career,pr_years,updated_at");
     const map: Record<number, ContentStatus> = {};
     (cs || []).forEach((s: any) => {
       map[s.contact_id] = { ...s, files: [] }; // 파일은 빈 배열로 초기화
@@ -336,7 +337,7 @@ export default function ContentManagePage() {
       pr_video_copy_1: s.pr_video_copy_1, pr_video_performance: s.pr_video_performance,
       pr_video_copy_2: s.pr_video_copy_2,
       pr_site_info: s.pr_site_info, pr_photo_desc: s.pr_photo_desc,
-      pr_feed_text: s.pr_feed_text, pr_career: s.pr_career,
+      pr_feed_text: s.pr_feed_text, pr_career: s.pr_career, pr_years: s.pr_years,
       info_received: true,
       updated_at: new Date().toISOString(),
     };
@@ -747,6 +748,7 @@ export default function ContentManagePage() {
                                       { key: "pr_body_type", label: "체형 (대략적)", placeholder: "근육질" },
                                       { key: "pr_activity_region", label: "활동지역", placeholder: "경기 수도권" },
                                       { key: "pr_company", label: "소속회사명", placeholder: "마켓리더" },
+                                      { key: "pr_years", label: "연차", placeholder: "7년차" },
                                     ].map(f => (
                                       <div key={f.key}>
                                         <label className={lbl} style={{ color: "var(--text-muted)" }}>{f.label}</label>
