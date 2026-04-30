@@ -47,7 +47,7 @@ export async function PUT(req: Request) {
     }
     if (name) updates.name = name;
     if (title) updates.title = title;
-    if (role && ["admin", "exec", "ops", "ad"].includes(role)) updates.role = role;
+    if (role && ["admin", "exec", "ops", "ad", "shared"].includes(role)) updates.role = role;
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "변경할 항목이 없습니다." }, { status: 400 });

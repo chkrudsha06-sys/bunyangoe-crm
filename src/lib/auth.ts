@@ -1,5 +1,5 @@
 // src/lib/auth.ts
-export type UserRole = "admin" | "exec" | "ops" | "ad";
+export type UserRole = "admin" | "exec" | "ops" | "ad" | "shared";
 
 export interface CRMUser {
   name: string;

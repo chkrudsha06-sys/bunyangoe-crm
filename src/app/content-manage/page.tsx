@@ -66,6 +66,42 @@ const EMPTY_STATUS: Omit<ContentStatus, "contact_id"> = {
   pr_site_info: "", pr_photo_desc: "", pr_feed_text: "", pr_career: "", updated_at: null,
 };
 
+// 이미지 압축 (max 800px, quality 0.5 → ~50-100KB)
+function compressImage(file: File, maxSize = 800, quality = 0.5): Promise<string> {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith("image/")) {
+      // 이미지가 아니면 그대로 base64
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      let w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else { w = Math.round(w * maxSize / h); h = maxSize; }
+      }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL("image/jpeg", quality);
+      URL.revokeObjectURL(url);
+      resolve(compressed);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    };
+    img.src = url;
+  });
+}
+
 export default function ContentManagePage() {
   const [members, setMembers] = useState<VipMember[]>([]);
   const [statuses, setStatuses] = useState<Record<number, ContentStatus>>({});
@@ -178,24 +214,17 @@ export default function ContentManagePage() {
     const existingFiles = [...(s.files || [])];
 
     for (const file of Array.from(fileList)) {
-      // 파일 크기 제한 (2MB per file - base64는 ~33% 증가)
-      if (file.size > 2 * 1024 * 1024) {
-        showToast(`${file.name}: 2MB 이하 파일만 업로드 가능합니다`);
+      // 파일 크기 제한 (원본 5MB, 압축 후 ~100KB)
+      if (file.size > 5 * 1024 * 1024) {
+        showToast(`${file.name}: 5MB 이하 파일만 업로드 가능합니다`);
         continue;
       }
-      const reader = new FileReader();
-      await new Promise<void>((resolve) => {
-        reader.onload = () => {
-          existingFiles.push({
-            name: file.name,
-            url: reader.result as string,
-            size: file.size,
-            uploaded_at: new Date().toISOString(),
-          });
-          resolve();
-        };
-        reader.onerror = () => resolve();
-        reader.readAsDataURL(file);
+      const compressed = await compressImage(file);
+      existingFiles.push({
+        name: file.name,
+        url: compressed,
+        size: file.size,
+        uploaded_at: new Date().toISOString(),
       });
     }
 
@@ -391,12 +420,16 @@ export default function ContentManagePage() {
             const g = s.pr_gender?.trim();
             if (g === "남" || g === "여") genderData[g]++;
             else genderData["미입력"]++;
-            // 연령대 (pr_age에서 숫자 추출)
-            const ageStr = s.pr_age?.replace(/[^0-9]/g, "");
-            if (ageStr) {
-              const age = parseInt(ageStr);
-              const decade = `${Math.floor(age / 10) * 10}대`;
-              ageData[decade] = (ageData[decade] || 0) + 1;
+            // 연령대 (pr_birth_date에서 계산: 88.11.26 형식)
+            const birthStr = s.pr_birth_date?.replace(/[^0-9]/g, "");
+            if (birthStr && birthStr.length >= 2) {
+              const yy = parseInt(birthStr.substring(0, 2));
+              const birthYear = yy >= 40 ? 1900 + yy : 2000 + yy;
+              const age = new Date().getFullYear() - birthYear;
+              if (age > 0 && age < 100) {
+                const decade = `${Math.floor(age / 10) * 10}대`;
+                ageData[decade] = (ageData[decade] || 0) + 1;
+              }
             }
           });
           // 정보 미입력 회원도 미입력으로 카운트
@@ -709,7 +742,7 @@ export default function ContentManagePage() {
                                       { key: "pr_name", label: "성명", placeholder: m.name },
                                       { key: "pr_title_position", label: "직함", placeholder: "본부장" },
                                       { key: "pr_gender", label: "성별", placeholder: "남 / 여" },
-                                      { key: "pr_age", label: "나이", placeholder: "1987년 (40세)" },
+                                      { key: "pr_birth_date", label: "생년월일", placeholder: "88.11.26" },
                                       { key: "pr_height", label: "키 (대략적)", placeholder: "175cm" },
                                       { key: "pr_body_type", label: "체형 (대략적)", placeholder: "근육질" },
                                       { key: "pr_activity_region", label: "활동지역", placeholder: "경기 수도권" },
