@@ -282,11 +282,13 @@ export default function CustomerRegisterPage() {
                     <span className="w-14 text-center text-[11px] font-semibold flex-shrink-0" style={{ color: "#8b5cf6" }}>{c.assigned_to || "-"}</span>
                     <span className="w-14 text-center text-[11px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>{c.consultant || "-"}</span>
                     {/* 활동노트 미리보기 (더블클릭으로 팝업) */}
-                    <div className="flex-1 min-w-0 mx-3 overflow-hidden cursor-text"
+                    <div className="flex-1 min-w-0 mx-3 overflow-hidden cursor-pointer flex items-center justify-center"
                       onDoubleClick={e => { e.stopPropagation(); setNotesPopup({ contactId: c.id, name: c.name }); }}
                       onClick={e => e.stopPropagation()}
                       title="더블클릭하여 활동노트 보기/편집">
-                      <ContactNotes contactId={c.id} compact />
+                      <div className="w-full text-center">
+                        <ContactNotes contactId={c.id} compact />
+                      </div>
                     </div>
                     <span className="w-16 flex items-center justify-center gap-0.5 flex-shrink-0">
                       <button onClick={e => { e.stopPropagation(); handleEdit(c); }}
