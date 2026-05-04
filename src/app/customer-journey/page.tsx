@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
-import { Search, Phone, Calendar, MapPin, X, ChevronDown, ChevronUp, ArrowRight, CalendarPlus } from "lucide-react";
+import { Search, X, ChevronDown, ChevronUp, ArrowRight, CalendarPlus } from "lucide-react";
 import ContactNotes from "@/components/ContactNotes";
 
 interface Contact {
@@ -26,11 +26,7 @@ interface Contact {
   reservation_date: string | null;
 }
 
-interface LastNote {
-  contact_id: number;
-  note_date: string;
-  content: string;
-}
+interface LastNote { contact_id: number; note_date: string; content: string; }
 
 const TEAM = ["조계현", "이세호", "기여운", "최연전"];
 const CONSULTANTS = ["박경화", "박혜은", "조승현", "박민경", "백선중", "강아름", "전정훈", "박나라"];
@@ -45,15 +41,25 @@ const COLUMNS = [
   { key: "프로스펙팅", label: "프로스펙팅", color: "#f59e0b", bg: "rgba(245,158,11,0.06)",  border: "rgba(245,158,11,0.15)" },
   { key: "딜클로징",   label: "딜클로징",   color: "#ef4444", bg: "rgba(239,68,68,0.06)",   border: "rgba(239,68,68,0.15)" },
   { key: "리텐션",     label: "리텐션",     color: "#10b981", bg: "rgba(16,185,129,0.06)",  border: "rgba(16,185,129,0.15)" },
-  { key: "예약완료",   label: "예약완료",   color: "#6366f1", bg: "rgba(99,102,241,0.06)",  border: "rgba(99,102,241,0.15)" },
-  { key: "계약완료",   label: "계약완료",   color: "#8b5cf6", bg: "rgba(139,92,246,0.06)",  border: "rgba(139,92,246,0.15)" },
 ];
 
-const NEXT_STAGE: Record<string, { label: string; dbValue: string }> = {
-  "리드":       { label: "프로스펙팅 전환", dbValue: "프로스펙팅" },
-  "프로스펙팅": { label: "딜클로징 전환",   dbValue: "딜크로징" },
-  "딜클로징":   { label: "리텐션 전환",     dbValue: "리텐션" },
+// 각 구간별 전환 버튼
+const STAGE_TRANSITIONS: Record<string, { label: string; dbValue: string; color: string }[]> = {
+  "리드": [
+    { label: "프로스펙팅 전환", dbValue: "프로스펙팅", color: "#f59e0b" },
+    { label: "딜클로징 전환", dbValue: "딜크로징", color: "#ef4444" },
+  ],
+  "프로스펙팅": [
+    { label: "리드 전환", dbValue: "리드", color: "#3b82f6" },
+    { label: "딜클로징 전환", dbValue: "딜크로징", color: "#ef4444" },
+  ],
+  "딜클로징": [
+    { label: "리드 전환", dbValue: "리드", color: "#3b82f6" },
+    { label: "프로스펙팅 전환", dbValue: "프로스펙팅", color: "#f59e0b" },
+  ],
 };
+
+const MEETING_RESULTS = ["계약완료", "예약완료", "서류만수취", "2차접점", "계약거부", "미팅불발"];
 
 const SURNAME_COLORS: Record<string,string> = {
   "김":"#3b82f6","이":"#8b5cf6","박":"#10b981","최":"#f43f5e","정":"#f59e0b","강":"#06b6d4",
@@ -95,6 +101,10 @@ export default function CustomerJourneyPage() {
   const [meetingDate, setMeetingDate] = useState(new Date().toISOString().split("T")[0]);
   const [meetingAddr, setMeetingAddr] = useState("");
 
+  // 미팅결과 변경 시 날짜 모달
+  const [resultDateModal, setResultDateModal] = useState<{ contactId: number; name: string; result: string } | null>(null);
+  const [resultDate, setResultDate] = useState(new Date().toISOString().split("T")[0]);
+
   useEffect(() => {
     const u = getCurrentUser();
     if (u) setUserName(u.name);
@@ -132,12 +142,39 @@ export default function CustomerJourneyPage() {
   const handleMeetingRegister = async () => {
     if (!meetingModal || !meetingDate) return;
     const { error } = await supabase.from("contacts").update({
-      meeting_date: meetingDate,
-      meeting_address: meetingAddr || null,
+      meeting_date: meetingDate, meeting_address: meetingAddr || null,
     }).eq("id", meetingModal.contactId);
     if (error) { showToast(`등록 실패: ${error.message}`); return; }
     showToast(`${meetingModal.name} 미팅 등록 완료`);
     setMeetingModal(null); setMeetingDate(new Date().toISOString().split("T")[0]); setMeetingAddr("");
+    fetchAll();
+  };
+
+  // 미팅결과 변경
+  const handleMeetingResultChange = async (contactId: number, name: string, result: string) => {
+    // 계약완료/예약완료는 날짜 입력 모달
+    if (result === "계약완료" || result === "예약완료") {
+      setResultDateModal({ contactId, name, result });
+      setResultDate(new Date().toISOString().split("T")[0]);
+      return;
+    }
+    const { error } = await supabase.from("contacts").update({ meeting_result: result }).eq("id", contactId);
+    if (error) { showToast(`변경 실패: ${error.message}`); return; }
+    showToast(`${name} 미팅결과: ${result}`);
+    fetchAll();
+  };
+
+  const handleResultDateSave = async () => {
+    if (!resultDateModal) return;
+    const isContract = resultDateModal.result === "계약완료";
+    const updateData: Record<string, string | null> = {
+      meeting_result: resultDateModal.result,
+      [isContract ? "contract_date" : "reservation_date"]: resultDate,
+    };
+    const { error } = await supabase.from("contacts").update(updateData).eq("id", resultDateModal.contactId);
+    if (error) { showToast(`저장 실패: ${error.message}`); return; }
+    showToast(`${resultDateModal.name} ${resultDateModal.result} 처리 완료`);
+    setResultDateModal(null);
     fetchAll();
   };
 
@@ -155,18 +192,32 @@ export default function CustomerJourneyPage() {
     return true;
   });
 
+  // 컬럼 배치: 계약완료→리텐션, 예약완료→딜클로징, 나머지는 management_stage 기준
   const getColumnContacts = (colKey: string) => {
     return filtered.filter(c => {
-      if (colKey === "계약완료") return c.meeting_result === "계약완료";
-      if (colKey === "예약완료") return c.meeting_result === "예약완료";
+      if (colKey === "리텐션") {
+        return c.management_stage === "리텐션" || c.meeting_result === "계약완료";
+      }
+      if (colKey === "딜클로징") {
+        const isContract = c.meeting_result === "계약완료";
+        if (isContract) return false; // 계약완료는 리텐션으로
+        return c.management_stage === "딜크로징" || c.meeting_result === "예약완료";
+      }
+      // 리드, 프로스펙팅: 계약완료/예약완료 제외
       const isCompleted = c.meeting_result === "계약완료" || c.meeting_result === "예약완료";
       if (isCompleted) return false;
-      if (colKey === "딜클로징") return c.management_stage === "딜크로징";
       return c.management_stage === colKey;
     });
   };
 
   const totalDisplayed = COLUMNS.reduce((sum, col) => sum + getColumnContacts(col.key).length, 0);
+
+  // 뱃지 표시
+  const getBadge = (c: Contact) => {
+    if (c.meeting_result === "계약완료") return { text: "계약완료", color: "#8b5cf6" };
+    if (c.meeting_result === "예약완료") return { text: "예약완료", color: "#6366f1" };
+    return null;
+  };
 
   return (
     <div className="flex flex-col h-full" style={{ background: "var(--bg)" }}>
@@ -224,17 +275,17 @@ export default function CustomerJourneyPage() {
         </div>
       </div>
 
-      {/* 칸반 */}
+      {/* 칸반 4컬럼 */}
       {loading ? (
         <div className="flex items-center justify-center flex-1">
           <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
         </div>
       ) : (
         <div className="flex-1 overflow-auto p-4">
-          <div className="grid gap-3 h-full" style={{ gridTemplateColumns: "repeat(6, minmax(180px, 1fr))", minWidth: "1100px" }}>
+          <div className="grid gap-3 h-full" style={{ gridTemplateColumns: "repeat(4, minmax(220px, 1fr))", minWidth: "900px" }}>
             {COLUMNS.map(col => {
               const colContacts = getColumnContacts(col.key);
-              const nextStage = NEXT_STAGE[col.key];
+              const transitions = STAGE_TRANSITIONS[col.key];
               return (
                 <div key={col.key} className="flex flex-col rounded-2xl overflow-hidden min-w-0"
                   style={{ background: col.bg, border: `1px solid ${col.border}` }}>
@@ -256,11 +307,12 @@ export default function CustomerJourneyPage() {
                         const isExpanded = expandedId === c.id;
                         const avatarColor = getAvatarColor(c.name);
                         const lastNote = lastNotes[c.id];
+                        const badge = getBadge(c);
                         return (
                           <div key={c.id} className="rounded-xl overflow-hidden"
                             style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                             <div className="px-3 py-2.5 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : c.id)}>
-                              {/* 이름 + 직급 + 담당자 */}
+                              {/* 이름 + 직급 + 뱃지 */}
                               <div className="flex items-center gap-2 mb-1.5">
                                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
                                   style={{ background: avatarColor }}>{c.name[0]}</div>
@@ -268,6 +320,10 @@ export default function CustomerJourneyPage() {
                                   <div className="flex items-center gap-1">
                                     <span className="text-[13px] font-bold truncate" style={{ color: "var(--text)" }}>{c.name}</span>
                                     {c.title && <span className="text-[11px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>{c.title}</span>}
+                                    {badge && (
+                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                                        style={{ background: `${badge.color}20`, color: badge.color }}>{badge.text}</span>
+                                    )}
                                   </div>
                                   {c.assigned_to && <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{c.assigned_to}</span>}
                                 </div>
@@ -288,18 +344,18 @@ export default function CustomerJourneyPage() {
                               </div>
 
                               {/* 액션 버튼 */}
-                              <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                                {nextStage && (
-                                  <button onClick={() => handleStageTransition(c.id, c.name, nextStage.dbValue)}
-                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-bold rounded-lg transition-colors"
-                                    style={{ background: `${col.color}15`, color: col.color, border: `1px solid ${col.color}30` }}>
-                                    <ArrowRight size={10} />{nextStage.label}
+                              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                {transitions && transitions.map(t => (
+                                  <button key={t.dbValue} onClick={() => handleStageTransition(c.id, c.name, t.dbValue)}
+                                    className="flex-1 flex items-center justify-center gap-0.5 px-1.5 py-1.5 text-[9px] font-bold rounded-lg transition-colors"
+                                    style={{ background: `${t.color}12`, color: t.color, border: `1px solid ${t.color}25` }}>
+                                    <ArrowRight size={9} />{t.label}
                                   </button>
-                                )}
+                                ))}
                                 <button onClick={() => { setMeetingModal({ contactId: c.id, name: c.name }); setMeetingDate(c.meeting_date || new Date().toISOString().split("T")[0]); setMeetingAddr(c.meeting_address || ""); }}
-                                  className="flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-bold rounded-lg transition-colors"
+                                  className="flex items-center justify-center gap-0.5 px-1.5 py-1.5 text-[9px] font-bold rounded-lg transition-colors"
                                   style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>
-                                  <CalendarPlus size={10} />미팅등록
+                                  <CalendarPlus size={9} />미팅
                                 </button>
                               </div>
                             </div>
@@ -310,30 +366,38 @@ export default function CustomerJourneyPage() {
                                 <div className="pt-2 space-y-1.5">
                                   {c.phone && (
                                     <div className="flex items-center gap-1.5">
-                                      <Phone size={11} style={{ color: "var(--text-subtle)" }} />
-                                      <span className="text-[11px]" style={{ color: "var(--text)" }}>{c.phone}</span>
+                                      <span className="text-[11px]" style={{ color: "var(--text)" }}>📞 {c.phone}</span>
                                     </div>
                                   )}
                                   {c.meeting_date && (
                                     <div className="flex items-center gap-1.5">
-                                      <Calendar size={11} style={{ color: "#60a5fa" }} />
                                       <span className="text-[11px] font-semibold" style={{ color: "#60a5fa" }}>
-                                        {new Date(c.meeting_date + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
+                                        📅 {new Date(c.meeting_date + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
                                       </span>
-                                      {c.meeting_address && (
-                                        <><MapPin size={10} style={{ color: "var(--text-subtle)" }} />
-                                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{c.meeting_address}</span></>
-                                      )}
+                                      {c.meeting_address && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>📍 {c.meeting_address}</span>}
                                     </div>
                                   )}
                                 </div>
+
+                                {/* 미팅결과 드롭다운 */}
+                                <div>
+                                  <p className="text-[9px] font-semibold mb-1" style={{ color: "var(--text-subtle)" }}>미팅결과</p>
+                                  <select
+                                    value={c.meeting_result || ""}
+                                    onChange={e => { e.stopPropagation(); if (e.target.value) handleMeetingResultChange(c.id, c.name, e.target.value); }}
+                                    onClick={e => e.stopPropagation()}
+                                    className="w-full appearance-none px-2.5 py-1.5 text-[11px] font-semibold rounded-lg outline-none"
+                                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}>
+                                    <option value="">미팅결과 선택</option>
+                                    {MEETING_RESULTS.map(r => <option key={r} value={r}>{r}</option>)}
+                                  </select>
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-1.5">
                                   {[
                                     { label: "유입경로", value: c.intake_route },
                                     { label: "고객유형", value: c.customer_type },
-                                    { label: "가망구분", value: c.prospect_type },
                                     { label: "담당컨설턴트", value: c.consultant },
-                                    { label: "미팅결과", value: c.meeting_result },
                                     { label: "계약일", value: c.contract_date },
                                   ].map(item => (
                                     <div key={item.label}>
@@ -342,12 +406,8 @@ export default function CustomerJourneyPage() {
                                     </div>
                                   ))}
                                 </div>
-                                {c.memo && (
-                                  <div className="rounded-lg px-2 py-1.5" style={{ background: "var(--bg)" }}>
-                                    <p className="text-[9px] font-semibold mb-0.5" style={{ color: "var(--text-subtle)" }}>메모</p>
-                                    <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>{c.memo}</p>
-                                  </div>
-                                )}
+
+                                {/* 활동노트 */}
                                 <div className="rounded-lg p-2" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
                                   <div className="flex items-center justify-between mb-1.5">
                                     <p className="text-[10px] font-bold" style={{ color: "var(--text)" }}>📝 활동노트</p>
@@ -356,7 +416,8 @@ export default function CustomerJourneyPage() {
                                   </div>
                                   <ContactNotes contactId={c.id} compact />
                                 </div>
-                                <a href={`/contacts/${c.id}`}
+
+                                <a href={`/contacts/${c.id}`} onClick={e => e.stopPropagation()}
                                   className="block text-center text-[11px] font-semibold py-1.5 rounded-lg"
                                   style={{ background: "var(--bg)", color: "#3b82f6", border: "1px solid var(--border)" }}>상세 페이지 →</a>
                               </div>
@@ -427,6 +488,41 @@ export default function CustomerJourneyPage() {
                 className="flex-1 py-2 text-sm font-semibold rounded-xl" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>취소</button>
               <button onClick={handleMeetingRegister}
                 className="flex-1 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700">등록</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 계약완료/예약완료 날짜 모달 */}
+      {resultDateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+          onClick={() => setResultDateModal(null)}>
+          <div className="rounded-2xl shadow-2xl w-full max-w-sm"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+              <div className="flex items-center gap-2">
+                <span className="text-base">{resultDateModal.result === "계약완료" ? "📋" : "📌"}</span>
+                <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{resultDateModal.name}</span>
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
+                  style={{ background: resultDateModal.result === "계약완료" ? "rgba(139,92,246,0.15)" : "rgba(99,102,241,0.15)",
+                    color: resultDateModal.result === "계약완료" ? "#8b5cf6" : "#6366f1" }}>{resultDateModal.result}</span>
+              </div>
+              <button onClick={() => setResultDateModal(null)} className="p-1 rounded-lg" style={{ color: "var(--text-muted)" }}><X size={18} /></button>
+            </div>
+            <div className="p-5">
+              <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--text-muted)" }}>
+                {resultDateModal.result === "계약완료" ? "계약일" : "예약일"}
+              </label>
+              <input type="date" value={resultDate} onChange={e => setResultDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg outline-none focus:border-blue-400"
+                style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+            </div>
+            <div className="flex items-center gap-2 px-5 pb-4">
+              <button onClick={() => setResultDateModal(null)}
+                className="flex-1 py-2 text-sm font-semibold rounded-xl" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>취소</button>
+              <button onClick={handleResultDateSave}
+                className="flex-1 py-2 text-sm font-bold text-white rounded-xl hover:opacity-90"
+                style={{ background: resultDateModal.result === "계약완료" ? "#8b5cf6" : "#6366f1" }}>저장</button>
             </div>
           </div>
         </div>

@@ -306,8 +306,6 @@ export default function CustomerRegisterPage() {
                     <div className="px-5 pb-4 pt-3 space-y-3" style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                         {[
-                          { label: "가망구분", value: c.prospect_type },
-                          { label: "TM감도", value: c.tm_sensitivity },
                           { label: "미팅일정", value: c.meeting_date },
                           { label: "미팅지역", value: c.meeting_address },
                           { label: "미팅결과", value: c.meeting_result },
