@@ -249,7 +249,7 @@ export default function CustomerJourneyPage() {
     });
     setShowSiteHistory(false);
     // 히스토리 로드
-    const { data } = await supabase.from("site_info_history", "member_timeline")
+    const { data } = await supabase.from("site_info_history")
       .select("*").eq("contact_id", c.id)
       .order("changed_at", { ascending: false }).limit(20);
     setSiteHistory((data || []) as SiteHistory[]);
@@ -266,7 +266,7 @@ export default function CustomerJourneyPage() {
     }).eq("id", siteModal.contactId);
     if (error) { showToast(`저장 실패: ${error.message}`); return; }
     // 히스토리 기록
-    await supabase.from("site_info_history", "member_timeline").insert({
+    await supabase.from("site_info_history").insert({
       contact_id: siteModal.contactId,
       operating_site: siteForm.operating_site || "",
       total_org_count: siteForm.total_org_count || "",
@@ -277,7 +277,7 @@ export default function CustomerJourneyPage() {
     showToast(`${siteModal.name} 현장정보 수정 완료`);
     setSiteModal(null);
     // 인라인 히스토리 갱신
-    const { data: freshH } = await supabase.from("site_info_history", "member_timeline")
+    const { data: freshH } = await supabase.from("site_info_history")
       .select("*").eq("contact_id", siteModal.contactId)
       .order("changed_at", { ascending: false }).limit(20);
     setInlineHistory(prev => ({ ...prev, [siteModal.contactId]: (freshH || []) as SiteHistory[] }));
@@ -292,7 +292,7 @@ export default function CustomerJourneyPage() {
     }
     // 로드
     if (!inlineHistory[contactId]) {
-      const { data } = await supabase.from("site_info_history", "member_timeline")
+      const { data } = await supabase.from("site_info_history")
         .select("*").eq("contact_id", contactId)
         .order("changed_at", { ascending: false }).limit(20);
       setInlineHistory(prev => ({ ...prev, [contactId]: (data || []) as SiteHistory[] }));
