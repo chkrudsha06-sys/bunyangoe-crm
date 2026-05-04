@@ -335,9 +335,9 @@ export default function CustomerRegisterPage() {
 
       {/* 신규등록 / 수정 모달 */}
       {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}>
           <div className="rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            style={{ background: "var(--modal-bg)", border: "1px solid var(--border)" }}>
             <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
               <h3 className="text-lg font-bold" style={{ color: "var(--text)" }}>
                 {editId ? "✏️ 고객 수정" : "📋 신규 등록"}
@@ -401,10 +401,10 @@ export default function CustomerRegisterPage() {
 
       {/* 활동노트 팝업 */}
       {notesPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}
           onClick={() => setNotesPopup(null)}>
           <div className="rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            style={{ background: "var(--modal-bg)", border: "1px solid var(--border)" }}
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
               <div className="flex items-center gap-2">

@@ -150,6 +150,16 @@ export default function CustomerJourneyPage() {
     fetchAll();
   };
 
+  const handleDeleteMeeting = async (contactId: number, name: string) => {
+    if (!confirm(`${name} 미팅일정을 삭제하시겠습니까?`)) return;
+    const { error } = await supabase.from("contacts").update({
+      meeting_date: null, meeting_address: null,
+    }).eq("id", contactId);
+    if (error) { showToast(`삭제 실패: ${error.message}`); return; }
+    showToast(`${name} 미팅일정 삭제 완료`);
+    fetchAll();
+  };
+
   // 미팅결과 변경
   const handleMeetingResultChange = async (contactId: number, name: string, result: string) => {
     // 계약완료/예약완료는 날짜 입력 모달
@@ -343,6 +353,25 @@ export default function CustomerJourneyPage() {
                                 )}
                               </div>
 
+                              {/* 미팅일정 표시 */}
+                              {c.meeting_date && (
+                                <div className="flex items-center justify-between rounded-lg px-2 py-1.5 mb-1.5" style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.15)" }}
+                                  onClick={e => e.stopPropagation()}>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[11px]">📅</span>
+                                    <span className="text-[11px] font-semibold" style={{ color: "#60a5fa" }}>
+                                      {new Date(c.meeting_date + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
+                                    </span>
+                                    {c.meeting_address && (
+                                      <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>📍 {c.meeting_address}</span>
+                                    )}
+                                  </div>
+                                  <button onClick={() => handleDeleteMeeting(c.id, c.name)}
+                                    className="text-[9px] font-semibold px-1.5 py-0.5 rounded transition-colors"
+                                    style={{ color: "#ef4444" }}>✕</button>
+                                </div>
+                              )}
+
                               {/* 액션 버튼 */}
                               <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                                 {transitions && transitions.map(t => (
@@ -436,10 +465,10 @@ export default function CustomerJourneyPage() {
 
       {/* 활동노트 팝업 */}
       {notesPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}
           onClick={() => { setNotesPopup(null); fetchAll(); }}>
           <div className="rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
+            style={{ background: "var(--modal-bg)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
               <div className="flex items-center gap-2">
                 <span className="text-base">📝</span>
@@ -457,10 +486,10 @@ export default function CustomerJourneyPage() {
 
       {/* 미팅등록 모달 */}
       {meetingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}
           onClick={() => setMeetingModal(null)}>
           <div className="rounded-2xl shadow-2xl w-full max-w-sm"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
+            style={{ background: "var(--modal-bg)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
               <div className="flex items-center gap-2">
                 <CalendarPlus size={16} style={{ color: "#3b82f6" }} />
@@ -495,10 +524,10 @@ export default function CustomerJourneyPage() {
 
       {/* 계약완료/예약완료 날짜 모달 */}
       {resultDateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}
           onClick={() => setResultDateModal(null)}>
           <div className="rounded-2xl shadow-2xl w-full max-w-sm"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
+            style={{ background: "var(--modal-bg)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
               <div className="flex items-center gap-2">
                 <span className="text-base">{resultDateModal.result === "계약완료" ? "📋" : "📌"}</span>

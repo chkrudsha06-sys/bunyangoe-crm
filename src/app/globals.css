@@ -39,6 +39,7 @@
   --input-bg: #F8FAFC;
   --input-border: #E2E8F0;
   --modal-overlay: rgba(0,0,0,0.4);
+  --modal-bg: #FFFFFF;
   --glow: none;
 }
 
@@ -78,6 +79,7 @@
   --input-bg: rgba(255,255,255,0.06);
   --input-border: rgba(255,255,255,0.1);
   --modal-overlay: rgba(0,0,0,0.7);
+  --modal-bg: #151d38;
   --glow: 0 0 20px rgba(74,123,247,0.15);
 }
 
