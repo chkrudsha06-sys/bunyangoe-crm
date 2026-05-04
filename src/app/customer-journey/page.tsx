@@ -181,14 +181,15 @@ export default function CustomerJourneyPage() {
   const handleDeleteContact = async (contactId: number, name: string) => {
     if (!confirm(`"${name}" 고객을 삭제하시겠습니까?\n\n관련 활동노트, 리워드, 알림 등 모든 데이터가 함께 삭제됩니다.`)) return;
     try {
-      // FK cascade: 관련 테이블 먼저 삭제
-      await supabase.from("rewards").delete().eq("contact_id", contactId);
-      await supabase.from("mileage_usages").delete().eq("contact_id", contactId);
-      await supabase.from("contact_notes").delete().eq("contact_id", contactId);
-      await supabase.from("notifications").delete().eq("contact_id", contactId);
-      await supabase.from("push_subscriptions").delete().eq("contact_id", contactId);
-      await supabase.from("content_statuses").delete().eq("contact_id", contactId);
-      await supabase.from("site_info_history").delete().eq("contact_id", contactId);
+      // FK cascade: 관련 테이블 먼저 삭제 (순서 중요)
+      const tables = [
+        "rewards", "mileage_usages", "contact_notes", "notifications",
+        "push_subscriptions", "content_statuses", "site_info_history"
+      ];
+      for (const table of tables) {
+        const { error: tErr } = await supabase.from(table).delete().eq("contact_id", contactId);
+        if (tErr) console.warn(`${table} 삭제 경고:`, tErr.message);
+      }
       const { error } = await supabase.from("contacts").delete().eq("id", contactId);
       if (error) { showToast(`삭제 실패: ${error.message}`); return; }
       showToast(`${name} 고객 삭제 완료`);
