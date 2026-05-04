@@ -584,110 +584,132 @@ interface CalEventItem {
   event_type: string;
 }
 
-// ── 업무요청 보드 ────────────────────────────────────────────
-function WorkRequestBoard({ user }: { user: CRMUser | null }) {
-  const [items, setItems]       = useState<any[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm]         = useState({ title:"", content:"", assigned_to:"" });
-  const [saving, setSaving]     = useState(false);
-  const TEAM = ["조계현","이세호","기여운","최연전","김재영","최은정"];
-  const STATUS_COLOR: Record<string,string> = {
-    "요청": "bg-amber-50 text-amber-600 border-amber-200",
-    "진행중": "bg-blue-50 text-blue-600 border-blue-200",
-    "완료": "bg-emerald-50 text-emerald-600 border-emerald-200",
+// ── 고객여정 대시보드 ────────────────────────────────────────────
+function CustomerJourneyBoard({ user }: { user: CRMUser | null }) {
+  const [stages, setStages] = useState<{ key: string; label: string; color: string; count: number }[]>([]);
+  const [alerts, setAlerts] = useState<{ id: number; name: string; stage: string; assigned_to: string; lastNote: string; days: number }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { fetchData(); }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    const isExec = user?.role === "exec";
+
+    // 고객 데이터
+    let q = supabase.from("contacts").select("id,name,management_stage,meeting_result,assigned_to");
+    if (isExec) q = q.eq("assigned_to", user?.name || "");
+    const { data: contacts } = await q;
+    const all = contacts || [];
+
+    // 구간별 카운트 (계약완료→리텐션, 예약완료→딜클로징)
+    const stageMap: Record<string, number> = { "리드": 0, "프로스펙팅": 0, "딜클로징": 0, "리텐션": 0 };
+    all.forEach((c: any) => {
+      if (c.meeting_result === "계약완료") { stageMap["리텐션"]++; return; }
+      if (c.meeting_result === "예약완료") { stageMap["딜클로징"]++; return; }
+      const isCompleted = c.meeting_result === "계약완료" || c.meeting_result === "예약완료";
+      if (isCompleted) return;
+      const stage = c.management_stage === "딜크로징" ? "딜클로징" : c.management_stage;
+      if (stage && stageMap[stage] !== undefined) stageMap[stage]++;
+    });
+
+    const colors: Record<string,string> = { "리드": "#3b82f6", "프로스펙팅": "#f59e0b", "딜클로징": "#ef4444", "리텐션": "#10b981" };
+    setStages(Object.entries(stageMap).map(([key, count]) => ({ key, label: key, color: colors[key], count })));
+
+    // 활동노트 경고 (7일 초과)
+    const { data: notes } = await supabase.from("contact_notes")
+      .select("contact_id,note_date")
+      .order("note_date", { ascending: false });
+
+    const latestNote: Record<number, string> = {};
+    (notes || []).forEach((n: any) => {
+      if (!latestNote[n.contact_id]) latestNote[n.contact_id] = n.note_date;
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const alertList: typeof alerts = [];
+
+    // 리드/프로스펙팅/딜클로징 구간만 경고 대상
+    all.forEach((c: any) => {
+      const isCompleted = c.meeting_result === "계약완료" || c.meeting_result === "예약완료";
+      if (isCompleted) return;
+      const stage = c.management_stage;
+      if (!stage || stage === "리텐션") return;
+      const displayStage = stage === "딜크로징" ? "딜클로징" : stage;
+
+      const lastDate = latestNote[c.id];
+      if (!lastDate) {
+        alertList.push({ id: c.id, name: c.name, stage: displayStage, assigned_to: c.assigned_to || "-", lastNote: "없음", days: 999 });
+      } else {
+        const diff = Math.floor((today.getTime() - new Date(lastDate + "T00:00:00").getTime()) / (1000 * 60 * 60 * 24));
+        if (diff > 7) {
+          alertList.push({ id: c.id, name: c.name, stage: displayStage, assigned_to: c.assigned_to || "-", lastNote: lastDate, days: diff });
+        }
+      }
+    });
+
+    alertList.sort((a, b) => b.days - a.days);
+    setAlerts(alertList);
+    setLoading(false);
   };
 
-  useEffect(() => { fetchItems(); }, []);
-  const fetchItems = async () => {
-    const { data } = await supabase.from("work_requests")
-      .select("*").order("created_at",{ascending:false}).limit(10);
-    setItems(data||[]);
-  };
-  const handleSubmit = async () => {
-    if (!form.title) return alert("제목을 입력하세요.");
-    setSaving(true);
-    await supabase.from("work_requests").insert({
-      title: form.title, content: form.content||null,
-      assigned_to: form.assigned_to||null,
-      author: user?.name||"", status:"요청",
-    });
-    setSaving(false); setShowForm(false);
-    setForm({title:"",content:"",assigned_to:""});
-    fetchItems();
-  };
-  const updateStatus = async (id:number, status:string) => {
-    await supabase.from("work_requests").update({status}).eq("id",id);
-    fetchItems();
-  };
-  const deleteItem = async (id:number) => {
-    if (!confirm("삭제하시겠습니까?")) return;
-    await supabase.from("work_requests").delete().eq("id",id);
-    fetchItems();
-  };
+  const stageColor: Record<string,string> = { "리드": "#3b82f6", "프로스펙팅": "#f59e0b", "딜클로징": "#ef4444" };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{minHeight:"200px"}}>
+    <div className="rounded-2xl border p-5 flex flex-col h-full" style={{ background: "var(--surface)", borderColor: "var(--border)", minHeight: "200px" }}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-bold text-slate-700">업무요청</h3>
-        <button onClick={()=>setShowForm(v=>!v)}
-          className="text-xs px-3 py-1.5 bg-[#1E3A8A] text-white rounded-lg hover:bg-blue-800 font-semibold">
-          + 요청 작성
-        </button>
+        <h3 className="text-base font-bold" style={{ color: "var(--text)" }}>🗺️ 고객여정</h3>
+        <a href="/customer-journey" className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: "var(--bg)", color: "#3b82f6", border: "1px solid var(--border)" }}>
+          전체보기 →
+        </a>
       </div>
-      {showForm && (
-        <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-          <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))}
-            placeholder="요청 제목" className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
-          <textarea value={form.content} onChange={e=>setForm(p=>({...p,content:e.target.value}))}
-            placeholder="상세 내용" rows={2}
-            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 resize-none"/>
-          <div className="flex gap-2">
-            <select value={form.assigned_to} onChange={e=>setForm(p=>({...p,assigned_to:e.target.value}))}
-              className="flex-1 px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none">
-              <option value="">담당자 선택</option>
-              {TEAM.map(m=><option key={m} value={m}>{m}</option>)}
-            </select>
-            <button onClick={handleSubmit} disabled={saving}
-              className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-bold disabled:opacity-50">
-              {saving?"저장중...":"등록"}
-            </button>
-            <button onClick={()=>setShowForm(false)}
-              className="px-3 py-2 text-sm text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50">취소</button>
-          </div>
-        </div>
-      )}
-      <div className="space-y-2 max-h-64 overflow-y-auto">
-        {items.length === 0
-          ? <p className="text-center py-8 text-slate-300 text-sm">등록된 업무요청이 없습니다</p>
-          : items.map(item=>(
-            <div key={item.id} className="flex items-start gap-3 px-3 py-2.5 bg-slate-50 rounded-xl border border-slate-100">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${STATUS_COLOR[item.status]||"bg-slate-50 text-slate-500 border-slate-200"}`}>{item.status}</span>
-                  <p className="text-sm font-semibold text-slate-800 truncate">{item.title}</p>
-                </div>
-                {item.content && <p className="text-xs text-slate-500 truncate">{item.content}</p>}
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-slate-400">{item.author}</span>
-                  {item.assigned_to && <span className="text-xs text-blue-500 font-medium">→ {item.assigned_to}</span>}
-                  <span className="text-xs text-slate-300">{new Date(item.created_at).toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})}</span>
-                </div>
+
+      {loading ? (
+        <div className="flex justify-center py-6"><div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
+      ) : (
+        <>
+          {/* 구간별 카운트 */}
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {stages.map(s => (
+              <div key={s.key} className="rounded-xl px-3 py-2.5 text-center" style={{ background: `${s.color}10`, border: `1px solid ${s.color}20` }}>
+                <p className="text-2xl font-black" style={{ color: s.color }}>{s.count}</p>
+                <p className="text-[10px] font-bold mt-0.5" style={{ color: s.color }}>{s.label}</p>
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {item.status === "요청" && (
-                  <button onClick={()=>updateStatus(item.id,"진행중")}
-                    className="text-[10px] px-1.5 py-1 bg-blue-50 text-blue-600 rounded border border-blue-200 hover:bg-blue-100">진행</button>
+            ))}
+          </div>
+
+          {/* 7일 경과 경고 */}
+          {alerts.length > 0 && (
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-sm">⚠️</span>
+                <p className="text-xs font-bold" style={{ color: "#f59e0b" }}>7일 이상 활동 없음 ({alerts.length}명)</p>
+              </div>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {alerts.slice(0, 10).map(a => (
+                  <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${stageColor[a.stage] || "#64748b"}15`, color: stageColor[a.stage] || "#64748b" }}>{a.stage}</span>
+                    <span className="text-xs font-bold flex-1 truncate" style={{ color: "var(--text)" }}>{a.name}</span>
+                    <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{a.assigned_to}</span>
+                    <span className="text-[10px] font-bold" style={{ color: a.days > 14 ? "#ef4444" : "#f59e0b" }}>
+                      {a.lastNote === "없음" ? "노트없음" : `${a.days}일 전`}
+                    </span>
+                  </div>
+                ))}
+                {alerts.length > 10 && (
+                  <p className="text-[10px] text-center py-1" style={{ color: "var(--text-subtle)" }}>+{alerts.length - 10}명 더</p>
                 )}
-                {item.status === "진행중" && (
-                  <button onClick={()=>updateStatus(item.id,"완료")}
-                    className="text-[10px] px-1.5 py-1 bg-emerald-50 text-emerald-600 rounded border border-emerald-200 hover:bg-emerald-100">완료</button>
-                )}
-                <button onClick={()=>deleteItem(item.id)}
-                  className="text-[10px] px-1.5 py-1 bg-red-50 text-red-400 rounded border border-red-200 hover:bg-red-100">삭제</button>
               </div>
             </div>
-          ))}
-      </div>
+          )}
+          {alerts.length === 0 && (
+            <div className="text-center py-4">
+              <p className="text-xs" style={{ color: "var(--text-subtle)" }}>✅ 7일 이상 미활동 고객이 없습니다</p>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -1137,7 +1159,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 gap-4">
           <div className="grid grid-rows-3 gap-4">
             <RevenueTrendCard monthlyRev={monthlyRev}/>
-            <WorkRequestBoard user={user}/>
+            <CustomerJourneyBoard user={user}/>
             <NoticeBoard user={user}/>
           </div>
           <DashboardKpiSummary user={user}/>
