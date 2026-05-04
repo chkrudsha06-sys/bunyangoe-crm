@@ -116,6 +116,9 @@ export default function CustomerJourneyPage() {
   const [siteForm, setSiteForm] = useState({ operating_site: "", total_org_count: "", team_org_count: "", rt: "" });
   const [siteHistory, setSiteHistory] = useState<SiteHistory[]>([]);
   const [showSiteHistory, setShowSiteHistory] = useState(false);
+  // 카드 내 인라인 히스토리
+  const [inlineHistory, setInlineHistory] = useState<Record<number, SiteHistory[]>>({});
+  const [inlineHistoryOpen, setInlineHistoryOpen] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     const u = getCurrentUser();
@@ -271,7 +274,28 @@ export default function CustomerJourneyPage() {
     });
     showToast(`${siteModal.name} 현장정보 수정 완료`);
     setSiteModal(null);
+    // 인라인 히스토리 갱신
+    const { data: freshH } = await supabase.from("site_info_history")
+      .select("*").eq("contact_id", siteModal.contactId)
+      .order("changed_at", { ascending: false }).limit(20);
+    setInlineHistory(prev => ({ ...prev, [siteModal.contactId]: (freshH || []) as SiteHistory[] }));
     fetchAll();
+  };
+
+  const toggleInlineHistory = async (contactId: number) => {
+    const isOpen = inlineHistoryOpen[contactId];
+    if (isOpen) {
+      setInlineHistoryOpen(prev => ({ ...prev, [contactId]: false }));
+      return;
+    }
+    // 로드
+    if (!inlineHistory[contactId]) {
+      const { data } = await supabase.from("site_info_history")
+        .select("*").eq("contact_id", contactId)
+        .order("changed_at", { ascending: false }).limit(20);
+      setInlineHistory(prev => ({ ...prev, [contactId]: (data || []) as SiteHistory[] }));
+    }
+    setInlineHistoryOpen(prev => ({ ...prev, [contactId]: true }));
   };
 
   const activeFilters = [fCustomerType, fStage, fAssigned, fConsultant, fIntake].filter(Boolean).length;
@@ -535,6 +559,38 @@ export default function CustomerJourneyPage() {
                                     <div><p className="text-[9px]" style={{ color: "var(--text-subtle)" }}>전체조직수</p><p className="text-[11px] font-semibold" style={{ color: c.total_org_count ? "var(--text)" : "var(--text-subtle)" }}>{c.total_org_count || "-"}</p></div>
                                     <div><p className="text-[9px]" style={{ color: "var(--text-subtle)" }}>팀조직수</p><p className="text-[11px] font-semibold" style={{ color: c.team_org_count ? "var(--text)" : "var(--text-subtle)" }}>{c.team_org_count || "-"}</p></div>
                                     <div><p className="text-[9px]" style={{ color: "var(--text-subtle)" }}>R/T</p><p className="text-[11px] font-semibold" style={{ color: c.rt ? "var(--text)" : "var(--text-subtle)" }}>{c.rt || "-"}</p></div>
+                                  </div>
+                                  {/* 히스토리 토글 */}
+                                  <div className="mt-1.5" onClick={e => e.stopPropagation()}>
+                                    <button onClick={() => toggleInlineHistory(c.id)}
+                                      className="text-[10px] font-semibold" style={{ color: "#3b82f6" }}>
+                                      {inlineHistoryOpen[c.id] ? "▾ 수정 히스토리 닫기" : "▸ 수정 히스토리 보기"}
+                                      {inlineHistory[c.id] ? ` (${inlineHistory[c.id].length}건)` : ""}
+                                    </button>
+                                    {inlineHistoryOpen[c.id] && (
+                                      <div className="mt-1.5 space-y-1 max-h-36 overflow-y-auto">
+                                        {(!inlineHistory[c.id] || inlineHistory[c.id].length === 0) ? (
+                                          <p className="text-[10px] py-2 text-center" style={{ color: "var(--text-subtle)" }}>수정 기록 없음</p>
+                                        ) : inlineHistory[c.id].map(h => (
+                                          <div key={h.id} className="rounded-lg px-2 py-1.5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                                            <div className="flex items-center justify-between mb-0.5">
+                                              <span className="text-[9px] font-bold" style={{ color: "#60a5fa" }}>
+                                                {new Date(h.changed_at).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}
+                                                {" "}
+                                                {new Date(h.changed_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                                              </span>
+                                              {h.changed_by && <span className="text-[9px]" style={{ color: "#8b5cf6" }}>{h.changed_by}</span>}
+                                            </div>
+                                            <div className="flex items-center gap-2 text-[9px] flex-wrap">
+                                              {h.operating_site && <span style={{ color: "var(--text)" }}>현장:<b>{h.operating_site}</b></span>}
+                                              {h.total_org_count && <span style={{ color: "var(--text)" }}>전체:<b>{h.total_org_count}</b></span>}
+                                              {h.team_org_count && <span style={{ color: "var(--text)" }}>팀:<b>{h.team_org_count}</b></span>}
+                                              {h.rt && <span style={{ color: "var(--text)" }}>R/T:<b>{h.rt}</b></span>}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
 
