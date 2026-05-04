@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
-import { Search, Phone, Calendar, MapPin, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Phone, Calendar, MapPin, X, ChevronDown, ChevronUp, ArrowRight, CalendarPlus } from "lucide-react";
 import ContactNotes from "@/components/ContactNotes";
 
 interface Contact {
@@ -26,6 +26,12 @@ interface Contact {
   reservation_date: string | null;
 }
 
+interface LastNote {
+  contact_id: number;
+  note_date: string;
+  content: string;
+}
+
 const TEAM = ["조계현", "이세호", "기여운", "최연전"];
 const CONSULTANTS = ["박경화", "박혜은", "조승현", "박민경", "백선중", "강아름", "전정훈", "박나라"];
 const OPT = {
@@ -43,6 +49,12 @@ const COLUMNS = [
   { key: "계약완료",   label: "계약완료",   color: "#8b5cf6", bg: "rgba(139,92,246,0.06)",  border: "rgba(139,92,246,0.15)" },
 ];
 
+const NEXT_STAGE: Record<string, { label: string; dbValue: string }> = {
+  "리드":       { label: "프로스펙팅 전환", dbValue: "프로스펙팅" },
+  "프로스펙팅": { label: "딜클로징 전환",   dbValue: "딜크로징" },
+  "딜클로징":   { label: "리텐션 전환",     dbValue: "리텐션" },
+};
+
 const SURNAME_COLORS: Record<string,string> = {
   "김":"#3b82f6","이":"#8b5cf6","박":"#10b981","최":"#f43f5e","정":"#f59e0b","강":"#06b6d4",
   "조":"#6366f1","윤":"#ec4899","장":"#f97316","임":"#14b8a6","한":"#0ea5e9","오":"#a855f7",
@@ -59,13 +71,18 @@ function getAvatarColor(name: string) {
   return colors[sum % colors.length];
 }
 
+function formatNoteDate(d: string) {
+  return new Date(d + "T00:00:00").toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" });
+}
+
 export default function CustomerJourneyPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [lastNotes, setLastNotes] = useState<Record<number, LastNote>>({});
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [userName, setUserName] = useState("");
+  const [toast, setToast] = useState("");
 
-  // 검색/필터 (고객등록과 동일)
   const [search, setSearch] = useState("");
   const [fCustomerType, setFCustomerType] = useState("");
   const [fStage, setFStage] = useState("");
@@ -73,22 +90,55 @@ export default function CustomerJourneyPage() {
   const [fConsultant, setFConsultant] = useState("");
   const [fIntake, setFIntake] = useState("");
 
-  // 활동노트 팝업
   const [notesPopup, setNotesPopup] = useState<{ contactId: number; name: string } | null>(null);
+  const [meetingModal, setMeetingModal] = useState<{ contactId: number; name: string } | null>(null);
+  const [meetingDate, setMeetingDate] = useState(new Date().toISOString().split("T")[0]);
+  const [meetingAddr, setMeetingAddr] = useState("");
 
   useEffect(() => {
     const u = getCurrentUser();
     if (u) setUserName(u.name);
-    fetchContacts();
+    fetchAll();
   }, []);
 
-  const fetchContacts = async () => {
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
+
+  const fetchAll = async () => {
     setLoading(true);
-    const { data } = await supabase.from("contacts")
+    const { data: cData } = await supabase.from("contacts")
       .select("id,name,title,phone,customer_type,prospect_type,management_stage,assigned_to,consultant,intake_route,meeting_date,meeting_address,meeting_result,memo,tm_sensitivity,contract_date,reservation_date")
       .order("id", { ascending: false }).limit(500);
-    setContacts((data || []) as Contact[]);
+    setContacts((cData || []) as Contact[]);
+
+    const { data: nData } = await supabase.from("contact_notes")
+      .select("contact_id,note_date,content")
+      .order("note_date", { ascending: false });
+    const noteMap: Record<number, LastNote> = {};
+    (nData || []).forEach((n: LastNote) => {
+      if (!noteMap[n.contact_id]) noteMap[n.contact_id] = n;
+    });
+    setLastNotes(noteMap);
     setLoading(false);
+  };
+
+  const handleStageTransition = async (contactId: number, name: string, newStage: string) => {
+    if (!confirm(`${name} 고객을 "${newStage}"(으)로 전환하시겠습니까?`)) return;
+    const { error } = await supabase.from("contacts").update({ management_stage: newStage }).eq("id", contactId);
+    if (error) { showToast(`전환 실패: ${error.message}`); return; }
+    showToast(`${name} → ${newStage} 전환 완료`);
+    fetchAll();
+  };
+
+  const handleMeetingRegister = async () => {
+    if (!meetingModal || !meetingDate) return;
+    const { error } = await supabase.from("contacts").update({
+      meeting_date: meetingDate,
+      meeting_address: meetingAddr || null,
+    }).eq("id", meetingModal.contactId);
+    if (error) { showToast(`등록 실패: ${error.message}`); return; }
+    showToast(`${meetingModal.name} 미팅 등록 완료`);
+    setMeetingModal(null); setMeetingDate(new Date().toISOString().split("T")[0]); setMeetingAddr("");
+    fetchAll();
   };
 
   const activeFilters = [fCustomerType, fStage, fAssigned, fConsultant, fIntake].filter(Boolean).length;
@@ -107,13 +157,10 @@ export default function CustomerJourneyPage() {
 
   const getColumnContacts = (colKey: string) => {
     return filtered.filter(c => {
-      // 예약완료/계약완료는 meeting_result 기반
       if (colKey === "계약완료") return c.meeting_result === "계약완료";
       if (colKey === "예약완료") return c.meeting_result === "예약완료";
-      // 나머지는 management_stage 기반 (단, 계약완료/예약완료 고객 제외)
       const isCompleted = c.meeting_result === "계약완료" || c.meeting_result === "예약완료";
       if (isCompleted) return false;
-      // 딜클로징 매핑 (DB에 "딜크로징"으로 저장됨)
       if (colKey === "딜클로징") return c.management_stage === "딜크로징";
       return c.management_stage === colKey;
     });
@@ -138,8 +185,6 @@ export default function CustomerJourneyPage() {
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />실시간
           </div>
         </div>
-
-        {/* 검색 + 필터 (고객등록과 동일) */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 max-w-xs">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
@@ -179,7 +224,7 @@ export default function CustomerJourneyPage() {
         </div>
       </div>
 
-      {/* 파이프라인 칸반 */}
+      {/* 칸반 */}
       {loading ? (
         <div className="flex items-center justify-center flex-1">
           <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
@@ -189,10 +234,10 @@ export default function CustomerJourneyPage() {
           <div className="grid gap-3 h-full" style={{ gridTemplateColumns: "repeat(6, minmax(180px, 1fr))", minWidth: "1100px" }}>
             {COLUMNS.map(col => {
               const colContacts = getColumnContacts(col.key);
+              const nextStage = NEXT_STAGE[col.key];
               return (
                 <div key={col.key} className="flex flex-col rounded-2xl overflow-hidden min-w-0"
                   style={{ background: col.bg, border: `1px solid ${col.border}` }}>
-                  {/* 컬럼 헤더 */}
                   <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${col.border}` }}>
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ background: col.color }} />
@@ -203,7 +248,6 @@ export default function CustomerJourneyPage() {
                     </span>
                   </div>
 
-                  {/* 카드 리스트 */}
                   <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
                     {colContacts.length === 0 ? (
                       <div className="flex items-center justify-center h-20 text-sm" style={{ color: "var(--text-subtle)" }}>없음</div>
@@ -211,37 +255,58 @@ export default function CustomerJourneyPage() {
                       colContacts.map(c => {
                         const isExpanded = expandedId === c.id;
                         const avatarColor = getAvatarColor(c.name);
+                        const lastNote = lastNotes[c.id];
                         return (
-                          <div key={c.id} className="rounded-xl overflow-hidden transition-shadow"
+                          <div key={c.id} className="rounded-xl overflow-hidden"
                             style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                            {/* 카드 헤더 (클릭으로 토글) */}
-                            <div className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer"
-                              onClick={() => setExpandedId(isExpanded ? null : c.id)}>
-                              {/* 아바타 */}
-                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                                style={{ background: avatarColor }}>
-                                {c.name[0]}
-                              </div>
-                              {/* 이름+직급 */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[13px] font-bold truncate" style={{ color: "var(--text)" }}>{c.name}</span>
-                                  {c.title && <span className="text-[11px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>{c.title}</span>}
+                            <div className="px-3 py-2.5 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : c.id)}>
+                              {/* 이름 + 직급 + 담당자 */}
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
+                                  style={{ background: avatarColor }}>{c.name[0]}</div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[13px] font-bold truncate" style={{ color: "var(--text)" }}>{c.name}</span>
+                                    {c.title && <span className="text-[11px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>{c.title}</span>}
+                                  </div>
+                                  {c.assigned_to && <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{c.assigned_to}</span>}
                                 </div>
-                                {c.assigned_to && (
-                                  <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{c.assigned_to}</span>
+                                {isExpanded ? <ChevronUp size={13} style={{ color: "var(--text-muted)" }} /> : <ChevronDown size={13} style={{ color: "var(--text-muted)" }} />}
+                              </div>
+
+                              {/* 최근 활동노트 */}
+                              <div className="rounded-lg px-2 py-1.5 mb-1.5" style={{ background: "var(--bg)" }}>
+                                {lastNote ? (
+                                  <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>
+                                    <span className="font-semibold" style={{ color: "#60a5fa" }}>{formatNoteDate(lastNote.note_date)}</span>
+                                    <span className="mx-1" style={{ color: "var(--text-subtle)" }}>-</span>
+                                    <span style={{ color: "var(--text)" }}>{lastNote.content}</span>
+                                  </p>
+                                ) : (
+                                  <p className="text-[11px]" style={{ color: "var(--text-subtle)" }}>활동노트 없음</p>
                                 )}
                               </div>
-                              {/* 토글 아이콘 */}
-                              {isExpanded
-                                ? <ChevronUp size={14} style={{ color: "var(--text-muted)" }} />
-                                : <ChevronDown size={14} style={{ color: "var(--text-muted)" }} />}
+
+                              {/* 액션 버튼 */}
+                              <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                                {nextStage && (
+                                  <button onClick={() => handleStageTransition(c.id, c.name, nextStage.dbValue)}
+                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-bold rounded-lg transition-colors"
+                                    style={{ background: `${col.color}15`, color: col.color, border: `1px solid ${col.color}30` }}>
+                                    <ArrowRight size={10} />{nextStage.label}
+                                  </button>
+                                )}
+                                <button onClick={() => { setMeetingModal({ contactId: c.id, name: c.name }); setMeetingDate(c.meeting_date || new Date().toISOString().split("T")[0]); setMeetingAddr(c.meeting_address || ""); }}
+                                  className="flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-bold rounded-lg transition-colors"
+                                  style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>
+                                  <CalendarPlus size={10} />미팅등록
+                                </button>
+                              </div>
                             </div>
 
                             {/* 확장 상세 */}
                             {isExpanded && (
                               <div className="px-3 pb-3 space-y-2" style={{ borderTop: "1px solid var(--border)" }}>
-                                {/* 기본 정보 */}
                                 <div className="pt-2 space-y-1.5">
                                   {c.phone && (
                                     <div className="flex items-center gap-1.5">
@@ -251,21 +316,17 @@ export default function CustomerJourneyPage() {
                                   )}
                                   {c.meeting_date && (
                                     <div className="flex items-center gap-1.5">
-                                      <Calendar size={11} style={{ color: "#3b82f6" }} />
-                                      <span className="text-[11px] font-semibold" style={{ color: "#3b82f6" }}>
+                                      <Calendar size={11} style={{ color: "#60a5fa" }} />
+                                      <span className="text-[11px] font-semibold" style={{ color: "#60a5fa" }}>
                                         {new Date(c.meeting_date + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
                                       </span>
                                       {c.meeting_address && (
-                                        <>
-                                          <MapPin size={10} style={{ color: "var(--text-subtle)" }} />
-                                          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{c.meeting_address}</span>
-                                        </>
+                                        <><MapPin size={10} style={{ color: "var(--text-subtle)" }} />
+                                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{c.meeting_address}</span></>
                                       )}
                                     </div>
                                   )}
                                 </div>
-
-                                {/* 상세 필드 */}
                                 <div className="grid grid-cols-2 gap-1.5">
                                   {[
                                     { label: "유입경로", value: c.intake_route },
@@ -277,40 +338,27 @@ export default function CustomerJourneyPage() {
                                   ].map(item => (
                                     <div key={item.label}>
                                       <p className="text-[9px] font-semibold" style={{ color: "var(--text-subtle)" }}>{item.label}</p>
-                                      <p className="text-[11px] font-semibold" style={{ color: item.value ? "var(--text)" : "var(--text-subtle)" }}>
-                                        {item.value || "-"}
-                                      </p>
+                                      <p className="text-[11px] font-semibold" style={{ color: item.value ? "var(--text)" : "var(--text-subtle)" }}>{item.value || "-"}</p>
                                     </div>
                                   ))}
                                 </div>
-
-                                {/* 메모 */}
                                 {c.memo && (
                                   <div className="rounded-lg px-2 py-1.5" style={{ background: "var(--bg)" }}>
                                     <p className="text-[9px] font-semibold mb-0.5" style={{ color: "var(--text-subtle)" }}>메모</p>
                                     <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>{c.memo}</p>
                                   </div>
                                 )}
-
-                                {/* 활동노트 */}
                                 <div className="rounded-lg p-2" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
                                   <div className="flex items-center justify-between mb-1.5">
                                     <p className="text-[10px] font-bold" style={{ color: "var(--text)" }}>📝 활동노트</p>
-                                    <button
-                                      onClick={e => { e.stopPropagation(); setNotesPopup({ contactId: c.id, name: c.name }); }}
-                                      className="text-[10px] font-semibold hover:underline" style={{ color: "#3b82f6" }}>
-                                      전체보기 →
-                                    </button>
+                                    <button onClick={e => { e.stopPropagation(); setNotesPopup({ contactId: c.id, name: c.name }); }}
+                                      className="text-[10px] font-semibold hover:underline" style={{ color: "#3b82f6" }}>전체보기 →</button>
                                   </div>
                                   <ContactNotes contactId={c.id} compact />
                                 </div>
-
-                                {/* 상세 페이지 링크 */}
                                 <a href={`/contacts/${c.id}`}
-                                  className="block text-center text-[11px] font-semibold py-1.5 rounded-lg transition-colors"
-                                  style={{ background: "var(--bg)", color: "#3b82f6", border: "1px solid var(--border)" }}>
-                                  상세 페이지 →
-                                </a>
+                                  className="block text-center text-[11px] font-semibold py-1.5 rounded-lg"
+                                  style={{ background: "var(--bg)", color: "#3b82f6", border: "1px solid var(--border)" }}>상세 페이지 →</a>
                               </div>
                             )}
                           </div>
@@ -328,24 +376,66 @@ export default function CustomerJourneyPage() {
       {/* 활동노트 팝업 */}
       {notesPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
-          onClick={() => setNotesPopup(null)}>
+          onClick={() => { setNotesPopup(null); fetchAll(); }}>
           <div className="rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-            onClick={e => e.stopPropagation()}>
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
               <div className="flex items-center gap-2">
                 <span className="text-base">📝</span>
                 <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{notesPopup.name}</span>
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>활동노트</span>
               </div>
-              <button onClick={() => setNotesPopup(null)} className="p-1 rounded-lg" style={{ color: "var(--text-muted)" }}>
-                <X size={18} />
-              </button>
+              <button onClick={() => { setNotesPopup(null); fetchAll(); }} className="p-1 rounded-lg" style={{ color: "var(--text-muted)" }}><X size={18} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5">
               <ContactNotes contactId={notesPopup.contactId} authorName={userName} />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 미팅등록 모달 */}
+      {meetingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+          onClick={() => setMeetingModal(null)}>
+          <div className="rounded-2xl shadow-2xl w-full max-w-sm"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+              <div className="flex items-center gap-2">
+                <CalendarPlus size={16} style={{ color: "#3b82f6" }} />
+                <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{meetingModal.name}</span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>미팅등록</span>
+              </div>
+              <button onClick={() => setMeetingModal(null)} className="p-1 rounded-lg" style={{ color: "var(--text-muted)" }}><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--text-muted)" }}>미팅 날짜</label>
+                <input type="date" value={meetingDate} onChange={e => setMeetingDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg outline-none focus:border-blue-400"
+                  style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--text-muted)" }}>미팅 지역 (선택)</label>
+                <input type="text" value={meetingAddr} onChange={e => setMeetingAddr(e.target.value)} placeholder="예: 서울 강남"
+                  className="w-full px-3 py-2 text-sm rounded-lg outline-none focus:border-blue-400"
+                  style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 px-5 pb-4">
+              <button onClick={() => setMeetingModal(null)}
+                className="flex-1 py-2 text-sm font-semibold rounded-xl" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>취소</button>
+              <button onClick={handleMeetingRegister}
+                className="flex-1 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700">등록</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 토스트 */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-500 shadow-lg">
+          {toast}
         </div>
       )}
     </div>
