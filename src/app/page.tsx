@@ -33,7 +33,8 @@ function fw(n: number) {
 
 async function fetchStats(user: CRMUser, start: string, end: string, isAll = false): Promise<Stats> {
   const isExec = user.role === "exec";
-  const today  = new Date().toISOString().split("T")[0];
+  const _n = new Date();
+  const today = `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,"0")}-${String(_n.getDate()).padStart(2,"0")}`;
   const monthStart = start;
   const monthEnd   = end;
 
@@ -151,12 +152,13 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
 
 async function fetchMonthlyRevenue(user: CRMUser, year: number, month: number): Promise<MonthlyRevenue[]> {
   const isExec = user.role === "exec";
-  const today = new Date().toISOString().split("T")[0];
+  const fmtD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const today = fmtD(new Date());
   const offsets = Array.from({length: 3}, (_, i) => i - 2);
   const months = offsets.map(offset => {
     const d = new Date(year, month - 1 + offset, 1);
-    const s = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0];
-    let e = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().split("T")[0];
+    const s = fmtD(new Date(d.getFullYear(), d.getMonth(), 1));
+    let e = fmtD(new Date(d.getFullYear(), d.getMonth()+1, 0));
     // 현재 월은 오늘까지만 집계
     if (e > today) e = today;
     return { label: `${String(d.getFullYear()).slice(2)}.${String(d.getMonth()+1).padStart(2,"0")}`, s, e };
@@ -384,7 +386,7 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
       const lastDay = new Date(year, month, 0).getDate();
       const monthStart = `${year}-${monthStr}-01`;
       const monthEnd = `${year}-${monthStr}-${String(lastDay).padStart(2,"0")}`;
-      const todayEnd = now.toISOString().split("T")[0]; // KPI 집계는 오늘까지만
+      const todayEnd = `${year}-${monthStr}-${String(now.getDate()).padStart(2,"0")}`; // KPI 집계는 오늘까지만
 
       // 주간 날짜 범위
       const wStart = (curWeek - 1) * 7 + 1;
@@ -423,7 +425,8 @@ function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
         .in("meeting_result", ["계약완료","예약완료"]);
       const contacts = (contactRows || []) as any[];
 
-      const todayStr = new Date().toISOString().split("T")[0];
+      const tn = new Date();
+      const todayStr = `${tn.getFullYear()}-${String(tn.getMonth()+1).padStart(2,"0")}-${String(tn.getDate()).padStart(2,"0")}`;
       const { data: wanpanRows = [] } = await supabase.from("wanpan_trucks")
         .select("id,dispatch_date").gte("dispatch_date", monthStart).lte("dispatch_date", todayStr);
 
@@ -857,7 +860,7 @@ function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
 
   const firstDay = new Date(calYear, calMonth - 1, 1).getDay();
   const daysInMonth = new Date(calYear, calMonth, 0).getDate();
-  const today = new Date().toISOString().split("T")[0];
+  const today = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
   const getDs = (d: number) => `${calYear}-${String(calMonth).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
   const days = ["일","월","화","수","목","금","토"];
 
@@ -1028,13 +1031,13 @@ export default function DashboardPage() {
   const [todayEvents, setTodayEvents] = useState<TodayEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
-  const [eventDate, setEventDate] = useState(new Date().toISOString().split("T")[0]);
+  const [eventDate, setEventDate] = useState((()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})());
 
   const initStart = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`;
   };
-  const initEnd = () => new Date().toISOString().split("T")[0];
+  const initEnd = () => (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
   const [startDate, setStartDate] = useState(initStart);
   const [endDate, setEndDate] = useState(initEnd);
   const [selMonth, setSelMonth] = useState(new Date().getMonth()+1);
@@ -1046,12 +1049,13 @@ export default function DashboardPage() {
   useEffect(()=>{
     if (!user) return;
     setLoading(true);
-    // 전월 날짜 계산
+    // 전월 날짜 계산 (로컬 타임존 기준)
     const sd = new Date(startDate);
     const prevStart = new Date(sd.getFullYear(), sd.getMonth()-1, 1);
     const prevEnd = new Date(sd.getFullYear(), sd.getMonth(), 0);
-    const prevS = prevStart.toISOString().split("T")[0];
-    const prevE = prevEnd.toISOString().split("T")[0];
+    const fmtLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    const prevS = fmtLocal(prevStart);
+    const prevE = fmtLocal(prevEnd);
     Promise.all([
       fetchStats(user, startDate, endDate, false),
       fetchStats(user, startDate, endDate, true),
