@@ -24,6 +24,10 @@ interface Contact {
   tm_sensitivity: string | null;
   contract_date: string | null;
   reservation_date: string | null;
+  operating_site: string | null;
+  total_org_count: string | null;
+  team_org_count: string | null;
+  rt: string | null;
 }
 
 const TEAM = ["조계현", "이세호", "기여운", "최연전"];
@@ -39,6 +43,7 @@ const EMPTY_FORM = {
   name: "", title: "", phone: "", customer_type: "", management_stage: "",
   assigned_to: "", consultant: "", intake_route: "", prospect_type: "",
   meeting_date: "", meeting_address: "", meeting_result: "", memo: "", tm_sensitivity: "",
+  operating_site: "", total_org_count: "", team_org_count: "", rt: "",
 };
 
 export default function CustomerRegisterPage() {
@@ -76,7 +81,7 @@ export default function CustomerRegisterPage() {
     setLoading(true);
     const u = getCurrentUser();
     let q = supabase.from("contacts")
-      .select("id,name,title,phone,customer_type,prospect_type,management_stage,assigned_to,consultant,intake_route,meeting_date,meeting_address,meeting_result,memo,tm_sensitivity,contract_date,reservation_date")
+      .select("id,name,title,phone,customer_type,prospect_type,management_stage,assigned_to,consultant,intake_route,meeting_date,meeting_address,meeting_result,memo,tm_sensitivity,contract_date,reservation_date,operating_site,total_org_count,team_org_count,rt")
       .order("id", { ascending: false }).limit(500);
     if (u?.role === "exec") q = q.eq("assigned_to", u.name);
     const { data } = await q;
@@ -114,6 +119,8 @@ export default function CustomerRegisterPage() {
       intake_route: c.intake_route || "", prospect_type: c.prospect_type || "",
       meeting_date: c.meeting_date || "", meeting_address: c.meeting_address || "",
       meeting_result: c.meeting_result || "", memo: c.memo || "", tm_sensitivity: c.tm_sensitivity || "",
+      operating_site: c.operating_site || "", total_org_count: c.total_org_count || "",
+      team_org_count: c.team_org_count || "", rt: c.rt || "",
     });
     setShowAdd(true);
   };
@@ -244,6 +251,10 @@ export default function CustomerRegisterPage() {
               <span className="w-16 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>관리구간</span>
               <span className="w-14 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>담당자</span>
               <span className="w-14 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>담당컨설턴트</span>
+              <span className="w-20 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>운영현장</span>
+              <span className="w-14 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>전체조직수</span>
+              <span className="w-14 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>팀조직수</span>
+              <span className="w-12 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>R/T</span>
               <span className="flex-1 min-w-0 mx-2 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>활동노트</span>
               <span className="w-16 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>관리</span>
             </div>
@@ -284,6 +295,10 @@ export default function CustomerRegisterPage() {
                     </span>
                     <span className="w-14 text-center text-[11px] font-semibold flex-shrink-0" style={{ color: "#8b5cf6" }}>{c.assigned_to || "-"}</span>
                     <span className="w-14 text-center text-[11px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>{c.consultant || "-"}</span>
+                    <span className="w-20 text-center text-[11px] truncate flex-shrink-0" style={{ color: "var(--text)" }}>{c.operating_site || "-"}</span>
+                    <span className="w-14 text-center text-[11px] flex-shrink-0" style={{ color: "var(--text)" }}>{c.total_org_count || "-"}</span>
+                    <span className="w-14 text-center text-[11px] flex-shrink-0" style={{ color: "var(--text)" }}>{c.team_org_count || "-"}</span>
+                    <span className="w-12 text-center text-[11px] flex-shrink-0" style={{ color: "var(--text)" }}>{c.rt || "-"}</span>
                     {/* 활동노트 (1줄 truncate, 더블클릭으로 팝업) */}
                     <div className="flex-1 min-w-0 mx-2 overflow-hidden cursor-pointer"
                       onDoubleClick={e => { e.stopPropagation(); setNotesPopup({ contactId: c.id, name: c.name }); }}
@@ -384,6 +399,10 @@ export default function CustomerRegisterPage() {
                     {CONSULTANTS.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
+                <div><label className={lbl}>운영현장</label><input className={inp} value={form.operating_site} onChange={e => f("operating_site", e.target.value)} placeholder="예: 경남 양산" style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} /></div>
+                <div><label className={lbl}>전체조직수</label><input className={inp} value={form.total_org_count} onChange={e => f("total_org_count", e.target.value)} placeholder="예: 150" style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} /></div>
+                <div><label className={lbl}>팀조직수</label><input className={inp} value={form.team_org_count} onChange={e => f("team_org_count", e.target.value)} placeholder="예: 30" style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} /></div>
+                <div><label className={lbl}>R/T</label><input className={inp} value={form.rt} onChange={e => f("rt", e.target.value)} placeholder="예: 3/5" style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} /></div>
               </div>
               <div><label className={lbl}>메모</label>
                 <textarea className={inp + " resize-none"} rows={3} value={form.memo} onChange={e => f("memo", e.target.value)} placeholder="메모 입력..."
