@@ -53,6 +53,7 @@ interface ContentStatus {
   pr_feed_text: string;
   pr_career: string;
   pr_years: string;
+  pr_years_base_year: number;
   updated_at: string | null;
 }
 
@@ -64,8 +65,18 @@ const EMPTY_STATUS: Omit<ContentStatus, "contact_id"> = {
   pr_activity_region: "", pr_company: "",
   pr_site_history_1: "", pr_site_history_2: "", pr_site_history_3: "", pr_site_history_4: "", pr_site_history_5: "",
   pr_intro: "", pr_video_copy_1: "", pr_video_performance: "", pr_video_copy_2: "",
-  pr_site_info: "", pr_photo_desc: "", pr_feed_text: "", pr_career: "", pr_years: "", updated_at: null,
+  pr_site_info: "", pr_photo_desc: "", pr_feed_text: "", pr_career: "", pr_years: "", pr_years_base_year: 0, updated_at: null,
 };
+
+// 연차 자동계산
+function calcYears(baseYear: number, storedYears: string): string {
+  if (!baseYear || !storedYears) return storedYears || "";
+  const num = parseInt(storedYears.replace(/[^0-9]/g, ""));
+  if (isNaN(num)) return storedYears;
+  const currentYear = new Date().getFullYear();
+  const diff = currentYear - baseYear;
+  return `${num + diff}년차`;
+}
 
 // 이미지 압축 (max 800px, quality 0.5 → ~50-100KB)
 function compressImage(file: File, maxSize = 800, quality = 0.5): Promise<string> {
@@ -139,6 +150,8 @@ export default function ContentManagePage() {
   const [searchQ, setSearchQ] = useState("");
   const [filterAssigned, setFilterAssigned] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterGender, setFilterGender] = useState("");
+  const [filterAge, setFilterAge] = useState("");
   const [cardFilter, setCardFilter] = useState<string>("");
   const [showStats, setShowStats] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -165,7 +178,7 @@ export default function ContentManagePage() {
 
     // 컨텐츠 현황 (파일 데이터 제외 — 경량 로드)
     const { data: cs } = await supabase.from("content_statuses")
-      .select("id,contact_id,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_activity_region,pr_company,pr_site_history_1,pr_site_history_2,pr_site_history_3,pr_site_history_4,pr_site_history_5,pr_intro,pr_video_copy_1,pr_video_performance,pr_video_copy_2,pr_site_info,pr_photo_desc,pr_feed_text,pr_career,pr_years,updated_at");
+      .select("id,contact_id,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_activity_region,pr_company,pr_site_history_1,pr_site_history_2,pr_site_history_3,pr_site_history_4,pr_site_history_5,pr_intro,pr_video_copy_1,pr_video_performance,pr_video_copy_2,pr_site_info,pr_photo_desc,pr_feed_text,pr_career,pr_years,pr_years_base_year,updated_at");
     const map: Record<number, ContentStatus> = {};
     (cs || []).forEach((s: any) => {
       map[s.contact_id] = { ...s, files: [] }; // 파일은 빈 배열로 초기화
@@ -338,6 +351,7 @@ export default function ContentManagePage() {
       pr_video_copy_2: s.pr_video_copy_2,
       pr_site_info: s.pr_site_info, pr_photo_desc: s.pr_photo_desc,
       pr_feed_text: s.pr_feed_text, pr_career: s.pr_career, pr_years: s.pr_years,
+      pr_years_base_year: s.pr_years_base_year || new Date().getFullYear(),
       info_received: true,
       updated_at: new Date().toISOString(),
     };
@@ -528,8 +542,25 @@ export default function ContentManagePage() {
           <option value="pr">PR 완료</option>
           <option value="pr_no">PR 미완료</option>
         </select>
-        {(searchQ || filterAssigned || filterStatus || cardFilter) && (
-          <button onClick={() => { setSearchQ(""); setFilterAssigned(""); setFilterStatus(""); setCardFilter(""); }}
+        <select value={filterGender} onChange={e => setFilterGender(e.target.value)}
+          className="px-3 py-2 text-sm rounded-xl outline-none"
+          style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+          <option value="">전체 성별</option>
+          <option value="남">남</option>
+          <option value="여">여</option>
+        </select>
+        <select value={filterAge} onChange={e => setFilterAge(e.target.value)}
+          className="px-3 py-2 text-sm rounded-xl outline-none"
+          style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+          <option value="">전체 연령대</option>
+          <option value="20">20대</option>
+          <option value="30">30대</option>
+          <option value="40">40대</option>
+          <option value="50">50대</option>
+          <option value="60">60대</option>
+        </select>
+        {(searchQ || filterAssigned || filterStatus || filterGender || filterAge || cardFilter) && (
+          <button onClick={() => { setSearchQ(""); setFilterAssigned(""); setFilterStatus(""); setFilterGender(""); setFilterAge(""); setCardFilter(""); }}
             className="text-xs px-2.5 py-2 rounded-xl font-semibold transition-colors"
             style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>
             초기화
@@ -565,6 +596,24 @@ export default function ContentManagePage() {
             );
           }
           if (filterAssigned) filtered = filtered.filter(m => m.assigned_to === filterAssigned);
+          if (filterGender) {
+            filtered = filtered.filter(m => {
+              const s = getStatus(m.id);
+              return (s.pr_gender || "").trim() === filterGender;
+            });
+          }
+          if (filterAge) {
+            const decade = parseInt(filterAge);
+            filtered = filtered.filter(m => {
+              const s = getStatus(m.id);
+              const birthStr = (s.pr_birth_date || "").replace(/[^0-9]/g, "");
+              if (!birthStr || birthStr.length < 2) return false;
+              const yy = parseInt(birthStr.substring(0, 2));
+              const birthYear = yy >= 40 ? 1900 + yy : 2000 + yy;
+              const age = new Date().getFullYear() - birthYear;
+              return age >= decade && age < decade + 10;
+            });
+          }
           if (filterStatus) {
             filtered = filtered.filter(m => {
               const s = getStatus(m.id);
@@ -736,77 +785,79 @@ export default function ContentManagePage() {
                     ) : (
                       <>
                         <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}><FileText size={14} /> PR패키지 기본정보</h4>
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                          <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                            <h5 className="text-xs font-bold mb-3 pb-2" style={{ color: "#3b82f6", borderBottom: "1px solid var(--border)" }}>📋 고객기본정보</h5>
-                            <div className="space-y-2">
-                              {[
-                                { key: "pr_name", label: "성명", placeholder: m.name },
-                                { key: "pr_title_position", label: "직함", placeholder: "본부장" },
-                                { key: "pr_gender", label: "성별", placeholder: "남 / 여" },
-                                { key: "pr_birth_date", label: "생년월일", placeholder: "88.11.26" },
-                                { key: "pr_height", label: "키 (대략적)", placeholder: "175cm" },
-                                { key: "pr_body_type", label: "체형 (대략적)", placeholder: "근육질" },
-                                { key: "pr_activity_region", label: "활동지역", placeholder: "경기 수도권" },
-                                { key: "pr_company", label: "소속회사명", placeholder: "마켓리더" },
-                                { key: "pr_years", label: "연차", placeholder: "7년차" },
-                              ].map(f => (
-                                <div key={f.key}>
-                                  <label className={lbl} style={{ color: "var(--text-muted)" }}>{f.label}</label>
-                                  <input className={inp} value={(s as any)[f.key] || ""}
-                                    onChange={e => updateField(m.id, f.key, e.target.value)}
-                                    placeholder={f.placeholder}
-                                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                                </div>
-                              ))}
-                              <div>
-                                <label className={lbl} style={{ color: "var(--text-muted)" }}>대표현장이력</label>
-                                <div className="space-y-1.5">
-                                  {[1,2,3,4,5].map(n => (
-                                    <input key={n} className={inp} value={(s as any)[`pr_site_history_${n}`] || ""}
-                                      onChange={e => updateField(m.id, `pr_site_history_${n}`, e.target.value)}
-                                      placeholder={n === 1 ? "안동코오롱하늘채" : n === 2 ? "사천삼정그린코아" : n === 3 ? "대구만촌자이르네" : `현장이력 ${n}`}
-                                      style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                                  ))}
-                                </div>
-                              </div>
-                              <div>
-                                <label className={lbl} style={{ color: "var(--text-muted)" }}>한줄소개</label>
-                                <input className={inp} value={(s as any).pr_intro || ""}
-                                  onChange={e => updateField(m.id, "pr_intro", e.target.value)}
-                                  placeholder="다름을 만드는 경험, 결과로 답하는 리더"
+                        {/* 고객기본정보 - 3열 가로배치 */}
+                        <div className="rounded-xl p-3 mb-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                          <h5 className="text-xs font-bold mb-2 pb-1.5" style={{ color: "#3b82f6", borderBottom: "1px solid var(--border)" }}>📋 고객기본정보</h5>
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              { key: "pr_name", label: "성명", placeholder: m.name },
+                              { key: "pr_title_position", label: "직함", placeholder: "본부장" },
+                              { key: "pr_gender", label: "성별", placeholder: "남 / 여" },
+                              { key: "pr_birth_date", label: "생년월일", placeholder: "88.11.26" },
+                              { key: "pr_height", label: "키", placeholder: "175cm" },
+                              { key: "pr_body_type", label: "체형", placeholder: "근육질" },
+                              { key: "pr_activity_region", label: "활동지역", placeholder: "경기 수도권" },
+                              { key: "pr_company", label: "소속회사", placeholder: "마켓리더" },
+                              { key: "pr_years", label: `연차 ${s.pr_years_base_year ? `(자동: ${calcYears(s.pr_years_base_year, s.pr_years)})` : ""}`, placeholder: "7년차" },
+                            ].map(f => (
+                              <div key={f.key}>
+                                <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--text-muted)" }}>{f.label}</label>
+                                <input className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" value={(s as any)[f.key] || ""}
+                                  onChange={e => {
+                                    updateField(m.id, f.key, e.target.value);
+                                    if (f.key === "pr_years") updateField(m.id, "pr_years_base_year", new Date().getFullYear());
+                                  }}
+                                  placeholder={f.placeholder}
                                   style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
                               </div>
+                            ))}
+                          </div>
+                          <div className="mt-2">
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--text-muted)" }}>한줄소개</label>
+                            <input className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" value={(s as any).pr_intro || ""}
+                              onChange={e => updateField(m.id, "pr_intro", e.target.value)}
+                              placeholder="다름을 만드는 경험, 결과로 답하는 리더"
+                              style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                          </div>
+                        </div>
+
+                        {/* 대표현장이력 + 영상카피 - 가로배치 */}
+                        <div className="grid grid-cols-3 gap-3 mb-3">
+                          <div className="rounded-xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                            <h5 className="text-[10px] font-bold mb-2 pb-1.5" style={{ color: "#10b981", borderBottom: "1px solid var(--border)" }}>🏗️ 대표현장이력</h5>
+                            <div className="space-y-1">
+                              {[1,2,3,4,5].map(n => (
+                                <input key={n} className="w-full px-2 py-1 text-[11px] rounded-lg outline-none" value={(s as any)[`pr_site_history_${n}`] || ""}
+                                  onChange={e => updateField(m.id, `pr_site_history_${n}`, e.target.value)}
+                                  placeholder={`현장이력 ${n}`}
+                                  style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                              ))}
                             </div>
                           </div>
-                          <div className="space-y-4">
-                            <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                              <h5 className="text-xs font-bold mb-3 pb-2" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ①영상카피 기본정보</h5>
+                          <div className="rounded-xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                            <h5 className="text-[10px] font-bold mb-2 pb-1.5" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ①영상카피</h5>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--text-muted)" }}>문구기재</label>
+                            <input className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" value={(s as any).pr_video_copy_1 || ""}
+                              onChange={e => updateField(m.id, "pr_video_copy_1", e.target.value)}
+                              placeholder="성과로 말하는 현장전문가"
+                              style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                          </div>
+                          <div className="rounded-xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                            <h5 className="text-[10px] font-bold mb-2 pb-1.5" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ②영상카피</h5>
+                            <div className="space-y-1.5">
                               <div>
-                                <label className={lbl} style={{ color: "var(--text-muted)" }}>문구기재</label>
-                                <input className={inp} value={(s as any).pr_video_copy_1 || ""}
-                                  onChange={e => updateField(m.id, "pr_video_copy_1", e.target.value)}
-                                  placeholder="성과로 말하는 현장전문가"
+                                <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--text-muted)" }}>핵심성과수치</label>
+                                <input className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" value={(s as any).pr_video_performance || ""}
+                                  onChange={e => updateField(m.id, "pr_video_performance", e.target.value)}
+                                  placeholder="누적 계약180%"
                                   style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
                               </div>
-                            </div>
-                            <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                              <h5 className="text-xs font-bold mb-3 pb-2" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ②영상카피 기본정보</h5>
-                              <div className="space-y-2">
-                                <div>
-                                  <label className={lbl} style={{ color: "var(--text-muted)" }}>핵심성과수치</label>
-                                  <input className={inp} value={(s as any).pr_video_performance || ""}
-                                    onChange={e => updateField(m.id, "pr_video_performance", e.target.value)}
-                                    placeholder="누적 계약180%, 완판현장4개"
-                                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                                </div>
-                                <div>
-                                  <label className={lbl} style={{ color: "var(--text-muted)" }}>한 줄 소구카피</label>
-                                  <input className={inp} value={(s as any).pr_video_copy_2 || ""}
-                                    onChange={e => updateField(m.id, "pr_video_copy_2", e.target.value)}
-                                    placeholder="신뢰를 성과로 완성하는 본부장"
-                                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                                </div>
+                              <div>
+                                <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--text-muted)" }}>소구카피</label>
+                                <input className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" value={(s as any).pr_video_copy_2 || ""}
+                                  onChange={e => updateField(m.id, "pr_video_copy_2", e.target.value)}
+                                  placeholder="신뢰를 성과로 완성하는 본부장"
+                                  style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
                               </div>
                             </div>
                           </div>
