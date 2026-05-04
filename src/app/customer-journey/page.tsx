@@ -160,6 +160,36 @@ export default function CustomerJourneyPage() {
     fetchAll();
   };
 
+  const handleDeleteContact = async (contactId: number, name: string) => {
+    if (!confirm(`"${name}" 고객을 삭제하시겠습니까?\n\n관련 활동노트, 리워드, 알림 등 모든 데이터가 함께 삭제됩니다.`)) return;
+    try {
+      // FK cascade: 관련 테이블 먼저 삭제
+      await supabase.from("rewards").delete().eq("contact_id", contactId);
+      await supabase.from("mileage_usages").delete().eq("contact_id", contactId);
+      await supabase.from("contact_notes").delete().eq("contact_id", contactId);
+      await supabase.from("notifications").delete().eq("contact_id", contactId);
+      await supabase.from("push_subscriptions").delete().eq("contact_id", contactId);
+      await supabase.from("content_statuses").delete().eq("contact_id", contactId);
+      const { error } = await supabase.from("contacts").delete().eq("id", contactId);
+      if (error) { showToast(`삭제 실패: ${error.message}`); return; }
+      showToast(`${name} 고객 삭제 완료`);
+      setExpandedId(null);
+      fetchAll();
+    } catch (err) {
+      showToast(`삭제 중 오류 발생`);
+    }
+  };
+
+  const handleDeleteMeetingResult = async (contactId: number, name: string) => {
+    if (!confirm(`${name} 미팅결과를 초기화하시겠습니까?`)) return;
+    const { error } = await supabase.from("contacts").update({
+      meeting_result: null, contract_date: null, reservation_date: null,
+    }).eq("id", contactId);
+    if (error) { showToast(`초기화 실패: ${error.message}`); return; }
+    showToast(`${name} 미팅결과 초기화 완료`);
+    fetchAll();
+  };
+
   // 미팅결과 변경
   const handleMeetingResultChange = async (contactId: number, name: string, result: string) => {
     // 계약완료/예약완료는 날짜 입력 모달
@@ -392,7 +422,12 @@ export default function CustomerJourneyPage() {
                             {/* 확장 상세 */}
                             {isExpanded && (
                               <div className="px-3 pb-3 space-y-2" style={{ borderTop: "1px solid var(--border)" }}>
+                                {/* 고객 기본정보 */}
                                 <div className="pt-2 space-y-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[12px] font-bold" style={{ color: "var(--text)" }}>{c.name}</span>
+                                    {c.title && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{c.title}</span>}
+                                  </div>
                                   {c.phone && (
                                     <div className="flex items-center gap-1.5">
                                       <span className="text-[11px]" style={{ color: "var(--text)" }}>📞 {c.phone}</span>
@@ -411,15 +446,24 @@ export default function CustomerJourneyPage() {
                                 {/* 미팅결과 드롭다운 */}
                                 <div>
                                   <p className="text-[9px] font-semibold mb-1" style={{ color: "var(--text-subtle)" }}>미팅결과</p>
-                                  <select
-                                    value={c.meeting_result || ""}
-                                    onChange={e => { e.stopPropagation(); if (e.target.value) handleMeetingResultChange(c.id, c.name, e.target.value); }}
-                                    onClick={e => e.stopPropagation()}
-                                    className="w-full appearance-none px-2.5 py-1.5 text-[11px] font-semibold rounded-lg outline-none"
-                                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}>
-                                    <option value="">미팅결과 선택</option>
+                                  <div className="flex items-center gap-1.5">
+                                    <select
+                                      value={c.meeting_result || ""}
+                                      onChange={e => { e.stopPropagation(); if (e.target.value) handleMeetingResultChange(c.id, c.name, e.target.value); }}
+                                      onClick={e => e.stopPropagation()}
+                                      className="flex-1 appearance-none px-2.5 py-1.5 text-[11px] font-semibold rounded-lg outline-none"
+                                      style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}>
+                                      <option value="">미팅결과 선택</option>
                                     {MEETING_RESULTS.map(r => <option key={r} value={r}>{r}</option>)}
-                                  </select>
+                                    </select>
+                                    {c.meeting_result && (
+                                      <button onClick={e => { e.stopPropagation(); handleDeleteMeetingResult(c.id, c.name); }}
+                                        className="px-2 py-1.5 text-[10px] font-bold rounded-lg transition-colors flex-shrink-0"
+                                        style={{ color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)" }}>
+                                        초기화
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-1.5">
@@ -446,9 +490,16 @@ export default function CustomerJourneyPage() {
                                   <ContactNotes contactId={c.id} compact />
                                 </div>
 
-                                <a href={`/contacts/${c.id}`} onClick={e => e.stopPropagation()}
-                                  className="block text-center text-[11px] font-semibold py-1.5 rounded-lg"
-                                  style={{ background: "var(--bg)", color: "#3b82f6", border: "1px solid var(--border)" }}>상세 페이지 →</a>
+                                <div className="flex items-center gap-2">
+                                  <a href={`/contacts/${c.id}`} onClick={e => e.stopPropagation()}
+                                    className="flex-1 block text-center text-[11px] font-semibold py-1.5 rounded-lg"
+                                    style={{ background: "var(--bg)", color: "#3b82f6", border: "1px solid var(--border)" }}>상세 페이지 →</a>
+                                  <button onClick={e => { e.stopPropagation(); handleDeleteContact(c.id, c.name); }}
+                                    className="px-3 py-1.5 text-[11px] font-semibold rounded-lg transition-colors"
+                                    style={{ color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)" }}>
+                                    삭제
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
