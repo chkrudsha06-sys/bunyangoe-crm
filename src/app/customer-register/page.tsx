@@ -31,7 +31,7 @@ const CONSULTANTS = ["박경화", "박혜은", "조승현", "박민경", "백선
 const OPT = {
   customer_type: ["신규", "기고객"],
   management_stage: ["리드", "프로스펙팅", "딜크로징", "리텐션"],
-  intake_route: ["TM", "완판트럭", "소개", "컨퍼런스", "기타"],
+  intake_route: ["컨설턴트VIP DB", "컨설턴트 교차DB", "신규TM", "완판트럭", "분양회MGM"],
   prospect_type: ["즉가입가망", "미팅예정가망", "연계매출가망"],
   meeting_result: ["계약완료", "예약완료", "서류만수취", "미팅후가망관리", "계약거부", "미팅불발"],
 };
@@ -51,6 +51,7 @@ export default function CustomerRegisterPage() {
   const [saving, setSaving] = useState(false);
   const [userName, setUserName] = useState("");
   const [toast, setToast] = useState("");
+  const [notesPopup, setNotesPopup] = useState<{ contactId: number; name: string } | null>(null);
 
   // 검색/필터
   const [search, setSearch] = useState("");
@@ -228,72 +229,62 @@ export default function CustomerRegisterPage() {
             <p className="text-sm">등록된 고객이 없습니다</p>
           </div>
         ) : (
-          <div className="space-y-1.5">
-            {/* 테이블 헤더 */}
-            <div className="flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-              <span className="w-10 text-center">#</span>
-              <span className="w-16 text-center">유입경로</span>
-              <span className="w-20">고객명</span>
-              <span className="w-14 text-center">직급</span>
-              <span className="w-28 text-center">연락처</span>
-              <span className="w-14 text-center">고객유형</span>
-              <span className="w-16 text-center">관리구간</span>
-              <span className="w-16 text-center">담당자</span>
-              <span className="w-16 text-center">컨설턴트</span>
-              <span className="flex-1 text-center">활동노트</span>
-              <span className="w-20 text-center">수정/삭제</span>
-            </div>
-
+          <div className="space-y-1">
             {filtered.map((c, idx) => {
               const isExpanded = expandedId === c.id;
               return (
-                <div key={c.id} className="rounded-xl overflow-hidden transition-all"
+                <div key={c.id} className="rounded-xl overflow-hidden"
                   style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                  {/* 바 (요약 행) */}
-                  <div className="flex items-center gap-2 px-4 py-2.5 cursor-pointer transition-colors"
+                  {/* 바 (고정 높이) */}
+                  <div className="flex items-center px-3 cursor-pointer"
                     onClick={() => setExpandedId(isExpanded ? null : c.id)}
-                    style={{ borderLeft: `3px solid ${stageColor(c.management_stage)}` }}>
-                    <span className="w-10 text-center text-xs font-bold" style={{ color: "var(--text-muted)" }}>{idx + 1}</span>
-                    <span className="w-16 text-center">
+                    style={{ borderLeft: `3px solid ${stageColor(c.management_stage)}`, height: 44 }}>
+                    <span className="w-8 text-center text-xs font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>{idx + 1}</span>
+                    <span className="w-20 text-center flex-shrink-0">
                       {c.intake_route ? (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
                           style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>{c.intake_route}</span>
-                      ) : <span className="text-xs" style={{ color: "var(--text-subtle)" }}>-</span>}
+                      ) : <span className="text-[11px]" style={{ color: "var(--text-subtle)" }}>-</span>}
                     </span>
-                    <span className="w-20 text-sm font-bold truncate" style={{ color: "var(--text)" }}>{c.name}</span>
-                    <span className="w-14 text-center text-xs truncate" style={{ color: "var(--text-muted)" }}>{c.title || "-"}</span>
-                    <span className="w-28 text-center text-xs" style={{ color: "var(--text)" }}>{c.phone || "-"}</span>
-                    <span className="w-14 text-center">
+                    <span className="w-16 text-[13px] font-bold truncate flex-shrink-0" style={{ color: "var(--text)" }}>{c.name}</span>
+                    <span className="w-14 text-center text-[11px] truncate flex-shrink-0" style={{ color: "var(--text-muted)" }}>{c.title || "-"}</span>
+                    <span className="w-28 text-center text-[11px] flex-shrink-0" style={{ color: "var(--text)" }}>{c.phone || "-"}</span>
+                    <span className="w-12 text-center flex-shrink-0">
                       {c.customer_type ? (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                        <span className="text-[10px] px-1 py-0.5 rounded font-semibold"
                           style={{ background: c.customer_type === "신규" ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)", color: c.customer_type === "신규" ? "#10b981" : "#f59e0b" }}>
                           {c.customer_type}
                         </span>
-                      ) : <span className="text-xs" style={{ color: "var(--text-subtle)" }}>-</span>}
+                      ) : <span className="text-[11px]" style={{ color: "var(--text-subtle)" }}>-</span>}
                     </span>
-                    <span className="w-16 text-center">
+                    <span className="w-16 text-center flex-shrink-0">
                       {c.management_stage ? (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                        <span className="text-[10px] px-1 py-0.5 rounded font-semibold"
                           style={{ background: `${stageColor(c.management_stage)}15`, color: stageColor(c.management_stage) }}>
                           {c.management_stage}
                         </span>
-                      ) : <span className="text-xs" style={{ color: "var(--text-subtle)" }}>-</span>}
+                      ) : <span className="text-[11px]" style={{ color: "var(--text-subtle)" }}>-</span>}
                     </span>
-                    <span className="w-16 text-center text-xs font-semibold" style={{ color: "#8b5cf6" }}>{c.assigned_to || "-"}</span>
-                    <span className="w-16 text-center text-xs" style={{ color: "var(--text-muted)" }}>{c.consultant || "-"}</span>
-                    <span className="flex-1 text-center">
-                      <ContactNotes contactId={c.id} compact />
-                    </span>
-                    <span className="w-20 flex items-center justify-center gap-1">
+                    <span className="w-14 text-center text-[11px] font-semibold flex-shrink-0" style={{ color: "#8b5cf6" }}>{c.assigned_to || "-"}</span>
+                    <span className="w-14 text-center text-[11px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>{c.consultant || "-"}</span>
+                    {/* 활동노트 (고정 너비, 1줄 제한, 더블클릭으로 팝업) */}
+                    <div className="flex-1 min-w-0 mx-1 overflow-hidden"
+                      onDoubleClick={e => { e.stopPropagation(); setNotesPopup({ contactId: c.id, name: c.name }); }}
+                      title="더블클릭하여 활동노트 보기/편집">
+                      <div className="truncate" style={{ maxHeight: 20 }}>
+                        <ContactNotes contactId={c.id} compact />
+                      </div>
+                    </div>
+                    <span className="w-16 flex items-center justify-center gap-0.5 flex-shrink-0">
                       <button onClick={e => { e.stopPropagation(); handleEdit(c); }}
-                        className="p-1.5 rounded-lg transition-colors" style={{ color: "#3b82f6" }}>
-                        <Pencil size={13} />
+                        className="p-1 rounded transition-colors" style={{ color: "#3b82f6" }}>
+                        <Pencil size={12} />
                       </button>
                       <button onClick={e => { e.stopPropagation(); handleDelete(c.id, c.name); }}
-                        className="p-1.5 rounded-lg transition-colors" style={{ color: "#ef4444" }}>
-                        <Trash2 size={13} />
+                        className="p-1 rounded transition-colors" style={{ color: "#ef4444" }}>
+                        <Trash2 size={12} />
                       </button>
-                      {isExpanded ? <ChevronUp size={13} style={{ color: "var(--text-muted)" }} /> : <ChevronDown size={13} style={{ color: "var(--text-muted)" }} />}
+                      {isExpanded ? <ChevronUp size={12} style={{ color: "var(--text-muted)" }} /> : <ChevronDown size={12} style={{ color: "var(--text-muted)" }} />}
                     </span>
                   </div>
 
@@ -392,6 +383,30 @@ export default function CustomerRegisterPage() {
                 className="px-6 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50">
                 <span className="flex items-center gap-1.5"><Save size={14} />{saving ? "저장 중..." : editId ? "수정" : "등록"}</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 활동노트 팝업 */}
+      {notesPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+          onClick={() => setNotesPopup(null)}>
+          <div className="rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+              <div className="flex items-center gap-2">
+                <span className="text-base">📝</span>
+                <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{notesPopup.name}</span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>활동노트</span>
+              </div>
+              <button onClick={() => setNotesPopup(null)} className="p-1 rounded-lg" style={{ color: "var(--text-muted)" }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              <ContactNotes contactId={notesPopup.contactId} authorName={userName} />
             </div>
           </div>
         </div>
