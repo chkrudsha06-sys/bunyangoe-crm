@@ -54,6 +54,8 @@ interface ContentStatus {
   pr_career: string;
   pr_years: string;
   pr_years_base_year: number;
+  pr_output_server: string;
+  pr_output_url: string;
   updated_at: string | null;
 }
 
@@ -65,7 +67,8 @@ const EMPTY_STATUS: Omit<ContentStatus, "contact_id"> = {
   pr_activity_region: "", pr_company: "",
   pr_site_history_1: "", pr_site_history_2: "", pr_site_history_3: "", pr_site_history_4: "", pr_site_history_5: "",
   pr_intro: "", pr_video_copy_1: "", pr_video_performance: "", pr_video_copy_2: "",
-  pr_site_info: "", pr_photo_desc: "", pr_feed_text: "", pr_career: "", pr_years: "", pr_years_base_year: 0, updated_at: null,
+  pr_site_info: "", pr_photo_desc: "", pr_feed_text: "", pr_career: "", pr_years: "", pr_years_base_year: 0,
+  pr_output_server: "", pr_output_url: "", updated_at: null,
 };
 
 // 연차 자동계산
@@ -178,7 +181,7 @@ export default function ContentManagePage() {
 
     // 컨텐츠 현황 (파일 데이터 제외 — 경량 로드)
     const { data: cs } = await supabase.from("content_statuses")
-      .select("id,contact_id,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_activity_region,pr_company,pr_site_history_1,pr_site_history_2,pr_site_history_3,pr_site_history_4,pr_site_history_5,pr_intro,pr_video_copy_1,pr_video_performance,pr_video_copy_2,pr_site_info,pr_photo_desc,pr_feed_text,pr_career,pr_years,pr_years_base_year,updated_at");
+      .select("id,contact_id,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_activity_region,pr_company,pr_site_history_1,pr_site_history_2,pr_site_history_3,pr_site_history_4,pr_site_history_5,pr_intro,pr_video_copy_1,pr_video_performance,pr_video_copy_2,pr_site_info,pr_photo_desc,pr_feed_text,pr_career,pr_years,pr_years_base_year,pr_output_server,pr_output_url,updated_at");
     const map: Record<number, ContentStatus> = {};
     (cs || []).forEach((s: any) => {
       map[s.contact_id] = { ...s, files: [] }; // 파일은 빈 배열로 초기화
@@ -352,6 +355,7 @@ export default function ContentManagePage() {
       pr_site_info: s.pr_site_info, pr_photo_desc: s.pr_photo_desc,
       pr_feed_text: s.pr_feed_text, pr_career: s.pr_career, pr_years: s.pr_years,
       pr_years_base_year: s.pr_years_base_year || new Date().getFullYear(),
+      pr_output_server: s.pr_output_server, pr_output_url: s.pr_output_url,
       info_received: true,
       updated_at: new Date().toISOString(),
     };
@@ -687,9 +691,9 @@ export default function ContentManagePage() {
             const m = selectedMember;
             const s = getStatus(m.id);
             return (
-              <div className="p-5 space-y-4">
+              <div className="p-5">
                 {/* 헤더 */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 mb-4">
                   <span className="text-sm font-bold px-2.5 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>
                     {m.bunyanghoe_number ? `B-${m.bunyanghoe_number.replace(/[^0-9]/g, "")}` : "-"}
                   </span>
@@ -700,76 +704,111 @@ export default function ContentManagePage() {
                   {m.assigned_to && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{m.assigned_to}</span>}
                 </div>
 
-                {/* 체크박스 */}
-                <div className="flex items-center gap-4 flex-wrap rounded-xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                  {[
-                    { field: "photo_received", label: "사진 수취", icon: Camera },
-                    { field: "info_received", label: "기본정보 수취", icon: FileText },
-                    { field: "tf2_delivered", label: "TF2팀 전달", icon: Send },
-                    { field: "pr_completed", label: "PR패키지 완료", icon: CheckCircle },
-                    { field: "production_impossible", label: "제작불가", icon: X },
-                  ].map(item => (
-                    <label key={item.field} className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: "var(--text)" }}>
-                      <input type="checkbox" checked={(s as any)[item.field] || false}
-                        onChange={() => toggleCheckbox(m.id, item.field)}
-                        className="w-4 h-4 rounded accent-blue-500" />
-                      <item.icon size={13} style={{ color: (s as any)[item.field] ? (item.field === "production_impossible" ? "#ef4444" : "#10b981") : "var(--text-muted)" }} />
-                      {item.label}
-                    </label>
-                  ))}
-                </div>
+                {/* 2열: 좌(체크+파일+산출물) / 우(PR패키지) */}
+                <div className="flex gap-4" style={{ alignItems: "flex-start" }}>
+                  {/* 좌측 */}
+                  <div style={{ width: "40%", flexShrink: 0 }} className="space-y-3">
+                    {/* 체크박스 */}
+                    <div className="flex items-center gap-3 flex-wrap rounded-xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                      {[
+                        { field: "photo_received", label: "사진 수취", icon: Camera },
+                        { field: "info_received", label: "기본정보 수취", icon: FileText },
+                        { field: "tf2_delivered", label: "TF2팀 전달", icon: Send },
+                        { field: "pr_completed", label: "PR패키지 완료", icon: CheckCircle },
+                        { field: "production_impossible", label: "제작불가", icon: X },
+                      ].map(item => (
+                        <label key={item.field} className="flex items-center gap-1.5 cursor-pointer text-xs" style={{ color: "var(--text)" }}>
+                          <input type="checkbox" checked={(s as any)[item.field] || false}
+                            onChange={() => toggleCheckbox(m.id, item.field)}
+                            className="w-3.5 h-3.5 rounded accent-blue-500" />
+                          <item.icon size={12} style={{ color: (s as any)[item.field] ? (item.field === "production_impossible" ? "#ef4444" : "#10b981") : "var(--text-muted)" }} />
+                          {item.label}
+                        </label>
+                      ))}
+                    </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {/* 파일 관리 */}
-                  <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                    <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}>
-                      <Camera size={14} /> 파일 관리
-                      <span className="text-[11px] font-normal" style={{ color: "var(--text-muted)" }}>
-                        {!loadedFiles.has(m.id) && s.photo_received ? "(로딩 중...)" : `(${s.files.length}개)`}
-                      </span>
-                    </h4>
-                    {s.files.length > 0 && (
-                      <div className="space-y-1.5 mb-3">
-                        {s.files.map((file, fi) => (
-                          <div key={fi} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                            {file.url.startsWith("data:image") ? (
-                              <img src={file.url} alt="" className="w-8 h-8 object-cover rounded" />
-                            ) : (
-                              <FileText size={16} style={{ color: "#3b82f6", flexShrink: 0 }} />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold truncate" style={{ color: "var(--text)" }}>{file.name}</p>
-                              <p className="text-[10px]" style={{ color: "var(--text-subtle)" }}>{fmtSize(file.size)}</p>
+                    {/* 파일 관리 */}
+                    <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                      <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}>
+                        <Camera size={14} /> 파일 관리
+                        <span className="text-[11px] font-normal" style={{ color: "var(--text-muted)" }}>({s.files.length}개)</span>
+                      </h4>
+                      {s.files.length > 0 && (
+                        <div className="space-y-1.5 mb-3">
+                          {s.files.map((file, fi) => (
+                            <div key={fi} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                              {file.url.startsWith("data:image") ? <img src={file.url} alt="" className="w-8 h-8 object-cover rounded" /> : <FileText size={16} style={{ color: "#3b82f6" }} />}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold truncate" style={{ color: "var(--text)" }}>{file.name}</p>
+                                <p className="text-[10px]" style={{ color: "var(--text-subtle)" }}>{fmtSize(file.size)}</p>
+                              </div>
+                              <button onClick={() => downloadFile(file)} className="px-2 py-1 rounded-lg text-[10px] font-semibold" style={{ color: "#3b82f6", background: "rgba(59,130,246,0.08)" }}>저장</button>
+                              <button onClick={() => deleteFile(m.id, fi, file.name)} className="px-2 py-1 rounded-lg text-[10px] font-semibold" style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)" }}>삭제</button>
                             </div>
-                            <button onClick={() => downloadFile(file)} className="px-2 py-1 rounded-lg text-[10px] font-semibold"
-                              style={{ color: "#3b82f6", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>저장</button>
-                            <button onClick={() => deleteFile(m.id, fi, file.name)} className="px-2 py-1 rounded-lg text-[10px] font-semibold"
-                              style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>삭제</button>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+                      )}
+                      <div onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#3b82f6"; }}
+                        onDragLeave={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; }}
+                        onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; if (e.dataTransfer.files.length > 0) handleFileUpload(m.id, e.dataTransfer.files); }}
+                        onClick={() => { setUploadTarget(m.id); fileRef.current?.click(); }}
+                        className="w-full py-5 rounded-xl text-sm font-semibold flex flex-col items-center gap-1 cursor-pointer"
+                        style={{ border: "2px dashed var(--border)", color: "var(--text-muted)" }}>
+                        {uploading === m.id ? <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" /> : <><Upload size={16} /><span className="text-xs">클릭 또는 드래그 업로드</span></>}
                       </div>
-                    )}
-                    <div
-                      onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#3b82f6"; }}
-                      onDragLeave={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; }}
-                      onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; if (e.dataTransfer.files.length > 0) handleFileUpload(m.id, e.dataTransfer.files); }}
-                      onClick={() => { setUploadTarget(m.id); fileRef.current?.click(); }}
-                      className="w-full py-6 rounded-xl text-sm font-semibold flex flex-col items-center gap-2 cursor-pointer"
-                      style={{ border: "2px dashed var(--border)", color: "var(--text-muted)" }}>
-                      {uploading === m.id ? (
-                        <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
-                      ) : (<><Upload size={18} /><span className="text-xs">클릭 또는 드래그하여 업로드</span></>)}
+                    </div>
+
+                    {/* 산출물 주소 */}
+                    <div className="rounded-xl p-4 space-y-2.5" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                      <h4 className="text-sm font-bold flex items-center gap-1.5" style={{ color: "var(--text)" }}>📁 산출물 주소</h4>
+                      <div>
+                        <label className="text-xs font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>서버/컴퓨터 경로</label>
+                        <div className="flex items-center gap-1">
+                          <input className="flex-1 px-2.5 py-1.5 text-xs rounded-lg outline-none" readOnly
+                            value={s.pr_output_server || ""} placeholder="경로 미등록"
+                            style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }} />
+                          {s.pr_output_server && <button onClick={() => { navigator.clipboard.writeText(s.pr_output_server); showToast("경로 복사됨"); }}
+                            className="px-2 py-1.5 rounded-lg text-xs flex-shrink-0" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>📋</button>}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>URL 주소</label>
+                        <div className="flex items-center gap-1">
+                          {s.pr_output_url ? (
+                            <a href={s.pr_output_url.startsWith("http") ? s.pr_output_url : `https://${s.pr_output_url}`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="flex-1 px-2.5 py-1.5 text-xs rounded-lg truncate block"
+                              style={{ background: "var(--surface)", border: "1px solid rgba(59,130,246,0.3)", color: "#3b82f6", textDecoration: "underline" }}>{s.pr_output_url}</a>
+                          ) : (
+                            <input className="flex-1 px-2.5 py-1.5 text-xs rounded-lg outline-none" readOnly value="" placeholder="URL 미등록"
+                              style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }} />
+                          )}
+                          {s.pr_output_url && <button onClick={() => { navigator.clipboard.writeText(s.pr_output_url); showToast("URL 복사됨"); }}
+                            className="px-2 py-1.5 rounded-lg text-xs flex-shrink-0" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>📋</button>}
+                        </div>
+                      </div>
+                      <details className="text-xs"><summary className="cursor-pointer font-semibold" style={{ color: "#3b82f6" }}>주소 편집</summary>
+                        <div className="mt-2 space-y-1.5">
+                          <input className="w-full px-2.5 py-1.5 text-xs rounded-lg outline-none" value={s.pr_output_server || ""}
+                            onChange={e => updateField(m.id, "pr_output_server", e.target.value)} placeholder="\\\\server\\path"
+                            style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                          <input className="w-full px-2.5 py-1.5 text-xs rounded-lg outline-none" value={s.pr_output_url || ""}
+                            onChange={e => updateField(m.id, "pr_output_url", e.target.value)} placeholder="https://drive.google.com/..."
+                            style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                        </div>
+                      </details>
                     </div>
                   </div>
 
-                  {/* 기본정보 / 제작불가 */}
-                  <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                  {/* 우측: PR패키지 */}
+                  <div className="flex-1 min-w-0">
+                    <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
                     {s.production_impossible ? (
                       <>
                         <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "#ef4444" }}><X size={14} /> 제작불가 사유</h4>
                         <textarea value={s.impossible_reason || ""} onChange={e => updateField(m.id, "impossible_reason", e.target.value)}
                           placeholder="제작불가 사유를 작성해주세요..." rows={6}
-                          className="w-full rounded-xl outline-none focus:ring-1 focus:ring-red-400 resize-none text-sm p-4"
+                          className="w-full rounded-xl outline-none resize-none text-sm p-4"
                           style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                         <button onClick={async () => {
                           setSaving(m.id);
@@ -778,17 +817,17 @@ export default function ContentManagePage() {
                           else { const { data } = await supabase.from("content_statuses").insert(payload).select().single(); if (data) updateField(m.id, "id", data.id); }
                           setSaving(null); showToast("불가사유 저장 완료");
                         }} disabled={saving === m.id}
-                          className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-red-500 rounded-xl hover:bg-red-600 disabled:opacity-50 mt-3">
+                          className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-red-500 rounded-xl mt-3">
                           <Save size={14} />{saving === m.id ? "저장 중..." : "불가사유 저장"}
                         </button>
                       </>
                     ) : (
                       <>
                         <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}><FileText size={14} /> PR패키지 기본정보</h4>
-                        {/* 고객기본정보 - 3열 가로배치 */}
+                        {/* 고객기본정보 3열 */}
                         <div className="rounded-xl p-3 mb-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                           <h5 className="text-xs font-bold mb-2 pb-1.5" style={{ color: "#3b82f6", borderBottom: "1px solid var(--border)" }}>📋 고객기본정보</h5>
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-3 gap-x-3 gap-y-2">
                             {[
                               { key: "pr_name", label: "성명", placeholder: m.name },
                               { key: "pr_title_position", label: "직함", placeholder: "본부장" },
@@ -798,76 +837,65 @@ export default function ContentManagePage() {
                               { key: "pr_body_type", label: "체형", placeholder: "근육질" },
                               { key: "pr_activity_region", label: "활동지역", placeholder: "경기 수도권" },
                               { key: "pr_company", label: "소속회사", placeholder: "마켓리더" },
-                              { key: "pr_years", label: `연차 ${s.pr_years_base_year ? `(자동: ${calcYears(s.pr_years_base_year, s.pr_years)})` : ""}`, placeholder: "7년차" },
+                              { key: "pr_years", label: `연차${s.pr_years_base_year ? ` (${calcYears(s.pr_years_base_year, s.pr_years)})` : ""}`, placeholder: "7년차" },
                             ].map(f => (
                               <div key={f.key}>
-                                <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--text-muted)" }}>{f.label}</label>
-                                <input className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" value={(s as any)[f.key] || ""}
-                                  onChange={e => {
-                                    updateField(m.id, f.key, e.target.value);
-                                    if (f.key === "pr_years") updateField(m.id, "pr_years_base_year", new Date().getFullYear());
-                                  }}
+                                <label className="text-xs font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>{f.label}</label>
+                                <input className="w-full px-2.5 py-2 text-sm rounded-lg outline-none" value={(s as any)[f.key] || ""}
+                                  onChange={e => { updateField(m.id, f.key, e.target.value); if (f.key === "pr_years") updateField(m.id, "pr_years_base_year", new Date().getFullYear()); }}
                                   placeholder={f.placeholder}
                                   style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
                               </div>
                             ))}
                           </div>
                           <div className="mt-2">
-                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--text-muted)" }}>한줄소개</label>
-                            <input className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" value={(s as any).pr_intro || ""}
+                            <label className="text-xs font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>한줄소개</label>
+                            <input className="w-full px-2.5 py-2 text-sm rounded-lg outline-none" value={(s as any).pr_intro || ""}
                               onChange={e => updateField(m.id, "pr_intro", e.target.value)}
                               placeholder="다름을 만드는 경험, 결과로 답하는 리더"
                               style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
                           </div>
                         </div>
-
-                        {/* 대표현장이력 + 영상카피 - 가로배치 */}
+                        {/* 현장이력 + 영상카피 3열 */}
                         <div className="grid grid-cols-3 gap-3 mb-3">
                           <div className="rounded-xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                            <h5 className="text-[10px] font-bold mb-2 pb-1.5" style={{ color: "#10b981", borderBottom: "1px solid var(--border)" }}>🏗️ 대표현장이력</h5>
-                            <div className="space-y-1">
-                              {[1,2,3,4,5].map(n => (
-                                <input key={n} className="w-full px-2 py-1 text-[11px] rounded-lg outline-none" value={(s as any)[`pr_site_history_${n}`] || ""}
-                                  onChange={e => updateField(m.id, `pr_site_history_${n}`, e.target.value)}
-                                  placeholder={`현장이력 ${n}`}
+                            <h5 className="text-xs font-bold mb-2 pb-1.5" style={{ color: "#10b981", borderBottom: "1px solid var(--border)" }}>🏗️ 대표현장이력</h5>
+                            <div className="space-y-1.5">
+                              {[{ n:1, ph:"안동코오롱하늘채" },{ n:2, ph:"사천삼정그린코아" },{ n:3, ph:"대구만촌자이르네" },{ n:4, ph:"현장이력 4" },{ n:5, ph:"현장이력 5" }].map(({n,ph}) => (
+                                <input key={n} className="w-full px-2.5 py-1.5 text-sm rounded-lg outline-none" value={(s as any)[`pr_site_history_${n}`] || ""}
+                                  onChange={e => updateField(m.id, `pr_site_history_${n}`, e.target.value)} placeholder={ph}
                                   style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
                               ))}
                             </div>
                           </div>
                           <div className="rounded-xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                            <h5 className="text-[10px] font-bold mb-2 pb-1.5" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ①영상카피</h5>
-                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--text-muted)" }}>문구기재</label>
-                            <input className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" value={(s as any).pr_video_copy_1 || ""}
-                              onChange={e => updateField(m.id, "pr_video_copy_1", e.target.value)}
-                              placeholder="성과로 말하는 현장전문가"
+                            <h5 className="text-xs font-bold mb-2 pb-1.5" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ①영상카피</h5>
+                            <label className="text-xs font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>문구기재</label>
+                            <input className="w-full px-2.5 py-2 text-sm rounded-lg outline-none" value={(s as any).pr_video_copy_1 || ""}
+                              onChange={e => updateField(m.id, "pr_video_copy_1", e.target.value)} placeholder="성과로 말하는 현장전문가"
                               style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
                           </div>
                           <div className="rounded-xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                            <h5 className="text-[10px] font-bold mb-2 pb-1.5" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ②영상카피</h5>
-                            <div className="space-y-1.5">
-                              <div>
-                                <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--text-muted)" }}>핵심성과수치</label>
-                                <input className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" value={(s as any).pr_video_performance || ""}
-                                  onChange={e => updateField(m.id, "pr_video_performance", e.target.value)}
-                                  placeholder="누적 계약180%"
-                                  style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                              </div>
-                              <div>
-                                <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--text-muted)" }}>소구카피</label>
-                                <input className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" value={(s as any).pr_video_copy_2 || ""}
-                                  onChange={e => updateField(m.id, "pr_video_copy_2", e.target.value)}
-                                  placeholder="신뢰를 성과로 완성하는 본부장"
-                                  style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                              </div>
+                            <h5 className="text-xs font-bold mb-2 pb-1.5" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ②영상카피</h5>
+                            <div className="space-y-2">
+                              <div><label className="text-xs font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>핵심성과수치</label>
+                                <input className="w-full px-2.5 py-2 text-sm rounded-lg outline-none" value={(s as any).pr_video_performance || ""}
+                                  onChange={e => updateField(m.id, "pr_video_performance", e.target.value)} placeholder="누적 계약180%"
+                                  style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} /></div>
+                              <div><label className="text-xs font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>소구카피</label>
+                                <input className="w-full px-2.5 py-2 text-sm rounded-lg outline-none" value={(s as any).pr_video_copy_2 || ""}
+                                  onChange={e => updateField(m.id, "pr_video_copy_2", e.target.value)} placeholder="신뢰를 성과로 완성하는 본부장"
+                                  style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} /></div>
                             </div>
                           </div>
                         </div>
                         <button onClick={() => saveInfo(m.id)} disabled={saving === m.id}
-                          className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 mt-4">
+                          className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50">
                           <Save size={14} />{saving === m.id ? "저장 중..." : "기본정보 저장"}
                         </button>
                       </>
                     )}
+                    </div>
                   </div>
                 </div>
               </div>
