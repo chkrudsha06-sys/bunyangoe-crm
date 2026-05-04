@@ -241,7 +241,7 @@ export default function CustomerRegisterPage() {
               <span className="w-16 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>관리구간</span>
               <span className="w-14 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>담당자</span>
               <span className="w-14 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>담당컨설턴트</span>
-              <span className="flex-1 min-w-0 mx-3 text-center text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>활동노트</span>
+              <span className="flex-1 min-w-0 mx-3 px-2 text-[10px] font-bold" style={{ color: "var(--text-muted)", maxWidth: 500 }}>활동노트</span>
               <span className="w-16 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>관리</span>
             </div>
             {filtered.map((c, idx) => {
@@ -282,11 +282,12 @@ export default function CustomerRegisterPage() {
                     <span className="w-14 text-center text-[11px] font-semibold flex-shrink-0" style={{ color: "#8b5cf6" }}>{c.assigned_to || "-"}</span>
                     <span className="w-14 text-center text-[11px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>{c.consultant || "-"}</span>
                     {/* 활동노트 미리보기 (더블클릭으로 팝업) */}
-                    <div className="flex-1 min-w-0 mx-3 overflow-hidden cursor-pointer flex items-center justify-center"
+                    <div className="flex-1 min-w-0 mx-3 px-2 overflow-hidden cursor-pointer"
                       onDoubleClick={e => { e.stopPropagation(); setNotesPopup({ contactId: c.id, name: c.name }); }}
                       onClick={e => e.stopPropagation()}
-                      title="더블클릭하여 활동노트 보기/편집">
-                      <div className="w-full text-center">
+                      title="더블클릭하여 활동노트 보기/편집"
+                      style={{ maxWidth: 500 }}>
+                      <div className="truncate">
                         <ContactNotes contactId={c.id} compact />
                       </div>
                     </div>
