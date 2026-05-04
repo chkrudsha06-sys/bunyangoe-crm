@@ -590,7 +590,7 @@ function CustomerJourneyBoard({ user }: { user: CRMUser | null }) {
   const [alerts, setAlerts] = useState<{ id: number; name: string; stage: string; assigned_to: string; lastNote: string; days: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { if (user) fetchData(); }, [user]);
 
   const fetchData = async () => {
     setLoading(true);
