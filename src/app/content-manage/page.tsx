@@ -232,8 +232,8 @@ export default function ContentManagePage() {
 
     for (const file of Array.from(fileList)) {
       // 파일 크기 제한 (원본 5MB, 압축 후 ~100KB)
-      if (file.size > 5 * 1024 * 1024) {
-        showToast(`${file.name}: 5MB 이하 파일만 업로드 가능합니다`);
+      if (file.size > 50 * 1024 * 1024) {
+        showToast(`${file.name}: 50MB 이하 파일만 업로드 가능합니다`);
         continue;
       }
       const compressed = await compressImage(file);
@@ -756,6 +756,7 @@ export default function ContentManagePage() {
                         style={{ border: "2px dashed var(--border)", color: "var(--text-muted)" }}>
                         {uploading === m.id ? <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" /> : <><Upload size={16} /><span className="text-xs">클릭 또는 드래그 업로드</span></>}
                       </div>
+                      <p className="text-[10px] text-center mt-1.5" style={{ color: "var(--text-subtle)" }}>최대 업로드 용량: 파일당 50MB</p>
                     </div>
 
                     {/* 산출물 주소 */}
