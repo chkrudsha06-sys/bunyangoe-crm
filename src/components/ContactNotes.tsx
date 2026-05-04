@@ -124,7 +124,7 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
 
       {/* 추가 폼 */}
       {adding && (
-        <div className="mb-3 rounded-xl p-3 space-y-2" style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}>
+        <div className="mb-3 rounded-xl p-3 space-y-2" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <div>
             <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--text-muted)" }}>날짜 선택</label>
             <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
@@ -159,10 +159,10 @@ export default function ContactNotes({ contactId, authorName, compact, refreshKe
       ) : (
         <div className="space-y-2">
           {notes.map(note => (
-            <div key={note.id} className="rounded-xl p-3" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+            <div key={note.id} className="rounded-xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-blue-600">
+                  <span className="text-xs font-bold" style={{ color: "#60a5fa" }}>
                     {new Date(note.note_date + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
                   </span>
                   {note.author && (
