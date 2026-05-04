@@ -24,9 +24,14 @@ interface Contact {
   tm_sensitivity: string | null;
   contract_date: string | null;
   reservation_date: string | null;
+  operating_site: string | null;
+  total_org_count: string | null;
+  team_org_count: string | null;
+  rt: string | null;
 }
 
 interface LastNote { contact_id: number; note_date: string; content: string; }
+interface SiteHistory { id: number; operating_site: string; total_org_count: string; team_org_count: string; rt: string; changed_by: string; changed_at: string; }
 
 const TEAM = ["조계현", "이세호", "기여운", "최연전"];
 const CONSULTANTS = ["박경화", "박혜은", "조승현", "박민경", "백선중", "강아름", "전정훈", "박나라"];
@@ -106,6 +111,12 @@ export default function CustomerJourneyPage() {
   const [resultDateModal, setResultDateModal] = useState<{ contactId: number; name: string; result: string } | null>(null);
   const [resultDate, setResultDate] = useState(new Date().toISOString().split("T")[0]);
 
+  // 현장정보 수정 모달
+  const [siteModal, setSiteModal] = useState<{ contactId: number; name: string } | null>(null);
+  const [siteForm, setSiteForm] = useState({ operating_site: "", total_org_count: "", team_org_count: "", rt: "" });
+  const [siteHistory, setSiteHistory] = useState<SiteHistory[]>([]);
+  const [showSiteHistory, setShowSiteHistory] = useState(false);
+
   useEffect(() => {
     const u = getCurrentUser();
     if (u) { setUserName(u.name); setUserRole(u.role); }
@@ -118,7 +129,7 @@ export default function CustomerJourneyPage() {
     setLoading(true);
     const u = getCurrentUser();
     let q = supabase.from("contacts")
-      .select("id,name,title,phone,customer_type,prospect_type,management_stage,assigned_to,consultant,intake_route,meeting_date,meeting_address,meeting_result,memo,tm_sensitivity,contract_date,reservation_date")
+      .select("id,name,title,phone,customer_type,prospect_type,management_stage,assigned_to,consultant,intake_route,meeting_date,meeting_address,meeting_result,memo,tm_sensitivity,contract_date,reservation_date,operating_site,total_org_count,team_org_count,rt")
       .order("id", { ascending: false }).limit(500);
     if (u?.role === "exec") q = q.eq("assigned_to", u.name);
     const { data: cData } = await q;
@@ -219,6 +230,47 @@ export default function CustomerJourneyPage() {
     if (error) { showToast(`저장 실패: ${error.message}`); return; }
     showToast(`${resultDateModal.name} ${resultDateModal.result} 처리 완료`);
     setResultDateModal(null);
+    fetchAll();
+  };
+
+  // 현장정보 수정 모달 열기
+  const openSiteModal = async (c: Contact) => {
+    setSiteModal({ contactId: c.id, name: c.name });
+    setSiteForm({
+      operating_site: c.operating_site || "",
+      total_org_count: c.total_org_count || "",
+      team_org_count: c.team_org_count || "",
+      rt: c.rt || "",
+    });
+    setShowSiteHistory(false);
+    // 히스토리 로드
+    const { data } = await supabase.from("site_info_history")
+      .select("*").eq("contact_id", c.id)
+      .order("changed_at", { ascending: false }).limit(20);
+    setSiteHistory((data || []) as SiteHistory[]);
+  };
+
+  // 현장정보 저장
+  const handleSiteInfoSave = async () => {
+    if (!siteModal) return;
+    const { error } = await supabase.from("contacts").update({
+      operating_site: siteForm.operating_site || null,
+      total_org_count: siteForm.total_org_count || null,
+      team_org_count: siteForm.team_org_count || null,
+      rt: siteForm.rt || null,
+    }).eq("id", siteModal.contactId);
+    if (error) { showToast(`저장 실패: ${error.message}`); return; }
+    // 히스토리 기록
+    await supabase.from("site_info_history").insert({
+      contact_id: siteModal.contactId,
+      operating_site: siteForm.operating_site || "",
+      total_org_count: siteForm.total_org_count || "",
+      team_org_count: siteForm.team_org_count || "",
+      rt: siteForm.rt || "",
+      changed_by: userName || "",
+    });
+    showToast(`${siteModal.name} 현장정보 수정 완료`);
+    setSiteModal(null);
     fetchAll();
   };
 
@@ -470,6 +522,22 @@ export default function CustomerJourneyPage() {
                                   </div>
                                 </div>
 
+                                {/* 현장정보 */}
+                                <div className="rounded-lg p-2" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <p className="text-[10px] font-bold" style={{ color: "var(--text)" }}>🏗️ 현장정보</p>
+                                    <button onClick={e => { e.stopPropagation(); openSiteModal(c); }}
+                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-lg"
+                                      style={{ color: "#f59e0b", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)" }}>수정</button>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-1">
+                                    <div><p className="text-[9px]" style={{ color: "var(--text-subtle)" }}>운영현장</p><p className="text-[11px] font-semibold" style={{ color: c.operating_site ? "var(--text)" : "var(--text-subtle)" }}>{c.operating_site || "-"}</p></div>
+                                    <div><p className="text-[9px]" style={{ color: "var(--text-subtle)" }}>전체조직수</p><p className="text-[11px] font-semibold" style={{ color: c.total_org_count ? "var(--text)" : "var(--text-subtle)" }}>{c.total_org_count || "-"}</p></div>
+                                    <div><p className="text-[9px]" style={{ color: "var(--text-subtle)" }}>팀조직수</p><p className="text-[11px] font-semibold" style={{ color: c.team_org_count ? "var(--text)" : "var(--text-subtle)" }}>{c.team_org_count || "-"}</p></div>
+                                    <div><p className="text-[9px]" style={{ color: "var(--text-subtle)" }}>R/T</p><p className="text-[11px] font-semibold" style={{ color: c.rt ? "var(--text)" : "var(--text-subtle)" }}>{c.rt || "-"}</p></div>
+                                  </div>
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-1.5">
                                   {[
                                     { label: "유입경로", value: c.intake_route },
@@ -607,6 +675,91 @@ export default function CustomerJourneyPage() {
               <button onClick={handleResultDateSave}
                 className="flex-1 py-2 text-sm font-bold text-white rounded-xl hover:opacity-90"
                 style={{ background: resultDateModal.result === "계약완료" ? "#8b5cf6" : "#6366f1" }}>저장</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 현장정보 수정 모달 */}
+      {siteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}
+          onClick={() => setSiteModal(null)}>
+          <div className="rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col"
+            style={{ background: "var(--modal-bg)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+              <div className="flex items-center gap-2">
+                <span className="text-base">🏗️</span>
+                <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{siteModal.name}</span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>현장정보 수정</span>
+              </div>
+              <button onClick={() => setSiteModal(null)} className="p-1 rounded-lg" style={{ color: "var(--text-muted)" }}><X size={18} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--text-muted)" }}>운영현장</label>
+                  <input type="text" value={siteForm.operating_site} onChange={e => setSiteForm(p => ({ ...p, operating_site: e.target.value }))}
+                    placeholder="예: 경남 양산" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--text-muted)" }}>전체조직수</label>
+                  <input type="text" value={siteForm.total_org_count} onChange={e => setSiteForm(p => ({ ...p, total_org_count: e.target.value }))}
+                    placeholder="예: 150" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--text-muted)" }}>팀조직수</label>
+                  <input type="text" value={siteForm.team_org_count} onChange={e => setSiteForm(p => ({ ...p, team_org_count: e.target.value }))}
+                    placeholder="예: 30" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--text-muted)" }}>R/T</label>
+                  <input type="text" value={siteForm.rt} onChange={e => setSiteForm(p => ({ ...p, rt: e.target.value }))}
+                    placeholder="예: 3/5" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button onClick={() => setSiteModal(null)}
+                  className="flex-1 py-2 text-sm font-semibold rounded-xl" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>취소</button>
+                <button onClick={handleSiteInfoSave}
+                  className="flex-1 py-2 text-sm font-bold text-white rounded-xl" style={{ background: "#f59e0b" }}>저장</button>
+              </div>
+
+              {/* 수정 히스토리 */}
+              <div>
+                <button onClick={() => setShowSiteHistory(v => !v)}
+                  className="text-[11px] font-semibold" style={{ color: "#3b82f6" }}>
+                  {showSiteHistory ? "▾ 수정 히스토리 닫기" : "▸ 수정 히스토리 보기"} ({siteHistory.length}건)
+                </button>
+                {showSiteHistory && (
+                  <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
+                    {siteHistory.length === 0 ? (
+                      <p className="text-[11px] py-3 text-center" style={{ color: "var(--text-subtle)" }}>수정 기록이 없습니다</p>
+                    ) : siteHistory.map(h => (
+                      <div key={h.id} className="rounded-lg px-3 py-2" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-bold" style={{ color: "#60a5fa" }}>
+                            {new Date(h.changed_at).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })}
+                            {" "}
+                            {new Date(h.changed_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          {h.changed_by && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--surface)", color: "#8b5cf6" }}>{h.changed_by}</span>}
+                        </div>
+                        <div className="grid grid-cols-4 gap-1 text-[10px]">
+                          <div><span style={{ color: "var(--text-subtle)" }}>현장</span> <span className="font-semibold" style={{ color: "var(--text)" }}>{h.operating_site || "-"}</span></div>
+                          <div><span style={{ color: "var(--text-subtle)" }}>전체</span> <span className="font-semibold" style={{ color: "var(--text)" }}>{h.total_org_count || "-"}</span></div>
+                          <div><span style={{ color: "var(--text-subtle)" }}>팀</span> <span className="font-semibold" style={{ color: "var(--text)" }}>{h.team_org_count || "-"}</span></div>
+                          <div><span style={{ color: "var(--text-subtle)" }}>R/T</span> <span className="font-semibold" style={{ color: "var(--text)" }}>{h.rt || "-"}</span></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
