@@ -87,6 +87,7 @@ export default function CustomerJourneyPage() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState("");
   const [toast, setToast] = useState("");
 
   const [search, setSearch] = useState("");
@@ -107,7 +108,7 @@ export default function CustomerJourneyPage() {
 
   useEffect(() => {
     const u = getCurrentUser();
-    if (u) setUserName(u.name);
+    if (u) { setUserName(u.name); setUserRole(u.role); }
     fetchAll();
   }, []);
 
@@ -115,9 +116,12 @@ export default function CustomerJourneyPage() {
 
   const fetchAll = async () => {
     setLoading(true);
-    const { data: cData } = await supabase.from("contacts")
+    const u = getCurrentUser();
+    let q = supabase.from("contacts")
       .select("id,name,title,phone,customer_type,prospect_type,management_stage,assigned_to,consultant,intake_route,meeting_date,meeting_address,meeting_result,memo,tm_sensitivity,contract_date,reservation_date")
       .order("id", { ascending: false }).limit(500);
+    if (u?.role === "exec") q = q.eq("assigned_to", u.name);
+    const { data: cData } = await q;
     setContacts((cData || []) as Contact[]);
 
     const { data: nData } = await supabase.from("contact_notes")

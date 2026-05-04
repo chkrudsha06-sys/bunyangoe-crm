@@ -683,7 +683,7 @@ function CustomerJourneyBoard({ user }: { user: CRMUser | null }) {
           {alerts.length > 0 && (
             <div>
               <div className="flex items-center gap-1.5 mb-2">
-                <span className="text-sm">⚠️</span>
+                <span className="text-sm">🚨</span>
                 <p className="text-xs font-bold" style={{ color: "#f59e0b" }}>7일 이상 활동 없음 ({alerts.length}명)</p>
               </div>
               <div className="space-y-1.5 max-h-40 overflow-y-auto">
