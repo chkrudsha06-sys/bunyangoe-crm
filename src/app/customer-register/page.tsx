@@ -234,14 +234,14 @@ export default function CustomerRegisterPage() {
             <div className="flex items-center px-3 py-2 rounded-xl" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
               <span className="w-8 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>No</span>
               <span className="w-20 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>유입경로</span>
-              <span className="w-16 text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>고객명</span>
+              <span className="w-16 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>고객명</span>
               <span className="w-14 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>직급</span>
               <span className="w-28 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>연락처</span>
               <span className="w-12 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>고객유형</span>
               <span className="w-16 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>관리구간</span>
               <span className="w-14 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>담당자</span>
               <span className="w-14 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>담당컨설턴트</span>
-              <span className="flex-1 min-w-0 mx-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>활동노트</span>
+              <span className="flex-1 min-w-0 mx-3 text-center text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>활동노트</span>
               <span className="w-16 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>관리</span>
             </div>
             {filtered.map((c, idx) => {
@@ -282,7 +282,7 @@ export default function CustomerRegisterPage() {
                     <span className="w-14 text-center text-[11px] font-semibold flex-shrink-0" style={{ color: "#8b5cf6" }}>{c.assigned_to || "-"}</span>
                     <span className="w-14 text-center text-[11px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>{c.consultant || "-"}</span>
                     {/* 활동노트 미리보기 (더블클릭으로 팝업) */}
-                    <div className="flex-1 min-w-0 mx-1 overflow-hidden cursor-text"
+                    <div className="flex-1 min-w-0 mx-3 overflow-hidden cursor-text"
                       onDoubleClick={e => { e.stopPropagation(); setNotesPopup({ contactId: c.id, name: c.name }); }}
                       onClick={e => e.stopPropagation()}
                       title="더블클릭하여 활동노트 보기/편집">
