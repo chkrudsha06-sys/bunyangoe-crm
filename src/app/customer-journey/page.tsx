@@ -188,6 +188,7 @@ export default function CustomerJourneyPage() {
       await supabase.from("notifications").delete().eq("contact_id", contactId);
       await supabase.from("push_subscriptions").delete().eq("contact_id", contactId);
       await supabase.from("content_statuses").delete().eq("contact_id", contactId);
+      await supabase.from("site_info_history").delete().eq("contact_id", contactId);
       const { error } = await supabase.from("contacts").delete().eq("id", contactId);
       if (error) { showToast(`삭제 실패: ${error.message}`); return; }
       showToast(`${name} 고객 삭제 완료`);

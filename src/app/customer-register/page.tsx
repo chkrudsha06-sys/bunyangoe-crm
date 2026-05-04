@@ -132,6 +132,8 @@ export default function CustomerRegisterPage() {
     await supabase.from("contact_notes").delete().eq("contact_id", id);
     await supabase.from("notifications").delete().eq("contact_id", id);
     await supabase.from("push_subscriptions").delete().eq("contact_id", id);
+    await supabase.from("content_statuses").delete().eq("contact_id", id);
+    await supabase.from("site_info_history").delete().eq("contact_id", id);
     const { error } = await supabase.from("contacts").delete().eq("id", id);
     if (error) { showToast(`삭제 실패: ${error.message}`); return; }
     showToast(`${name} 삭제 완료`);
