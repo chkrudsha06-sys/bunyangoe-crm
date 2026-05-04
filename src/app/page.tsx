@@ -9,7 +9,7 @@ import { Clock, ChevronLeft, ChevronRight, Plus, X, Save, Trash2 } from "lucide-
 interface Stats {
   totalRevenue: number;
   joinCount: number; contractCount: number; reservationCount: number;
-  hotProspect: number; meetingProspect: number; linkedProspect: number;
+  leadCount: number; prospectingCount: number; dealClosingCount: number;
   upcomingMeetings: number; meetingDone: number;
   membershipFeeAmt: number; membershipCount: number;
   monthlyFeeAmt: number; monthlyFeeCount: number;
@@ -18,7 +18,7 @@ interface Stats {
 // 누적용 별도 Stats (동일 구조 재활용)
 const EMPTY: Stats = {
   totalRevenue:0, joinCount:0, contractCount:0, reservationCount:0,
-  hotProspect:0, meetingProspect:0, linkedProspect:0,
+  leadCount:0, prospectingCount:0, dealClosingCount:0,
   upcomingMeetings:0, meetingDone:0, membershipFeeAmt:0, membershipCount:0, monthlyFeeAmt:0, monthlyFeeCount:0, linkedRevenue:0, linkedCount:0,
 };
 interface MonthlyRevenue { month: string; hightarget: number; special: number; bunyanghoe: number; }
@@ -39,7 +39,7 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
   const monthEnd   = end;
 
   let joinQ = supabase.from("contacts")
-    .select("meeting_result,prospect_type,contract_date,reservation_date,meeting_date,assigned_to");
+    .select("meeting_result,prospect_type,management_stage,contract_date,reservation_date,meeting_date,assigned_to");
   if (isExec) joinQ = joinQ.eq("assigned_to", user.name);
   const { data: allContacts = [] } = await joinQ;
 
@@ -136,9 +136,9 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     reservationCount: isAll
       ? allJoined.filter((x:any)=>x.meeting_result==="예약완료").length
       : monthJoined.filter((x:any)=>x.meeting_result==="예약완료").length,
-    hotProspect: prospects.filter((x:any)=>x.prospect_type==="즉가입가망").length,
-    meetingProspect: prospects.filter((x:any)=>x.prospect_type==="미팅예정가망").length,
-    linkedProspect: prospects.filter((x:any)=>x.prospect_type==="연계매출가망").length,
+    leadCount: prospects.filter((x:any)=>x.management_stage==="리드").length,
+    prospectingCount: prospects.filter((x:any)=>x.management_stage==="프로스펙팅").length,
+    dealClosingCount: prospects.filter((x:any)=>x.management_stage==="딜크로징").length,
     upcomingMeetings: isAll ? totalMeetings : monthMeetings.length,
     meetingDone: isAll ? totalMeetingDone : monthMeetingDone.length,
     membershipFeeAmt: isAll ? cumMembershipFee : membershipFeeAmt,
@@ -1107,7 +1107,7 @@ export default function DashboardPage() {
     { icon:"⚡", label:"연계매출(하이타겟)", main: current.linkedRevenue.toLocaleString()+"원", subs: undefined, cumLabel: cumulative.linkedRevenue.toLocaleString()+"원", currentValue: current.linkedRevenue, prevValue: prevMonth.linkedRevenue },
     { icon:"💳", label:"분양회 입회비", main: current.membershipFeeAmt.toLocaleString()+"원", subs:[{label:"당월", value:`${current.membershipCount}건`, color:"text-slate-600"}], cumLabel: cumulative.membershipFeeAmt.toLocaleString()+"원", currentValue: current.membershipFeeAmt, prevValue: prevMonth.membershipFeeAmt },
     { icon:"🔄", label:"분양회 월회비", main: current.monthlyFeeAmt.toLocaleString()+"원", subs:[{label:"당월", value:`${current.monthlyFeeCount}건`, color:"text-slate-600"}], cumLabel: cumulative.monthlyFeeAmt.toLocaleString()+"원", currentValue: current.monthlyFeeAmt, prevValue: prevMonth.monthlyFeeAmt },
-    { icon:"🎯", label:"가망고객", main:`${current.hotProspect+current.meetingProspect+current.linkedProspect}명`, subs:[{label:"즉가입가망", value:`${current.hotProspect}명`, color:"text-red-500"},{label:"미팅예정가망", value:`${current.meetingProspect}명`, color:"text-amber-500"},{label:"연계매출가망", value:`${current.linkedProspect}명`, color:"text-slate-500"}], cumLabel:`${cumulative.hotProspect+cumulative.meetingProspect+cumulative.linkedProspect}명`, currentValue: current.hotProspect+current.meetingProspect+current.linkedProspect, prevValue: prevMonth.hotProspect+prevMonth.meetingProspect+prevMonth.linkedProspect },
+    { icon:"🎯", label:"가망고객", main:`${current.leadCount+current.prospectingCount+current.dealClosingCount}명`, subs:[{label:"리드", value:`${current.leadCount}명`, color:"text-blue-500"},{label:"프로스펙팅", value:`${current.prospectingCount}명`, color:"text-amber-500"},{label:"딜클로징", value:`${current.dealClosingCount}명`, color:"text-red-500"}], cumLabel:`${cumulative.leadCount+cumulative.prospectingCount+cumulative.dealClosingCount}명`, currentValue: current.leadCount+current.prospectingCount+current.dealClosingCount, prevValue: prevMonth.leadCount+prevMonth.prospectingCount+prevMonth.dealClosingCount },
     { icon:"📅", label:"미팅", main:`${current.upcomingMeetings}건`, subs:[{label:"미팅예정", value:`${current.upcomingMeetings}건`, color:"text-blue-500"},{label:"미팅완료", value:`${current.meetingDone}건`, color:"text-emerald-500"}], cumLabel:`${cumulative.upcomingMeetings + cumulative.meetingDone}건`, currentValue: current.upcomingMeetings+current.meetingDone, prevValue: prevMonth.upcomingMeetings+prevMonth.meetingDone },
   ];
 
