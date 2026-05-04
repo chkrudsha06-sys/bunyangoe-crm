@@ -24,6 +24,8 @@ export default function CustomerIncentivesPage() {
   const [loading,setLoading]=useState(true);
   const [search,setSearch]=useState("");
   const [filterPaid,setFilterPaid]=useState("");
+  const [filterMonth,setFilterMonth]=useState("");
+  const [filterAssigned,setFilterAssigned]=useState("");
   const [payInline,setPayInline]=useState<Record<string,{date:string;amt:string}>>({});
   const [copiedId,setCopiedId]=useState<string|null>(null);
   const [historyModal,setHistoryModal]=useState<any>(null);
@@ -78,10 +80,32 @@ export default function CustomerIncentivesPage() {
       if(search.trim()){const s=search.trim().toLowerCase();if(!c.name.includes(s)&&!fmtBun(c.bunyanghoe_number).toLowerCase().includes(s)&&!(c.assigned_to||"").includes(s))return;}
       if(filterPaid==="paid"&&q.totalPaid<=0)return;
       if(filterPaid==="unpaid"&&(q.totalPaid>0||!q.tier))return;
+      if(filterAssigned&&c.assigned_to!==filterAssigned)return;
+      if(filterMonth){
+        const qStartM=q.sStr.substring(0,7);
+        const qEndM=q.eStr.substring(0,7);
+        if(filterMonth<qStartM||filterMonth>qEndM)return;
+      }
       rows.push({...q,contact:c});
     }));
     return rows;
-  },[customerData,search,filterPaid]);
+  },[customerData,search,filterPaid,filterMonth,filterAssigned]);
+
+  // 월 옵션 생성
+  const monthOptions=useMemo(()=>{
+    const months=new Set<string>();
+    customerData.forEach(c=>c.quarters.forEach((q:any)=>{
+      const s=new Date(q.sStr+"T00:00:00"); const e=new Date(q.eStr+"T00:00:00");
+      let cur=new Date(s.getFullYear(),s.getMonth(),1);
+      while(cur<=e){ months.add(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,"0")}`); cur.setMonth(cur.getMonth()+1); }
+    }));
+    return Array.from(months).sort().reverse();
+  },[customerData]);
+
+  // 담당자 목록
+  const assignedList=useMemo(()=>{
+    return Array.from(new Set(contacts.map(c=>c.assigned_to).filter(Boolean))).sort();
+  },[contacts]);
 
   const summary=useMemo(()=>{
     let total=0,t1=0,t2=0,t3=0,paid=0,unpaid=0,paidAmt=0;
@@ -183,14 +207,24 @@ export default function CustomerIncentivesPage() {
 
         {/* 검색+필터+다운로드 (테이블 바로 위) */}
         <div className="flex items-center gap-2">
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="넘버링, 고객명, 담당자..."
-            className="pl-3 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl w-52 outline-none focus:border-blue-400"/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="넘버링, 고객명..."
+            className="pl-3 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl w-44 outline-none focus:border-blue-400"/>
+          <select value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}
+            className="text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+            <option value="">전체 월</option>
+            {monthOptions.map(m=><option key={m} value={m}>{m.replace("-","년 ")}월</option>)}
+          </select>
+          <select value={filterAssigned} onChange={e=>setFilterAssigned(e.target.value)}
+            className="text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+            <option value="">전체 담당자</option>
+            {assignedList.map(a=><option key={a} value={a}>{a}</option>)}
+          </select>
           <select value={filterPaid} onChange={e=>setFilterPaid(e.target.value)}
             className="text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
             <option value="">지급여부</option><option value="unpaid">미지급</option><option value="paid">지급완료</option>
           </select>
-          <button onClick={()=>{setSearch("");setFilterPaid("");}}
-            className={`text-xs px-2.5 py-2 font-semibold rounded-xl whitespace-nowrap transition-colors ${(search||filterPaid)?"bg-red-500 text-white border border-red-500":"text-red-400 border border-red-200 hover:bg-red-50"}`}>↺ 초기화</button>
+          <button onClick={()=>{setSearch("");setFilterPaid("");setFilterMonth("");setFilterAssigned("");}}
+            className={`text-xs px-2.5 py-2 font-semibold rounded-xl whitespace-nowrap transition-colors ${(search||filterPaid||filterMonth||filterAssigned)?"bg-red-500 text-white border border-red-500":"text-red-400 border border-red-200 hover:bg-red-50"}`}>↺ 초기화</button>
           <div className="flex items-center gap-1.5 ml-auto">
             <button onClick={downloadDataXLS} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 hover:bg-emerald-100"><FileSpreadsheet size={13}/>데이터다운(XLS)</button>
             <button onClick={downloadPaymentXLS} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100"><FileSpreadsheet size={13}/>지급정보(XLS)</button>
