@@ -287,6 +287,8 @@ export default function ContactDetailPage() {
               </div>
             ) : (
               <div>
+                <InfoRow label="고객명"><span className="text-sm font-bold text-slate-800">{contact.name||"-"}</span></InfoRow>
+                <InfoRow label="직급"><span className="text-sm text-slate-700">{contact.title||"-"}</span></InfoRow>
                 <InfoRow label="연락처"><div className="flex items-center gap-1.5"><Phone size={12} className="text-slate-400"/><span className="text-sm text-slate-700">{contact.phone||"-"}</span></div></InfoRow>
                 <InfoRow label="고객유형">{contact.customer_type ? <Badge value={contact.customer_type}/> : <span className="text-sm text-slate-300">-</span>}</InfoRow>
                 <InfoRow label="담당자"><span className="text-sm text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">{contact.assigned_to||"-"}</span></InfoRow>
@@ -345,22 +347,11 @@ export default function ContactDetailPage() {
             <h2 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
               📊 영업 정보
               <span className="text-[10px] font-normal text-blue-400 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                가망구분·관리구간 바로 수정 가능
+                관리구간 바로 수정 가능
               </span>
             </h2>
             {editing ? (
               <div className="space-y-3">
-                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">TM감도</label>
-                  <select className={inp} value={form.tm_sensitivity||""} onChange={e=>setForm({...form,tm_sensitivity:e.target.value})}>
-                    <option value="">선택</option>
-                    <option value="상">상</option>
-                    <option value="중">중</option>
-                    <option value="하">하</option>
-                  </select></div>
-                <div><label className="text-xs font-semibold text-slate-400 mb-1 block">가망구분</label>
-                  <select className={inp} value={form.prospect_type||""} onChange={e=>setForm({...form,prospect_type:e.target.value})}>
-                    <option value="">선택</option>{OPT.prospect_type.map(o=><option key={o}>{o}</option>)}
-                  </select></div>
                 <div><label className="text-xs font-semibold text-slate-400 mb-1 block">고객관리구간</label>
                   <select className={inp} value={form.management_stage||""} onChange={e=>setForm({...form,management_stage:e.target.value})}>
                     <option value="">선택</option>{OPT.management_stage.map(o=><option key={o}>{o}</option>)}
@@ -368,19 +359,6 @@ export default function ContactDetailPage() {
               </div>
             ) : (
               <div>
-                <InfoRow label="TM감도">
-                  <span className="text-sm text-slate-700">{contact.tm_sensitivity||"-"}</span>
-                </InfoRow>
-
-                {/* ── 가망구분: 인라인 즉시 수정 ── */}
-                <InfoRow label="가망구분">
-                  <InlineSelect
-                    value={contact.prospect_type}
-                    options={OPT.prospect_type}
-                    onSave={(val) => updateFieldInline("prospect_type", val)}
-                  />
-                </InfoRow>
-
                 {/* ── 고객관리구간: 인라인 즉시 수정 ── */}
                 <InfoRow label="고객관리구간">
                   <InlineSelect
