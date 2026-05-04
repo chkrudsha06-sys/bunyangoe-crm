@@ -537,10 +537,11 @@ export default function ContentManagePage() {
         )}
       </div>
 
-      {/* 회원 목록 */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      {/* 메인: 좌측 카드 목록 + 우측 상세 패널 */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* 좌측: 카드 목록 */}
+        <div className="overflow-y-auto pb-4" style={{ width: 420, flexShrink: 0, borderRight: "1px solid var(--border)" }}>
         {(() => {
-          // 필터 적용
           let filtered = members;
           if (cardFilter && cardFilter !== "all") {
             filtered = filtered.filter(m => {
@@ -563,280 +564,265 @@ export default function ContentManagePage() {
               `b-${(m.bunyanghoe_number || "").replace(/[^0-9]/g, "")}`.includes(q)
             );
           }
-          if (filterAssigned) {
-            filtered = filtered.filter(m => m.assigned_to === filterAssigned);
-          }
+          if (filterAssigned) filtered = filtered.filter(m => m.assigned_to === filterAssigned);
           if (filterStatus) {
             filtered = filtered.filter(m => {
               const s = getStatus(m.id);
               switch (filterStatus) {
-                case "photo": return s.photo_received;
-                case "photo_no": return !s.photo_received;
-                case "info": return s.info_received;
-                case "info_no": return !s.info_received;
-                case "tf2": return s.tf2_delivered;
-                case "tf2_no": return !s.tf2_delivered;
-                case "pr": return s.pr_completed;
-                case "pr_no": return !s.pr_completed;
+                case "photo": return s.photo_received; case "photo_no": return !s.photo_received;
+                case "info": return s.info_received; case "info_no": return !s.info_received;
+                case "tf2": return s.tf2_delivered; case "tf2_no": return !s.tf2_delivered;
+                case "pr": return s.pr_completed; case "pr_no": return !s.pr_completed;
                 default: return true;
               }
             });
           }
-          return (<>
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-20" style={{ color: "var(--text-muted)" }}>
-            <p className="text-sm">{members.length > 0 ? "검색 결과가 없습니다." : "입회자가 없습니다."}</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-xs py-2" style={{ color: "var(--text-muted)" }}>
-              {filtered.length === members.length ? `총 ${members.length}명` : `${filtered.length}명 / ${members.length}명`}
-            </p>
-            {filtered.map(m => {
-              const s = getStatus(m.id);
-              const isExpanded = expandedId === m.id;
-              return (
-                <div key={m.id} className="rounded-xl overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                  {/* 행 */}
-                  <div className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={() => expandMember(m.id)}>
-                    <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", minWidth: 48, textAlign: "center" }}>
-                      {m.bunyanghoe_number ? `B-${m.bunyanghoe_number.replace(/[^0-9]/g, "")}` : "-"}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{m.name}</span>
-                      <span className="text-xs ml-2" style={{ color: "var(--text-muted)" }}>{m.title || ""}</span>
-                      {m.assigned_to && (
-                        <span className="text-[11px] ml-2 px-1.5 py-0.5 rounded" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{m.assigned_to}</span>
-                      )}
+          return loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
+            </div>
+          ) : (
+            <div className="px-3 pt-2">
+              <p className="text-xs px-2 py-1.5" style={{ color: "var(--text-muted)" }}>
+                {filtered.length === members.length ? `총 ${members.length}명` : `${filtered.length}명 / ${members.length}명`}
+              </p>
+              <div className="space-y-1">
+                {filtered.map(m => {
+                  const s = getStatus(m.id);
+                  const isSelected = expandedId === m.id;
+                  return (
+                    <div key={m.id} className="flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors"
+                      onClick={() => expandMember(m.id)}
+                      style={{
+                        background: isSelected ? "rgba(59,130,246,0.08)" : "transparent",
+                        border: isSelected ? "1px solid rgba(59,130,246,0.2)" : "1px solid transparent",
+                      }}>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg flex-shrink-0" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", minWidth: 36, textAlign: "center" }}>
+                        {m.bunyanghoe_number ? `B-${m.bunyanghoe_number.replace(/[^0-9]/g, "")}` : "-"}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[13px] font-bold truncate" style={{ color: "var(--text)" }}>{m.name}</span>
+                          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{m.title || ""}</span>
+                        </div>
+                        {m.assigned_to && <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
+                      </div>
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                        <StatusBadge done={s.photo_received} label="사진" />
+                        <StatusBadge done={s.info_received} label="정보" />
+                        <StatusBadge done={s.tf2_delivered} label="TF2" />
+                        <StatusBadge done={s.pr_completed} label="PR" />
+                        {s.production_impossible && <span className="text-[9px] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>불가</span>}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <StatusBadge done={s.photo_received} label="사진" />
-                      <StatusBadge done={s.info_received} label="정보" />
-                      <StatusBadge done={s.tf2_delivered} label="TF2" />
-                      <StatusBadge done={s.pr_completed} label="PR" />
-                      {s.production_impossible && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>제작불가</span>}
-                    </div>
-                    {isExpanded ? <ChevronUp size={16} style={{ color: "var(--text-muted)" }} /> : <ChevronDown size={16} style={{ color: "var(--text-muted)" }} />}
-                  </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+        </div>
 
-                  {/* 상세 패널 */}
-                  {isExpanded && (
-                    <div className="px-4 pb-4 space-y-4" style={{ borderTop: "1px solid var(--border)" }}>
-                      {/* 체크박스 행 */}
-                      <div className="flex items-center gap-4 pt-3 flex-wrap">
-                        {[
-                          { field: "photo_received", label: "사진 수취", icon: Camera },
-                          { field: "info_received", label: "기본정보 수취", icon: FileText },
-                          { field: "tf2_delivered", label: "TF2팀 전달", icon: Send },
-                          { field: "pr_completed", label: "PR패키지 완료", icon: CheckCircle },
-                          { field: "production_impossible", label: "제작불가", icon: X },
-                        ].map(item => (
-                          <label key={item.field} className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: "var(--text)" }}>
-                            <input type="checkbox" checked={(s as any)[item.field] || false}
-                              onChange={() => toggleCheckbox(m.id, item.field)}
-                              className="w-4 h-4 rounded accent-blue-500" />
-                            <item.icon size={13} style={{ color: (s as any)[item.field] ? (item.field === "production_impossible" ? "#ef4444" : "#10b981") : "var(--text-muted)" }} />
-                            {item.label}
-                          </label>
+        {/* 우측: 상세 패널 */}
+        <div className="flex-1 overflow-y-auto">
+          {(() => {
+            const selectedMember = members.find(m => m.id === expandedId);
+            if (!selectedMember) return (
+              <div className="flex items-center justify-center h-full" style={{ color: "var(--text-subtle)" }}>
+                <div className="text-center">
+                  <p className="text-2xl mb-2">👈</p>
+                  <p className="text-sm">좌측에서 회원을 선택해주세요</p>
+                </div>
+              </div>
+            );
+            const m = selectedMember;
+            const s = getStatus(m.id);
+            return (
+              <div className="p-5 space-y-4">
+                {/* 헤더 */}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold px-2.5 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>
+                    {m.bunyanghoe_number ? `B-${m.bunyanghoe_number.replace(/[^0-9]/g, "")}` : "-"}
+                  </span>
+                  <div>
+                    <span className="text-lg font-bold" style={{ color: "var(--text)" }}>{m.name}</span>
+                    <span className="text-sm ml-2" style={{ color: "var(--text-muted)" }}>{m.title || ""}</span>
+                  </div>
+                  {m.assigned_to && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{m.assigned_to}</span>}
+                </div>
+
+                {/* 체크박스 */}
+                <div className="flex items-center gap-4 flex-wrap rounded-xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                  {[
+                    { field: "photo_received", label: "사진 수취", icon: Camera },
+                    { field: "info_received", label: "기본정보 수취", icon: FileText },
+                    { field: "tf2_delivered", label: "TF2팀 전달", icon: Send },
+                    { field: "pr_completed", label: "PR패키지 완료", icon: CheckCircle },
+                    { field: "production_impossible", label: "제작불가", icon: X },
+                  ].map(item => (
+                    <label key={item.field} className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: "var(--text)" }}>
+                      <input type="checkbox" checked={(s as any)[item.field] || false}
+                        onChange={() => toggleCheckbox(m.id, item.field)}
+                        className="w-4 h-4 rounded accent-blue-500" />
+                      <item.icon size={13} style={{ color: (s as any)[item.field] ? (item.field === "production_impossible" ? "#ef4444" : "#10b981") : "var(--text-muted)" }} />
+                      {item.label}
+                    </label>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* 파일 관리 */}
+                  <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                    <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}>
+                      <Camera size={14} /> 파일 관리
+                      <span className="text-[11px] font-normal" style={{ color: "var(--text-muted)" }}>
+                        {!loadedFiles.has(m.id) && s.photo_received ? "(로딩 중...)" : `(${s.files.length}개)`}
+                      </span>
+                    </h4>
+                    {s.files.length > 0 && (
+                      <div className="space-y-1.5 mb-3">
+                        {s.files.map((file, fi) => (
+                          <div key={fi} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                            {file.url.startsWith("data:image") ? (
+                              <img src={file.url} alt="" className="w-8 h-8 object-cover rounded" />
+                            ) : (
+                              <FileText size={16} style={{ color: "#3b82f6", flexShrink: 0 }} />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold truncate" style={{ color: "var(--text)" }}>{file.name}</p>
+                              <p className="text-[10px]" style={{ color: "var(--text-subtle)" }}>{fmtSize(file.size)}</p>
+                            </div>
+                            <button onClick={() => downloadFile(file)} className="px-2 py-1 rounded-lg text-[10px] font-semibold"
+                              style={{ color: "#3b82f6", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>저장</button>
+                            <button onClick={() => deleteFile(m.id, fi, file.name)} className="px-2 py-1 rounded-lg text-[10px] font-semibold"
+                              style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>삭제</button>
+                          </div>
                         ))}
                       </div>
+                    )}
+                    <div
+                      onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#3b82f6"; }}
+                      onDragLeave={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; }}
+                      onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; if (e.dataTransfer.files.length > 0) handleFileUpload(m.id, e.dataTransfer.files); }}
+                      onClick={() => { setUploadTarget(m.id); fileRef.current?.click(); }}
+                      className="w-full py-6 rounded-xl text-sm font-semibold flex flex-col items-center gap-2 cursor-pointer"
+                      style={{ border: "2px dashed var(--border)", color: "var(--text-muted)" }}>
+                      {uploading === m.id ? (
+                        <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
+                      ) : (<><Upload size={18} /><span className="text-xs">클릭 또는 드래그하여 업로드</span></>)}
+                    </div>
+                  </div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* 사진 업로드 */}
-                        <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                          <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}>
-                            <Camera size={14} /> 파일 관리 
-                            <span className="text-[11px] font-normal" style={{ color: "var(--text-muted)" }}>
-                              {!loadedFiles.has(m.id) && s.photo_received ? "(로딩 중...)" : `(${s.files.length}개)`}
-                            </span>
-                          </h4>
-
-                          {/* 업로드된 파일 목록 */}
-                          {s.files.length > 0 && (
-                            <div className="space-y-1.5 mb-3">
-                              {s.files.map((file, fi) => (
-                                <div key={fi} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                                  {file.url.startsWith("data:image") ? (
-                                    <img src={file.url} alt="" className="w-8 h-8 object-cover rounded" />
-                                  ) : (
-                                    <FileText size={16} style={{ color: "#3b82f6", flexShrink: 0 }} />
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-semibold truncate" style={{ color: "var(--text)" }}>{file.name}</p>
-                                    <p className="text-[10px]" style={{ color: "var(--text-subtle)" }}>{fmtSize(file.size)}</p>
-                                  </div>
-                                  <button onClick={e => { e.stopPropagation(); e.preventDefault(); downloadFile(file); }} title="다운로드"
-                                    className="px-2 py-1 rounded-lg transition-colors flex-shrink-0 text-[10px] font-semibold"
-                                    style={{ color: "#3b82f6", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
-                                    저장
-                                  </button>
-                                  <button onClick={e => { e.stopPropagation(); e.preventDefault(); deleteFile(m.id, fi, file.name); }} title="삭제"
-                                    className="px-2 py-1 rounded-lg transition-colors flex-shrink-0 text-[10px] font-semibold"
-                                    style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
-                                    삭제
-                                  </button>
+                  {/* 기본정보 / 제작불가 */}
+                  <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                    {s.production_impossible ? (
+                      <>
+                        <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "#ef4444" }}><X size={14} /> 제작불가 사유</h4>
+                        <textarea value={s.impossible_reason || ""} onChange={e => updateField(m.id, "impossible_reason", e.target.value)}
+                          placeholder="제작불가 사유를 작성해주세요..." rows={6}
+                          className="w-full rounded-xl outline-none focus:ring-1 focus:ring-red-400 resize-none text-sm p-4"
+                          style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                        <button onClick={async () => {
+                          setSaving(m.id);
+                          const payload = { contact_id: m.id, impossible_reason: s.impossible_reason || "", production_impossible: true, updated_at: new Date().toISOString() };
+                          if (s.id) { await supabase.from("content_statuses").update(payload).eq("id", s.id); }
+                          else { const { data } = await supabase.from("content_statuses").insert(payload).select().single(); if (data) updateField(m.id, "id", data.id); }
+                          setSaving(null); showToast("불가사유 저장 완료");
+                        }} disabled={saving === m.id}
+                          className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-red-500 rounded-xl hover:bg-red-600 disabled:opacity-50 mt-3">
+                          <Save size={14} />{saving === m.id ? "저장 중..." : "불가사유 저장"}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}><FileText size={14} /> PR패키지 기본정보</h4>
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                          <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                            <h5 className="text-xs font-bold mb-3 pb-2" style={{ color: "#3b82f6", borderBottom: "1px solid var(--border)" }}>📋 고객기본정보</h5>
+                            <div className="space-y-2">
+                              {[
+                                { key: "pr_name", label: "성명", placeholder: m.name },
+                                { key: "pr_title_position", label: "직함", placeholder: "본부장" },
+                                { key: "pr_gender", label: "성별", placeholder: "남 / 여" },
+                                { key: "pr_birth_date", label: "생년월일", placeholder: "88.11.26" },
+                                { key: "pr_height", label: "키 (대략적)", placeholder: "175cm" },
+                                { key: "pr_body_type", label: "체형 (대략적)", placeholder: "근육질" },
+                                { key: "pr_activity_region", label: "활동지역", placeholder: "경기 수도권" },
+                                { key: "pr_company", label: "소속회사명", placeholder: "마켓리더" },
+                                { key: "pr_years", label: "연차", placeholder: "7년차" },
+                              ].map(f => (
+                                <div key={f.key}>
+                                  <label className={lbl} style={{ color: "var(--text-muted)" }}>{f.label}</label>
+                                  <input className={inp} value={(s as any)[f.key] || ""}
+                                    onChange={e => updateField(m.id, f.key, e.target.value)}
+                                    placeholder={f.placeholder}
+                                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
                                 </div>
                               ))}
-                            </div>
-                          )}
-
-                          {/* 업로드 영역 (드래그앤드롭 + 클릭) */}
-                          <div
-                            onDragOver={e => { e.preventDefault(); e.stopPropagation(); e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.background = "rgba(59,130,246,0.05)"; }}
-                            onDragLeave={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "transparent"; }}
-                            onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "transparent"; if (e.dataTransfer.files.length > 0) handleFileUpload(m.id, e.dataTransfer.files); }}
-                            onClick={() => { setUploadTarget(m.id); fileRef.current?.click(); }}
-                            className="w-full py-6 rounded-xl text-sm font-semibold flex flex-col items-center gap-2 transition-all cursor-pointer"
-                            style={{ border: "2px dashed var(--border)", color: "var(--text-muted)", background: "transparent" }}>
-                            {uploading === m.id ? (
-                              <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
-                            ) : (
-                              <>
-                                <Upload size={18} />
-                                <span className="text-xs">클릭 또는 파일을 드래그하여 업로드</span>
-                                <span className="text-[10px]" style={{ color: "var(--text-subtle)" }}>여러 파일 동시 업로드 가능</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* 기본정보 또는 불가사유 */}
-                        <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                          {s.production_impossible ? (
-                            <>
-                              <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "#ef4444" }}>
-                                <X size={14} /> 제작불가 사유
-                              </h4>
-                              <textarea value={s.impossible_reason || ""}
-                                onChange={e => updateField(m.id, "impossible_reason", e.target.value)}
-                                placeholder="제작불가 사유를 작성해주세요..."
-                                className="w-full rounded-xl outline-none focus:ring-1 focus:ring-red-400 resize-none text-sm leading-relaxed"
-                                style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)", padding: 16, minHeight: 200 }} />
-                              <button onClick={async () => {
-                                setSaving(m.id);
-                                const payload = { contact_id: m.id, impossible_reason: s.impossible_reason || "", production_impossible: true, updated_at: new Date().toISOString() };
-                                if (s.id) { await supabase.from("content_statuses").update(payload).eq("id", s.id); }
-                                else { const { data } = await supabase.from("content_statuses").insert(payload).select().single(); if (data) updateField(m.id, "id", data.id); }
-                                setSaving(null);
-                                showToast("불가사유 저장 완료");
-                              }} disabled={saving === m.id}
-                                className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-red-500 rounded-xl hover:bg-red-600 disabled:opacity-50 mt-3">
-                                <Save size={14} />
-                                {saving === m.id ? "저장 중..." : "불가사유 저장"}
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: "var(--text)" }}>
-                                <FileText size={14} /> PR패키지 기본정보
-                              </h4>
-                              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                                {/* 좌측: 고객기본정보 */}
-                                <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                                  <h5 className="text-xs font-bold mb-3 pb-2" style={{ color: "#3b82f6", borderBottom: "1px solid var(--border)" }}>📋 고객기본정보</h5>
-                                  <div className="space-y-2">
-                                    {[
-                                      { key: "pr_name", label: "성명", placeholder: m.name },
-                                      { key: "pr_title_position", label: "직함", placeholder: "본부장" },
-                                      { key: "pr_gender", label: "성별", placeholder: "남 / 여" },
-                                      { key: "pr_birth_date", label: "생년월일", placeholder: "88.11.26" },
-                                      { key: "pr_height", label: "키 (대략적)", placeholder: "175cm" },
-                                      { key: "pr_body_type", label: "체형 (대략적)", placeholder: "근육질" },
-                                      { key: "pr_activity_region", label: "활동지역", placeholder: "경기 수도권" },
-                                      { key: "pr_company", label: "소속회사명", placeholder: "마켓리더" },
-                                      { key: "pr_years", label: "연차", placeholder: "7년차" },
-                                    ].map(f => (
-                                      <div key={f.key}>
-                                        <label className={lbl} style={{ color: "var(--text-muted)" }}>{f.label}</label>
-                                        <input className={inp} value={(s as any)[f.key] || ""}
-                                          onChange={e => updateField(m.id, f.key, e.target.value)}
-                                          placeholder={f.placeholder}
-                                          style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                                      </div>
-                                    ))}
-                                    {/* 대표현장이력 (5칸) */}
-                                    <div>
-                                      <label className={lbl} style={{ color: "var(--text-muted)" }}>대표현장이력</label>
-                                      <div className="space-y-1.5">
-                                        {[1,2,3,4,5].map(n => (
-                                          <input key={n} className={inp} value={(s as any)[`pr_site_history_${n}`] || ""}
-                                            onChange={e => updateField(m.id, `pr_site_history_${n}`, e.target.value)}
-                                            placeholder={n === 1 ? "안동코오롱하늘채" : n === 2 ? "사천삼정그린코아" : n === 3 ? "대구만촌자이르네" : `현장이력 ${n}`}
-                                            style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                                        ))}
-                                      </div>
-                                    </div>
-                                    {/* 한줄소개 */}
-                                    <div>
-                                      <label className={lbl} style={{ color: "var(--text-muted)" }}>한줄소개</label>
-                                      <input className={inp} value={(s as any).pr_intro || ""}
-                                        onChange={e => updateField(m.id, "pr_intro", e.target.value)}
-                                        placeholder="다름을 만드는 경험, 결과로 답하는 리더"
-                                        style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* 우측: 영상카피 기본정보 */}
-                                <div className="space-y-4">
-                                  {/* ①영상카피 기본정보 */}
-                                  <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                                    <h5 className="text-xs font-bold mb-3 pb-2" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ①영상카피 기본정보</h5>
-                                    <div>
-                                      <label className={lbl} style={{ color: "var(--text-muted)" }}>문구기재</label>
-                                      <input className={inp} value={(s as any).pr_video_copy_1 || ""}
-                                        onChange={e => updateField(m.id, "pr_video_copy_1", e.target.value)}
-                                        placeholder="성과로 말하는 현장전문가"
-                                        style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                                    </div>
-                                  </div>
-
-                                  {/* ②영상카피 기본정보 */}
-                                  <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                                    <h5 className="text-xs font-bold mb-3 pb-2" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ②영상카피 기본정보</h5>
-                                    <div className="space-y-2">
-                                      <div>
-                                        <label className={lbl} style={{ color: "var(--text-muted)" }}>핵심성과수치</label>
-                                        <input className={inp} value={(s as any).pr_video_performance || ""}
-                                          onChange={e => updateField(m.id, "pr_video_performance", e.target.value)}
-                                          placeholder="누적 계약180%, 완판현장4개"
-                                          style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                                      </div>
-                                      <div>
-                                        <label className={lbl} style={{ color: "var(--text-muted)" }}>한 줄 소구카피</label>
-                                        <input className={inp} value={(s as any).pr_video_copy_2 || ""}
-                                          onChange={e => updateField(m.id, "pr_video_copy_2", e.target.value)}
-                                          placeholder="신뢰를 성과로 완성하는 본부장"
-                                          style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                                      </div>
-                                    </div>
-                                  </div>
+                              <div>
+                                <label className={lbl} style={{ color: "var(--text-muted)" }}>대표현장이력</label>
+                                <div className="space-y-1.5">
+                                  {[1,2,3,4,5].map(n => (
+                                    <input key={n} className={inp} value={(s as any)[`pr_site_history_${n}`] || ""}
+                                      onChange={e => updateField(m.id, `pr_site_history_${n}`, e.target.value)}
+                                      placeholder={n === 1 ? "안동코오롱하늘채" : n === 2 ? "사천삼정그린코아" : n === 3 ? "대구만촌자이르네" : `현장이력 ${n}`}
+                                      style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                                  ))}
                                 </div>
                               </div>
-
-                              {/* 저장 버튼 */}
-                              <button onClick={() => saveInfo(m.id)} disabled={saving === m.id}
-                                className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 mt-4">
-                                <Save size={14} />
-                                {saving === m.id ? "저장 중..." : "기본정보 저장"}
-                              </button>
-                            </>
-                          )}
+                              <div>
+                                <label className={lbl} style={{ color: "var(--text-muted)" }}>한줄소개</label>
+                                <input className={inp} value={(s as any).pr_intro || ""}
+                                  onChange={e => updateField(m.id, "pr_intro", e.target.value)}
+                                  placeholder="다름을 만드는 경험, 결과로 답하는 리더"
+                                  style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-4">
+                            <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                              <h5 className="text-xs font-bold mb-3 pb-2" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ①영상카피 기본정보</h5>
+                              <div>
+                                <label className={lbl} style={{ color: "var(--text-muted)" }}>문구기재</label>
+                                <input className={inp} value={(s as any).pr_video_copy_1 || ""}
+                                  onChange={e => updateField(m.id, "pr_video_copy_1", e.target.value)}
+                                  placeholder="성과로 말하는 현장전문가"
+                                  style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                              </div>
+                            </div>
+                            <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                              <h5 className="text-xs font-bold mb-3 pb-2" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>🎬 ②영상카피 기본정보</h5>
+                              <div className="space-y-2">
+                                <div>
+                                  <label className={lbl} style={{ color: "var(--text-muted)" }}>핵심성과수치</label>
+                                  <input className={inp} value={(s as any).pr_video_performance || ""}
+                                    onChange={e => updateField(m.id, "pr_video_performance", e.target.value)}
+                                    placeholder="누적 계약180%, 완판현장4개"
+                                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                                </div>
+                                <div>
+                                  <label className={lbl} style={{ color: "var(--text-muted)" }}>한 줄 소구카피</label>
+                                  <input className={inp} value={(s as any).pr_video_copy_2 || ""}
+                                    onChange={e => updateField(m.id, "pr_video_copy_2", e.target.value)}
+                                    placeholder="신뢰를 성과로 완성하는 본부장"
+                                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
+                        <button onClick={() => saveInfo(m.id)} disabled={saving === m.id}
+                          className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 mt-4">
+                          <Save size={14} />{saving === m.id ? "저장 중..." : "기본정보 저장"}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-        </>);
-        })()}
+              </div>
+            );
+          })()}
+        </div>
       </div>
 
       {/* 숨겨진 파일 입력 */}
