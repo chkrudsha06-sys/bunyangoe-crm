@@ -137,13 +137,29 @@ export default function IncentivesPage() {
   const [opsData, setOpsData] = useState<any[]>([]);
   const [mgrData, setMgrData] = useState<any>(null);
   const [filter, setFilter] = useState("전체");
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`;
+  });
 
-  useEffect(() => { loadData(); }, []);
-
-  const loadData = async () => {
-    setLoading(true);
+  // 월 옵션 생성 (2026-02 ~ 현재 월)
+  const monthOptions = (() => {
+    const opts: string[] = [];
+    const start = new Date(2026, 1, 1); // 2026-02
     const now = new Date();
-    const y = now.getFullYear(), m = now.getMonth()+1;
+    let cur = new Date(start);
+    while (cur <= now) {
+      opts.push(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,"0")}`);
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    return opts.reverse();
+  })();
+
+  useEffect(() => { loadData(selectedMonth); }, [selectedMonth]);
+
+  const loadData = async (month: string) => {
+    setLoading(true);
+    const [yStr, mStr] = month.split("-");
+    const y = parseInt(yStr), m = parseInt(mStr);
     const ms = String(m).padStart(2,"0");
     const ld = new Date(y, m, 0).getDate();
     const mS = `${y}-${ms}-01`, mE = `${y}-${ms}-${String(ld).padStart(2,"0")}`;
@@ -214,8 +230,8 @@ export default function IncentivesPage() {
   const isMgr = filter === "최웅";
   const showAll = filter === "전체";
 
-  const now = new Date();
-  const monthLabel = `${now.getFullYear()}년 ${now.getMonth()+1}월`;
+  const [yy, mm] = selectedMonth.split("-");
+  const monthLabel = `${yy}년 ${parseInt(mm)}월`;
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9]">
@@ -225,7 +241,11 @@ export default function IncentivesPage() {
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">🏅 인센티브 관리</h1>
             <p className="text-xs text-slate-500 mt-0.5">대외협력팀 매출 인센티브 · {monthLabel} 기준 · 적용기간: 26.02.01 ~ 26.06.30</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}
+              className="px-3 py-2 text-sm font-semibold border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-blue-400 cursor-pointer">
+              {monthOptions.map(m=><option key={m} value={m}>{m.replace("-","년 ")}월</option>)}
+            </select>
             <select value={filter} onChange={e=>setFilter(e.target.value)}
               className="px-3 py-2 text-sm font-semibold border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-blue-400 cursor-pointer">
               {ALL_MEMBERS.map(m=>(
