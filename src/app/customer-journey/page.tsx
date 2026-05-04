@@ -49,7 +49,7 @@ const SURNAME_COLORS: Record<string,string> = {
   "서":"#ef4444","신":"#65a30d","권":"#d946ef","황":"#ca8a04","안":"#2563eb","송":"#16a34a",
   "류":"#4f46e5","전":"#e11d48","홍":"#dc2626","고":"#0891b2","문":"#7c3aed","양":"#d97706",
   "손":"#059669","배":"#0284c7","백":"#64748b","허":"#db2777","남":"#0d9488","유":"#ea580c",
-  "민":"#7c3aed","곽":"#0891b2","한":"#0ea5e9",
+  "민":"#7c3aed","곽":"#0891b2",
 };
 function getAvatarColor(name: string) {
   if (name && SURNAME_COLORS[name[0]]) return SURNAME_COLORS[name[0]];
