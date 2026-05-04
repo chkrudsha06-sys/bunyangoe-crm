@@ -788,13 +788,19 @@ export default function ContentManagePage() {
                         </div>
                       </div>
                       <details className="text-xs"><summary className="cursor-pointer font-semibold" style={{ color: "#3b82f6" }}>주소 편집</summary>
-                        <div className="mt-2 space-y-1.5">
-                          <input className="w-full px-2.5 py-1.5 text-xs rounded-lg outline-none" value={s.pr_output_server || ""}
-                            onChange={e => updateField(m.id, "pr_output_server", e.target.value)} placeholder="\\\\server\\path"
-                            style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                          <input className="w-full px-2.5 py-1.5 text-xs rounded-lg outline-none" value={s.pr_output_url || ""}
-                            onChange={e => updateField(m.id, "pr_output_url", e.target.value)} placeholder="https://drive.google.com/..."
-                            style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                        <div className="mt-2 space-y-2">
+                          <div>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--text-muted)" }}>서버/컴퓨터 경로</label>
+                            <input className="w-full px-2.5 py-1.5 text-xs rounded-lg outline-none" value={s.pr_output_server || ""}
+                              onChange={e => updateField(m.id, "pr_output_server", e.target.value)} placeholder="\\\\server\\path\\folder"
+                              style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--text-muted)" }}>URL 주소</label>
+                            <input className="w-full px-2.5 py-1.5 text-xs rounded-lg outline-none" value={s.pr_output_url || ""}
+                              onChange={e => updateField(m.id, "pr_output_url", e.target.value)} placeholder="https://drive.google.com/..."
+                              style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                          </div>
                         </div>
                       </details>
                     </div>
