@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Search, RefreshCw, TrendingUp } from "lucide-react";
+import { Search, RefreshCw, TrendingUp, Download } from "lucide-react";
 
 interface SalesRow {
   월: string; 주차: string; 매출예정: string; 구분: string; 고객경로: string;
@@ -76,6 +76,89 @@ export default function SalesPipelinePage() {
     setSyncing(false);
   };
 
+  const handleDownload = async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("영업부 매전방");
+
+    const headers = ["담당자","월","주차","매출예정 (현장명)","구분","고객경로","추가경로","고객명","결제유형","금액","확률","입금","컨설턴트 특이사항"];
+    const headerRow = ws.addRow(headers);
+
+    // 헤더 스타일
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true, size: 10, name: "맑은 고딕", color: { argb: "FFFFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF3B82F6" } };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFD1D5DB" } },
+        bottom: { style: "thin", color: { argb: "FFD1D5DB" } },
+        left: { style: "thin", color: { argb: "FFD1D5DB" } },
+        right: { style: "thin", color: { argb: "FFD1D5DB" } },
+      };
+    });
+    headerRow.height = 28;
+
+    // 데이터
+    const border = {
+      top: { style: "thin" as const, color: { argb: "FFE5E7EB" } },
+      bottom: { style: "thin" as const, color: { argb: "FFE5E7EB" } },
+      left: { style: "thin" as const, color: { argb: "FFE5E7EB" } },
+      right: { style: "thin" as const, color: { argb: "FFE5E7EB" } },
+    };
+
+    const 입금Colors: Record<string, string> = { "확정": "FF3B82F6", "매출": "FF10B981", "완료": "FFEF4444", "예정": "FF60A5FA", "시도": "FFF59E0B", "이월": "FFEC4899", "실패": "FF8B5CF6" };
+    const 구분Colors: Record<string, string> = { "B2B": "FF8B5CF6", "B2C": "FFEF4444" };
+    const 확률Colors: Record<string, string> = { "100%": "FF059669", "80%": "FF3B82F6", "50%": "FFF59E0B", "25%": "FFEF4444" };
+
+    filtered.forEach((r, i) => {
+      const row = ws.addRow([
+        r.consultant, r.월, r.주차, r.매출예정, r.구분, r.고객경로,
+        r.추가경로, r.고객명, r.결제유형,
+        r.금액 != null ? r.금액 : "",
+        r.확률, r.입금, r.컨설턴트특이사항,
+      ]);
+      const bgColor = i % 2 === 0 ? "FFFFFFFF" : "FFF9FAFB";
+      row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+        cell.font = { size: 9, name: "맑은 고딕" };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bgColor } };
+        cell.border = border;
+        cell.alignment = { vertical: "middle", wrapText: colNum === 13 };
+
+        // 담당자 보라색
+        if (colNum === 1) { cell.font = { ...cell.font, bold: true, color: { argb: "FF8B5CF6" } }; }
+        // 구분 색상
+        if (colNum === 5 && r.구분 && 구분Colors[r.구분]) { cell.font = { ...cell.font, bold: true, color: { argb: 구분Colors[r.구분] } }; }
+        // 금액 오른쪽 정렬 + 천단위
+        if (colNum === 10) {
+          cell.alignment = { ...cell.alignment, horizontal: "right" };
+          cell.numFmt = "#,##0";
+          if (typeof r.금액 === "number" && r.금액 < 0) cell.font = { ...cell.font, color: { argb: "FFEF4444" } };
+        }
+        // 확률 색상
+        if (colNum === 11 && r.확률 && 확률Colors[r.확률]) { cell.font = { ...cell.font, bold: true, color: { argb: 확률Colors[r.확률] } }; }
+        // 입금 색상
+        if (colNum === 12 && r.입금 && 입금Colors[r.입금]) { cell.font = { ...cell.font, bold: true, color: { argb: 입금Colors[r.입금] } }; }
+      });
+    });
+
+    // 열 너비
+    ws.columns = [
+      { width: 10 }, { width: 10 }, { width: 8 }, { width: 32 }, { width: 6 },
+      { width: 12 }, { width: 14 }, { width: 14 }, { width: 8 }, { width: 14 },
+      { width: 7 }, { width: 7 }, { width: 40 },
+    ];
+
+    // 다운로드
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `영업부_매전방_${new Date().toISOString().split("T")[0]}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // 전체 행 + 담당자 라벨 포함
   const allRows = useMemo(() => {
     const rows: (SalesRow & { consultant: string })[] = [];
@@ -129,6 +212,11 @@ export default function SalesPipelinePage() {
               {updatedAt && <span className="ml-2" style={{ color: "var(--text-subtle)" }}>동기화: {new Date(updatedAt).toLocaleString("ko-KR")}</span>}
             </p>
           </div>
+          <button onClick={handleDownload} disabled={filtered.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg"
+            style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "#10b981" }}>
+            <Download size={13} /> 엑셀 다운로드
+          </button>
           <button onClick={fetchData} disabled={loading}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg"
             style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "#3b82f6" }}>
