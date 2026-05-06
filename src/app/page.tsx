@@ -714,96 +714,142 @@ function CustomerJourneyBoard({ user }: { user: CRMUser | null }) {
   );
 }
 
-// ── 공지사항 보드 ────────────────────────────────────────────
-function NoticeBoard({ user }: { user: CRMUser | null }) {
-  const [items, setItems]       = useState<any[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm]         = useState({ title:"", content:"", is_pinned:false });
-  const [saving, setSaving]     = useState(false);
-  const isAdmin = user?.role === "admin" || user?.role === "ops";
+// ── 활동량체크 보드 ────────────────────────────────────────────
+function ActivityCheckBoard({ user }: { user: CRMUser | null }) {
+  const today = new Date().toISOString().split("T")[0];
+  const [form, setForm] = useState({ sales_tm: 0, customer_tm: 0, cold_talk: 0 });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [monthData, setMonthData] = useState<Record<string, { sales_tm: number; customer_tm: number; cold_talk: number }>>({});
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
 
-  useEffect(() => { fetchItems(); }, []);
-  const fetchItems = async () => {
-    const { data } = await supabase.from("notices")
-      .select("*").order("is_pinned",{ascending:false}).order("created_at",{ascending:false}).limit(10);
-    setItems(data||[]);
+  useEffect(() => { if (user?.name) { loadToday(); loadMonth(); } }, [user, calMonth, calYear]);
+
+  const loadToday = async () => {
+    const { data } = await supabase.from("daily_activities")
+      .select("*").eq("user_name", user!.name).eq("activity_date", today).single();
+    if (data) { setForm({ sales_tm: data.sales_tm || 0, customer_tm: data.customer_tm || 0, cold_talk: data.cold_talk || 0 }); setSaved(true); }
   };
-  const handleSubmit = async () => {
-    if (!form.title) return alert("제목을 입력하세요.");
+
+  const loadMonth = async () => {
+    const startDate = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-01`;
+    const lastDay = new Date(calYear, calMonth + 1, 0).getDate();
+    const endDate = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    const { data } = await supabase.from("daily_activities")
+      .select("activity_date,sales_tm,customer_tm,cold_talk")
+      .eq("user_name", user!.name)
+      .gte("activity_date", startDate).lte("activity_date", endDate);
+    const map: Record<string, any> = {};
+    (data || []).forEach(d => { map[d.activity_date] = { sales_tm: d.sales_tm, customer_tm: d.customer_tm, cold_talk: d.cold_talk }; });
+    setMonthData(map);
+  };
+
+  const handleSave = async () => {
+    if (!user?.name) return;
     setSaving(true);
-    await supabase.from("notices").insert({
-      title: form.title, content: form.content||null,
-      author: user?.name||"", is_pinned: form.is_pinned,
-    });
-    setSaving(false); setShowForm(false);
-    setForm({title:"",content:"",is_pinned:false});
-    fetchItems();
+    const payload = { user_name: user.name, activity_date: today, ...form };
+    const { data: existing } = await supabase.from("daily_activities")
+      .select("id").eq("user_name", user.name).eq("activity_date", today).single();
+    if (existing) { await supabase.from("daily_activities").update(form).eq("id", existing.id); }
+    else { await supabase.from("daily_activities").insert(payload); }
+    setSaving(false); setSaved(true); loadMonth();
   };
-  const deleteItem = async (id:number) => {
-    if (!confirm("삭제하시겠습니까?")) return;
-    await supabase.from("notices").delete().eq("id",id);
-    fetchItems();
+
+  // 미니 캘린더 렌더링
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const firstDow = new Date(calYear, calMonth, 1).getDay();
+  const weeks: (number | null)[][] = [];
+  let week: (number | null)[] = Array(firstDow).fill(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    week.push(d);
+    if (week.length === 7) { weeks.push(week); week = []; }
+  }
+  if (week.length > 0) { while (week.length < 7) week.push(null); weeks.push(week); }
+
+  const getActivity = (day: number) => {
+    const key = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return monthData[key] || null;
   };
+  const getTotal = (a: any) => (a?.sales_tm || 0) + (a?.customer_tm || 0) + (a?.cold_talk || 0);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{minHeight:"200px"}}>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-bold text-slate-700">공지사항</h3>
-        {isAdmin && (
-          <button onClick={()=>setShowForm(v=>!v)}
-            className="text-xs px-3 py-1.5 bg-[#1E3A8A] text-white rounded-lg hover:bg-blue-800 font-semibold">
-            + 공지 작성
-          </button>
-        )}
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{ minHeight: "200px" }}>
+      <div className="mb-1">
+        <h3 className="text-base font-bold text-slate-700">📊 활동량체크</h3>
+        <p className="text-[10px] text-slate-400 mt-0.5">영업일 기준 매일 16:00 이후에 기록해주세요</p>
       </div>
-      {showForm && (
-        <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-          <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))}
-            placeholder="공지 제목" className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"/>
-          <textarea value={form.content} onChange={e=>setForm(p=>({...p,content:e.target.value}))}
-            placeholder="공지 내용" rows={2}
-            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 resize-none"/>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-              <input type="checkbox" checked={form.is_pinned} onChange={e=>setForm(p=>({...p,is_pinned:e.target.checked}))}
-                className="w-3.5 h-3.5"/>
-              📌 고정
-            </label>
-            <div className="flex gap-2 ml-auto">
-              <button onClick={handleSubmit} disabled={saving}
-                className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-bold disabled:opacity-50">
-                {saving?"저장중...":"등록"}
-              </button>
-              <button onClick={()=>setShowForm(false)}
-                className="px-3 py-2 text-sm text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50">취소</button>
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="space-y-2 max-h-64 overflow-y-auto">
-        {items.length === 0
-          ? <p className="text-center py-8 text-slate-300 text-sm">등록된 공지가 없습니다</p>
-          : items.map(item=>(
-            <div key={item.id} className={`px-3 py-2.5 rounded-xl border ${item.is_pinned?"bg-amber-50 border-amber-200":"bg-slate-50 border-slate-100"}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    {item.is_pinned && <span className="text-[10px]">📌</span>}
-                    <p className="text-sm font-semibold text-slate-800 truncate">{item.title}</p>
-                  </div>
-                  {item.content && <p className="text-xs text-slate-400 truncate">{item.content}</p>}
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] text-slate-400">{item.author}</span>
-                    <span className="text-[10px] text-slate-300">{new Date(item.created_at).toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})}</span>
-                  </div>
-                </div>
-                {isAdmin && (
-                  <button onClick={()=>deleteItem(item.id)}
-                    className="text-[10px] px-1.5 py-1 bg-red-50 text-red-400 rounded border border-red-200 hover:bg-red-100 flex-shrink-0">삭제</button>
-                )}
+
+      <div className="flex gap-4 flex-1 mt-2">
+        {/* 좌: 입력 */}
+        <div className="flex-1 space-y-2">
+          {[
+            { key: "sales_tm", label: "당일 영업TM수", color: "#3b82f6" },
+            { key: "customer_tm", label: "당일 고객관리TM수", color: "#8b5cf6" },
+            { key: "cold_talk", label: "당일 콜드톡 발송건수", color: "#10b981" },
+          ].map(item => (
+            <div key={item.key} className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />
+              <span className="text-xs text-slate-600 flex-1">{item.label}</span>
+              <div className="flex items-center gap-1">
+                <input type="number" min={0} value={(form as any)[item.key]}
+                  onChange={e => setForm(p => ({ ...p, [item.key]: parseInt(e.target.value) || 0 }))}
+                  className="w-16 px-2 py-1.5 text-sm text-right font-bold bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400" />
+                <span className="text-[10px] text-slate-400">건</span>
               </div>
             </div>
           ))}
+          <button onClick={handleSave} disabled={saving}
+            className="w-full py-2 text-xs font-bold text-white rounded-lg disabled:opacity-50 mt-1"
+            style={{ background: saved ? "#10b981" : "#3b82f6" }}>
+            {saving ? "저장 중..." : saved ? "✓ 수정 완료" : "기록하기"}
+          </button>
+        </div>
+
+        {/* 우: 미니 캘린더 */}
+        <div style={{ width: 210 }} className="flex-shrink-0">
+          <div className="flex items-center justify-between mb-1.5">
+            <button onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); } else setCalMonth(m => m - 1); }}
+              className="text-[10px] text-slate-400 hover:text-slate-600 px-1">◀</button>
+            <span className="text-[11px] font-bold text-slate-600">{calYear}.{String(calMonth + 1).padStart(2, "0")}</span>
+            <button onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); } else setCalMonth(m => m + 1); }}
+              className="text-[10px] text-slate-400 hover:text-slate-600 px-1">▶</button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5 text-center">
+            {["일","월","화","수","목","금","토"].map(d => (
+              <span key={d} className="text-[9px] font-bold text-slate-400 py-0.5">{d}</span>
+            ))}
+            {weeks.flat().map((day, i) => {
+              if (!day) return <span key={`e${i}`} />;
+              const a = getActivity(day);
+              const total = getTotal(a);
+              const isToday = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` === today;
+              const intensity = !a ? "transparent" : total >= 30 ? "rgba(16,185,129,0.5)" : total >= 15 ? "rgba(16,185,129,0.3)" : total > 0 ? "rgba(16,185,129,0.15)" : "transparent";
+              return (
+                <div key={`d${i}`} className="relative group" title={a ? `TM:${a.sales_tm} 관리:${a.customer_tm} 콜드톡:${a.cold_talk}` : ""}>
+                  <span className="flex items-center justify-center text-[10px] rounded-md py-1"
+                    style={{
+                      background: intensity,
+                      color: isToday ? "#3b82f6" : a ? "#065f46" : "#94a3b8",
+                      fontWeight: isToday || a ? 700 : 400,
+                      border: isToday ? "1.5px solid #3b82f6" : "1px solid transparent",
+                    }}>{day}</span>
+                  {a && (
+                    <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-20 whitespace-nowrap px-2 py-1 rounded-lg text-[9px] bg-slate-800 text-white shadow-lg">
+                      TM:{a.sales_tm} 관리:{a.customer_tm} 콜드톡:{a.cold_talk}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* 범례 */}
+          <div className="flex items-center justify-center gap-2 mt-1.5">
+            <span className="flex items-center gap-0.5 text-[8px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "rgba(16,185,129,0.15)" }} />1+</span>
+            <span className="flex items-center gap-0.5 text-[8px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "rgba(16,185,129,0.3)" }} />15+</span>
+            <span className="flex items-center gap-0.5 text-[8px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "rgba(16,185,129,0.5)" }} />30+</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1160,7 +1206,7 @@ export default function DashboardPage() {
           <div className="grid grid-rows-3 gap-4">
             <RevenueTrendCard monthlyRev={monthlyRev}/>
             <CustomerJourneyBoard user={user}/>
-            <NoticeBoard user={user}/>
+            <ActivityCheckBoard user={user}/>
           </div>
           <DashboardKpiSummary user={user}/>
         </div>
