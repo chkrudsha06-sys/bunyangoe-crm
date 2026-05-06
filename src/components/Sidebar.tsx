@@ -53,6 +53,7 @@ const INFO_MENUS = [
   { href: "/new-sites", label: "신규현장", emoji: "🏗️" },
   { href: "/ad-sites", label: "광고 현운예지", emoji: "📡" },
   { href: "/ad-history", label: "광고내역기록", emoji: "📊" },
+  { href: "/sales-pipeline", label: "영업부매전방", emoji: "💰" },
 ];
 
 const ADMIN_EXTRA = [
