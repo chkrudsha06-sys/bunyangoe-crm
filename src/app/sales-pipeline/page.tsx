@@ -198,8 +198,8 @@ export default function SalesPipelinePage() {
     <div className="flex flex-col h-full" style={{ background: "var(--bg)" }}>
       {/* 헤더 */}
       <div className="px-6 py-4 flex-shrink-0" style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
-        <div className="flex items-center justify-between mb-3">
-          <div>
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div className="min-w-0">
             <h1 className="text-lg font-bold flex items-center gap-2" style={{ color: "var(--text)" }}>
               <TrendingUp size={20} style={{ color: "#3b82f6" }} />
               영업부 매전방
@@ -212,21 +212,24 @@ export default function SalesPipelinePage() {
               {updatedAt && <span className="ml-2" style={{ color: "var(--text-subtle)" }}>동기화: {new Date(updatedAt).toLocaleString("ko-KR")}</span>}
             </p>
           </div>
-          <button onClick={handleDownload} disabled={filtered.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg"
-            style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "#10b981" }}>
-            <Download size={13} /> 엑셀 다운로드
-          </button>
-          <button onClick={fetchData} disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg"
-            style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "#3b82f6" }}>
-            <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> 새로고침
-          </button>
-          <button onClick={handleSync} disabled={syncing}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg"
-            style={{ background: syncing ? "#94a3b8" : "#10b981" }}>
-            <RefreshCw size={13} className={syncing ? "animate-spin" : ""} /> {syncing ? "동기화 중..." : "🔄 최신화"}
-          </button>
+
+          <div className="flex items-center justify-end gap-2 flex-shrink-0">
+            <button onClick={handleDownload} disabled={filtered.length === 0}
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "#10b981" }}>
+              <Download size={13} /> 엑셀 다운로드
+            </button>
+            <button onClick={fetchData} disabled={loading}
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "#3b82f6" }}>
+              <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> 새로고침
+            </button>
+            <button onClick={handleSync} disabled={syncing}
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg whitespace-nowrap disabled:cursor-not-allowed"
+              style={{ background: syncing ? "#94a3b8" : "#10b981" }}>
+              <RefreshCw size={13} className={syncing ? "animate-spin" : ""} /> {syncing ? "동기화 중..." : "최신화"}
+            </button>
+          </div>
         </div>
 
         {/* 필터 */}
@@ -284,7 +287,7 @@ export default function SalesPipelinePage() {
             <thead className="sticky top-0 z-10">
               <tr style={{ background: "var(--surface)" }}>
                 {["담당자","월","주차","매출예정 (현장명)","구분","고객경로","추가경로","고객명","결제유형","금액","확률","입금","컨설턴트 특이사항"].map(h => (
-                  <th key={h} className="px-3 py-2.5 text-left font-bold whitespace-nowrap"
+                  <th key={h} className="px-3 py-2.5 text-center align-middle font-bold whitespace-nowrap"
                     style={{ color: "var(--text-muted)", borderBottom: "2px solid var(--border)" }}>{h}</th>
                 ))}
               </tr>
@@ -296,42 +299,42 @@ export default function SalesPipelinePage() {
                 <tr key={i} className="transition-colors" style={{ borderBottom: "1px solid var(--border)" }}
                   onMouseEnter={e => (e.currentTarget.style.background = "var(--surface)")}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                  <td className="px-3 py-2.5 font-semibold whitespace-nowrap" style={{ color: "#8b5cf6" }}>{r.consultant}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: "var(--text)" }}>{r.월}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
+                  <td className="px-3 py-2.5 text-center align-middle font-semibold whitespace-nowrap" style={{ color: "#8b5cf6" }}>{r.consultant}</td>
+                  <td className="px-3 py-2.5 text-center align-middle whitespace-nowrap" style={{ color: "var(--text)" }}>{r.월}</td>
+                  <td className="px-3 py-2.5 text-center align-middle whitespace-nowrap">
                     {r.주차 && <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold"
                       style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{r.주차}</span>}
                   </td>
-                  <td className="px-3 py-2.5 font-semibold max-w-[200px] truncate" style={{ color: "var(--text)" }}>{r.매출예정}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
+                  <td className="px-3 py-2.5 text-center align-middle font-semibold max-w-[200px] truncate" style={{ color: "var(--text)" }} title={r.매출예정}>{r.매출예정}</td>
+                  <td className="px-3 py-2.5 text-center align-middle whitespace-nowrap">
                     {r.구분 && (() => { const c = 구분_COLORS[r.구분] || { bg: "var(--surface)", text: "var(--text)" }; return (
                       <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: c.bg, color: c.text }}>{r.구분}</span>
                     ); })()}
                   </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
+                  <td className="px-3 py-2.5 text-center align-middle whitespace-nowrap">
                     {r.고객경로 && <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold"
                       style={{ background: "rgba(16,185,129,0.08)", color: "#10b981" }}>{r.고객경로}</span>}
                   </td>
-                  <td className="px-3 py-2.5 text-[10px]" style={{ color: "var(--text-muted)" }}>{r.추가경로}</td>
-                  <td className="px-3 py-2.5 font-semibold whitespace-nowrap" style={{ color: "var(--text)" }}>{r.고객명}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
+                  <td className="px-3 py-2.5 text-center align-middle text-[10px]" style={{ color: "var(--text-muted)" }}>{r.추가경로}</td>
+                  <td className="px-3 py-2.5 text-center align-middle font-semibold whitespace-nowrap" style={{ color: "var(--text)" }}>{r.고객명}</td>
+                  <td className="px-3 py-2.5 text-center align-middle whitespace-nowrap">
                     {r.결제유형 && <span className="text-[10px] font-semibold" style={{ color: "var(--text-muted)" }}>{r.결제유형}</span>}
                   </td>
-                  <td className="px-3 py-2.5 font-bold text-right whitespace-nowrap"
+                  <td className="px-3 py-2.5 text-center align-middle font-bold whitespace-nowrap"
                     style={{ color: (r.금액 || 0) < 0 ? "#ef4444" : (r.금액 || 0) > 0 ? "var(--text)" : "var(--text-subtle)" }}>
                     {r.금액 != null ? r.금액.toLocaleString() : "-"}
                   </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
+                  <td className="px-3 py-2.5 text-center align-middle whitespace-nowrap">
                     {r.확률 && (() => { const c = 확률_COLORS[r.확률] || { bg: "var(--surface)", text: "var(--text)" }; return (
                       <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: c.bg, color: c.text }}>{r.확률}</span>
                     ); })()}
                   </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
+                  <td className="px-3 py-2.5 text-center align-middle whitespace-nowrap">
                     {r.입금 && (() => { const c = 입금_COLORS[r.입금] || { bg: "var(--surface)", text: "var(--text)" }; return (
                       <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: c.bg, color: c.text }}>{r.입금}</span>
                     ); })()}
                   </td>
-                  <td className="px-3 py-2.5 max-w-[250px] truncate" style={{ color: "var(--text-muted)" }}>{r.컨설턴트특이사항}</td>
+                  <td className="px-3 py-2.5 text-center align-middle max-w-[250px] truncate" style={{ color: "var(--text-muted)" }} title={r.컨설턴트특이사항}>{r.컨설턴트특이사항}</td>
                 </tr>
               ))}
             </tbody>
