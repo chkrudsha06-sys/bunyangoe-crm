@@ -45,6 +45,7 @@ interface ContentStatus {
   pr_site_history_4: string;
   pr_site_history_5: string;
   pr_intro: string;
+  pr_request: string;
   pr_video_copy_1: string;
   pr_video_performance: string;
   pr_video_copy_2: string;
@@ -66,7 +67,7 @@ const EMPTY_STATUS: Omit<ContentStatus, "contact_id"> = {
   pr_name: "", pr_gender: "", pr_birth_date: "", pr_title_position: "", pr_age: "", pr_height: "", pr_body_type: "",
   pr_activity_region: "", pr_company: "",
   pr_site_history_1: "", pr_site_history_2: "", pr_site_history_3: "", pr_site_history_4: "", pr_site_history_5: "",
-  pr_intro: "", pr_video_copy_1: "", pr_video_performance: "", pr_video_copy_2: "",
+  pr_intro: "", pr_request: "", pr_video_copy_1: "", pr_video_performance: "", pr_video_copy_2: "",
   pr_site_info: "", pr_photo_desc: "", pr_feed_text: "", pr_career: "", pr_years: "", pr_years_base_year: 0,
   pr_output_server: "", pr_output_url: "", updated_at: null,
 };
@@ -181,7 +182,7 @@ export default function ContentManagePage() {
 
     // 컨텐츠 현황 (파일 데이터 제외 — 경량 로드)
     const { data: cs } = await supabase.from("content_statuses")
-      .select("id,contact_id,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_activity_region,pr_company,pr_site_history_1,pr_site_history_2,pr_site_history_3,pr_site_history_4,pr_site_history_5,pr_intro,pr_video_copy_1,pr_video_performance,pr_video_copy_2,pr_site_info,pr_photo_desc,pr_feed_text,pr_career,pr_years,pr_years_base_year,pr_output_server,pr_output_url,updated_at");
+      .select("id,contact_id,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_activity_region,pr_company,pr_site_history_1,pr_site_history_2,pr_site_history_3,pr_site_history_4,pr_site_history_5,pr_intro,pr_request,pr_video_copy_1,pr_video_performance,pr_video_copy_2,pr_site_info,pr_photo_desc,pr_feed_text,pr_career,pr_years,pr_years_base_year,pr_output_server,pr_output_url,updated_at");
     const map: Record<number, ContentStatus> = {};
     (cs || []).forEach((s: any) => {
       map[s.contact_id] = { ...s, files: [] }; // 파일은 빈 배열로 초기화
@@ -358,6 +359,7 @@ export default function ContentManagePage() {
       pr_site_history_3: s.pr_site_history_3, pr_site_history_4: s.pr_site_history_4,
       pr_site_history_5: s.pr_site_history_5,
       pr_intro: s.pr_intro,
+      pr_request: s.pr_request,
       pr_video_copy_1: s.pr_video_copy_1, pr_video_performance: s.pr_video_performance,
       pr_video_copy_2: s.pr_video_copy_2,
       pr_site_info: s.pr_site_info, pr_photo_desc: s.pr_photo_desc,
@@ -868,6 +870,14 @@ export default function ContentManagePage() {
                             <input className="w-full px-2.5 py-2 text-sm rounded-lg outline-none" value={(s as any).pr_intro || ""}
                               onChange={e => updateField(m.id, "pr_intro", e.target.value)}
                               placeholder="다름을 만드는 경험, 결과로 답하는 리더"
+                              style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                          </div>
+                          <div className="mt-2">
+                            <label className="text-xs font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>요청사항</label>
+                            <textarea className="w-full px-2.5 py-2 text-sm rounded-lg outline-none resize-none" value={(s as any).pr_request || ""}
+                              onChange={e => updateField(m.id, "pr_request", e.target.value)}
+                              placeholder="PR패키지 제작 시 반영할 요청사항을 입력하세요"
+                              rows={3}
                               style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
                           </div>
                         </div>
