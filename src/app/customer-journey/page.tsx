@@ -723,29 +723,29 @@ export default function CustomerJourneyPage() {
               {/* 히스토리 (상단 - 기록 있을 때만) */}
               {analysisHistory.length > 0 && (
                 <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                  <h3 className="text-xs font-bold mb-3 pb-2" style={{ color: "var(--text)", borderBottom: "1px solid var(--border)" }}>
+                  <h3 className="text-sm font-bold mb-3 pb-2" style={{ color: "var(--text)", borderBottom: "1px solid var(--border)" }}>
                     📜 히스토리 ({analysisHistory.length}건)
                   </h3>
-                  <div className="space-y-2 max-h-[350px] overflow-y-auto">
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {analysisHistory.map(h => (
                       <details key={h.id} className="rounded-lg" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                        <summary className="cursor-pointer px-3 py-2 flex items-center justify-between">
+                        <summary className="cursor-pointer px-4 py-2.5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold" style={{ color: "#3b82f6" }}>
+                            <span className="text-xs font-bold" style={{ color: "#3b82f6" }}>
                               {new Date(h.created_at).toLocaleDateString("ko-KR", { year: "2-digit", month: "2-digit", day: "2-digit" })}
                               {" "}
                               {new Date(h.created_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
                             </span>
-                            {h.created_by && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{h.created_by}</span>}
+                            {h.created_by && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{h.created_by}</span>}
                           </div>
-                          <div className="flex items-center gap-1.5 text-[9px]" style={{ color: "var(--text-subtle)" }}>
+                          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--text-subtle)" }}>
                             {h.region && <span>📍{h.region}</span>}
                             {h.site_condition && <span>·{h.site_condition}</span>}
                             {h.ad_cost_type && <span>·{h.ad_cost_type}</span>}
                           </div>
                         </summary>
-                        <div className="px-3 pb-2 pt-1 space-y-1.5" style={{ borderTop: "1px solid var(--border)" }}>
-                          <div className="grid grid-cols-2 gap-1 text-[10px]">
+                        <div className="px-4 pb-3 pt-2 space-y-2" style={{ borderTop: "1px solid var(--border)" }}>
+                          <div className="grid grid-cols-2 gap-1.5 text-xs">
                             {h.region && <div><span style={{ color: "var(--text-subtle)" }}>지역:</span> <b style={{ color: "var(--text)" }}>{h.region}</b></div>}
                             {h.population && <div><span style={{ color: "var(--text-subtle)" }}>인구:</span> <b style={{ color: "var(--text)" }}>{h.population}</b></div>}
                             {h.site_condition && <div><span style={{ color: "var(--text-subtle)" }}>컨디션:</span> <b style={{ color: "var(--text)" }}>{h.site_condition}</b></div>}
@@ -763,7 +763,7 @@ export default function CustomerJourneyPage() {
                           </div>
                           <div className="flex justify-end pt-1">
                             <button onClick={e => { e.stopPropagation(); deleteAnalysis(h.id); }}
-                              className="text-[10px] font-semibold px-2 py-0.5 rounded"
+                              className="text-xs font-semibold px-2.5 py-1 rounded"
                               style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)" }}>🗑 삭제</button>
                           </div>
                         </div>
