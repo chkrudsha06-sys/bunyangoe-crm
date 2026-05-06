@@ -7,10 +7,9 @@ const DATABASES: { name: string; dbId: string }[] = [
   { name: "조승현", dbId: "31c4416c5bcb81d28bbbd851fbf8a508" },
   { name: "백선중", dbId: "31c4416c5bcb8160b945c9ead41316d1" },
   { name: "박나라", dbId: "31c4416c5bcb81d299edcd8a1e623720" },
-  // 아래 3명은 노션 페이지 공유 후 DB ID 추가 필요
-  // { name: "박민경", dbId: "" },
-  // { name: "강아름", dbId: "" },
-  // { name: "전정훈", dbId: "" },
+  { name: "박민경", dbId: "31c4416c5bcb815f904dce2e4b1bdd85" },
+  { name: "강아름", dbId: "31c4416c5bcb819c8006cd61c6c784ec" },
+  { name: "전정훈", dbId: "31c4416c5bcb8184a05ae4c3417193ba" },
 ];
 
 function getTextProp(page: any, name: string): string {
