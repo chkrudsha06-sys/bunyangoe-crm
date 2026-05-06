@@ -20,6 +20,7 @@ export default function ReportsPage() {
   const [wanpans, setWanpans] = useState<any[]>([]);
   const [prevExecs, setPrevExecs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activities, setActivities] = useState<any[]>([]);
 
   useEffect(() => { loadData(); }, [month]);
 
@@ -35,13 +36,15 @@ export default function ReportsPage() {
     const pld = new Date(py, pm, 0).getDate();
     const pmS = `${py}-${pms}-01`, pmE = `${py}-${pms}-${pld}`;
 
-    const [r1, r2, r3, r4] = await Promise.all([
+    const [r1, r2, r3, r4, r5] = await Promise.all([
       supabase.from("ad_executions").select("*").gte("payment_date",mS).lte("payment_date",mE),
       supabase.from("contacts").select("*"),
       supabase.from("wanpan_trucks").select("*").gte("dispatch_date",mS).lte("dispatch_date",mE),
       supabase.from("ad_executions").select("*").gte("payment_date",pmS).lte("payment_date",pmE),
+      supabase.from("daily_activities").select("*").gte("activity_date",mS).lte("activity_date",mE),
     ]);
     setExecs(r1.data||[]); setContacts(r2.data||[]); setWanpans(r3.data||[]); setPrevExecs(r4.data||[]);
+    setActivities(r5.data||[]);
     setLoading(false);
   };
 
@@ -413,6 +416,94 @@ export default function ReportsPage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        {/* ═══ 팀 활동량 현황 ═══ */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <h3 className="text-base font-bold text-slate-700 mb-4">📊 팀 활동량 현황 <span className="text-xs font-normal text-slate-400">당월 누적</span></h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b-2 border-slate-200">
+                  <th className="px-4 py-2.5 text-left font-bold text-slate-600">팀원</th>
+                  <th className="px-4 py-2.5 text-center font-bold text-blue-600">영업TM<br/><span className="text-[10px] font-normal text-slate-400">누적(건)</span></th>
+                  <th className="px-4 py-2.5 text-center font-bold text-purple-600">고객관리TM<br/><span className="text-[10px] font-normal text-slate-400">누적(건)</span></th>
+                  <th className="px-4 py-2.5 text-center font-bold text-emerald-600">콜드톡<br/><span className="text-[10px] font-normal text-slate-400">누적(건)</span></th>
+                  <th className="px-4 py-2.5 text-center font-bold text-slate-600">합계<br/><span className="text-[10px] font-normal text-slate-400">누적(건)</span></th>
+                  <th className="px-4 py-2.5 text-center font-bold text-slate-600">기록일수</th>
+                  <th className="px-4 py-2.5 text-center font-bold text-slate-600">일평균</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const allNames = Array.from(new Set(activities.map(a => a.user_name))).sort();
+                  if (allNames.length === 0) return <tr><td colSpan={7} className="text-center py-8 text-slate-300">활동량 데이터가 없습니다</td></tr>;
+
+                  let totalSales = 0, totalCustomer = 0, totalCold = 0, totalDays = 0;
+
+                  const rows = allNames.map(name => {
+                    const userActs = activities.filter(a => a.user_name === name);
+                    const salesTm = userActs.reduce((s, a) => s + (a.sales_tm || 0), 0);
+                    const customerTm = userActs.reduce((s, a) => s + (a.customer_tm || 0), 0);
+                    const coldTalk = userActs.reduce((s, a) => s + (a.cold_talk || 0), 0);
+                    const total = salesTm + customerTm + coldTalk;
+                    const days = userActs.length;
+                    const avg = days > 0 ? Math.round(total / days) : 0;
+                    totalSales += salesTm; totalCustomer += customerTm; totalCold += coldTalk; totalDays += days;
+
+                    const maxTotal = Math.max(...allNames.map(n => {
+                      const ua = activities.filter(a => a.user_name === n);
+                      return ua.reduce((s, a) => s + (a.sales_tm || 0) + (a.customer_tm || 0) + (a.cold_talk || 0), 0);
+                    }));
+                    const barWidth = maxTotal > 0 ? Math.round(total / maxTotal * 100) : 0;
+
+                    return (
+                      <tr key={name} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="px-4 py-3 font-bold text-slate-700">{name}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-sm font-bold text-blue-600">{salesTm.toLocaleString()}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-sm font-bold text-purple-600">{customerTm.toLocaleString()}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-sm font-bold text-emerald-600">{coldTalk.toLocaleString()}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-black text-slate-800 w-12 text-right">{total.toLocaleString()}</span>
+                            <div className="flex-1 h-4 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full flex">
+                                {salesTm > 0 && <div style={{ width: `${total > 0 ? salesTm / total * 100 : 0}%`, background: "#3b82f6" }} />}
+                                {customerTm > 0 && <div style={{ width: `${total > 0 ? customerTm / total * 100 : 0}%`, background: "#8b5cf6" }} />}
+                                {coldTalk > 0 && <div style={{ width: `${total > 0 ? coldTalk / total * 100 : 0}%`, background: "#10b981" }} />}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm text-slate-500">{days}일</td>
+                        <td className="px-4 py-3 text-center text-sm font-semibold text-slate-600">{avg}건/일</td>
+                      </tr>
+                    );
+                  });
+
+                  const grandTotal = totalSales + totalCustomer + totalCold;
+                  rows.push(
+                    <tr key="total" className="border-t-2 border-slate-300 bg-slate-50">
+                      <td className="px-4 py-3 font-black text-slate-700">합계</td>
+                      <td className="px-4 py-3 text-center font-black text-blue-600">{totalSales.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-center font-black text-purple-600">{totalCustomer.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-center font-black text-emerald-600">{totalCold.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-center font-black text-slate-800">{grandTotal.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-center text-sm text-slate-500">{totalDays}일</td>
+                      <td className="px-4 py-3 text-center text-sm font-semibold text-slate-600">{totalDays > 0 ? Math.round(grandTotal / totalDays) : 0}건/일</td>
+                    </tr>
+                  );
+                  return rows;
+                })()}
+              </tbody>
+            </table>
           </div>
         </div>
 

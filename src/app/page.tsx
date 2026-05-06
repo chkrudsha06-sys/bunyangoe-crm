@@ -756,22 +756,10 @@ function ActivityCheckBoard({ user }: { user: CRMUser | null }) {
     setSaving(false); setSaved(true); loadMonth();
   };
 
-  // 미니 캘린더 렌더링
-  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-  const firstDow = new Date(calYear, calMonth, 1).getDay();
-  const weeks: (number | null)[][] = [];
-  let week: (number | null)[] = Array(firstDow).fill(null);
-  for (let d = 1; d <= daysInMonth; d++) {
-    week.push(d);
-    if (week.length === 7) { weeks.push(week); week = []; }
-  }
-  if (week.length > 0) { while (week.length < 7) week.push(null); weeks.push(week); }
-
   const getActivity = (day: number) => {
     const key = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     return monthData[key] || null;
   };
-  const getTotal = (a: any) => (a?.sales_tm || 0) + (a?.customer_tm || 0) + (a?.cold_talk || 0);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{ minHeight: "200px" }}>
@@ -806,46 +794,87 @@ function ActivityCheckBoard({ user }: { user: CRMUser | null }) {
 
         {/* 우: 미니 캘린더 */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-2">
-            <button onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); } else setCalMonth(m => m - 1); }}
-              className="text-xs text-slate-400 hover:text-slate-600 px-1.5">◀</button>
-            <span className="text-xs font-bold text-slate-600">{calYear}.{String(calMonth + 1).padStart(2, "0")}</span>
-            <button onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); } else setCalMonth(m => m + 1); }}
-              className="text-xs text-slate-400 hover:text-slate-600 px-1.5">▶</button>
-          </div>
-          <div className="grid grid-cols-7 gap-1 text-center">
-            {["일","월","화","수","목","금","토"].map(d => (
-              <span key={d} className="text-[10px] font-bold text-slate-400 py-1">{d}</span>
-            ))}
-            {weeks.flat().map((day, i) => {
-              if (!day) return <span key={`e${i}`} />;
-              const a = getActivity(day);
-              const total = getTotal(a);
-              const isToday = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` === today;
-              const intensity = !a ? "transparent" : total >= 30 ? "rgba(16,185,129,0.5)" : total >= 15 ? "rgba(16,185,129,0.3)" : total > 0 ? "rgba(16,185,129,0.15)" : "transparent";
-              return (
-                <div key={`d${i}`} className="relative group" title={a ? `TM:${a.sales_tm} 관리:${a.customer_tm} 콜드톡:${a.cold_talk}` : ""}>
-                  <span className="flex items-center justify-center text-xs rounded-lg py-1.5"
-                    style={{
-                      background: intensity,
-                      color: isToday ? "#3b82f6" : a ? "#065f46" : "#94a3b8",
-                      fontWeight: isToday || a ? 700 : 400,
-                      border: isToday ? "1.5px solid #3b82f6" : "1px solid transparent",
-                    }}>{day}</span>
-                  {a && (
-                    <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-20 whitespace-nowrap px-2 py-1 rounded-lg text-[9px] bg-slate-800 text-white shadow-lg">
-                      TM:{a.sales_tm} 관리:{a.customer_tm} 콜드톡:{a.cold_talk}
-                    </div>
-                  )}
+          {/* 당월 누적 요약 */}
+          {(() => {
+            const vals = Object.values(monthData);
+            const totalSales = vals.reduce((s, a) => s + (a.sales_tm || 0), 0);
+            const totalCustomer = vals.reduce((s, a) => s + (a.customer_tm || 0), 0);
+            const totalCold = vals.reduce((s, a) => s + (a.cold_talk || 0), 0);
+            const days = vals.length;
+            return (
+              <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.06)" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#3b82f6" }} />
+                  <span className="text-[10px] text-slate-500">TM</span>
+                  <span className="text-xs font-black text-blue-600">{totalSales}</span>
                 </div>
-              );
-            })}
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ background: "rgba(139,92,246,0.06)" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#8b5cf6" }} />
+                  <span className="text-[10px] text-slate-500">관리</span>
+                  <span className="text-xs font-black text-purple-600">{totalCustomer}</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ background: "rgba(16,185,129,0.06)" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#10b981" }} />
+                  <span className="text-[10px] text-slate-500">콜드톡</span>
+                  <span className="text-xs font-black text-emerald-600">{totalCold}</span>
+                </div>
+                <span className="text-[10px] text-slate-400 ml-auto">{days}일 기록</span>
+              </div>
+            );
+          })()}
+          {/* 일별 막대그래프 */}
+          <div className="flex items-end gap-px" style={{ height: 100 }}>
+            {(() => {
+              const m = calMonth, y = calYear;
+              const dim = new Date(y, m + 1, 0).getDate();
+              const maxVal = Math.max(1, ...Object.values(monthData).map(a => (a.sales_tm || 0) + (a.customer_tm || 0) + (a.cold_talk || 0)));
+              const bars = [];
+              for (let d = 1; d <= dim; d++) {
+                const key = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                const a = monthData[key];
+                const isToday = key === today;
+                const s = a?.sales_tm || 0, c = a?.customer_tm || 0, ct = a?.cold_talk || 0;
+                const total = s + c + ct;
+                const h = total > 0 ? Math.max(4, Math.round(total / maxVal * 90)) : 0;
+                const dow = new Date(y, m, d).getDay();
+                bars.push(
+                  <div key={d} className="flex-1 flex flex-col items-center justify-end relative group" style={{ minWidth: 0 }}>
+                    {total > 0 ? (
+                      <div className="w-full rounded-t-sm flex flex-col justify-end overflow-hidden" style={{ height: h }}>
+                        {ct > 0 && <div style={{ height: `${ct / total * 100}%`, background: "#10b981", minHeight: 1 }} />}
+                        {c > 0 && <div style={{ height: `${c / total * 100}%`, background: "#8b5cf6", minHeight: 1 }} />}
+                        {s > 0 && <div style={{ height: `${s / total * 100}%`, background: "#3b82f6", minHeight: 1 }} />}
+                      </div>
+                    ) : (
+                      <div className="w-full rounded-t-sm" style={{ height: 2, background: dow === 0 || dow === 6 ? "#fecaca" : "#e2e8f0" }} />
+                    )}
+                    {(d === 1 || d % 5 === 0 || d === dim) && (
+                      <span className="text-[8px] mt-0.5" style={{ color: isToday ? "#3b82f6" : "#94a3b8", fontWeight: isToday ? 700 : 400 }}>{d}</span>
+                    )}
+                    {a && (
+                      <div className="hidden group-hover:block absolute bottom-full mb-1 z-20 whitespace-nowrap px-2 py-1 rounded-lg text-[9px] bg-slate-800 text-white shadow-lg">
+                        {d}일: TM {s} · 관리 {c} · 콜드톡 {ct}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              return bars;
+            })()}
           </div>
-          {/* 범례 */}
-          <div className="flex items-center justify-center gap-3 mt-2">
-            <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "rgba(16,185,129,0.15)" }} />1+</span>
-            <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "rgba(16,185,129,0.3)" }} />15+</span>
-            <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "rgba(16,185,129,0.5)" }} />30+</span>
+          <div className="flex items-center justify-between mt-1">
+            <div className="flex items-center gap-1">
+              <button onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); } else setCalMonth(m => m - 1); }}
+                className="text-[10px] text-slate-400 hover:text-slate-600">◀</button>
+              <span className="text-[10px] font-bold text-slate-500">{calYear}.{String(calMonth + 1).padStart(2, "0")}</span>
+              <button onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); } else setCalMonth(m => m + 1); }}
+                className="text-[10px] text-slate-400 hover:text-slate-600">▶</button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-0.5 text-[8px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "#3b82f6" }} />TM</span>
+              <span className="flex items-center gap-0.5 text-[8px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "#8b5cf6" }} />관리</span>
+              <span className="flex items-center gap-0.5 text-[8px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "#10b981" }} />콜드톡</span>
+            </div>
           </div>
         </div>
       </div>
