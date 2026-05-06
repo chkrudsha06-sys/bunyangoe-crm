@@ -31,7 +31,14 @@ interface Contact {
 }
 
 interface LastNote { contact_id: number; note_date: string; content: string; }
-interface SiteHistory { id: number; operating_site: string; total_org_count: string; team_org_count: string; rt: string; changed_by: string; changed_at: string; }
+interface CustomerAnalysis {
+  id: number; contact_id: number;
+  region: string; population: string; site_condition: string; contract_terms: string;
+  sales_rate: string; agency_info: string; ad_schedule: string; relocation_plan: string;
+  org_chart: string; org_count: string; rt: string;
+  ad_cost_type: string; ad_total_cost: string; ad_items: string;
+  created_by: string; created_at: string;
+}
 
 const TEAM = ["조계현", "이세호", "기여운", "최연전"];
 const CONSULTANTS = ["박경화", "박혜은", "조승현", "박민경", "백선중", "강아름", "전정훈", "박나라"];
@@ -111,14 +118,16 @@ export default function CustomerJourneyPage() {
   const [resultDateModal, setResultDateModal] = useState<{ contactId: number; name: string; result: string } | null>(null);
   const [resultDate, setResultDate] = useState(new Date().toISOString().split("T")[0]);
 
-  // 현장정보 수정 모달
-  const [siteModal, setSiteModal] = useState<{ contactId: number; name: string } | null>(null);
-  const [siteForm, setSiteForm] = useState({ operating_site: "", total_org_count: "", team_org_count: "", rt: "" });
-  const [siteHistory, setSiteHistory] = useState<SiteHistory[]>([]);
-  const [showSiteHistory, setShowSiteHistory] = useState(false);
-  // 카드 내 인라인 히스토리
-  const [inlineHistory, setInlineHistory] = useState<Record<number, SiteHistory[]>>({});
-  const [inlineHistoryOpen, setInlineHistoryOpen] = useState<Record<number, boolean>>({});
+  // 고객정보히스토리 슬라이드 패널
+  const [analysisPanel, setAnalysisPanel] = useState<{ contactId: number; name: string } | null>(null);
+  const [analysisForm, setAnalysisForm] = useState({
+    region: "", population: "", site_condition: "", contract_terms: "",
+    sales_rate: "", agency_info: "", ad_schedule: "", relocation_plan: "",
+    org_chart: "", org_count: "", rt: "",
+    ad_cost_type: "", ad_total_cost: "", ad_items: "",
+  });
+  const [analysisHistory, setAnalysisHistory] = useState<CustomerAnalysis[]>([]);
+  const [analysisSaving, setAnalysisSaving] = useState(false);
 
   useEffect(() => {
     const u = getCurrentUser();
@@ -184,7 +193,7 @@ export default function CustomerJourneyPage() {
       // FK cascade: 관련 테이블 먼저 삭제 (순서 중요)
       const tables = [
         "rewards", "mileage_usages", "contact_notes", "notifications",
-        "push_subscriptions", "content_statuses", "site_info_history", "member_timeline"
+        "push_subscriptions", "content_statuses", "site_info_history", "member_timeline", "customer_analysis"
       ];
       for (const table of tables) {
         const { error: tErr } = await supabase.from(table).delete().eq("contact_id", contactId);
@@ -238,66 +247,46 @@ export default function CustomerJourneyPage() {
     fetchAll();
   };
 
-  // 현장정보 수정 모달 열기
-  const openSiteModal = async (c: Contact) => {
-    setSiteModal({ contactId: c.id, name: c.name });
-    setSiteForm({
-      operating_site: c.operating_site || "",
-      total_org_count: c.total_org_count || "",
-      team_org_count: c.team_org_count || "",
-      rt: c.rt || "",
-    });
-    setShowSiteHistory(false);
-    // 히스토리 로드
-    const { data } = await supabase.from("site_info_history")
+  // 고객정보히스토리 패널 열기
+  const openAnalysisPanel = async (c: Contact) => {
+    setAnalysisPanel({ contactId: c.id, name: c.name });
+    // 최신 히스토리 로드
+    const { data } = await supabase.from("customer_analysis")
       .select("*").eq("contact_id", c.id)
-      .order("changed_at", { ascending: false }).limit(20);
-    setSiteHistory((data || []) as SiteHistory[]);
+      .order("created_at", { ascending: false }).limit(50);
+    const history = (data || []) as CustomerAnalysis[];
+    setAnalysisHistory(history);
+    // 최신 데이터를 폼에 세팅
+    if (history.length > 0) {
+      const latest = history[0];
+      setAnalysisForm({
+        region: latest.region || "", population: latest.population || "",
+        site_condition: latest.site_condition || "", contract_terms: latest.contract_terms || "",
+        sales_rate: latest.sales_rate || "", agency_info: latest.agency_info || "",
+        ad_schedule: latest.ad_schedule || "", relocation_plan: latest.relocation_plan || "",
+        org_chart: latest.org_chart || "", org_count: latest.org_count || "", rt: latest.rt || "",
+        ad_cost_type: latest.ad_cost_type || "", ad_total_cost: latest.ad_total_cost || "", ad_items: latest.ad_items || "",
+      });
+    } else {
+      setAnalysisForm({ region: "", population: "", site_condition: "", contract_terms: "", sales_rate: "", agency_info: "", ad_schedule: "", relocation_plan: "", org_chart: "", org_count: "", rt: "", ad_cost_type: "", ad_total_cost: "", ad_items: "" });
+    }
   };
 
-  // 현장정보 저장
-  const handleSiteInfoSave = async () => {
-    if (!siteModal) return;
-    const { error } = await supabase.from("contacts").update({
-      operating_site: siteForm.operating_site || null,
-      total_org_count: siteForm.total_org_count || null,
-      team_org_count: siteForm.team_org_count || null,
-      rt: siteForm.rt || null,
-    }).eq("id", siteModal.contactId);
-    if (error) { showToast(`저장 실패: ${error.message}`); return; }
-    // 히스토리 기록
-    await supabase.from("site_info_history").insert({
-      contact_id: siteModal.contactId,
-      operating_site: siteForm.operating_site || "",
-      total_org_count: siteForm.total_org_count || "",
-      team_org_count: siteForm.team_org_count || "",
-      rt: siteForm.rt || "",
-      changed_by: userName || "",
+  // 고객정보히스토리 저장
+  const saveAnalysis = async () => {
+    if (!analysisPanel) return;
+    setAnalysisSaving(true);
+    const { error } = await supabase.from("customer_analysis").insert({
+      contact_id: analysisPanel.contactId, ...analysisForm, created_by: userName || "",
     });
-    showToast(`${siteModal.name} 현장정보 수정 완료`);
-    setSiteModal(null);
-    // 인라인 히스토리 갱신
-    const { data: freshH } = await supabase.from("site_info_history")
-      .select("*").eq("contact_id", siteModal.contactId)
-      .order("changed_at", { ascending: false }).limit(20);
-    setInlineHistory(prev => ({ ...prev, [siteModal.contactId]: (freshH || []) as SiteHistory[] }));
-    fetchAll();
-  };
-
-  const toggleInlineHistory = async (contactId: number) => {
-    const isOpen = inlineHistoryOpen[contactId];
-    if (isOpen) {
-      setInlineHistoryOpen(prev => ({ ...prev, [contactId]: false }));
-      return;
-    }
-    // 로드
-    if (!inlineHistory[contactId]) {
-      const { data } = await supabase.from("site_info_history")
-        .select("*").eq("contact_id", contactId)
-        .order("changed_at", { ascending: false }).limit(20);
-      setInlineHistory(prev => ({ ...prev, [contactId]: (data || []) as SiteHistory[] }));
-    }
-    setInlineHistoryOpen(prev => ({ ...prev, [contactId]: true }));
+    if (error) { showToast(`저장 실패: ${error.message}`); setAnalysisSaving(false); return; }
+    showToast(`${analysisPanel.name} 고객정보 저장 완료`);
+    // 히스토리 갱신
+    const { data } = await supabase.from("customer_analysis")
+      .select("*").eq("contact_id", analysisPanel.contactId)
+      .order("created_at", { ascending: false }).limit(50);
+    setAnalysisHistory((data || []) as CustomerAnalysis[]);
+    setAnalysisSaving(false);
   };
 
   const activeFilters = [fCustomerType, fStage, fAssigned, fConsultant, fIntake].filter(Boolean).length;
@@ -548,53 +537,12 @@ export default function CustomerJourneyPage() {
                                   </div>
                                 </div>
 
-                                {/* 현장정보 */}
-                                <div className="rounded-lg p-2" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                                  <div className="flex items-center justify-between mb-1.5">
-                                    <p className="text-[10px] font-bold" style={{ color: "var(--text)" }}>🏗️ 현장정보</p>
-                                    <button onClick={e => { e.stopPropagation(); openSiteModal(c); }}
-                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-lg"
-                                      style={{ color: "#f59e0b", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)" }}>수정</button>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-1">
-                                    <div><p className="text-[9px]" style={{ color: "var(--text-subtle)" }}>운영현장</p><p className="text-[11px] font-semibold" style={{ color: c.operating_site ? "var(--text)" : "var(--text-subtle)" }}>{c.operating_site || "-"}</p></div>
-                                    <div><p className="text-[9px]" style={{ color: "var(--text-subtle)" }}>전체조직수</p><p className="text-[11px] font-semibold" style={{ color: c.total_org_count ? "var(--text)" : "var(--text-subtle)" }}>{c.total_org_count || "-"}</p></div>
-                                    <div><p className="text-[9px]" style={{ color: "var(--text-subtle)" }}>팀조직수</p><p className="text-[11px] font-semibold" style={{ color: c.team_org_count ? "var(--text)" : "var(--text-subtle)" }}>{c.team_org_count || "-"}</p></div>
-                                    <div><p className="text-[9px]" style={{ color: "var(--text-subtle)" }}>R/T</p><p className="text-[11px] font-semibold" style={{ color: c.rt ? "var(--text)" : "var(--text-subtle)" }}>{c.rt || "-"}</p></div>
-                                  </div>
-                                  {/* 히스토리 토글 */}
-                                  <div className="mt-1.5" onClick={e => e.stopPropagation()}>
-                                    <button onClick={() => toggleInlineHistory(c.id)}
-                                      className="text-[10px] font-semibold" style={{ color: "#3b82f6" }}>
-                                      {inlineHistoryOpen[c.id] ? "▾ 수정 히스토리 닫기" : "▸ 수정 히스토리 보기"}
-                                      {inlineHistory[c.id] ? ` (${inlineHistory[c.id].length}건)` : ""}
-                                    </button>
-                                    {inlineHistoryOpen[c.id] && (
-                                      <div className="mt-1.5 space-y-1 max-h-36 overflow-y-auto">
-                                        {(!inlineHistory[c.id] || inlineHistory[c.id].length === 0) ? (
-                                          <p className="text-[10px] py-2 text-center" style={{ color: "var(--text-subtle)" }}>수정 기록 없음</p>
-                                        ) : inlineHistory[c.id].map(h => (
-                                          <div key={h.id} className="rounded-lg px-2 py-1.5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                                            <div className="flex items-center justify-between mb-0.5">
-                                              <span className="text-[9px] font-bold" style={{ color: "#60a5fa" }}>
-                                                {new Date(h.changed_at).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}
-                                                {" "}
-                                                {new Date(h.changed_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
-                                              </span>
-                                              {h.changed_by && <span className="text-[9px]" style={{ color: "#8b5cf6" }}>{h.changed_by}</span>}
-                                            </div>
-                                            <div className="flex items-center gap-2 text-[9px] flex-wrap">
-                                              {h.operating_site && <span style={{ color: "var(--text)" }}>현장:<b>{h.operating_site}</b></span>}
-                                              {h.total_org_count && <span style={{ color: "var(--text)" }}>전체:<b>{h.total_org_count}</b></span>}
-                                              {h.team_org_count && <span style={{ color: "var(--text)" }}>팀:<b>{h.team_org_count}</b></span>}
-                                              {h.rt && <span style={{ color: "var(--text)" }}>R/T:<b>{h.rt}</b></span>}
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
+                                {/* 고객정보히스토리 버튼 */}
+                                <button onClick={e => { e.stopPropagation(); openAnalysisPanel(c); }}
+                                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-bold transition-colors"
+                                  style={{ background: "rgba(59,130,246,0.06)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.15)" }}>
+                                  📋 고객정보 히스토리
+                                </button>
 
                                 <div className="grid grid-cols-2 gap-1.5">
                                   {[
@@ -738,82 +686,192 @@ export default function CustomerJourneyPage() {
         </div>
       )}
 
-      {/* 현장정보 수정 모달 */}
-      {siteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}
-          onClick={() => setSiteModal(null)}>
-          <div className="rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col"
-            style={{ background: "var(--modal-bg)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+      {/* 고객정보히스토리 슬라이드 패널 */}
+      {analysisPanel && (
+        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(0,0,0,0.4)" }}
+          onClick={() => setAnalysisPanel(null)}>
+          <div className="w-full max-w-lg h-full overflow-y-auto shadow-2xl"
+            style={{ background: "var(--modal-bg)", borderLeft: "1px solid var(--border)" }}
+            onClick={e => e.stopPropagation()}>
+
+            {/* 패널 헤더 */}
+            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3" style={{ background: "var(--modal-bg)", borderBottom: "1px solid var(--border)" }}>
               <div className="flex items-center gap-2">
-                <span className="text-base">🏗️</span>
-                <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{siteModal.name}</span>
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>현장정보 수정</span>
+                <span className="text-base">📋</span>
+                <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{analysisPanel.name}</span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>고객정보 히스토리</span>
               </div>
-              <button onClick={() => setSiteModal(null)} className="p-1 rounded-lg" style={{ color: "var(--text-muted)" }}><X size={18} /></button>
+              <button onClick={() => setAnalysisPanel(null)} className="p-1 rounded-lg" style={{ color: "var(--text-muted)" }}><X size={18} /></button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--text-muted)" }}>운영현장</label>
-                  <input type="text" value={siteForm.operating_site} onChange={e => setSiteForm(p => ({ ...p, operating_site: e.target.value }))}
-                    placeholder="예: 경남 양산" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
-                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--text-muted)" }}>전체조직수</label>
-                  <input type="text" value={siteForm.total_org_count} onChange={e => setSiteForm(p => ({ ...p, total_org_count: e.target.value }))}
-                    placeholder="예: 150" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
-                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--text-muted)" }}>팀조직수</label>
-                  <input type="text" value={siteForm.team_org_count} onChange={e => setSiteForm(p => ({ ...p, team_org_count: e.target.value }))}
-                    placeholder="예: 30" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
-                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--text-muted)" }}>R/T</label>
-                  <input type="text" value={siteForm.rt} onChange={e => setSiteForm(p => ({ ...p, rt: e.target.value }))}
-                    placeholder="예: 3/5" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
-                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
+
+            <div className="p-5 space-y-4">
+              {/* 1. 현장분석 */}
+              <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                <h3 className="text-xs font-bold mb-3 pb-2 flex items-center gap-1.5" style={{ color: "#3b82f6", borderBottom: "1px solid var(--border)" }}>🏗️ 현장분석</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>지역 (입지)</label>
+                    <input type="text" value={analysisForm.region} onChange={e => setAnalysisForm(p => ({ ...p, region: e.target.value }))}
+                      placeholder="경기 수도권" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>인구수</label>
+                    <input type="text" value={analysisForm.population} onChange={e => setAnalysisForm(p => ({ ...p, population: e.target.value }))}
+                      placeholder="120만" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>현장 컨디션</label>
+                    <select value={analysisForm.site_condition} onChange={e => setAnalysisForm(p => ({ ...p, site_condition: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+                      <option value="">선택</option>
+                      <option value="그랜드오픈">그랜드오픈</option>
+                      <option value="정체기">정체기</option>
+                      <option value="설거지">설거지</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>현장계약조건</label>
+                    <input type="text" value={analysisForm.contract_terms} onChange={e => setAnalysisForm(p => ({ ...p, contract_terms: e.target.value }))}
+                      placeholder="계약조건 입력" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>분양률 및 내방률 (지역)</label>
+                    <input type="text" value={analysisForm.sales_rate} onChange={e => setAnalysisForm(p => ({ ...p, sales_rate: e.target.value }))}
+                      placeholder="분양률 80% / 주말 내방 50팀" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>대행사 정보</label>
+                    <input type="text" value={analysisForm.agency_info} onChange={e => setAnalysisForm(p => ({ ...p, agency_info: e.target.value }))}
+                      placeholder="대행사명 / 담당자 / 연락처" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>광고 관련 (광고스케줄)</label>
+                    <textarea value={analysisForm.ad_schedule} onChange={e => setAnalysisForm(p => ({ ...p, ad_schedule: e.target.value }))}
+                      placeholder="광고 스케줄 입력" rows={2} className="w-full px-3 py-2 text-sm rounded-lg outline-none resize-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>현장 이동계획</label>
+                    <textarea value={analysisForm.relocation_plan} onChange={e => setAnalysisForm(p => ({ ...p, relocation_plan: e.target.value }))}
+                      placeholder="이동계획 입력" rows={2} className="w-full px-3 py-2 text-sm rounded-lg outline-none resize-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button onClick={() => setSiteModal(null)}
-                  className="flex-1 py-2 text-sm font-semibold rounded-xl" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>취소</button>
-                <button onClick={handleSiteInfoSave}
-                  className="flex-1 py-2 text-sm font-bold text-white rounded-xl" style={{ background: "#f59e0b" }}>저장</button>
+              {/* 2. 조직분석 */}
+              <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                <h3 className="text-xs font-bold mb-3 pb-2 flex items-center gap-1.5" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>👥 조직분석</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>조직도</label>
+                    <input type="text" value={analysisForm.org_chart} onChange={e => setAnalysisForm(p => ({ ...p, org_chart: e.target.value }))}
+                      placeholder="본부장1-팀장3" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>조직수</label>
+                    <input type="text" value={analysisForm.org_count} onChange={e => setAnalysisForm(p => ({ ...p, org_count: e.target.value }))}
+                      placeholder="150" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>R/T</label>
+                    <input type="text" value={analysisForm.rt} onChange={e => setAnalysisForm(p => ({ ...p, rt: e.target.value }))}
+                      placeholder="3/5" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
+                </div>
               </div>
 
-              {/* 수정 히스토리 */}
-              <div>
-                <button onClick={() => setShowSiteHistory(v => !v)}
-                  className="text-[11px] font-semibold" style={{ color: "#3b82f6" }}>
-                  {showSiteHistory ? "▾ 수정 히스토리 닫기" : "▸ 수정 히스토리 보기"} ({siteHistory.length}건)
-                </button>
-                {showSiteHistory && (
-                  <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
-                    {siteHistory.length === 0 ? (
-                      <p className="text-[11px] py-3 text-center" style={{ color: "var(--text-subtle)" }}>수정 기록이 없습니다</p>
-                    ) : siteHistory.map(h => (
-                      <div key={h.id} className="rounded-lg px-3 py-2" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-bold" style={{ color: "#60a5fa" }}>
-                            {new Date(h.changed_at).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })}
-                            {" "}
-                            {new Date(h.changed_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                          {h.changed_by && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--surface)", color: "#8b5cf6" }}>{h.changed_by}</span>}
+              {/* 3. 광고 */}
+              <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                <h3 className="text-xs font-bold mb-3 pb-2 flex items-center gap-1.5" style={{ color: "#10b981", borderBottom: "1px solid var(--border)" }}>📡 광고</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>광고비용</label>
+                    <select value={analysisForm.ad_cost_type} onChange={e => setAnalysisForm(p => ({ ...p, ad_cost_type: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+                      <option value="">선택</option>
+                      <option value="지원">지원</option>
+                      <option value="개인부담">개인부담</option>
+                      <option value="팀원소개">팀원소개</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>광고세팅 총 비용</label>
+                    <input type="text" value={analysisForm.ad_total_cost} onChange={e => setAnalysisForm(p => ({ ...p, ad_total_cost: e.target.value }))}
+                      placeholder="5,500,000" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>광고품목</label>
+                    <textarea value={analysisForm.ad_items} onChange={e => setAnalysisForm(p => ({ ...p, ad_items: e.target.value }))}
+                      placeholder="LMS, 하이타겟, 호갱노노 등" rows={2} className="w-full px-3 py-2 text-sm rounded-lg outline-none resize-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* 저장 버튼 */}
+              <button onClick={saveAnalysis} disabled={analysisSaving}
+                className="w-full py-2.5 text-sm font-bold text-white rounded-xl disabled:opacity-50"
+                style={{ background: "#3b82f6" }}>
+                {analysisSaving ? "저장 중..." : "💾 고객정보 저장"}
+              </button>
+
+              {/* 히스토리 */}
+              <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                <h3 className="text-xs font-bold mb-3 pb-2" style={{ color: "var(--text)", borderBottom: "1px solid var(--border)" }}>
+                  📜 히스토리 ({analysisHistory.length}건)
+                </h3>
+                {analysisHistory.length === 0 ? (
+                  <p className="text-xs py-4 text-center" style={{ color: "var(--text-subtle)" }}>기록이 없습니다</p>
+                ) : (
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {analysisHistory.map(h => (
+                      <details key={h.id} className="rounded-lg" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                        <summary className="cursor-pointer px-3 py-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold" style={{ color: "#3b82f6" }}>
+                              {new Date(h.created_at).toLocaleDateString("ko-KR", { year: "2-digit", month: "2-digit", day: "2-digit" })}
+                              {" "}
+                              {new Date(h.created_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                            {h.created_by && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{h.created_by}</span>}
+                          </div>
+                          <div className="flex items-center gap-1 text-[9px]" style={{ color: "var(--text-subtle)" }}>
+                            {h.region && <span>📍{h.region}</span>}
+                            {h.site_condition && <span>·{h.site_condition}</span>}
+                            {h.ad_cost_type && <span>·{h.ad_cost_type}</span>}
+                          </div>
+                        </summary>
+                        <div className="px-3 pb-2 pt-1 space-y-1.5" style={{ borderTop: "1px solid var(--border)" }}>
+                          <div className="grid grid-cols-2 gap-1 text-[10px]">
+                            {h.region && <div><span style={{ color: "var(--text-subtle)" }}>지역:</span> <b style={{ color: "var(--text)" }}>{h.region}</b></div>}
+                            {h.population && <div><span style={{ color: "var(--text-subtle)" }}>인구:</span> <b style={{ color: "var(--text)" }}>{h.population}</b></div>}
+                            {h.site_condition && <div><span style={{ color: "var(--text-subtle)" }}>컨디션:</span> <b style={{ color: "var(--text)" }}>{h.site_condition}</b></div>}
+                            {h.contract_terms && <div><span style={{ color: "var(--text-subtle)" }}>계약조건:</span> <b style={{ color: "var(--text)" }}>{h.contract_terms}</b></div>}
+                            {h.sales_rate && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>분양률:</span> <b style={{ color: "var(--text)" }}>{h.sales_rate}</b></div>}
+                            {h.agency_info && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>대행사:</span> <b style={{ color: "var(--text)" }}>{h.agency_info}</b></div>}
+                            {h.ad_schedule && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>광고스케줄:</span> <b style={{ color: "var(--text)" }}>{h.ad_schedule}</b></div>}
+                            {h.relocation_plan && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>이동계획:</span> <b style={{ color: "var(--text)" }}>{h.relocation_plan}</b></div>}
+                            {h.org_chart && <div><span style={{ color: "var(--text-subtle)" }}>조직도:</span> <b style={{ color: "var(--text)" }}>{h.org_chart}</b></div>}
+                            {h.org_count && <div><span style={{ color: "var(--text-subtle)" }}>조직수:</span> <b style={{ color: "var(--text)" }}>{h.org_count}</b></div>}
+                            {h.rt && <div><span style={{ color: "var(--text-subtle)" }}>R/T:</span> <b style={{ color: "var(--text)" }}>{h.rt}</b></div>}
+                            {h.ad_cost_type && <div><span style={{ color: "var(--text-subtle)" }}>광고비용:</span> <b style={{ color: "var(--text)" }}>{h.ad_cost_type}</b></div>}
+                            {h.ad_total_cost && <div><span style={{ color: "var(--text-subtle)" }}>총비용:</span> <b style={{ color: "var(--text)" }}>{h.ad_total_cost}</b></div>}
+                            {h.ad_items && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>광고품목:</span> <b style={{ color: "var(--text)" }}>{h.ad_items}</b></div>}
+                          </div>
                         </div>
-                        <div className="grid grid-cols-4 gap-1 text-[10px]">
-                          <div><span style={{ color: "var(--text-subtle)" }}>현장</span> <span className="font-semibold" style={{ color: "var(--text)" }}>{h.operating_site || "-"}</span></div>
-                          <div><span style={{ color: "var(--text-subtle)" }}>전체</span> <span className="font-semibold" style={{ color: "var(--text)" }}>{h.total_org_count || "-"}</span></div>
-                          <div><span style={{ color: "var(--text-subtle)" }}>팀</span> <span className="font-semibold" style={{ color: "var(--text)" }}>{h.team_org_count || "-"}</span></div>
-                          <div><span style={{ color: "var(--text-subtle)" }}>R/T</span> <span className="font-semibold" style={{ color: "var(--text)" }}>{h.rt || "-"}</span></div>
-                        </div>
-                      </div>
+                      </details>
                     ))}
                   </div>
                 )}
