@@ -136,3 +136,50 @@ export async function POST() {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+// PUT: 외부에서 데이터를 직접 업로드 (수동 동기화용)
+export async function PUT(request: Request) {
+  try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const body = await request.json();
+    const { data: rows, replace } = body;
+    
+    if (!rows || !Array.isArray(rows)) {
+      return NextResponse.json({ error: "rows 배열이 필요합니다" }, { status: 400 });
+    }
+
+    // replace=true면 기존 데이터 삭제
+    if (replace) {
+      await supabase.from("notion_sales").delete().neq("id", 0);
+    }
+
+    // 100건씩 배치 삽입
+    const batchSize = 100;
+    let inserted = 0;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize).map((r: any) => ({
+        consultant: r.consultant || "",
+        month: r.month || r["월"] || "",
+        week: r.week || r["주차"] || "",
+        sales_target: r.sales_target || r["매출예정"] || r["매출 예정 (현장명_고객명 입력)"] || r["현장명"] || "",
+        division: r.division || r["구분"] || "",
+        customer_route: r.customer_route || r["고객경로"] || "",
+        additional_route: r.additional_route || (r["추가경로"] || "").replace(/[\[\]"]/g, ""),
+        customer_name: r.customer_name || r["고객명"] || "",
+        payment_type: r.payment_type || r["결제유형"] || "",
+        amount: r.amount || r["금액"] || 0,
+        probability: r.probability || r["확률"] || "",
+        deposit_status: r.deposit_status || r["입금"] || "",
+        consultant_note: r.consultant_note || r["컨설턴트 특이사항"] || "",
+        synced_at: new Date().toISOString(),
+      }));
+      const { error } = await supabase.from("notion_sales").insert(batch);
+      if (error) console.error("Insert error:", error);
+      else inserted += batch.length;
+    }
+
+    return NextResponse.json({ success: true, inserted });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
