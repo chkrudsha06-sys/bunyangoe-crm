@@ -195,10 +195,18 @@ export default function ContentManagePage() {
   };
 
   const updateField = (contactId: number, field: string, value: any) => {
-    setStatuses(prev => ({
-      ...prev,
-      [contactId]: { ...getStatus(contactId), contact_id: contactId, [field]: value },
-    }));
+    setStatuses(prev => {
+      const current = prev[contactId] || { ...EMPTY_STATUS, contact_id: contactId };
+
+      return {
+        ...prev,
+        [contactId]: {
+          ...current,
+          contact_id: contactId,
+          [field]: value,
+        },
+      };
+    });
   };
 
   const toggleCheckbox = async (contactId: number, field: string) => {
