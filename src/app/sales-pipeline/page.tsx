@@ -47,6 +47,9 @@ export default function SalesPipelinePage() {
   const [filter입금, setFilter입금] = useState("");
   const [filter확률, setFilter확률] = useState("");
 
+  const [syncing, setSyncing] = useState(false);
+  const [source, setSource] = useState("");
+
   useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
@@ -57,8 +60,20 @@ export default function SalesPipelinePage() {
       if (json.error) { setError(json.error); setLoading(false); return; }
       setData(json.data || []);
       setUpdatedAt(json.updatedAt || "");
+      setSource(json.source || "");
     } catch (e: any) { setError(e.message); }
     setLoading(false);
+  };
+
+  const handleSync = async () => {
+    setSyncing(true); setError("");
+    try {
+      const res = await fetch("/api/notion-sales", { method: "POST" });
+      const json = await res.json();
+      if (json.error) { setError(json.error); setSyncing(false); return; }
+      await fetchData();
+    } catch (e: any) { setError(e.message); }
+    setSyncing(false);
   };
 
   // 전체 행 + 담당자 라벨 포함
@@ -108,13 +123,21 @@ export default function SalesPipelinePage() {
             </h1>
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
               노션 연동 · 전체 {allRows.length}건
-              {updatedAt && <span className="ml-2" style={{ color: "var(--text-subtle)" }}>최종 동기화: {new Date(updatedAt).toLocaleString("ko-KR")}</span>}
+              {source && <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: source === "notion" ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)", color: source === "notion" ? "#10b981" : "#f59e0b" }}>
+                {source === "notion" ? "실시간 연동" : "캐시 데이터"}
+              </span>}
+              {updatedAt && <span className="ml-2" style={{ color: "var(--text-subtle)" }}>동기화: {new Date(updatedAt).toLocaleString("ko-KR")}</span>}
             </p>
           </div>
           <button onClick={fetchData} disabled={loading}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg"
             style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "#3b82f6" }}>
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> 새로고침
+          </button>
+          <button onClick={handleSync} disabled={syncing}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg"
+            style={{ background: syncing ? "#94a3b8" : "#10b981" }}>
+            <RefreshCw size={13} className={syncing ? "animate-spin" : ""} /> {syncing ? "동기화 중..." : "🔄 최신화"}
           </button>
         </div>
 
@@ -164,7 +187,9 @@ export default function SalesPipelinePage() {
         ) : error ? (
           <div className="text-center py-20">
             <p className="text-sm font-semibold" style={{ color: "#ef4444" }}>오류: {error}</p>
-            <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>Vercel 환경변수에 NOTION_API_KEY를 설정해주세요</p>
+            <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
+              {error.includes("NOTION_API_KEY") ? "최신화 버튼은 Notion API 키 설정 후 사용 가능합니다." : "잠시 후 다시 시도해주세요."}
+            </p>
           </div>
         ) : (
           <table className="w-full text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
