@@ -782,7 +782,7 @@ function ActivityCheckBoard({ user }: { user: CRMUser | null }) {
 
       <div className="flex gap-4 flex-1 mt-2">
         {/* 좌: 입력 */}
-        <div className="flex-1 space-y-2">
+        <div className="space-y-2 flex-shrink-0" style={{ width: 260 }}>
           {[
             { key: "sales_tm", label: "당일 영업TM수", color: "#3b82f6" },
             { key: "customer_tm", label: "당일 고객관리TM수", color: "#8b5cf6" },
@@ -790,13 +790,11 @@ function ActivityCheckBoard({ user }: { user: CRMUser | null }) {
           ].map(item => (
             <div key={item.key} className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />
-              <span className="text-xs text-slate-600 flex-1">{item.label}</span>
-              <div className="flex items-center gap-1">
-                <input type="number" min={0} value={(form as any)[item.key]}
-                  onChange={e => setForm(p => ({ ...p, [item.key]: parseInt(e.target.value) || 0 }))}
-                  className="w-16 px-2 py-1.5 text-sm text-right font-bold bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400" />
-                <span className="text-[10px] text-slate-400">건</span>
-              </div>
+              <span className="text-xs text-slate-600" style={{ width: 130 }}>{item.label}</span>
+              <input type="number" min={0} value={(form as any)[item.key]}
+                onChange={e => setForm(p => ({ ...p, [item.key]: parseInt(e.target.value) || 0 }))}
+                className="w-14 px-2 py-1.5 text-sm text-right font-bold bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400" />
+              <span className="text-[10px] text-slate-400">건</span>
             </div>
           ))}
           <button onClick={handleSave} disabled={saving}
@@ -807,17 +805,17 @@ function ActivityCheckBoard({ user }: { user: CRMUser | null }) {
         </div>
 
         {/* 우: 미니 캘린더 */}
-        <div style={{ width: 210 }} className="flex-shrink-0">
-          <div className="flex items-center justify-between mb-1.5">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-2">
             <button onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); } else setCalMonth(m => m - 1); }}
-              className="text-[10px] text-slate-400 hover:text-slate-600 px-1">◀</button>
-            <span className="text-[11px] font-bold text-slate-600">{calYear}.{String(calMonth + 1).padStart(2, "0")}</span>
+              className="text-xs text-slate-400 hover:text-slate-600 px-1.5">◀</button>
+            <span className="text-xs font-bold text-slate-600">{calYear}.{String(calMonth + 1).padStart(2, "0")}</span>
             <button onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); } else setCalMonth(m => m + 1); }}
-              className="text-[10px] text-slate-400 hover:text-slate-600 px-1">▶</button>
+              className="text-xs text-slate-400 hover:text-slate-600 px-1.5">▶</button>
           </div>
-          <div className="grid grid-cols-7 gap-0.5 text-center">
+          <div className="grid grid-cols-7 gap-1 text-center">
             {["일","월","화","수","목","금","토"].map(d => (
-              <span key={d} className="text-[9px] font-bold text-slate-400 py-0.5">{d}</span>
+              <span key={d} className="text-[10px] font-bold text-slate-400 py-1">{d}</span>
             ))}
             {weeks.flat().map((day, i) => {
               if (!day) return <span key={`e${i}`} />;
@@ -827,7 +825,7 @@ function ActivityCheckBoard({ user }: { user: CRMUser | null }) {
               const intensity = !a ? "transparent" : total >= 30 ? "rgba(16,185,129,0.5)" : total >= 15 ? "rgba(16,185,129,0.3)" : total > 0 ? "rgba(16,185,129,0.15)" : "transparent";
               return (
                 <div key={`d${i}`} className="relative group" title={a ? `TM:${a.sales_tm} 관리:${a.customer_tm} 콜드톡:${a.cold_talk}` : ""}>
-                  <span className="flex items-center justify-center text-[10px] rounded-md py-1"
+                  <span className="flex items-center justify-center text-xs rounded-lg py-1.5"
                     style={{
                       background: intensity,
                       color: isToday ? "#3b82f6" : a ? "#065f46" : "#94a3b8",
@@ -844,10 +842,10 @@ function ActivityCheckBoard({ user }: { user: CRMUser | null }) {
             })}
           </div>
           {/* 범례 */}
-          <div className="flex items-center justify-center gap-2 mt-1.5">
-            <span className="flex items-center gap-0.5 text-[8px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "rgba(16,185,129,0.15)" }} />1+</span>
-            <span className="flex items-center gap-0.5 text-[8px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "rgba(16,185,129,0.3)" }} />15+</span>
-            <span className="flex items-center gap-0.5 text-[8px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "rgba(16,185,129,0.5)" }} />30+</span>
+          <div className="flex items-center justify-center gap-3 mt-2">
+            <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "rgba(16,185,129,0.15)" }} />1+</span>
+            <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "rgba(16,185,129,0.3)" }} />15+</span>
+            <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "rgba(16,185,129,0.5)" }} />30+</span>
           </div>
         </div>
       </div>
