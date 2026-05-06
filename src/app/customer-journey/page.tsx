@@ -744,23 +744,45 @@ export default function CustomerJourneyPage() {
                             {h.ad_cost_type && <span>·{h.ad_cost_type}</span>}
                           </div>
                         </summary>
-                        <div className="px-4 pb-3 pt-2 space-y-2" style={{ borderTop: "1px solid var(--border)" }}>
-                          <div className="grid grid-cols-2 gap-1.5 text-xs">
-                            {h.region && <div><span style={{ color: "var(--text-subtle)" }}>지역:</span> <b style={{ color: "var(--text)" }}>{h.region}</b></div>}
-                            {h.population && <div><span style={{ color: "var(--text-subtle)" }}>인구:</span> <b style={{ color: "var(--text)" }}>{h.population}</b></div>}
-                            {h.site_condition && <div><span style={{ color: "var(--text-subtle)" }}>컨디션:</span> <b style={{ color: "var(--text)" }}>{h.site_condition}</b></div>}
-                            {h.contract_terms && <div><span style={{ color: "var(--text-subtle)" }}>계약조건:</span> <b style={{ color: "var(--text)" }}>{h.contract_terms}</b></div>}
-                            {h.sales_rate && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>분양률:</span> <b style={{ color: "var(--text)" }}>{h.sales_rate}</b></div>}
-                            {h.agency_info && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>대행사:</span> <b style={{ color: "var(--text)" }}>{h.agency_info}</b></div>}
-                            {h.ad_schedule && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>광고스케줄:</span> <b style={{ color: "var(--text)" }}>{h.ad_schedule}</b></div>}
-                            {h.relocation_plan && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>이동계획:</span> <b style={{ color: "var(--text)" }}>{h.relocation_plan}</b></div>}
-                            {h.org_chart && <div><span style={{ color: "var(--text-subtle)" }}>조직도:</span> <b style={{ color: "var(--text)" }}>{h.org_chart}</b></div>}
-                            {h.org_count && <div><span style={{ color: "var(--text-subtle)" }}>조직수:</span> <b style={{ color: "var(--text)" }}>{h.org_count}</b></div>}
-                            {h.rt && <div><span style={{ color: "var(--text-subtle)" }}>R/T:</span> <b style={{ color: "var(--text)" }}>{h.rt}</b></div>}
-                            {h.ad_cost_type && <div><span style={{ color: "var(--text-subtle)" }}>광고비용:</span> <b style={{ color: "var(--text)" }}>{h.ad_cost_type}</b></div>}
-                            {h.ad_total_cost && <div><span style={{ color: "var(--text-subtle)" }}>총비용:</span> <b style={{ color: "var(--text)" }}>{h.ad_total_cost}</b></div>}
-                            {h.ad_items && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>광고품목:</span> <b style={{ color: "var(--text)" }}>{h.ad_items}</b></div>}
-                          </div>
+                        <div className="px-4 pb-3 pt-2 space-y-3" style={{ borderTop: "1px solid var(--border)" }}>
+                          {/* 현장분석 */}
+                          {(h.region || h.population || h.site_condition || h.contract_terms || h.sales_rate || h.agency_info || h.ad_schedule || h.relocation_plan) && (
+                            <div>
+                              <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#3b82f6", borderBottom: "1px dashed var(--border)" }}>🏗️ 현장분석</p>
+                              <div className="grid grid-cols-2 gap-1.5 text-xs">
+                                {h.region && <div><span style={{ color: "var(--text-subtle)" }}>지역:</span> <b style={{ color: "var(--text)" }}>{h.region}</b></div>}
+                                {h.population && <div><span style={{ color: "var(--text-subtle)" }}>인구:</span> <b style={{ color: "var(--text)" }}>{h.population}</b></div>}
+                                {h.site_condition && <div><span style={{ color: "var(--text-subtle)" }}>컨디션:</span> <b style={{ color: "var(--text)" }}>{h.site_condition}</b></div>}
+                                {h.contract_terms && <div><span style={{ color: "var(--text-subtle)" }}>계약조건:</span> <b style={{ color: "var(--text)" }}>{h.contract_terms}</b></div>}
+                                {h.sales_rate && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>분양률:</span> <b style={{ color: "var(--text)" }}>{h.sales_rate}</b></div>}
+                                {h.agency_info && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>대행사:</span> <b style={{ color: "var(--text)" }}>{h.agency_info}</b></div>}
+                                {h.ad_schedule && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>광고스케줄:</span> <b style={{ color: "var(--text)" }}>{h.ad_schedule}</b></div>}
+                                {h.relocation_plan && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>이동계획:</span> <b style={{ color: "var(--text)" }}>{h.relocation_plan}</b></div>}
+                              </div>
+                            </div>
+                          )}
+                          {/* 조직분석 */}
+                          {(h.org_chart || h.org_count || h.rt) && (
+                            <div>
+                              <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#8b5cf6", borderBottom: "1px dashed var(--border)" }}>👥 조직분석</p>
+                              <div className="grid grid-cols-3 gap-1.5 text-xs">
+                                {h.org_chart && <div><span style={{ color: "var(--text-subtle)" }}>조직도:</span> <b style={{ color: "var(--text)" }}>{h.org_chart}</b></div>}
+                                {h.org_count && <div><span style={{ color: "var(--text-subtle)" }}>조직수:</span> <b style={{ color: "var(--text)" }}>{h.org_count}</b></div>}
+                                {h.rt && <div><span style={{ color: "var(--text-subtle)" }}>R/T:</span> <b style={{ color: "var(--text)" }}>{h.rt}</b></div>}
+                              </div>
+                            </div>
+                          )}
+                          {/* 광고 */}
+                          {(h.ad_cost_type || h.ad_total_cost || h.ad_items) && (
+                            <div>
+                              <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#10b981", borderBottom: "1px dashed var(--border)" }}>📡 광고</p>
+                              <div className="grid grid-cols-2 gap-1.5 text-xs">
+                                {h.ad_cost_type && <div><span style={{ color: "var(--text-subtle)" }}>광고비용:</span> <b style={{ color: "var(--text)" }}>{h.ad_cost_type}</b></div>}
+                                {h.ad_total_cost && <div><span style={{ color: "var(--text-subtle)" }}>총비용:</span> <b style={{ color: "var(--text)" }}>{h.ad_total_cost}</b></div>}
+                                {h.ad_items && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>광고품목:</span> <b style={{ color: "var(--text)" }}>{h.ad_items}</b></div>}
+                              </div>
+                            </div>
+                          )}
                           <div className="flex justify-end pt-1">
                             <button onClick={e => { e.stopPropagation(); deleteAnalysis(h.id); }}
                               className="text-xs font-semibold px-2.5 py-1 rounded"
