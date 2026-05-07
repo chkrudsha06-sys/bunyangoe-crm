@@ -82,13 +82,20 @@ function calcYears(baseYear: number, storedYears: string): string {
   return `${num + diff}년차`;
 }
 
-// 파일을 base64로 변환 (원본 품질 유지)
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.readAsDataURL(file);
+// Supabase Storage에 파일 업로드 (원본 품질 유지)
+async function uploadToStorage(file: File, contactId: number): Promise<{ name: string; url: string; size: number; path: string }> {
+  const timestamp = Date.now();
+  const safeName = file.name.replace(/[^a-zA-Z0-9가-힣._-]/g, "_");
+  const path = `${contactId}/${timestamp}_${safeName}`;
+  
+  const { error } = await supabase.storage.from("content-files").upload(path, file, {
+    cacheControl: "3600",
+    upsert: false,
   });
+  if (error) throw new Error(`업로드 실패: ${error.message}`);
+  
+  const { data: urlData } = supabase.storage.from("content-files").getPublicUrl(path);
+  return { name: file.name, url: urlData.publicUrl, size: file.size, path };
 }
 
 export default function ContentManagePage() {
@@ -242,18 +249,16 @@ export default function ContentManagePage() {
     const existingFiles = [...(s.files || [])];
 
     for (const file of Array.from(fileList)) {
-      // 파일 크기 제한 (원본 5MB, 압축 후 ~100KB)
       if (file.size > 50 * 1024 * 1024) {
         showToast(`${file.name}: 50MB 이하 파일만 업로드 가능합니다`);
         continue;
       }
-      const compressed = await fileToBase64(file);
-      existingFiles.push({
-        name: file.name,
-        url: compressed,
-        size: file.size,
-        uploaded_at: new Date().toISOString(),
-      });
+      try {
+        const uploaded = await uploadToStorage(file, contactId);
+        existingFiles.push({ ...uploaded, uploaded_at: new Date().toISOString() });
+      } catch (e: any) {
+        showToast(`${file.name} 업로드 실패: ${e.message}`);
+      }
     }
 
     try {
@@ -304,7 +309,13 @@ export default function ContentManagePage() {
     const s = getStatus(contactId);
     if (!s.files || s.files.length === 0) { showToast("삭제할 파일이 없습니다"); return; }
     
+    const fileToDelete = s.files[fileIndex];
     const newFiles = s.files.filter((_: any, i: number) => i !== fileIndex);
+
+    // Storage에서 파일 삭제
+    if (fileToDelete?.path) {
+      await supabase.storage.from("content-files").remove([fileToDelete.path]);
+    }
 
     // 즉시 UI 반영
     setStatuses(prev => ({
@@ -333,6 +344,12 @@ export default function ContentManagePage() {
   };
 
   const downloadFile = (file: UploadedFile) => {
+    // Storage URL → 새 탭에서 원본 다운로드
+    if (file.url.startsWith("http")) {
+      window.open(file.url, "_blank");
+      return;
+    }
+    // 기존 base64 호환
     const a = document.createElement("a");
     a.href = file.url;
     a.download = file.name;
