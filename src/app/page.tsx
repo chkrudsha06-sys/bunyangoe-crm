@@ -714,96 +714,6 @@ function CustomerJourneyBoard({ user }: { user: CRMUser | null }) {
   );
 }
 
-// ── 업계 뉴스 큐레이션 ────────────────────────────────────────────
-function NewsCuration() {
-  const [news, setNews] = useState<any[]>([]);
-  const [expanded, setExpanded] = useState<number | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const res = await fetch("/api/news-curation");
-      const json = await res.json();
-      setNews(json.data || []);
-    })();
-  }, []);
-
-  if (news.length === 0) return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{ minHeight: "200px" }}>
-      <h3 className="text-base font-bold text-slate-700">📰 업계 뉴스 브리핑</h3>
-      <p className="text-[10px] text-slate-400 mt-0.5">분양 산업 동향 · 정책 · 시장 분석</p>
-      <div className="flex-1 flex items-center justify-center"><p className="text-sm text-slate-300">아직 발행된 뉴스가 없습니다</p></div>
-    </div>
-  );
-
-  const latest = news[0];
-  const fmtDate = (d: string) => new Date(d).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
-
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{ minHeight: "200px" }}>
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h3 className="text-base font-bold text-slate-700">📰 업계 뉴스 브리핑</h3>
-          <p className="text-[10px] text-slate-400 mt-0.5">분양 산업 동향 · 정책 · 시장 분석</p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-slate-400">{fmtDate(latest.published_at)}</span>
-          {latest.published_by && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(59,130,246,0.08)", color: "#3b82f6" }}>{latest.published_by}</span>}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto space-y-2.5">
-        {/* 주간 분양 브리핑 */}
-        {latest.weekly_briefing && (
-          <div className="rounded-xl p-3" style={{ background: "#f0f9ff", border: "1px solid #bfdbfe" }}>
-            <p className="text-[11px] font-bold text-blue-700 mb-1.5">📋 주간 분양 브리핑</p>
-            <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">{latest.weekly_briefing}</p>
-          </div>
-        )}
-        {/* 업계 인물 동향 */}
-        {latest.industry_news && (
-          <div className="rounded-xl p-3" style={{ background: "#faf5ff", border: "1px solid #e9d5ff" }}>
-            <p className="text-[11px] font-bold text-purple-700 mb-1.5">👤 업계 동향</p>
-            <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">{latest.industry_news}</p>
-          </div>
-        )}
-        {/* 분신 매거진 */}
-        {latest.magazine_highlight && (
-          <div className="rounded-xl p-3" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-            <p className="text-[11px] font-bold text-emerald-700 mb-1.5">📖 분신 매거진 하이라이트</p>
-            <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">{latest.magazine_highlight}</p>
-          </div>
-        )}
-      </div>
-
-      {/* 이전 뉴스 */}
-      {news.length > 1 && (
-        <div className="mt-2 pt-2" style={{ borderTop: "1px solid #e2e8f0" }}>
-          <div className="flex items-center gap-2 overflow-x-auto">
-            {news.slice(1).map(n => (
-              <button key={n.id} onClick={() => setExpanded(expanded === n.id ? null : n.id)}
-                className="text-[10px] px-2.5 py-1 rounded-lg whitespace-nowrap flex-shrink-0 transition-colors"
-                style={{ background: expanded === n.id ? "rgba(59,130,246,0.1)" : "#f8fafc", color: expanded === n.id ? "#3b82f6" : "#64748b", border: "1px solid #e2e8f0" }}>
-                {new Date(n.published_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })} {n.title}
-              </button>
-            ))}
-          </div>
-          {expanded && (() => {
-            const n = news.find(x => x.id === expanded);
-            if (!n) return null;
-            return (
-              <div className="mt-2 rounded-xl p-3 text-xs text-slate-600 leading-relaxed space-y-1.5" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                {n.weekly_briefing && <div><span className="font-bold text-blue-600">📋</span> {n.weekly_briefing}</div>}
-                {n.industry_news && <div><span className="font-bold text-purple-600">👤</span> {n.industry_news}</div>}
-                {n.magazine_highlight && <div><span className="font-bold text-emerald-600">📖</span> {n.magazine_highlight}</div>}
-              </div>
-            );
-          })()}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── 활동량체크 보드 ────────────────────────────────────────────
 function ActivityCheckBoard({ user }: { user: CRMUser | null }) {
   const today = new Date().toISOString().split("T")[0];
@@ -1323,13 +1233,10 @@ export default function DashboardPage() {
           <div className="grid grid-rows-3 gap-4">
             <RevenueTrendCard monthlyRev={monthlyRev}/>
             <CustomerJourneyBoard user={user}/>
-            {["조계현","이세호","최연전","기여운"].includes(user?.name || "") ? <ActivityCheckBoard user={user}/> : <NewsCuration />}
+            {["조계현","이세호","최연전","기여운"].includes(user?.name || "") && <ActivityCheckBoard user={user}/>}
           </div>
           <DashboardKpiSummary user={user}/>
         </div>
-
-        {/* 실행파트는 뉴스를 하단에 별도 표시 */}
-        {["조계현","이세호","최연전","기여운"].includes(user?.name || "") && <NewsCuration />}
 
         <DashCalendar user={user} />
       </div>
