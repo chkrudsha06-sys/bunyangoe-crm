@@ -80,11 +80,12 @@ ${headlineText}
 
     const data = await res.json();
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    // 마크다운 코드블록 제거 후 JSON 파싱
-    const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "");
+    const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("JSON 파싱 실패: " + cleaned.substring(0, 100));
-    return JSON.parse(jsonMatch[0]);
+    // 모든 줄바꿈을 \\n으로 치환 후 파싱
+    const singleLine = jsonMatch[0].replace(/\r?\n/g, "\\n");
+    return JSON.parse(singleLine);
   } catch (e: any) {
     console.error("Gemini error:", e);
     throw e;
