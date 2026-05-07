@@ -216,6 +216,50 @@ export default function ContentManagePage() {
     }
   };
 
+
+  // 외부 컨텐츠 고객 삭제
+  const deleteExternalMember = async (contactId: number, customerName: string) => {
+    const ok = window.confirm(`${customerName} 고객을 삭제하시겠습니까?\n등록 고객 정보와 연결된 컨텐츠 상태/파일 목록이 함께 삭제됩니다.`);
+    if (!ok) return;
+
+    try {
+      const s = getStatus(contactId);
+      const files = normalizeFiles(s.files);
+
+      // Storage에 실제 파일이 있으면 먼저 삭제합니다.
+      const storagePaths = files.map(file => file.path).filter(Boolean) as string[];
+      if (storagePaths.length > 0) {
+        await supabase.storage.from("content-files").remove(storagePaths);
+      }
+
+      // FK 제약이 있을 수 있으므로 content_statuses를 먼저 삭제합니다.
+      await supabase.from("content_statuses").delete().eq("contact_id", contactId);
+
+      const { error } = await supabase.from("contacts").delete().eq("id", contactId);
+      if (error) {
+        showToast(`삭제 실패: ${error.message}`);
+        return;
+      }
+
+      setExtMembers(prev => prev.filter(member => member.id !== contactId));
+      setStatuses(prev => {
+        const next = { ...prev };
+        delete next[contactId];
+        return next;
+      });
+      setLoadedFiles(prev => {
+        const next = new Set(prev);
+        next.delete(contactId);
+        return next;
+      });
+      if (expandedId === contactId) setExpandedId(null);
+
+      showToast(`${customerName} 삭제 완료`);
+    } catch (e: any) {
+      showToast(`삭제 오류: ${e.message || "알 수 없는 오류"}`);
+    }
+  };
+
   // 회원 펼칠 때 파일 데이터 로드 (lazy loading)
   const expandMember = async (contactId: number) => {
     if (expandedId === contactId) { setExpandedId(null); return; }
@@ -740,7 +784,7 @@ export default function ContentManagePage() {
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
         <div className="h-full flex" style={{ minWidth: 1040 }}>
           {/* 좌측: 분양회 회원 리스트 */}
-          <div className="overflow-y-auto pb-4" style={{ width: 520, minWidth: 520, flexShrink: 0, borderRight: "1px solid var(--border)" }}>
+          <div className="overflow-y-scroll pb-4" style={{ width: 520, minWidth: 520, flexShrink: 0, borderRight: "1px solid var(--border)", scrollbarGutter: "stable" }}>
             <div className="px-3 h-10 flex items-center" style={{ borderBottom: "1px solid var(--border)" }}>
               <p className="text-xs font-bold" style={{ color: "var(--text)" }}>🏆 분양회 회원 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({members.length}명)</span></p>
             </div>
@@ -846,7 +890,7 @@ export default function ContentManagePage() {
           </div>
 
           {/* 우측: 외부 고객 리스트 */}
-          <div className="overflow-y-auto pb-4" style={{ width: 520, minWidth: 520, flexShrink: 0 }}>
+          <div className="overflow-y-scroll pb-4" style={{ width: 520, minWidth: 520, flexShrink: 0, borderRight: "1px solid var(--border)", scrollbarGutter: "stable" }}>
             <div className="px-3 h-10 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
               <p className="text-xs font-bold" style={{ color: "var(--text)" }}>🎬 외부 컨텐츠 고객 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({extMembers.length}명)</span></p>
               <button onClick={() => setShowRegForm(v => !v)} className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
@@ -917,6 +961,16 @@ export default function ContentManagePage() {
                           <StatusBadge done={s.tf2_delivered} label="TF2" />
                           <StatusBadge done={s.pr_completed} label="PR" />
                           {s.production_impossible && <span className="text-[9px] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>불가</span>}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteExternalMember(m.id, m.name);
+                            }}
+                            className="ml-1 text-[9px] px-1.5 py-1 rounded font-bold"
+                            style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
+                          >
+                            삭제
+                          </button>
                         </div>
                       </div>
                     );
