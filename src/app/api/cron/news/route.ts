@@ -31,10 +31,10 @@ async function fetchNewsHeadlines(): Promise<string[]> {
   return headlines.slice(0, 15);
 }
 
-// OpenAI로 뉴스 큐레이션 생성
+// Google Gemini로 뉴스 큐레이션 생성
 async function generateCuration(headlines: string[]): Promise<{ title: string; weekly_briefing: string; industry_news: string; magazine_highlight: string } | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
+  const apiKey = process.env.GOOGLE_AI_KEY;
+  if (!apiKey) throw new Error("GOOGLE_AI_KEY 환경변수가 없습니다");
 
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
   const headlineText = headlines.length > 0 
@@ -64,32 +64,27 @@ ${headlineText}
 - 전일 기준 뉴스가 없으면 가장 최근 이슈로 작성`;
 
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.7,
-        max_tokens: 1000,
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1000 },
       }),
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("OpenAI API error:", res.status, errText);
-      // 에러 정보를 반환하여 디버깅 가능하도록
-      throw new Error(`OpenAI ${res.status}: ${errText.substring(0, 200)}`);
+      throw new Error(`Gemini ${res.status}: ${errText.substring(0, 200)}`);
     }
 
     const data = await res.json();
-    const content = data.choices?.[0]?.message?.content || "";
-    // JSON 파싱
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
+    if (!jsonMatch) throw new Error("JSON 파싱 실패: " + content.substring(0, 100));
     return JSON.parse(jsonMatch[0]);
   } catch (e: any) {
-    console.error("OpenAI error:", e);
+    console.error("Gemini error:", e);
     throw e;
   }
 }
