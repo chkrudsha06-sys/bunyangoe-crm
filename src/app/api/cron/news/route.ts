@@ -80,15 +80,19 @@ JSON 값 안에서 줄바꿈 대신 반드시 | 기호를 사용하세요.
     const data = await res.json();
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-    const jsonMatch = cleaned.match(/\{[^{}]*\}/);
-    if (!jsonMatch) throw new Error("JSON 파싱 실패: " + cleaned.substring(0, 200));
-    const parsed = JSON.parse(jsonMatch[0]);
-    // | 를 줄바꿈으로 변환
+    // 첫 { 부터 마지막 } 까지 추출
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("JSON 파싱 실패: " + cleaned.substring(0, 200));
+    let jsonStr = cleaned.substring(start, end + 1);
+    // 값 안의 줄바꿈 제거
+    jsonStr = jsonStr.replace(/\n/g, " ");
+    const parsed = JSON.parse(jsonStr);
     return {
       title: parsed.title || "",
-      weekly_briefing: (parsed.weekly_briefing || "").replace(/\|/g, "\n"),
-      industry_news: (parsed.industry_news || "").replace(/\|/g, "\n"),
-      magazine_highlight: (parsed.magazine_highlight || "").replace(/\|/g, "\n"),
+      weekly_briefing: (parsed.weekly_briefing || "").replace(/\|/g, "\n").replace(/▸ /g, "\n▸ ").trim(),
+      industry_news: (parsed.industry_news || "").replace(/\|/g, "\n").replace(/▸ /g, "\n▸ ").trim(),
+      magazine_highlight: (parsed.magazine_highlight || ""),
     };
   } catch (e: any) {
     console.error("Gemini error:", e);
