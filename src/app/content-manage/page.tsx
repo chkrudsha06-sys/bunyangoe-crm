@@ -99,6 +99,21 @@ async function uploadToStorage(file: File, contactId: number): Promise<{ name: s
   return { name: file.name, url: urlData.publicUrl, size: file.size, path };
 }
 
+function normalizeFiles(files: any): UploadedFile[] {
+  if (!files) return [];
+  if (Array.isArray(files)) return files;
+  try {
+    const parsed = JSON.parse(files);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function isImageFile(file: UploadedFile): boolean {
+  return file.url?.startsWith("data:image") || /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(file.name || "");
+}
+
 export default function ContentManagePage() {
   const [members, setMembers] = useState<VipMember[]>([]);
   const [extMembers, setExtMembers] = useState<VipMember[]>([]);
@@ -141,7 +156,7 @@ export default function ContentManagePage() {
       .select("files").eq("id", s.id).single();
 
     if (data) {
-      const files = Array.isArray(data.files) ? data.files : (data.files ? JSON.parse(data.files) : []);
+      const files = normalizeFiles(data.files);
       setStatuses(prev => ({
         ...prev,
         [contactId]: { ...prev[contactId], files },
@@ -160,7 +175,7 @@ export default function ContentManagePage() {
   const [cardFilter, setCardFilter] = useState<string>("");
   const [showStats, setShowStats] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [uploadTarget, setUploadTarget] = useState<number | null>(null);
+  const uploadTargetRef = useRef<number | null>(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -245,65 +260,109 @@ export default function ContentManagePage() {
   };
 
   const handleFileUpload = async (contactId: number, fileList: FileList | File[]) => {
-    setUploading(contactId);
-    const s = getStatus(contactId);
-    const existingFiles = [...(s.files || [])];
+    const selectedFiles = Array.from(fileList);
+    if (selectedFiles.length === 0) return;
 
-    for (const file of Array.from(fileList)) {
-      if (file.size > 50 * 1024 * 1024) {
-        showToast(`${file.name}: 50MB 이하 파일만 업로드 가능합니다`);
-        continue;
-      }
-      try {
-        const uploaded = await uploadToStorage(file, contactId);
-        existingFiles.push({ ...uploaded, uploaded_at: new Date().toISOString() });
-      } catch (e: any) {
-        showToast(`${file.name} 업로드 실패: ${e.message}`);
-      }
-    }
+    setUploading(contactId);
 
     try {
+      const s = getStatus(contactId);
+      const uploadedFiles: UploadedFile[] = [];
+
+      for (const file of selectedFiles) {
+        if (file.size > 50 * 1024 * 1024) {
+          showToast(`${file.name}: 50MB 이하 파일만 업로드 가능합니다`);
+          continue;
+        }
+
+        try {
+          const uploaded = await uploadToStorage(file, contactId);
+          uploadedFiles.push({ ...uploaded, uploaded_at: new Date().toISOString() });
+        } catch (e: any) {
+          showToast(`${file.name} 업로드 실패: ${e.message || "알 수 없는 오류"}`);
+        }
+      }
+
+      if (uploadedFiles.length === 0) return;
+
+      // 기존 파일 목록은 화면 상태가 아니라 DB 최신값 기준으로 다시 읽습니다.
+      // lazy loading 구조에서는 s.files가 []일 수 있어, 그대로 저장하면 기존 파일 목록이 덮어써질 수 있습니다.
+      let statusId = s.id;
+      let existingFiles: UploadedFile[] = [];
+
+      if (statusId) {
+        const { data: latestStatus, error: latestError } = await supabase
+          .from("content_statuses")
+          .select("id,files")
+          .eq("id", statusId)
+          .single();
+
+        if (latestError) throw latestError;
+        existingFiles = normalizeFiles(latestStatus?.files);
+      } else {
+        const { data: latestStatus, error: latestError } = await supabase
+          .from("content_statuses")
+          .select("id,files")
+          .eq("contact_id", contactId)
+          .maybeSingle();
+
+        if (latestError) throw latestError;
+        statusId = latestStatus?.id;
+        existingFiles = normalizeFiles(latestStatus?.files);
+      }
+
+      const nextFiles = [...existingFiles, ...uploadedFiles];
       const payload = {
         contact_id: contactId,
-        files: existingFiles,
+        files: nextFiles,
         photo_received: true,
         updated_at: new Date().toISOString(),
       };
 
-      let error;
-      let res_id: number | undefined;
-      if (s.id) {
-        const res = await supabase.from("content_statuses").update(payload).eq("id", s.id);
-        error = res.error;
-        res_id = s.id;
+      let savedId = statusId;
+
+      if (statusId) {
+        const { error } = await supabase
+          .from("content_statuses")
+          .update(payload)
+          .eq("id", statusId);
+
+        if (error) throw error;
       } else {
-        const res = await supabase.from("content_statuses").insert(payload).select().single();
-        error = res.error;
-        res_id = res.data?.id;
+        const { data, error } = await supabase
+          .from("content_statuses")
+          .insert(payload)
+          .select("id")
+          .single();
+
+        if (error) throw error;
+        savedId = data?.id;
       }
 
-      if (error) {
-        showToast(`업로드 실패: ${error.message}`);
-        setUploading(null);
-        return;
-      }
+      // 업로드 성공 후 파일 목록을 즉시 화면에 반영합니다.
+      setStatuses(prev => {
+        const current = prev[contactId] || { ...EMPTY_STATUS, contact_id: contactId };
 
-      setStatuses(prev => ({
-        ...prev,
-        [contactId]: {
-          ...prev[contactId],
-          contact_id: contactId,
-          id: res_id || prev[contactId]?.id,
-          files: existingFiles,
-          photo_received: true,
-        },
-      }));
+        return {
+          ...prev,
+          [contactId]: {
+            ...current,
+            contact_id: contactId,
+            id: savedId || current.id,
+            files: nextFiles,
+            photo_received: true,
+            updated_at: new Date().toISOString(),
+          },
+        };
+      });
+
       setLoadedFiles(prev => new Set(prev).add(contactId));
-      showToast(`${Array.from(fileList).length}개 파일 업로드 완료`);
+      showToast(`${uploadedFiles.length}개 파일 업로드 완료`);
     } catch (e: any) {
-      showToast(`업로드 오류: ${e.message}`);
+      showToast(`업로드 오류: ${e.message || "알 수 없는 오류"}`);
+    } finally {
+      setUploading(null);
     }
-    setUploading(null);
   };
 
   const deleteFile = async (contactId: number, fileIndex: number, fileName: string) => {
@@ -834,7 +893,7 @@ export default function ContentManagePage() {
                         <div className="space-y-1.5 mb-3">
                           {s.files.map((file, fi) => (
                             <div key={fi} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                              {file.url.startsWith("data:image") ? <img src={file.url} alt="" className="w-8 h-8 object-cover rounded" /> : <FileText size={16} style={{ color: "#3b82f6" }} />}
+                              {isImageFile(file) ? <img src={file.url} alt="" className="w-8 h-8 object-cover rounded" /> : <FileText size={16} style={{ color: "#3b82f6" }} />}
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-semibold truncate" style={{ color: "var(--text)" }}>{file.name}</p>
                                 <p className="text-[10px]" style={{ color: "var(--text-subtle)" }}>{fmtSize(file.size)}</p>
@@ -848,7 +907,7 @@ export default function ContentManagePage() {
                       <div onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#3b82f6"; }}
                         onDragLeave={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; }}
                         onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; if (e.dataTransfer.files.length > 0) handleFileUpload(m.id, e.dataTransfer.files); }}
-                        onClick={() => { setUploadTarget(m.id); fileRef.current?.click(); }}
+                        onClick={() => { uploadTargetRef.current = m.id; fileRef.current?.click(); }}
                         className="w-full py-5 rounded-xl text-sm font-semibold flex flex-col items-center gap-1 cursor-pointer"
                         style={{ border: "2px dashed var(--border)", color: "var(--text-muted)" }}>
                         {uploading === m.id ? <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" /> : <><Upload size={16} /><span className="text-xs">클릭 또는 드래그 업로드</span></>}
@@ -1022,8 +1081,10 @@ export default function ContentManagePage() {
       <input ref={fileRef} type="file" accept="image/*,.pdf,.zip,.doc,.docx,.ppt,.pptx" multiple className="hidden"
         onChange={e => {
           const files = e.target.files;
-          if (files && files.length > 0 && uploadTarget) handleFileUpload(uploadTarget, files);
+          const targetId = uploadTargetRef.current;
+          if (files && files.length > 0 && targetId) handleFileUpload(targetId, files);
           e.target.value = "";
+          uploadTargetRef.current = null;
         }} />
 
       {/* 토스트 */}
