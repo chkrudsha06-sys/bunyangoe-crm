@@ -49,19 +49,18 @@ async function generateCuration(headlines: string[]): Promise<{ title: string; w
 [최신 뉴스 헤드라인]
 ${headlineText}
 
-아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
-{
-  "title": "5월 7일 부동산 브리핑" (형식: X월 X일 부동산 브리핑),
-  "weekly_briefing": "분양/부동산 핵심 뉴스 3-5개를 각각 ▸ 로 시작하는 한 줄 요약으로 작성. 분양가, 청약 경쟁률, 금리, 공급 물량, 정책 변화 중심. 각 항목은 줄바꿈으로 구분.",
-  "industry_news": "부동산 시장 동향, 건설사/시행사 소식, 지역별 분양 이슈 등 2-3개를 ▸ 로 시작하여 작성. 한국부동산마케팅협회나 AI 관련 내용은 제외.",
-  "magazine_highlight": "위 뉴스에서 분양상담사가 고객 상담 시 활용할 수 있는 핵심 인사이트 1줄 작성"
-}
+반드시 아래 JSON 형식으로만 응답하세요. 절대 코드블록(백틱)을 사용하지 마세요.
+JSON 값 안에서 줄바꿈 대신 반드시 | 기호를 사용하세요.
+
+{"title":"5월 7일 부동산 브리핑","weekly_briefing":"▸ 첫번째 뉴스 요약|▸ 두번째 뉴스 요약|▸ 세번째 뉴스 요약","industry_news":"▸ 시장 동향1|▸ 시장 동향2","magazine_highlight":"분양상담사 활용 인사이트 1줄"}
+
+위 형식을 그대로 따르되, 내용만 실제 뉴스로 채워주세요.
 
 중요:
 - 분양상담사가 현장에서 바로 활용할 수 있는 실질적 정보 중심
 - 한국부동산마케팅협회 관련 내용 제외
 - AI 관련 내용 제외
-- 전일 기준 뉴스가 없으면 가장 최근 이슈로 작성`;
+- JSON만 출력, 다른 텍스트 없이`;
 
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
@@ -81,11 +80,16 @@ ${headlineText}
     const data = await res.json();
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("JSON 파싱 실패: " + cleaned.substring(0, 100));
-    // 모든 줄바꿈을 \\n으로 치환 후 파싱
-    const singleLine = jsonMatch[0].replace(/\r?\n/g, "\\n");
-    return JSON.parse(singleLine);
+    const jsonMatch = cleaned.match(/\{[^{}]*\}/);
+    if (!jsonMatch) throw new Error("JSON 파싱 실패: " + cleaned.substring(0, 200));
+    const parsed = JSON.parse(jsonMatch[0]);
+    // | 를 줄바꿈으로 변환
+    return {
+      title: parsed.title || "",
+      weekly_briefing: (parsed.weekly_briefing || "").replace(/\|/g, "\n"),
+      industry_news: (parsed.industry_news || "").replace(/\|/g, "\n"),
+      magazine_highlight: (parsed.magazine_highlight || "").replace(/\|/g, "\n"),
+    };
   } catch (e: any) {
     console.error("Gemini error:", e);
     throw e;
