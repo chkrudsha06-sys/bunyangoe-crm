@@ -17,6 +17,7 @@ interface UploadedFile {
   name: string;
   url: string;
   size?: number;
+  path?: string;
   uploaded_at: string;
 }
 
