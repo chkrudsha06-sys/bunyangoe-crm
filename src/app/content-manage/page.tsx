@@ -156,17 +156,64 @@ export default function ContentManagePage() {
   // 새 고객 등록
   const handleRegister = async () => {
     if (!regForm.name.trim()) return;
+
     setRegSaving(true);
-    const { data: contact, error } = await supabase.from("contacts").insert({
-      name: regForm.name.trim(), title: regForm.title.trim() || null,
-      assigned_to: regForm.assigned_to.trim() || null, meeting_result: "컨텐츠등록",
-      memo: regForm.content_item.trim() || null,
-    }).select().single();
-    if (error || !contact) { alert("등록 실패: " + (error?.message || "")); setRegSaving(false); return; }
-    await supabase.from("content_statuses").insert({ contact_id: contact.id });
-    setRegForm({ name: "", title: "", assigned_to: "", content_item: "" });
-    setShowRegForm(false); setRegSaving(false);
-    fetchData();
+
+    try {
+      const payload: any = {
+        name: regForm.name.trim(),
+        title: regForm.title.trim() || null,
+        meeting_result: "컨텐츠등록",
+        memo: regForm.content_item.trim() || null,
+      };
+
+      // contacts.assigned_to 컬럼에 CHECK 제약이 있는 경우가 있어,
+      // 빈 값은 null로 보내고 허용된 담당자 값만 저장합니다.
+      const assignedTo = regForm.assigned_to.trim();
+      if (assignedTo) payload.assigned_to = assignedTo;
+
+      let { data: contact, error } = await supabase
+        .from("contacts")
+        .insert(payload)
+        .select()
+        .single();
+
+      // 혹시 기존 DB의 contacts_assigned_to_check 제약에 걸리면
+      // 등록 자체가 실패하지 않도록 담당자만 제외하고 한 번 더 등록합니다.
+      if (error && error.message?.includes("contacts_assigned_to_check") && payload.assigned_to) {
+        delete payload.assigned_to;
+
+        const retry = await supabase
+          .from("contacts")
+          .insert(payload)
+          .select()
+          .single();
+
+        contact = retry.data;
+        error = retry.error;
+
+        if (!error) showToast("담당자 값이 허용 목록에 없어 담당자 없이 등록했습니다");
+      }
+
+      if (error || !contact) {
+        alert("등록 실패: " + (error?.message || ""));
+        return;
+      }
+
+      const { error: statusError } = await supabase
+        .from("content_statuses")
+        .insert({ contact_id: contact.id });
+
+      if (statusError) {
+        showToast("고객은 등록됐지만 컨텐츠 상태 생성에 실패했습니다: " + statusError.message);
+      }
+
+      setRegForm({ name: "", title: "", assigned_to: "", content_item: "" });
+      setShowRegForm(false);
+      fetchData();
+    } finally {
+      setRegSaving(false);
+    }
   };
 
   // 회원 펼칠 때 파일 데이터 로드 (lazy loading)
@@ -488,7 +535,7 @@ export default function ContentManagePage() {
   };
 
   const StatusBadge = ({ done, label }: { done: boolean; label: string }) => (
-    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold"
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap"
       style={{
         background: done ? "rgba(16,185,129,0.1)" : "rgba(148,163,184,0.1)",
         color: done ? "#10b981" : "#94a3b8",
@@ -692,8 +739,8 @@ export default function ContentManagePage() {
       {/* 메인: 좌측 분양회 + 우측 외부고객 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 좌측: 분양회 회원 리스트 */}
-        <div className="overflow-y-auto pb-4" style={{ width: 350, flexShrink: 0, borderRight: "1px solid var(--border)" }}>
-          <div className="px-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
+        <div className="overflow-y-auto pb-4" style={{ width: 520, minWidth: 520, flexShrink: 0, borderRight: "1px solid var(--border)" }}>
+          <div className="px-3 h-10 flex items-center" style={{ borderBottom: "1px solid var(--border)" }}>
             <p className="text-xs font-bold" style={{ color: "var(--text)" }}>🏆 분양회 회원 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({members.length}명)</span></p>
           </div>
         {(() => {
@@ -769,14 +816,15 @@ export default function ContentManagePage() {
                       style={{
                         background: isSelected ? "rgba(59,130,246,0.08)" : "transparent",
                         border: isSelected ? "1px solid rgba(59,130,246,0.2)" : "1px solid transparent",
+                        minHeight: 54,
                       }}>
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg flex-shrink-0" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", minWidth: 36, textAlign: "center" }}>
                         {m.bunyanghoe_number ? `B-${m.bunyanghoe_number.replace(/[^0-9]/g, "")}` : "-"}
                       </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
-                          <span className="text-[13px] font-bold truncate" style={{ color: "var(--text)" }}>{m.name}</span>
-                          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{m.title || ""}</span>
+                      <div className="flex-1 min-w-0" style={{ minWidth: 130 }}>
+                        <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden">
+                          <span className="text-[13px] font-bold truncate whitespace-nowrap" style={{ color: "var(--text)" }}>{m.name}</span>
+                          <span className="text-[11px] truncate whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{m.title || ""}</span>
                         </div>
                         {m.assigned_to && <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
                       </div>
@@ -798,7 +846,7 @@ export default function ContentManagePage() {
 
         {/* 우측: 외부 고객 리스트 */}
         <div className="flex-1 overflow-y-auto pb-4">
-          <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
+          <div className="px-3 h-10 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
             <p className="text-xs font-bold" style={{ color: "var(--text)" }}>🎬 외부 컨텐츠 고객 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({extMembers.length}명)</span></p>
             <button onClick={() => setShowRegForm(v => !v)} className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
               style={{ background: "rgba(59,130,246,0.08)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.15)" }}>
@@ -812,8 +860,13 @@ export default function ContentManagePage() {
                   className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                 <input placeholder="직급" value={regForm.title} onChange={e => setRegForm(p => ({ ...p, title: e.target.value }))}
                   className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                <input placeholder="대협팀 담당자" value={regForm.assigned_to} onChange={e => setRegForm(p => ({ ...p, assigned_to: e.target.value }))}
-                  className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                <select value={regForm.assigned_to} onChange={e => setRegForm(p => ({ ...p, assigned_to: e.target.value }))}
+                  className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+                  <option value="">담당자 선택 안 함</option>
+                  {Array.from(new Set([...members, ...extMembers].map(m => m.assigned_to).filter(Boolean))).sort().map(a => (
+                    <option key={a!} value={a!}>{a}</option>
+                  ))}
+                </select>
                 <input placeholder="컨텐츠제작항목" value={regForm.content_item} onChange={e => setRegForm(p => ({ ...p, content_item: e.target.value }))}
                   className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
               </div>
