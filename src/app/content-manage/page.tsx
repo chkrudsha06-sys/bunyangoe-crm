@@ -93,6 +93,7 @@ function fileToBase64(file: File): Promise<string> {
 
 export default function ContentManagePage() {
   const [members, setMembers] = useState<VipMember[]>([]);
+  const [extMembers, setExtMembers] = useState<VipMember[]>([]);
   const [statuses, setStatuses] = useState<Record<number, ContentStatus>>({});
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -159,10 +160,16 @@ export default function ContentManagePage() {
 
   const fetchData = async () => {
     setLoading(true);
-    // VIP 입회자 + 컨텐츠등록 고객
+    // VIP 입회자 (계약완료/예약완료)
     const { data: contacts } = await supabase.from("contacts")
       .select("id,name,title,bunyanghoe_number,meeting_result,assigned_to")
-      .in("meeting_result", ["계약완료", "예약완료", "컨텐츠등록"]);
+      .in("meeting_result", ["계약완료", "예약완료"]);
+    
+    // 외부 컨텐츠 고객
+    const { data: extContacts } = await supabase.from("contacts")
+      .select("id,name,title,bunyanghoe_number,meeting_result,assigned_to")
+      .eq("meeting_result", "컨텐츠등록")
+      .order("id", { ascending: false });
     
     // 넘버링 기준 정렬 (B-1, B-2, ... B-10, B-11)
     const sorted = (contacts || []).sort((a: any, b: any) => {
@@ -171,6 +178,9 @@ export default function ContentManagePage() {
       return numA - numB;
     });
     setMembers(sorted as VipMember[]);
+
+    // 외부 고객 저장
+    setExtMembers((extContacts || []) as VipMember[]);
 
     // 컨텐츠 현황 (파일 데이터 제외 — 경량 로드)
     const { data: cs } = await supabase.from("content_statuses")
@@ -574,40 +584,12 @@ export default function ContentManagePage() {
         )}
       </div>
 
-      {/* 메인: 좌측 카드 목록 + 우측 상세 패널 */}
+      {/* 메인: 좌측 분양회 + 우측 외부고객 */}
       <div className="flex-1 flex overflow-hidden">
-        {/* 좌측: 카드 목록 */}
-        <div className="overflow-y-auto pb-4" style={{ width: 420, flexShrink: 0, borderRight: "1px solid var(--border)" }}>
-          {/* 새 고객 등록 버튼/폼 */}
-          <div className="p-3" style={{ borderBottom: "1px solid var(--border)" }}>
-            {showRegForm ? (
-              <div className="space-y-2">
-                <p className="text-xs font-bold" style={{ color: "var(--text)" }}>➕ 새 고객 등록</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <input placeholder="고객명 *" value={regForm.name} onChange={e => setRegForm(p => ({ ...p, name: e.target.value }))}
-                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                  <input placeholder="직급" value={regForm.title} onChange={e => setRegForm(p => ({ ...p, title: e.target.value }))}
-                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                  <input placeholder="대협팀 담당자" value={regForm.assigned_to} onChange={e => setRegForm(p => ({ ...p, assigned_to: e.target.value }))}
-                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                  <input placeholder="컨텐츠제작항목" value={regForm.content_item} onChange={e => setRegForm(p => ({ ...p, content_item: e.target.value }))}
-                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={handleRegister} disabled={regSaving || !regForm.name.trim()}
-                    className="flex-1 py-1.5 text-xs font-bold text-white rounded-lg disabled:opacity-50" style={{ background: "#3b82f6" }}>
-                    {regSaving ? "등록 중..." : "등록"}
-                  </button>
-                  <button onClick={() => setShowRegForm(false)} className="px-3 py-1.5 text-xs rounded-lg" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>취소</button>
-                </div>
-              </div>
-            ) : (
-              <button onClick={() => setShowRegForm(true)}
-                className="w-full py-2 text-xs font-bold rounded-lg"
-                style={{ background: "rgba(59,130,246,0.06)", color: "#3b82f6", border: "1px dashed rgba(59,130,246,0.3)" }}>
-                ➕ 새 고객 등록
-              </button>
-            )}
+        {/* 좌측: 분양회 회원 리스트 */}
+        <div className="overflow-y-auto pb-4" style={{ width: 350, flexShrink: 0, borderRight: "1px solid var(--border)" }}>
+          <div className="px-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
+            <p className="text-xs font-bold" style={{ color: "var(--text)" }}>🏆 분양회 회원 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({members.length}명)</span></p>
           </div>
         {(() => {
           let filtered = members;
@@ -709,34 +691,98 @@ export default function ContentManagePage() {
         })()}
         </div>
 
-        {/* 우측: 상세 패널 */}
-        <div className="flex-1 overflow-y-auto">
-          {(() => {
-            const selectedMember = members.find(m => m.id === expandedId);
-            if (!selectedMember) return (
-              <div className="flex items-center justify-center h-full" style={{ color: "var(--text-subtle)" }}>
-                <div className="text-center">
-                  <p className="text-2xl mb-2">👈</p>
-                  <p className="text-sm">좌측에서 회원을 선택해주세요</p>
-                </div>
+        {/* 우측: 외부 고객 리스트 */}
+        <div className="flex-1 overflow-y-auto pb-4">
+          <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
+            <p className="text-xs font-bold" style={{ color: "var(--text)" }}>🎬 외부 컨텐츠 고객 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({extMembers.length}명)</span></p>
+            <button onClick={() => setShowRegForm(v => !v)} className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
+              style={{ background: "rgba(59,130,246,0.08)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.15)" }}>
+              ➕ 등록
+            </button>
+          </div>
+          {showRegForm && (
+            <div className="p-3 space-y-2" style={{ borderBottom: "1px solid var(--border)" }}>
+              <div className="grid grid-cols-2 gap-2">
+                <input placeholder="고객명 *" value={regForm.name} onChange={e => setRegForm(p => ({ ...p, name: e.target.value }))}
+                  className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                <input placeholder="직급" value={regForm.title} onChange={e => setRegForm(p => ({ ...p, title: e.target.value }))}
+                  className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                <input placeholder="대협팀 담당자" value={regForm.assigned_to} onChange={e => setRegForm(p => ({ ...p, assigned_to: e.target.value }))}
+                  className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                <input placeholder="컨텐츠제작항목" value={regForm.content_item} onChange={e => setRegForm(p => ({ ...p, content_item: e.target.value }))}
+                  className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
               </div>
-            );
+              <div className="flex gap-2">
+                <button onClick={handleRegister} disabled={regSaving || !regForm.name.trim()}
+                  className="flex-1 py-1.5 text-xs font-bold text-white rounded-lg disabled:opacity-50" style={{ background: "#3b82f6" }}>
+                  {regSaving ? "등록 중..." : "등록"}
+                </button>
+                <button onClick={() => setShowRegForm(false)} className="px-3 py-1.5 text-xs rounded-lg" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>취소</button>
+              </div>
+            </div>
+          )}
+          {extMembers.length === 0 && !showRegForm ? (
+            <div className="flex items-center justify-center py-16" style={{ color: "var(--text-subtle)" }}>
+              <p className="text-sm">등록된 외부 고객이 없습니다</p>
+            </div>
+          ) : (
+            <div className="p-2 space-y-1.5">
+              {extMembers.map(m => {
+                const s = getStatus(m.id);
+                return (
+                  <div key={m.id} className="rounded-xl px-3 py-2.5 cursor-pointer transition-colors"
+                    onClick={() => expandMember(m.id)}
+                    style={{ background: expandedId === m.id ? "rgba(59,130,246,0.08)" : "var(--surface)", border: `1px solid ${expandedId === m.id ? "rgba(59,130,246,0.3)" : "var(--border)"}` }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold" style={{ color: "var(--text)" }}>{m.name}</span>
+                      {m.title && <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{m.title}</span>}
+                      {m.assigned_to && <span className="text-[10px] px-1.5 py-0.5 rounded-full ml-auto" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{m.assigned_to}</span>}
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {[
+                        { done: s.photo_received, label: "사진" },
+                        { done: s.info_received, label: "정보" },
+                        { done: s.tf2_delivered, label: "TF2" },
+                        { done: s.pr_completed, label: "PR" },
+                      ].map(item => (
+                        <span key={item.label} className="text-[9px] px-1.5 py-0.5 rounded font-semibold"
+                          style={{ background: item.done ? "rgba(16,185,129,0.1)" : "rgba(148,163,184,0.1)", color: item.done ? "#10b981" : "var(--text-subtle)" }}>
+                          {item.done ? "✓" : "○"} {item.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 상세 슬라이드 패널 (클릭 시) */}
+      {expandedId && (() => {
+        const selectedMember = [...members, ...extMembers].find(m => m.id === expandedId);
+        if (!selectedMember) return null;
+        return (
+          <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(0,0,0,0.4)" }}
+            onClick={() => setExpandedId(null)}>
+            <div className="h-full overflow-y-auto shadow-2xl" style={{ width: "75%", maxWidth: 1200, background: "var(--modal-bg)", borderLeft: "1px solid var(--border)" }}
+              onClick={e => e.stopPropagation()}>
+              {/* 패널 헤더 */}
+              <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3" style={{ background: "var(--modal-bg)", borderBottom: "1px solid var(--border)" }}>
+                <div className="flex items-center gap-3">
+                  {selectedMember.bunyanghoe_number && <span className="text-sm font-bold px-2.5 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>{selectedMember.bunyanghoe_number}</span>}
+                  <span className="text-lg font-bold" style={{ color: "var(--text)" }}>{selectedMember.name}</span>
+                  <span className="text-sm" style={{ color: "var(--text-muted)" }}>{selectedMember.title || ""}</span>
+                  {selectedMember.assigned_to && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{selectedMember.assigned_to}</span>}
+                </div>
+                <button onClick={() => setExpandedId(null)} className="p-2 rounded-lg text-lg" style={{ color: "var(--text-muted)" }}>✕</button>
+              </div>
+              {(() => {
             const m = selectedMember;
             const s = getStatus(m.id);
             return (
               <div className="p-5">
-                {/* 헤더 */}
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-sm font-bold px-2.5 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>
-                    {m.bunyanghoe_number ? `B-${m.bunyanghoe_number.replace(/[^0-9]/g, "")}` : "-"}
-                  </span>
-                  <div>
-                    <span className="text-lg font-bold" style={{ color: "var(--text)" }}>{m.name}</span>
-                    <span className="text-sm ml-2" style={{ color: "var(--text-muted)" }}>{m.title || ""}</span>
-                  </div>
-                  {m.assigned_to && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{m.assigned_to}</span>}
-                </div>
-
                 {/* 2열: 좌(체크+파일+산출물) / 우(PR패키지) */}
                 <div className="flex gap-4" style={{ alignItems: "flex-start" }}>
                   {/* 좌측 */}
@@ -949,8 +995,10 @@ export default function ContentManagePage() {
               </div>
             );
           })()}
-        </div>
-      </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 숨겨진 파일 입력 */}
       <input ref={fileRef} type="file" accept="image/*,.pdf,.zip,.doc,.docx,.ppt,.pptx" multiple className="hidden"
