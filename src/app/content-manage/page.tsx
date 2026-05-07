@@ -82,39 +82,12 @@ function calcYears(baseYear: number, storedYears: string): string {
   return `${num + diff}년차`;
 }
 
-// 이미지 압축 (max 800px, quality 0.5 → ~50-100KB)
-function compressImage(file: File, maxSize = 800, quality = 0.5): Promise<string> {
+// 파일을 base64로 변환 (원본 품질 유지)
+function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve) => {
-    if (!file.type.startsWith("image/")) {
-      // 이미지가 아니면 그대로 base64
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
-      return;
-    }
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      let w = img.width, h = img.height;
-      if (w > maxSize || h > maxSize) {
-        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
-        else { w = Math.round(w * maxSize / h); h = maxSize; }
-      }
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, w, h);
-      const compressed = canvas.toDataURL("image/jpeg", quality);
-      URL.revokeObjectURL(url);
-      resolve(compressed);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
-    };
-    img.src = url;
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.readAsDataURL(file);
   });
 }
 
@@ -245,7 +218,7 @@ export default function ContentManagePage() {
         showToast(`${file.name}: 50MB 이하 파일만 업로드 가능합니다`);
         continue;
       }
-      const compressed = await compressImage(file);
+      const compressed = await fileToBase64(file);
       existingFiles.push({
         name: file.name,
         url: compressed,
