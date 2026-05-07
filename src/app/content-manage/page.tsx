@@ -83,20 +83,48 @@ function calcYears(baseYear: number, storedYears: string): string {
   return `${num + diff}년차`;
 }
 
+// Supabase Storage용 안전한 파일 경로 생성
+// 화면에는 원본 파일명을 그대로 보여주고, Storage path만 영문/숫자 기반으로 저장합니다.
+// 한글/공백/특수문자가 path에 들어가면 Supabase Storage에서 "Invalid key"가 발생할 수 있습니다.
+function makeStorageSafePath(file: File, contactId: number): string {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).slice(2, 10);
+
+  const extMatch = file.name.match(/\.[^.]+$/);
+  const ext = extMatch ? extMatch[0].replace(/[^a-zA-Z0-9.]/g, "").toLowerCase() : "";
+
+  const baseName = file.name.replace(/\.[^.]+$/, "");
+  const safeBase =
+    baseName
+      .normalize("NFKD")
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 60) || "file";
+
+  return `${contactId}/${timestamp}_${random}_${safeBase}${ext}`;
+}
+
 // Supabase Storage에 파일 업로드 (원본 품질 유지)
 async function uploadToStorage(file: File, contactId: number): Promise<{ name: string; url: string; size: number; path: string }> {
-  const timestamp = Date.now();
-  const safeName = file.name.replace(/[^a-zA-Z0-9가-힣._-]/g, "_");
-  const path = `${contactId}/${timestamp}_${safeName}`;
-  
+  const path = makeStorageSafePath(file, contactId);
+
   const { error } = await supabase.storage.from("content-files").upload(path, file, {
     cacheControl: "3600",
     upsert: false,
+    contentType: file.type || undefined,
   });
+
   if (error) throw new Error(`업로드 실패: ${error.message}`);
-  
+
   const { data: urlData } = supabase.storage.from("content-files").getPublicUrl(path);
-  return { name: file.name, url: urlData.publicUrl, size: file.size, path };
+
+  return {
+    name: file.name,
+    url: urlData.publicUrl,
+    size: file.size,
+    path,
+  };
 }
 
 function normalizeFiles(files: any): UploadedFile[] {
