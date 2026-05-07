@@ -882,6 +882,75 @@ function ActivityCheckBoard({ user }: { user: CRMUser | null }) {
   );
 }
 
+// ── 팀 활동량 보드 (관리자/운영파트용) ────────────────────────
+function TeamActivityBoard() {
+  const EXEC_MEMBERS = ["조계현","이세호","최연전","기여운"];
+  const [activities, setActivities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const now = new Date();
+      const ms = String(now.getMonth() + 1).padStart(2, "0");
+      const mS = `${now.getFullYear()}-${ms}-01`;
+      const ld = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const mE = `${now.getFullYear()}-${ms}-${String(ld).padStart(2, "0")}`;
+      const { data } = await supabase.from("daily_activities")
+        .select("*").gte("activity_date", mS).lte("activity_date", mE);
+      setActivities(data || []);
+      setLoading(false);
+    })();
+  }, []);
+
+  const memberStats = EXEC_MEMBERS.map(name => {
+    const acts = activities.filter(a => a.user_name === name);
+    const salesTm = acts.reduce((s, a) => s + (a.sales_tm || 0), 0);
+    const customerTm = acts.reduce((s, a) => s + (a.customer_tm || 0), 0);
+    const coldTalk = acts.reduce((s, a) => s + (a.cold_talk || 0), 0);
+    const total = salesTm + customerTm + coldTalk;
+    const days = acts.length;
+    return { name, salesTm, customerTm, coldTalk, total, days };
+  });
+  const maxTotal = Math.max(1, ...memberStats.map(m => m.total));
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{ minHeight: "200px" }}>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="text-base font-bold text-slate-700">📊 실행파트 활동량</h3>
+          <p className="text-[10px] text-slate-400 mt-0.5">당월 누적 · 영업TM / 고객관리TM / 콜드톡</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "#3b82f6" }} />TM</span>
+          <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "#8b5cf6" }} />관리</span>
+          <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "#10b981" }} />콜드톡</span>
+        </div>
+      </div>
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center"><div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
+      ) : (
+        <div className="flex-1 space-y-2.5">
+          {memberStats.map(m => (
+            <div key={m.name} className="flex items-center gap-3">
+              <span className="text-xs font-bold text-slate-700 w-14 flex-shrink-0">{m.name}</span>
+              <div className="flex-1 h-6 bg-slate-50 rounded-full overflow-hidden flex">
+                {m.salesTm > 0 && <div className="h-full flex items-center justify-center text-[9px] font-bold text-white" style={{ width: `${Math.max(m.salesTm / maxTotal * 100, 8)}%`, background: "#3b82f6" }}>{m.salesTm}</div>}
+                {m.customerTm > 0 && <div className="h-full flex items-center justify-center text-[9px] font-bold text-white" style={{ width: `${Math.max(m.customerTm / maxTotal * 100, 8)}%`, background: "#8b5cf6" }}>{m.customerTm}</div>}
+                {m.coldTalk > 0 && <div className="h-full flex items-center justify-center text-[9px] font-bold text-white" style={{ width: `${Math.max(m.coldTalk / maxTotal * 100, 8)}%`, background: "#10b981" }}>{m.coldTalk}</div>}
+                {m.total === 0 && <div className="h-full flex items-center pl-3 text-[10px] text-slate-300">기록 없음</div>}
+              </div>
+              <div className="flex-shrink-0 text-right" style={{ width: 52 }}>
+                <span className="text-xs font-black text-slate-700">{m.total}</span>
+                <span className="text-[9px] text-slate-400 ml-0.5">건</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 캘린더 컴포넌트 ──
 function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
   const [calYear, setCalYear] = useState(new Date().getFullYear());
@@ -1233,7 +1302,12 @@ export default function DashboardPage() {
           <div className="grid grid-rows-3 gap-4">
             <RevenueTrendCard monthlyRev={monthlyRev}/>
             <CustomerJourneyBoard user={user}/>
-            {["조계현","이세호","최연전","기여운"].includes(user?.name || "") && <ActivityCheckBoard user={user}/>}
+            {["조계현","이세호","최연전","기여운"].includes(user?.name || "") 
+              ? <ActivityCheckBoard user={user}/>
+              : (user?.role === "admin" || user?.role === "ops") 
+                ? <TeamActivityBoard />
+                : null
+            }
           </div>
           <DashboardKpiSummary user={user}/>
         </div>
