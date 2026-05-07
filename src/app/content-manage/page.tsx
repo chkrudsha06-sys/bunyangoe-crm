@@ -737,183 +737,194 @@ export default function ContentManagePage() {
       </div>
 
       {/* 메인: 좌측 분양회 + 우측 외부고객 */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* 좌측: 분양회 회원 리스트 */}
-        <div className="overflow-y-auto pb-4" style={{ width: 520, minWidth: 520, flexShrink: 0, borderRight: "1px solid var(--border)" }}>
-          <div className="px-3 h-10 flex items-center" style={{ borderBottom: "1px solid var(--border)" }}>
-            <p className="text-xs font-bold" style={{ color: "var(--text)" }}>🏆 분양회 회원 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({members.length}명)</span></p>
-          </div>
-        {(() => {
-          let filtered = members;
-          if (cardFilter && cardFilter !== "all") {
-            filtered = filtered.filter(m => {
-              const s = getStatus(m.id);
-              switch (cardFilter) {
-                case "photo": return s.photo_received;
-                case "info": return s.info_received;
-                case "tf2": return s.tf2_delivered;
-                case "pr": return s.pr_completed;
-                case "impossible": return s.production_impossible;
-                default: return true;
-              }
-            });
-          }
-          if (searchQ) {
-            const q = searchQ.toLowerCase();
-            filtered = filtered.filter(m => 
-              m.name.toLowerCase().includes(q) || 
-              (m.bunyanghoe_number || "").toLowerCase().includes(q) ||
-              `b-${(m.bunyanghoe_number || "").replace(/[^0-9]/g, "")}`.includes(q)
-            );
-          }
-          if (filterAssigned) filtered = filtered.filter(m => m.assigned_to === filterAssigned);
-          if (filterGender) {
-            filtered = filtered.filter(m => {
-              const s = getStatus(m.id);
-              return (s.pr_gender || "").trim() === filterGender;
-            });
-          }
-          if (filterAge) {
-            const decade = parseInt(filterAge);
-            filtered = filtered.filter(m => {
-              const s = getStatus(m.id);
-              const birthStr = (s.pr_birth_date || "").replace(/[^0-9]/g, "");
-              if (!birthStr || birthStr.length < 2) return false;
-              const yy = parseInt(birthStr.substring(0, 2));
-              const birthYear = yy >= 40 ? 1900 + yy : 2000 + yy;
-              const age = new Date().getFullYear() - birthYear;
-              return age >= decade && age < decade + 10;
-            });
-          }
-          if (filterStatus) {
-            filtered = filtered.filter(m => {
-              const s = getStatus(m.id);
-              switch (filterStatus) {
-                case "photo": return s.photo_received; case "photo_no": return !s.photo_received;
-                case "info": return s.info_received; case "info_no": return !s.info_received;
-                case "tf2": return s.tf2_delivered; case "tf2_no": return !s.tf2_delivered;
-                case "pr": return s.pr_completed; case "pr_no": return !s.pr_completed;
-                default: return true;
-              }
-            });
-          }
-          return loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
+      <div className="flex-1 overflow-x-auto overflow-y-hidden">
+        <div className="h-full flex" style={{ minWidth: 1040 }}>
+          {/* 좌측: 분양회 회원 리스트 */}
+          <div className="overflow-y-auto pb-4" style={{ width: 520, minWidth: 520, flexShrink: 0, borderRight: "1px solid var(--border)" }}>
+            <div className="px-3 h-10 flex items-center" style={{ borderBottom: "1px solid var(--border)" }}>
+              <p className="text-xs font-bold" style={{ color: "var(--text)" }}>🏆 분양회 회원 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({members.length}명)</span></p>
             </div>
-          ) : (
-            <div className="px-3 pt-2">
-              <p className="text-xs px-2 py-1.5" style={{ color: "var(--text-muted)" }}>
-                {filtered.length === members.length ? `총 ${members.length}명` : `${filtered.length}명 / ${members.length}명`}
-              </p>
-              <div className="space-y-1">
-                {filtered.map(m => {
-                  const s = getStatus(m.id);
-                  const isSelected = expandedId === m.id;
-                  return (
-                    <div key={m.id} className="flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors"
-                      onClick={() => expandMember(m.id)}
-                      style={{
-                        background: isSelected ? "rgba(59,130,246,0.08)" : "transparent",
-                        border: isSelected ? "1px solid rgba(59,130,246,0.2)" : "1px solid transparent",
-                        minHeight: 54,
-                      }}>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg flex-shrink-0" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", minWidth: 36, textAlign: "center" }}>
-                        {m.bunyanghoe_number ? `B-${m.bunyanghoe_number.replace(/[^0-9]/g, "")}` : "-"}
-                      </span>
-                      <div className="flex-1 min-w-0" style={{ minWidth: 130 }}>
-                        <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden">
-                          <span className="text-[13px] font-bold truncate whitespace-nowrap" style={{ color: "var(--text)" }}>{m.name}</span>
-                          <span className="text-[11px] truncate whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{m.title || ""}</span>
-                        </div>
-                        {m.assigned_to && <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
-                      </div>
-                      <div className="flex items-center gap-0.5 flex-shrink-0">
-                        <StatusBadge done={s.photo_received} label="사진" />
-                        <StatusBadge done={s.info_received} label="정보" />
-                        <StatusBadge done={s.tf2_delivered} label="TF2" />
-                        <StatusBadge done={s.pr_completed} label="PR" />
-                        {s.production_impossible && <span className="text-[9px] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>불가</span>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
-        </div>
-
-        {/* 우측: 외부 고객 리스트 */}
-        <div className="flex-1 overflow-y-auto pb-4">
-          <div className="px-3 h-10 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
-            <p className="text-xs font-bold" style={{ color: "var(--text)" }}>🎬 외부 컨텐츠 고객 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({extMembers.length}명)</span></p>
-            <button onClick={() => setShowRegForm(v => !v)} className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
-              style={{ background: "rgba(59,130,246,0.08)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.15)" }}>
-              ➕ 등록
-            </button>
-          </div>
-          {showRegForm && (
-            <div className="p-3 space-y-2" style={{ borderBottom: "1px solid var(--border)" }}>
-              <div className="grid grid-cols-2 gap-2">
-                <input placeholder="고객명 *" value={regForm.name} onChange={e => setRegForm(p => ({ ...p, name: e.target.value }))}
-                  className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                <input placeholder="직급" value={regForm.title} onChange={e => setRegForm(p => ({ ...p, title: e.target.value }))}
-                  className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-                <select value={regForm.assigned_to} onChange={e => setRegForm(p => ({ ...p, assigned_to: e.target.value }))}
-                  className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
-                  <option value="">담당자 선택 안 함</option>
-                  {Array.from(new Set([...members, ...extMembers].map(m => m.assigned_to).filter(Boolean))).sort().map(a => (
-                    <option key={a!} value={a!}>{a}</option>
-                  ))}
-                </select>
-                <input placeholder="컨텐츠제작항목" value={regForm.content_item} onChange={e => setRegForm(p => ({ ...p, content_item: e.target.value }))}
-                  className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-              </div>
-              <div className="flex gap-2">
-                <button onClick={handleRegister} disabled={regSaving || !regForm.name.trim()}
-                  className="flex-1 py-1.5 text-xs font-bold text-white rounded-lg disabled:opacity-50" style={{ background: "#3b82f6" }}>
-                  {regSaving ? "등록 중..." : "등록"}
-                </button>
-                <button onClick={() => setShowRegForm(false)} className="px-3 py-1.5 text-xs rounded-lg" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>취소</button>
-              </div>
-            </div>
-          )}
-          {extMembers.length === 0 && !showRegForm ? (
-            <div className="flex items-center justify-center py-16" style={{ color: "var(--text-subtle)" }}>
-              <p className="text-sm">등록된 외부 고객이 없습니다</p>
-            </div>
-          ) : (
-            <div className="p-2 space-y-1.5">
-              {extMembers.map(m => {
+          {(() => {
+            let filtered = members;
+            if (cardFilter && cardFilter !== "all") {
+              filtered = filtered.filter(m => {
                 const s = getStatus(m.id);
-                return (
-                  <div key={m.id} className="rounded-xl px-3 py-2.5 cursor-pointer transition-colors"
-                    onClick={() => expandMember(m.id)}
-                    style={{ background: expandedId === m.id ? "rgba(59,130,246,0.08)" : "var(--surface)", border: `1px solid ${expandedId === m.id ? "rgba(59,130,246,0.3)" : "var(--border)"}` }}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-bold" style={{ color: "var(--text)" }}>{m.name}</span>
-                      {m.title && <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{m.title}</span>}
-                      {m.assigned_to && <span className="text-[10px] px-1.5 py-0.5 rounded-full ml-auto" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{m.assigned_to}</span>}
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {[
-                        { done: s.photo_received, label: "사진" },
-                        { done: s.info_received, label: "정보" },
-                        { done: s.tf2_delivered, label: "TF2" },
-                        { done: s.pr_completed, label: "PR" },
-                      ].map(item => (
-                        <span key={item.label} className="text-[9px] px-1.5 py-0.5 rounded font-semibold"
-                          style={{ background: item.done ? "rgba(16,185,129,0.1)" : "rgba(148,163,184,0.1)", color: item.done ? "#10b981" : "var(--text-subtle)" }}>
-                          {item.done ? "✓" : "○"} {item.label}
+                switch (cardFilter) {
+                  case "photo": return s.photo_received;
+                  case "info": return s.info_received;
+                  case "tf2": return s.tf2_delivered;
+                  case "pr": return s.pr_completed;
+                  case "impossible": return s.production_impossible;
+                  default: return true;
+                }
+              });
+            }
+            if (searchQ) {
+              const q = searchQ.toLowerCase();
+              filtered = filtered.filter(m => 
+                m.name.toLowerCase().includes(q) || 
+                (m.bunyanghoe_number || "").toLowerCase().includes(q) ||
+                `b-${(m.bunyanghoe_number || "").replace(/[^0-9]/g, "")}`.includes(q)
+              );
+            }
+            if (filterAssigned) filtered = filtered.filter(m => m.assigned_to === filterAssigned);
+            if (filterGender) {
+              filtered = filtered.filter(m => {
+                const s = getStatus(m.id);
+                return (s.pr_gender || "").trim() === filterGender;
+              });
+            }
+            if (filterAge) {
+              const decade = parseInt(filterAge);
+              filtered = filtered.filter(m => {
+                const s = getStatus(m.id);
+                const birthStr = (s.pr_birth_date || "").replace(/[^0-9]/g, "");
+                if (!birthStr || birthStr.length < 2) return false;
+                const yy = parseInt(birthStr.substring(0, 2));
+                const birthYear = yy >= 40 ? 1900 + yy : 2000 + yy;
+                const age = new Date().getFullYear() - birthYear;
+                return age >= decade && age < decade + 10;
+              });
+            }
+            if (filterStatus) {
+              filtered = filtered.filter(m => {
+                const s = getStatus(m.id);
+                switch (filterStatus) {
+                  case "photo": return s.photo_received; case "photo_no": return !s.photo_received;
+                  case "info": return s.info_received; case "info_no": return !s.info_received;
+                  case "tf2": return s.tf2_delivered; case "tf2_no": return !s.tf2_delivered;
+                  case "pr": return s.pr_completed; case "pr_no": return !s.pr_completed;
+                  default: return true;
+                }
+              });
+            }
+            return loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
+              </div>
+            ) : (
+              <div className="px-3 pt-2">
+                <p className="text-xs px-2 py-1.5" style={{ color: "var(--text-muted)" }}>
+                  {filtered.length === members.length ? `총 ${members.length}명` : `${filtered.length}명 / ${members.length}명`}
+                </p>
+                <div className="space-y-1">
+                  {filtered.map(m => {
+                    const s = getStatus(m.id);
+                    const isSelected = expandedId === m.id;
+                    return (
+                      <div key={m.id} className="flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors"
+                        onClick={() => expandMember(m.id)}
+                        style={{
+                          background: isSelected ? "rgba(59,130,246,0.08)" : "transparent",
+                          border: isSelected ? "1px solid rgba(59,130,246,0.2)" : "1px solid transparent",
+                          minHeight: 54,
+                        }}>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg flex-shrink-0" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", minWidth: 36, textAlign: "center" }}>
+                          {m.bunyanghoe_number ? `B-${m.bunyanghoe_number.replace(/[^0-9]/g, "")}` : "-"}
                         </span>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+                        <div className="flex-1 min-w-0" style={{ minWidth: 130 }}>
+                          <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden">
+                            <span className="text-[13px] font-bold truncate whitespace-nowrap" style={{ color: "var(--text)" }}>{m.name}</span>
+                            <span className="text-[11px] truncate whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{m.title || ""}</span>
+                          </div>
+                          {m.assigned_to && <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
+                        </div>
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          <StatusBadge done={s.photo_received} label="사진" />
+                          <StatusBadge done={s.info_received} label="정보" />
+                          <StatusBadge done={s.tf2_delivered} label="TF2" />
+                          <StatusBadge done={s.pr_completed} label="PR" />
+                          {s.production_impossible && <span className="text-[9px] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>불가</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+          </div>
+
+          {/* 우측: 외부 고객 리스트 */}
+          <div className="overflow-y-auto pb-4" style={{ width: 520, minWidth: 520, flexShrink: 0 }}>
+            <div className="px-3 h-10 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
+              <p className="text-xs font-bold" style={{ color: "var(--text)" }}>🎬 외부 컨텐츠 고객 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({extMembers.length}명)</span></p>
+              <button onClick={() => setShowRegForm(v => !v)} className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                style={{ background: "rgba(59,130,246,0.08)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.15)" }}>
+                ➕ 등록
+              </button>
             </div>
-          )}
+            {showRegForm && (
+              <div className="p-3 space-y-2" style={{ borderBottom: "1px solid var(--border)" }}>
+                <div className="grid grid-cols-2 gap-2">
+                  <input placeholder="고객명 *" value={regForm.name} onChange={e => setRegForm(p => ({ ...p, name: e.target.value }))}
+                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  <input placeholder="직급" value={regForm.title} onChange={e => setRegForm(p => ({ ...p, title: e.target.value }))}
+                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  <select value={regForm.assigned_to} onChange={e => setRegForm(p => ({ ...p, assigned_to: e.target.value }))}
+                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+                    <option value="">담당자 선택 안 함</option>
+                    {Array.from(new Set([...members, ...extMembers].map(m => m.assigned_to).filter(Boolean))).sort().map(a => (
+                      <option key={a!} value={a!}>{a}</option>
+                    ))}
+                  </select>
+                  <input placeholder="컨텐츠제작항목" value={regForm.content_item} onChange={e => setRegForm(p => ({ ...p, content_item: e.target.value }))}
+                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleRegister} disabled={regSaving || !regForm.name.trim()}
+                    className="flex-1 py-1.5 text-xs font-bold text-white rounded-lg disabled:opacity-50" style={{ background: "#3b82f6" }}>
+                    {regSaving ? "등록 중..." : "등록"}
+                  </button>
+                  <button onClick={() => setShowRegForm(false)} className="px-3 py-1.5 text-xs rounded-lg" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>취소</button>
+                </div>
+              </div>
+            )}
+            {extMembers.length === 0 && !showRegForm ? (
+              <div className="flex items-center justify-center py-16" style={{ color: "var(--text-subtle)" }}>
+                <p className="text-sm">등록된 외부 고객이 없습니다</p>
+              </div>
+            ) : (
+              <div className="px-3 pt-2">
+                <p className="text-xs px-2 py-1.5" style={{ color: "var(--text-muted)" }}>
+                  총 {extMembers.length}명
+                </p>
+                <div className="space-y-1">
+                  {extMembers.map((m, idx) => {
+                    const s = getStatus(m.id);
+                    const isSelected = expandedId === m.id;
+                    return (
+                      <div key={m.id} className="flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors"
+                        onClick={() => expandMember(m.id)}
+                        style={{
+                          background: isSelected ? "rgba(59,130,246,0.08)" : "transparent",
+                          border: isSelected ? "1px solid rgba(59,130,246,0.2)" : "1px solid transparent",
+                          minHeight: 54,
+                        }}>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg flex-shrink-0" style={{ background: "rgba(139,92,246,0.12)", color: "#8b5cf6", minWidth: 36, textAlign: "center" }}>
+                          {`E-${idx + 1}`}
+                        </span>
+                        <div className="flex-1 min-w-0" style={{ minWidth: 130 }}>
+                          <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden">
+                            <span className="text-[13px] font-bold truncate whitespace-nowrap" style={{ color: "var(--text)" }}>{m.name}</span>
+                            <span className="text-[11px] truncate whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{m.title || ""}</span>
+                          </div>
+                          {m.assigned_to && <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
+                        </div>
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          <StatusBadge done={s.photo_received} label="사진" />
+                          <StatusBadge done={s.info_received} label="정보" />
+                          <StatusBadge done={s.tf2_delivered} label="TF2" />
+                          <StatusBadge done={s.pr_completed} label="PR" />
+                          {s.production_impossible && <span className="text-[9px] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>불가</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
