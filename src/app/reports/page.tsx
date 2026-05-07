@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
+import { getCurrentUser } from "@/lib/auth";
 import { BarChart3, TrendingUp, Users, Truck, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 
 const EXEC = ["조계현","이세호","기여운","최연전"];
+const ADMINS_FOR_ACTIVITY = ["김정후","김창완","최웅"];
 const CONSULTANTS = ["박경화","박혜은","조승현","박민경","백선중","강아름","전정훈","박나라"];
 const HOG = ["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타"];
 
@@ -21,7 +23,13 @@ export default function ReportsPage() {
   const [prevExecs, setPrevExecs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activities, setActivities] = useState<any[]>([]);
+  const [userName, setUserName] = useState("");
 
+  useEffect(() => {
+    const u = getCurrentUser();
+    if (u) setUserName(u.name);
+    loadData();
+  }, []);
   useEffect(() => { loadData(); }, [month]);
 
   const loadData = async () => {
@@ -419,9 +427,10 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* ═══ 팀 활동량 현황 ═══ */}
+        {/* ═══ 팀 활동량 현황 (관리자 전용) ═══ */}
+        {ADMINS_FOR_ACTIVITY.includes(userName) && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <h3 className="text-base font-bold text-slate-700 mb-4">📊 팀 활동량 현황 <span className="text-xs font-normal text-slate-400">당월 누적</span></h3>
+          <h3 className="text-base font-bold text-slate-700 mb-4">📊 팀 활동량 현황 <span className="text-xs font-normal text-slate-400">실행파트 당월 누적</span></h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -437,13 +446,14 @@ export default function ReportsPage() {
               </thead>
               <tbody>
                 {(() => {
-                  const allNames = Array.from(new Set(activities.map(a => a.user_name))).sort();
-                  if (allNames.length === 0) return <tr><td colSpan={7} className="text-center py-8 text-slate-300">활동량 데이터가 없습니다</td></tr>;
+                  const execActivities = activities.filter(a => EXEC.includes(a.user_name));
+                  const allNames = EXEC;
+                  if (execActivities.length === 0) return <tr><td colSpan={7} className="text-center py-8 text-slate-300">활동량 데이터가 없습니다</td></tr>;
 
                   let totalSales = 0, totalCustomer = 0, totalCold = 0, totalDays = 0;
 
                   const rows = allNames.map(name => {
-                    const userActs = activities.filter(a => a.user_name === name);
+                    const userActs = execActivities.filter(a => a.user_name === name);
                     const salesTm = userActs.reduce((s, a) => s + (a.sales_tm || 0), 0);
                     const customerTm = userActs.reduce((s, a) => s + (a.customer_tm || 0), 0);
                     const coldTalk = userActs.reduce((s, a) => s + (a.cold_talk || 0), 0);
@@ -453,7 +463,7 @@ export default function ReportsPage() {
                     totalSales += salesTm; totalCustomer += customerTm; totalCold += coldTalk; totalDays += days;
 
                     const maxTotal = Math.max(...allNames.map(n => {
-                      const ua = activities.filter(a => a.user_name === n);
+                      const ua = execActivities.filter(a => a.user_name === n);
                       return ua.reduce((s, a) => s + (a.sales_tm || 0) + (a.customer_tm || 0) + (a.cold_talk || 0), 0);
                     }));
                     const barWidth = maxTotal > 0 ? Math.round(total / maxTotal * 100) : 0;
@@ -506,6 +516,7 @@ export default function ReportsPage() {
             </table>
           </div>
         </div>
+        )}
 
       </div>
     </div>

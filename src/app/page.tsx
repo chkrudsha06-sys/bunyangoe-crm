@@ -1233,7 +1233,7 @@ export default function DashboardPage() {
           <div className="grid grid-rows-3 gap-4">
             <RevenueTrendCard monthlyRev={monthlyRev}/>
             <CustomerJourneyBoard user={user}/>
-            <ActivityCheckBoard user={user}/>
+            {["조계현","이세호","최연전","기여운"].includes(user?.name || "") && <ActivityCheckBoard user={user}/>}
           </div>
           <DashboardKpiSummary user={user}/>
         </div>
