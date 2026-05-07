@@ -97,6 +97,25 @@ export default function ContentManagePage() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [loadedFiles, setLoadedFiles] = useState<Set<number>>(new Set());
+  const [showRegForm, setShowRegForm] = useState(false);
+  const [regForm, setRegForm] = useState({ name: "", title: "", assigned_to: "", content_item: "" });
+  const [regSaving, setRegSaving] = useState(false);
+
+  // 새 고객 등록
+  const handleRegister = async () => {
+    if (!regForm.name.trim()) return;
+    setRegSaving(true);
+    const { data: contact, error } = await supabase.from("contacts").insert({
+      name: regForm.name.trim(), title: regForm.title.trim() || null,
+      assigned_to: regForm.assigned_to.trim() || null, meeting_result: "컨텐츠등록",
+      memo: regForm.content_item.trim() || null,
+    }).select().single();
+    if (error || !contact) { alert("등록 실패: " + (error?.message || "")); setRegSaving(false); return; }
+    await supabase.from("content_statuses").insert({ contact_id: contact.id });
+    setRegForm({ name: "", title: "", assigned_to: "", content_item: "" });
+    setShowRegForm(false); setRegSaving(false);
+    fetchData();
+  };
 
   // 회원 펼칠 때 파일 데이터 로드 (lazy loading)
   const expandMember = async (contactId: number) => {
@@ -140,10 +159,10 @@ export default function ContentManagePage() {
 
   const fetchData = async () => {
     setLoading(true);
-    // VIP 입회자 (계약완료/예약완료)
+    // VIP 입회자 + 컨텐츠등록 고객
     const { data: contacts } = await supabase.from("contacts")
       .select("id,name,title,bunyanghoe_number,meeting_result,assigned_to")
-      .in("meeting_result", ["계약완료", "예약완료"]);
+      .in("meeting_result", ["계약완료", "예약완료", "컨텐츠등록"]);
     
     // 넘버링 기준 정렬 (B-1, B-2, ... B-10, B-11)
     const sorted = (contacts || []).sort((a: any, b: any) => {
@@ -559,6 +578,37 @@ export default function ContentManagePage() {
       <div className="flex-1 flex overflow-hidden">
         {/* 좌측: 카드 목록 */}
         <div className="overflow-y-auto pb-4" style={{ width: 420, flexShrink: 0, borderRight: "1px solid var(--border)" }}>
+          {/* 새 고객 등록 버튼/폼 */}
+          <div className="p-3" style={{ borderBottom: "1px solid var(--border)" }}>
+            {showRegForm ? (
+              <div className="space-y-2">
+                <p className="text-xs font-bold" style={{ color: "var(--text)" }}>➕ 새 고객 등록</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <input placeholder="고객명 *" value={regForm.name} onChange={e => setRegForm(p => ({ ...p, name: e.target.value }))}
+                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  <input placeholder="직급" value={regForm.title} onChange={e => setRegForm(p => ({ ...p, title: e.target.value }))}
+                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  <input placeholder="대협팀 담당자" value={regForm.assigned_to} onChange={e => setRegForm(p => ({ ...p, assigned_to: e.target.value }))}
+                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  <input placeholder="컨텐츠제작항목" value={regForm.content_item} onChange={e => setRegForm(p => ({ ...p, content_item: e.target.value }))}
+                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleRegister} disabled={regSaving || !regForm.name.trim()}
+                    className="flex-1 py-1.5 text-xs font-bold text-white rounded-lg disabled:opacity-50" style={{ background: "#3b82f6" }}>
+                    {regSaving ? "등록 중..." : "등록"}
+                  </button>
+                  <button onClick={() => setShowRegForm(false)} className="px-3 py-1.5 text-xs rounded-lg" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>취소</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowRegForm(true)}
+                className="w-full py-2 text-xs font-bold rounded-lg"
+                style={{ background: "rgba(59,130,246,0.06)", color: "#3b82f6", border: "1px dashed rgba(59,130,246,0.3)" }}>
+                ➕ 새 고객 등록
+              </button>
+            )}
+          </div>
         {(() => {
           let filtered = members;
           if (cardFilter && cardFilter !== "all") {
