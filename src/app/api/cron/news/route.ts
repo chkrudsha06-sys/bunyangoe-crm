@@ -37,7 +37,9 @@ async function generateCuration(headlines: string[]): Promise<{ title: string; w
   if (!apiKey) return null;
 
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
-  const headlineText = headlines.map((h, i) => `${i + 1}. ${h}`).join("\n");
+  const headlineText = headlines.length > 0 
+    ? headlines.map((h, i) => `${i + 1}. ${h}`).join("\n")
+    : "(뉴스 헤드라인 수집 불가 - 최근 부동산/분양 시장 동향을 기반으로 작성해주세요)";
 
   const prompt = `당신은 분양상담사를 위한 부동산 뉴스 큐레이터입니다.
 오늘 날짜: ${today}
@@ -74,8 +76,10 @@ ${headlineText}
     });
 
     if (!res.ok) {
-      console.error("OpenAI API error:", res.status, await res.text());
-      return null;
+      const errText = await res.text();
+      console.error("OpenAI API error:", res.status, errText);
+      // 에러 정보를 반환하여 디버깅 가능하도록
+      throw new Error(`OpenAI ${res.status}: ${errText.substring(0, 200)}`);
     }
 
     const data = await res.json();
@@ -84,9 +88,9 @@ ${headlineText}
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
     return JSON.parse(jsonMatch[0]);
-  } catch (e) {
+  } catch (e: any) {
     console.error("OpenAI error:", e);
-    return null;
+    throw e;
   }
 }
 
@@ -109,14 +113,11 @@ export async function GET(request: Request) {
 
     // 1. 뉴스 수집
     const headlines = await fetchNewsHeadlines();
-    if (headlines.length === 0) {
-      return NextResponse.json({ error: "뉴스 수집 실패" }, { status: 500 });
-    }
 
     // 2. AI 큐레이션 생성
     const curation = await generateCuration(headlines);
     if (!curation) {
-      return NextResponse.json({ error: "큐레이션 생성 실패" }, { status: 500 });
+      return NextResponse.json({ error: "큐레이션 생성 실패", debug: { headlines_count: headlines.length, headlines: headlines.slice(0, 3), has_api_key: !!process.env.OPENAI_API_KEY } }, { status: 500 });
     }
 
     // 3. Supabase 저장
@@ -134,6 +135,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, data, headlines_used: headlines.length });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message, stack: err.stack?.substring(0, 300) }, { status: 500 });
   }
 }
