@@ -28,6 +28,7 @@ interface Contact {
   total_org_count: string | null;
   team_org_count: string | null;
   rt: string | null;
+  bunyanghoe_number: string | null;
 }
 
 interface LastNote { contact_id: number; note_date: string; content: string; }
@@ -141,7 +142,7 @@ export default function CustomerJourneyPage() {
     setLoading(true);
     const u = getCurrentUser();
     let q = supabase.from("contacts")
-      .select("id,name,title,phone,customer_type,prospect_type,management_stage,assigned_to,consultant,intake_route,meeting_date,meeting_address,meeting_result,memo,tm_sensitivity,contract_date,reservation_date,operating_site,total_org_count,team_org_count,rt")
+      .select("id,name,title,phone,customer_type,prospect_type,management_stage,assigned_to,consultant,intake_route,meeting_date,meeting_address,meeting_result,memo,tm_sensitivity,contract_date,reservation_date,operating_site,total_org_count,team_org_count,rt,bunyanghoe_number")
       .order("id", { ascending: false }).limit(500);
     if (u?.role === "exec") q = q.eq("assigned_to", u.name);
     const { data: cData } = await q;
