@@ -319,41 +319,90 @@ export default function CustomerRegisterPage() {
                         className="p-1 rounded transition-colors" style={{ color: "#ef4444" }}>
                         <Trash2 size={12} />
                       </button>
-                      {isExpanded ? <ChevronUp size={12} style={{ color: "var(--text-muted)" }} /> : <ChevronDown size={12} style={{ color: "var(--text-muted)" }} />}
+                      {expandedId === c.id ? <ChevronUp size={12} style={{ color: "var(--text-muted)" }} /> : <ChevronDown size={12} style={{ color: "var(--text-muted)" }} />}
                     </span>
                   </div>
-
-                  {/* 확장 상세 */}
-                  {isExpanded && (
-                    <div className="px-5 pb-4 pt-3 space-y-3" style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        {[
-                          { label: "미팅일정", value: c.meeting_date },
-                          { label: "미팅지역", value: c.meeting_address },
-                          { label: "미팅결과", value: c.meeting_result },
-                          { label: "계약일", value: c.contract_date },
-                          { label: "예약일", value: c.reservation_date },
-                          { label: "메모", value: c.memo },
-                        ].map(item => (
-                          <div key={item.label}>
-                            <p className="text-[10px] font-semibold mb-0.5" style={{ color: "var(--text-muted)" }}>{item.label}</p>
-                            <p className="text-xs font-semibold" style={{ color: item.value ? "var(--text)" : "var(--text-subtle)" }}>{item.value || "-"}</p>
-                          </div>
-                        ))}
-                      </div>
-                      {/* 활동 노트 전체 */}
-                      <div className="rounded-xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                        <h4 className="text-xs font-bold mb-2" style={{ color: "var(--text)" }}>📝 활동노트</h4>
-                        <ContactNotes contactId={c.id} authorName={userName} />
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* 고객 상세 슬라이드 패널 */}
+      {expandedId && (() => {
+        const c = contacts.find(x => x.id === expandedId);
+        if (!c) return null;
+        return (
+          <div className="fixed inset-0 z-40 flex justify-end" style={{ background: "rgba(0,0,0,0.3)" }}
+            onClick={() => setExpandedId(null)}>
+            <div className="w-full max-w-md h-full overflow-y-auto shadow-2xl animate-slideIn"
+              style={{ background: "var(--modal-bg)", borderLeft: "1px solid var(--border)" }}
+              onClick={e => e.stopPropagation()}>
+              <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3" style={{ background: "var(--modal-bg)", borderBottom: "1px solid var(--border)" }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{c.name}</span>
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{c.title || ""}</span>
+                  {c.assigned_to && <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{c.assigned_to}</span>}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => handleEdit(c)} className="p-1.5 rounded-lg" style={{ color: "#3b82f6" }}><Pencil size={15} /></button>
+                  <button onClick={() => setExpandedId(null)} className="p-1.5 rounded-lg" style={{ color: "var(--text-muted)" }}>✕</button>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                {/* 기본정보 */}
+                <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                  <h4 className="text-xs font-bold mb-3 pb-2" style={{ color: "#3b82f6", borderBottom: "1px solid var(--border)" }}>📋 고객정보</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "연락처", value: c.phone },
+                      { label: "유입경로", value: c.intake_route },
+                      { label: "고객유형", value: c.customer_type },
+                      { label: "관리구간", value: c.management_stage },
+                      { label: "담당자", value: c.assigned_to },
+                      { label: "컨설턴트", value: c.consultant },
+                      { label: "운영현장", value: c.operating_site },
+                      { label: "전체조직수", value: c.total_org_count },
+                      { label: "팀조직수", value: c.team_org_count },
+                      { label: "R/T", value: c.rt },
+                    ].map(item => (
+                      <div key={item.label}>
+                        <p className="text-[10px] font-semibold mb-0.5" style={{ color: "var(--text-muted)" }}>{item.label}</p>
+                        <p className="text-sm font-semibold" style={{ color: item.value ? "var(--text)" : "var(--text-subtle)" }}>{item.value || "-"}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* 미팅정보 */}
+                <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                  <h4 className="text-xs font-bold mb-3 pb-2" style={{ color: "#f59e0b", borderBottom: "1px solid var(--border)" }}>📅 미팅정보</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "미팅일정", value: c.meeting_date },
+                      { label: "미팅지역", value: c.meeting_address },
+                      { label: "미팅결과", value: c.meeting_result },
+                      { label: "계약일", value: c.contract_date },
+                      { label: "예약일", value: c.reservation_date },
+                      { label: "메모", value: c.memo },
+                    ].map(item => (
+                      <div key={item.label}>
+                        <p className="text-[10px] font-semibold mb-0.5" style={{ color: "var(--text-muted)" }}>{item.label}</p>
+                        <p className="text-sm font-semibold" style={{ color: item.value ? "var(--text)" : "var(--text-subtle)" }}>{item.value || "-"}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* 활동노트 */}
+                <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                  <h4 className="text-xs font-bold mb-3 pb-2" style={{ color: "#10b981", borderBottom: "1px solid var(--border)" }}>📝 활동노트</h4>
+                  <ContactNotes contactId={c.id} authorName={userName} />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 신규등록 / 수정 모달 */}
       {showAdd && (

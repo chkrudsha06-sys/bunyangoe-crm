@@ -453,7 +453,6 @@ export default function CustomerJourneyPage() {
                                   </div>
                                   {c.assigned_to && <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{c.assigned_to}</span>}
                                 </div>
-                                {isExpanded ? <ChevronUp size={13} style={{ color: "var(--text-muted)" }} /> : <ChevronDown size={13} style={{ color: "var(--text-muted)" }} />}
                               </div>
 
                               {/* 최근 활동노트 */}
@@ -505,96 +504,19 @@ export default function CustomerJourneyPage() {
                               </div>
                             </div>
 
-                            {/* 확장 상세 */}
-                            {isExpanded && (
-                              <div className="px-3 pb-3 space-y-2" style={{ borderTop: "1px solid var(--border)" }}>
-                                {/* 고객 기본정보 */}
-                                <div className="pt-2 space-y-1.5">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[12px] font-bold" style={{ color: "var(--text)" }}>{c.name}</span>
-                                    {c.title && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{c.title}</span>}
-                                  </div>
-                                  {c.phone && (
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="text-[11px]" style={{ color: "var(--text)" }}>📞 {c.phone}</span>
-                                    </div>
-                                  )}
-                                  {c.meeting_date && (
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="text-[11px] font-semibold" style={{ color: "#60a5fa" }}>
-                                        📅 {new Date(c.meeting_date + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
-                                      </span>
-                                      {c.meeting_address && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>📍 {c.meeting_address}</span>}
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* 미팅결과 드롭다운 */}
-                                <div>
-                                  <p className="text-[9px] font-semibold mb-1" style={{ color: "var(--text-subtle)" }}>미팅결과</p>
-                                  <div className="flex items-center gap-1.5">
-                                    <select
-                                      value={c.meeting_result || ""}
-                                      onChange={e => { e.stopPropagation(); if (e.target.value) handleMeetingResultChange(c.id, c.name, e.target.value); }}
-                                      onClick={e => e.stopPropagation()}
-                                      className="flex-1 appearance-none px-2.5 py-1.5 text-[11px] font-semibold rounded-lg outline-none"
-                                      style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}>
-                                      <option value="">미팅결과 선택</option>
-                                    {MEETING_RESULTS.map(r => <option key={r} value={r}>{r}</option>)}
-                                    </select>
-                                    {c.meeting_result && (
-                                      <button onClick={e => { e.stopPropagation(); handleDeleteMeetingResult(c.id, c.name); }}
-                                        className="px-2 py-1.5 text-[10px] font-bold rounded-lg transition-colors flex-shrink-0"
-                                        style={{ color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)" }}>
-                                        초기화
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* 고객정보히스토리 버튼 */}
-                                <button onClick={e => { e.stopPropagation(); openAnalysisPanel(c); }}
-                                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-bold transition-colors"
-                                  style={{ background: "rgba(59,130,246,0.06)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.15)" }}>
-                                  📋 고객정보 히스토리
-                                </button>
-
-                                <div className="grid grid-cols-2 gap-1.5">
-                                  {[
-                                    { label: "유입경로", value: c.intake_route },
-                                    { label: "고객유형", value: c.customer_type },
-                                    { label: "담당컨설턴트", value: c.consultant },
-                                    { label: "계약일", value: c.contract_date },
-                                  ].map(item => (
-                                    <div key={item.label}>
-                                      <p className="text-[9px] font-semibold" style={{ color: "var(--text-subtle)" }}>{item.label}</p>
-                                      <p className="text-[11px] font-semibold" style={{ color: item.value ? "var(--text)" : "var(--text-subtle)" }}>{item.value || "-"}</p>
-                                    </div>
-                                  ))}
-                                </div>
-
-                                {/* 활동노트 */}
-                                <div className="rounded-lg p-2" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                                  <div className="flex items-center justify-between mb-1.5">
-                                    <p className="text-[10px] font-bold" style={{ color: "var(--text)" }}>📝 활동노트</p>
-                                    <button onClick={e => { e.stopPropagation(); setNotesPopup({ contactId: c.id, name: c.name }); }}
-                                      className="text-[10px] font-semibold hover:underline" style={{ color: "#3b82f6" }}>전체보기 →</button>
-                                  </div>
-                                  <ContactNotes contactId={c.id} compact />
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                  <a href={`/contacts/${c.id}`} onClick={e => e.stopPropagation()}
-                                    className="flex-1 block text-center text-[11px] font-semibold py-1.5 rounded-lg"
-                                    style={{ background: "var(--bg)", color: "#3b82f6", border: "1px solid var(--border)" }}>상세 페이지 →</a>
-                                  <button onClick={e => { e.stopPropagation(); handleDeleteContact(c.id, c.name); }}
-                                    className="px-3 py-1.5 text-[11px] font-semibold rounded-lg transition-colors"
-                                    style={{ color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)" }}>
-                                    삭제
-                                  </button>
-                                </div>
-                              </div>
-                            )}
+                            {/* 카드 하단 액션 */}
+                            <div className="px-3 pb-2 flex items-center gap-1.5">
+                              <button onClick={e => { e.stopPropagation(); openAnalysisPanel(c); }}
+                                className="flex-1 text-center py-1.5 rounded-lg text-[10px] font-bold"
+                                style={{ background: "rgba(59,130,246,0.06)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.15)" }}>
+                                📋 히스토리
+                              </button>
+                              <button onClick={e => { e.stopPropagation(); setExpandedId(expandedId === c.id ? null : c.id); }}
+                                className="flex-1 text-center py-1.5 rounded-lg text-[10px] font-bold"
+                                style={{ background: "rgba(139,92,246,0.06)", color: "#8b5cf6", border: "1px solid rgba(139,92,246,0.15)" }}>
+                                👤 상세보기
+                              </button>
+                            </div>
                           </div>
                         );
                       })
@@ -606,6 +528,107 @@ export default function CustomerJourneyPage() {
           </div>
         </div>
       )}
+
+      {/* 고객 상세 슬라이드 패널 */}
+      {expandedId && (() => {
+        const c = contacts.find((x: any) => x.id === expandedId);
+        if (!c) return null;
+        return (
+          <div className="fixed inset-0 z-40 flex justify-end" style={{ background: "rgba(0,0,0,0.3)" }}
+            onClick={() => setExpandedId(null)}>
+            <div className="w-full max-w-md h-full overflow-y-auto shadow-2xl"
+              style={{ background: "var(--modal-bg)", borderLeft: "1px solid var(--border)" }}
+              onClick={e => e.stopPropagation()}>
+              <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3" style={{ background: "var(--modal-bg)", borderBottom: "1px solid var(--border)" }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{c.name}</span>
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{c.title || ""}</span>
+                  {c.assigned_to && <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{c.assigned_to}</span>}
+                </div>
+                <button onClick={() => setExpandedId(null)} className="p-1.5 rounded-lg" style={{ color: "var(--text-muted)" }}>✕</button>
+              </div>
+              <div className="p-5 space-y-4">
+                {/* 고객정보 */}
+                <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                  <h4 className="text-xs font-bold mb-3 pb-2" style={{ color: "#3b82f6", borderBottom: "1px solid var(--border)" }}>📋 고객정보</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "연락처", value: c.phone },
+                      { label: "유입경로", value: c.intake_route },
+                      { label: "고객유형", value: c.customer_type },
+                      { label: "가망유형", value: c.prospect_type },
+                      { label: "담당자", value: c.assigned_to },
+                      { label: "컨설턴트", value: c.consultant },
+                      { label: "넘버링", value: c.bunyanghoe_number },
+                    ].map(item => (
+                      <div key={item.label}>
+                        <p className="text-[10px] font-semibold mb-0.5" style={{ color: "var(--text-muted)" }}>{item.label}</p>
+                        <p className="text-sm font-semibold" style={{ color: item.value ? "var(--text)" : "var(--text-subtle)" }}>{item.value || "-"}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* 미팅정보 */}
+                <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                  <h4 className="text-xs font-bold mb-3 pb-2" style={{ color: "#f59e0b", borderBottom: "1px solid var(--border)" }}>📅 미팅정보</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "미팅일정", value: c.meeting_date },
+                      { label: "미팅지역", value: c.meeting_address },
+                      { label: "계약일", value: c.contract_date },
+                      { label: "예약일", value: c.reservation_date },
+                    ].map(item => (
+                      <div key={item.label}>
+                        <p className="text-[10px] font-semibold mb-0.5" style={{ color: "var(--text-muted)" }}>{item.label}</p>
+                        <p className="text-sm font-semibold" style={{ color: item.value ? "var(--text)" : "var(--text-subtle)" }}>{item.value || "-"}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {/* 미팅결과 변경 */}
+                  <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                    <p className="text-[10px] font-semibold mb-1.5" style={{ color: "var(--text-muted)" }}>미팅결과</p>
+                    <div className="flex items-center gap-2">
+                      <select value={c.meeting_result || ""}
+                        onChange={e => { if (e.target.value) handleMeetingResultChange(c.id, c.name, e.target.value); }}
+                        className="flex-1 px-3 py-2 text-sm font-semibold rounded-lg outline-none"
+                        style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+                        <option value="">미팅결과 선택</option>
+                        {MEETING_RESULTS.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      {c.meeting_result && (
+                        <button onClick={() => handleDeleteMeetingResult(c.id, c.name)}
+                          className="px-3 py-2 text-xs font-bold rounded-lg"
+                          style={{ color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)" }}>초기화</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {/* 활동노트 */}
+                <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                  <div className="flex items-center justify-between mb-3 pb-2" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <h4 className="text-xs font-bold" style={{ color: "#10b981" }}>📝 활동노트</h4>
+                    <button onClick={() => setNotesPopup({ contactId: c.id, name: c.name })}
+                      className="text-[10px] font-semibold" style={{ color: "#3b82f6" }}>전체보기 →</button>
+                  </div>
+                  <ContactNotes contactId={c.id} authorName={userName} />
+                </div>
+                {/* 고객정보히스토리 */}
+                <button onClick={() => openAnalysisPanel(c)}
+                  className="w-full py-3 text-sm font-bold rounded-xl"
+                  style={{ background: "rgba(59,130,246,0.06)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.15)" }}>
+                  📋 고객정보 히스토리 열기
+                </button>
+                {/* 삭제 */}
+                <button onClick={() => { handleDeleteContact(c.id, c.name); setExpandedId(null); }}
+                  className="w-full py-2.5 text-xs font-semibold rounded-xl"
+                  style={{ color: "#ef4444", border: "1px solid rgba(239,68,68,0.15)", background: "rgba(239,68,68,0.05)" }}>
+                  🗑 고객 삭제
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 활동노트 팝업 */}
       {notesPopup && (
