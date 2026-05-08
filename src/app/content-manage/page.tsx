@@ -11,6 +11,7 @@ interface VipMember {
   bunyanghoe_number: string | null;
   meeting_result: string | null;
   assigned_to: string | null;
+  memo?: string | null; // 외부 컨텐츠 고객의 컨텐츠제작항목
 }
 
 interface UploadedFile {
@@ -304,12 +305,12 @@ export default function ContentManagePage() {
     setLoading(true);
     // VIP 입회자 (계약완료/예약완료)
     const { data: contacts } = await supabase.from("contacts")
-      .select("id,name,title,bunyanghoe_number,meeting_result,assigned_to")
+      .select("id,name,title,bunyanghoe_number,meeting_result,assigned_to,memo")
       .in("meeting_result", ["계약완료", "예약완료"]);
     
     // 외부 컨텐츠 고객
     const { data: extContacts } = await supabase.from("contacts")
-      .select("id,name,title,bunyanghoe_number,meeting_result,assigned_to")
+      .select("id,name,title,bunyanghoe_number,meeting_result,assigned_to,memo")
       .eq("meeting_result", "컨텐츠등록")
       .order("id", { ascending: false });
     
@@ -782,7 +783,7 @@ export default function ContentManagePage() {
 
       {/* 메인: 좌측 분양회 + 우측 외부고객 */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="h-full flex" style={{ minWidth: 1040 }}>
+        <div className="h-full flex" style={{ minWidth: 1280 }}>
           {/* 좌측: 분양회 회원 리스트 */}
           <div className="overflow-y-scroll pb-4" style={{ width: 520, minWidth: 520, flexShrink: 0, borderRight: "1px solid var(--border)", scrollbarGutter: "stable" }}>
             <div className="px-3 h-10 flex items-center" style={{ borderBottom: "1px solid var(--border)" }}>
@@ -890,37 +891,37 @@ export default function ContentManagePage() {
           </div>
 
           {/* 우측: 외부 고객 리스트 */}
-          <div className="overflow-y-scroll pb-4" style={{ width: 520, minWidth: 520, flexShrink: 0, borderRight: "1px solid var(--border)", scrollbarGutter: "stable" }}>
-            <div className="px-3 h-10 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
-              <p className="text-xs font-bold" style={{ color: "var(--text)" }}>🎬 외부 컨텐츠 고객 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({extMembers.length}명)</span></p>
-              <button onClick={() => setShowRegForm(v => !v)} className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
+          <div className="overflow-y-scroll pb-4" style={{ width: 760, minWidth: 760, flexShrink: 0, borderRight: "1px solid var(--border)", scrollbarGutter: "stable" }}>
+            <div className="px-4 h-11 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
+              <p className="text-sm font-bold" style={{ color: "var(--text)" }}>🎬 외부 컨텐츠 고객 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({extMembers.length}명)</span></p>
+              <button onClick={() => setShowRegForm(v => !v)} className="text-xs font-bold px-3 py-1.5 rounded-lg"
                 style={{ background: "rgba(59,130,246,0.08)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.15)" }}>
                 ➕ 등록
               </button>
             </div>
             {showRegForm && (
-              <div className="p-3 space-y-2" style={{ borderBottom: "1px solid var(--border)" }}>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="p-4 space-y-3" style={{ borderBottom: "1px solid var(--border)" }}>
+                <div className="grid grid-cols-2 gap-2.5">
                   <input placeholder="고객명 *" value={regForm.name} onChange={e => setRegForm(p => ({ ...p, name: e.target.value }))}
-                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                    className="px-3 py-2 text-sm rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                   <input placeholder="직급" value={regForm.title} onChange={e => setRegForm(p => ({ ...p, title: e.target.value }))}
-                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                    className="px-3 py-2 text-sm rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                   <select value={regForm.assigned_to} onChange={e => setRegForm(p => ({ ...p, assigned_to: e.target.value }))}
-                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+                    className="px-3 py-2 text-sm rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
                     <option value="">담당자 선택 안 함</option>
                     {Array.from(new Set([...members, ...extMembers].map(m => m.assigned_to).filter(Boolean))).sort().map(a => (
                       <option key={a!} value={a!}>{a}</option>
                     ))}
                   </select>
                   <input placeholder="컨텐츠제작항목" value={regForm.content_item} onChange={e => setRegForm(p => ({ ...p, content_item: e.target.value }))}
-                    className="px-2.5 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                    className="px-3 py-2 text-sm rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                 </div>
                 <div className="flex gap-2">
                   <button onClick={handleRegister} disabled={regSaving || !regForm.name.trim()}
-                    className="flex-1 py-1.5 text-xs font-bold text-white rounded-lg disabled:opacity-50" style={{ background: "#3b82f6" }}>
+                    className="flex-1 py-2 text-sm font-bold text-white rounded-lg disabled:opacity-50" style={{ background: "#3b82f6" }}>
                     {regSaving ? "등록 중..." : "등록"}
                   </button>
-                  <button onClick={() => setShowRegForm(false)} className="px-3 py-1.5 text-xs rounded-lg" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>취소</button>
+                  <button onClick={() => setShowRegForm(false)} className="px-4 py-2 text-sm rounded-lg" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>취소</button>
                 </div>
               </div>
             )}
@@ -929,44 +930,52 @@ export default function ContentManagePage() {
                 <p className="text-sm">등록된 외부 고객이 없습니다</p>
               </div>
             ) : (
-              <div className="px-3 pt-2">
-                <p className="text-xs px-2 py-1.5" style={{ color: "var(--text-muted)" }}>
+              <div className="px-4 pt-3">
+                <p className="text-sm px-2 py-2 font-semibold" style={{ color: "var(--text-muted)" }}>
                   총 {extMembers.length}명
                 </p>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {extMembers.map((m, idx) => {
                     const s = getStatus(m.id);
                     const isSelected = expandedId === m.id;
+                    const contentItem = (m.memo || "").trim();
                     return (
-                      <div key={m.id} className="flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors"
+                      <div key={m.id} className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-colors"
                         onClick={() => expandMember(m.id)}
                         style={{
                           background: isSelected ? "rgba(59,130,246,0.08)" : "transparent",
                           border: isSelected ? "1px solid rgba(59,130,246,0.2)" : "1px solid transparent",
-                          minHeight: 54,
+                          minHeight: 64,
                         }}>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg flex-shrink-0" style={{ background: "rgba(139,92,246,0.12)", color: "#8b5cf6", minWidth: 36, textAlign: "center" }}>
+                        <span className="text-xs font-bold px-2 py-1 rounded-lg flex-shrink-0" style={{ background: "rgba(139,92,246,0.12)", color: "#8b5cf6", minWidth: 44, textAlign: "center" }}>
                           {`E-${idx + 1}`}
                         </span>
-                        <div className="flex-1 min-w-0" style={{ minWidth: 130 }}>
-                          <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden">
-                            <span className="text-[13px] font-bold truncate whitespace-nowrap" style={{ color: "var(--text)" }}>{m.name}</span>
-                            <span className="text-[11px] truncate whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{m.title || ""}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden">
+                            <span className="text-base font-bold truncate whitespace-nowrap" style={{ color: "var(--text)", maxWidth: 130 }}>{m.name}</span>
+                            {m.title && <span className="text-sm font-semibold truncate whitespace-nowrap" style={{ color: "var(--text-muted)", maxWidth: 90 }}>{m.title}</span>}
+                            {contentItem && (
+                              <span className="text-sm font-bold truncate whitespace-nowrap px-2 py-0.5 rounded-lg"
+                                title={contentItem}
+                                style={{ color: "#f59e0b", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.18)", maxWidth: 210 }}>
+                                {contentItem}
+                              </span>
+                            )}
                           </div>
-                          {m.assigned_to && <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
+                          {m.assigned_to && <span className="text-sm font-semibold mt-1 block" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
                         </div>
-                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           <StatusBadge done={s.photo_received} label="사진" />
                           <StatusBadge done={s.info_received} label="정보" />
                           <StatusBadge done={s.tf2_delivered} label="TF2" />
                           <StatusBadge done={s.pr_completed} label="PR" />
-                          {s.production_impossible && <span className="text-[9px] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>불가</span>}
+                          {s.production_impossible && <span className="text-[10px] px-1.5 py-1 rounded font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>불가</span>}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteExternalMember(m.id, m.name);
                             }}
-                            className="ml-1 text-[9px] px-1.5 py-1 rounded font-bold"
+                            className="ml-1 text-xs px-2 py-1.5 rounded font-bold"
                             style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
                           >
                             삭제
