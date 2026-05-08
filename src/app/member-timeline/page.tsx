@@ -84,15 +84,17 @@ export default function MemberTimelinePage() {
       }
 
       // 2~5. 병렬 조회 (Promise.all)
+      const memberName = member?.name || "__NONE__";
+      const memberNum = member?.bunyanghoe_number || "__NONE__";
       const [r_cs, r_ads, r_notes, r_manual] = await Promise.all([
         supabase.from("content_statuses").select("*").eq("contact_id", contactId).maybeSingle(),
         supabase.from("ad_executions").select("id,channel,execution_amount,payment_date,member_name,bunyanghoe_number")
-          .or(`member_name.eq.${member?.name || ""},bunyanghoe_number.eq.${member?.bunyanghoe_number || ""}`)
-          .order("payment_date", { ascending: true }),
+          .or(`member_name.eq.${memberName},bunyanghoe_number.eq.${memberNum}`)
+          .order("payment_date", { ascending: true }).limit(30),
         supabase.from("contact_notes").select("id,note_date,content,author")
-          .eq("contact_id", contactId).order("note_date", { ascending: true }),
-        supabase.from("member_timeline").select("*")
-          .eq("contact_id", contactId).order("event_date", { ascending: true }),
+          .eq("contact_id", contactId).order("note_date", { ascending: true }).limit(30),
+        supabase.from("member_timeline").select("id,event_type,event_title,event_detail,event_date")
+          .eq("contact_id", contactId).order("event_date", { ascending: true }).limit(30),
       ]);
 
       // PR 상태
