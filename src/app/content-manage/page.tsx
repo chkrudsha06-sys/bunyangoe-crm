@@ -153,6 +153,9 @@ export default function ContentManagePage() {
   const [showRegForm, setShowRegForm] = useState(false);
   const [regForm, setRegForm] = useState({ name: "", title: "", assigned_to: "", content_item: "" });
   const [regSaving, setRegSaving] = useState(false);
+  const [editingExtId, setEditingExtId] = useState<number | null>(null);
+  const [editExtForm, setEditExtForm] = useState({ name: "", title: "", assigned_to: "", content_item: "" });
+  const [editExtSaving, setEditExtSaving] = useState(false);
 
   // 새 고객 등록
   const handleRegister = async () => {
@@ -214,6 +217,72 @@ export default function ContentManagePage() {
       fetchData();
     } finally {
       setRegSaving(false);
+    }
+  };
+
+
+  // 외부 컨텐츠 고객 수정 시작
+  const startEditExternalMember = (member: VipMember) => {
+    setEditingExtId(member.id);
+    setShowRegForm(false);
+    setEditExtForm({
+      name: member.name || "",
+      title: member.title || "",
+      assigned_to: member.assigned_to || "",
+      content_item: member.memo || "",
+    });
+  };
+
+  // 외부 컨텐츠 고객 수정 저장
+  const saveEditExternalMember = async () => {
+    if (!editingExtId || !editExtForm.name.trim()) return;
+
+    setEditExtSaving(true);
+
+    try {
+      const payload: any = {
+        name: editExtForm.name.trim(),
+        title: editExtForm.title.trim() || null,
+        assigned_to: editExtForm.assigned_to.trim() || null,
+        memo: editExtForm.content_item.trim() || null,
+      };
+
+      let { data, error } = await supabase
+        .from("contacts")
+        .update(payload)
+        .eq("id", editingExtId)
+        .select("id,name,title,bunyanghoe_number,meeting_result,assigned_to,memo")
+        .single();
+
+      // 담당자 CHECK 제약에 걸리면 담당자만 제외하고 저장합니다.
+      if (error && error.message?.includes("contacts_assigned_to_check")) {
+        const retryPayload = { ...payload, assigned_to: null };
+        const retry = await supabase
+          .from("contacts")
+          .update(retryPayload)
+          .eq("id", editingExtId)
+          .select("id,name,title,bunyanghoe_number,meeting_result,assigned_to,memo")
+          .single();
+
+        data = retry.data;
+        error = retry.error;
+
+        if (!error) showToast("담당자 값이 허용 목록에 없어 담당자 없이 수정했습니다");
+      }
+
+      if (error || !data) {
+        showToast(`수정 실패: ${error?.message || "알 수 없는 오류"}`);
+        return;
+      }
+
+      setExtMembers(prev => prev.map(member => (member.id === editingExtId ? (data as VipMember) : member)));
+      setEditingExtId(null);
+      setEditExtForm({ name: "", title: "", assigned_to: "", content_item: "" });
+      showToast("외부 고객 정보 수정 완료");
+    } catch (e: any) {
+      showToast(`수정 오류: ${e.message || "알 수 없는 오류"}`);
+    } finally {
+      setEditExtSaving(false);
     }
   };
 
@@ -783,11 +852,11 @@ export default function ContentManagePage() {
 
       {/* 메인: 좌측 분양회 + 우측 외부고객 */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="h-full flex" style={{ minWidth: 1280 }}>
+        <div className="h-full flex" style={{ minWidth: 1520 }}>
           {/* 좌측: 분양회 회원 리스트 */}
-          <div className="overflow-y-scroll pb-4" style={{ width: 520, minWidth: 520, flexShrink: 0, borderRight: "1px solid var(--border)", scrollbarGutter: "stable" }}>
-            <div className="px-3 h-10 flex items-center" style={{ borderBottom: "1px solid var(--border)" }}>
-              <p className="text-xs font-bold" style={{ color: "var(--text)" }}>🏆 분양회 회원 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({members.length}명)</span></p>
+          <div className="overflow-y-scroll pb-4" style={{ width: 760, minWidth: 760, flexShrink: 0, borderRight: "1px solid var(--border)", scrollbarGutter: "stable" }}>
+            <div className="px-4 h-11 flex items-center" style={{ borderBottom: "1px solid var(--border)" }}>
+              <p className="text-sm font-bold" style={{ color: "var(--text)" }}>🏆 분양회 회원 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({members.length}명)</span></p>
             </div>
           {(() => {
             let filtered = members;
@@ -848,38 +917,38 @@ export default function ContentManagePage() {
                 <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
               </div>
             ) : (
-              <div className="px-3 pt-2">
-                <p className="text-xs px-2 py-1.5" style={{ color: "var(--text-muted)" }}>
+              <div className="px-4 pt-3">
+                <p className="text-sm px-2 py-2 font-semibold" style={{ color: "var(--text-muted)" }}>
                   {filtered.length === members.length ? `총 ${members.length}명` : `${filtered.length}명 / ${members.length}명`}
                 </p>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {filtered.map(m => {
                     const s = getStatus(m.id);
                     const isSelected = expandedId === m.id;
                     return (
-                      <div key={m.id} className="flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors"
+                      <div key={m.id} className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-colors"
                         onClick={() => expandMember(m.id)}
                         style={{
                           background: isSelected ? "rgba(59,130,246,0.08)" : "transparent",
                           border: isSelected ? "1px solid rgba(59,130,246,0.2)" : "1px solid transparent",
-                          minHeight: 54,
+                          minHeight: 64,
                         }}>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg flex-shrink-0" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", minWidth: 36, textAlign: "center" }}>
+                        <span className="text-xs font-bold px-2 py-1 rounded-lg flex-shrink-0" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", minWidth: 44, textAlign: "center" }}>
                           {m.bunyanghoe_number ? `B-${m.bunyanghoe_number.replace(/[^0-9]/g, "")}` : "-"}
                         </span>
-                        <div className="flex-1 min-w-0" style={{ minWidth: 130 }}>
-                          <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden">
-                            <span className="text-[13px] font-bold truncate whitespace-nowrap" style={{ color: "var(--text)" }}>{m.name}</span>
-                            <span className="text-[11px] truncate whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{m.title || ""}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden">
+                            <span className="text-base font-bold truncate whitespace-nowrap" style={{ color: "var(--text)", maxWidth: 150 }}>{m.name}</span>
+                            {m.title && <span className="text-sm font-semibold truncate whitespace-nowrap" style={{ color: "var(--text-muted)", maxWidth: 100 }}>{m.title}</span>}
                           </div>
-                          {m.assigned_to && <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
+                          {m.assigned_to && <span className="text-sm font-semibold mt-1 block" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
                         </div>
-                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           <StatusBadge done={s.photo_received} label="사진" />
                           <StatusBadge done={s.info_received} label="정보" />
                           <StatusBadge done={s.tf2_delivered} label="TF2" />
                           <StatusBadge done={s.pr_completed} label="PR" />
-                          {s.production_impossible && <span className="text-[9px] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>불가</span>}
+                          {s.production_impossible && <span className="text-[10px] px-1.5 py-1 rounded font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>불가</span>}
                         </div>
                       </div>
                     );
@@ -894,7 +963,7 @@ export default function ContentManagePage() {
           <div className="overflow-y-scroll pb-4" style={{ width: 760, minWidth: 760, flexShrink: 0, borderRight: "1px solid var(--border)", scrollbarGutter: "stable" }}>
             <div className="px-4 h-11 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
               <p className="text-sm font-bold" style={{ color: "var(--text)" }}>🎬 외부 컨텐츠 고객 <span className="font-normal" style={{ color: "var(--text-muted)" }}>({extMembers.length}명)</span></p>
-              <button onClick={() => setShowRegForm(v => !v)} className="text-xs font-bold px-3 py-1.5 rounded-lg"
+              <button onClick={() => { setEditingExtId(null); setShowRegForm(v => !v); }} className="text-xs font-bold px-3 py-1.5 rounded-lg"
                 style={{ background: "rgba(59,130,246,0.08)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.15)" }}>
                 ➕ 등록
               </button>
@@ -939,6 +1008,82 @@ export default function ContentManagePage() {
                     const s = getStatus(m.id);
                     const isSelected = expandedId === m.id;
                     const contentItem = (m.memo || "").trim();
+                    const isEditing = editingExtId === m.id;
+
+                    if (isEditing) {
+                      return (
+                        <div
+                          key={m.id}
+                          className="rounded-xl p-3 space-y-3"
+                          onClick={e => e.stopPropagation()}
+                          style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.25)", minHeight: 64 }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold px-2 py-1 rounded-lg flex-shrink-0" style={{ background: "rgba(139,92,246,0.12)", color: "#8b5cf6", minWidth: 44, textAlign: "center" }}>
+                              {`E-${idx + 1}`}
+                            </span>
+                            <span className="text-base font-bold" style={{ color: "var(--text)" }}>외부 고객 정보 수정</span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <input
+                              placeholder="고객명 *"
+                              value={editExtForm.name}
+                              onChange={e => setEditExtForm(p => ({ ...p, name: e.target.value }))}
+                              className="px-3 py-2 text-sm rounded-lg outline-none"
+                              style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
+                            />
+                            <input
+                              placeholder="직급"
+                              value={editExtForm.title}
+                              onChange={e => setEditExtForm(p => ({ ...p, title: e.target.value }))}
+                              className="px-3 py-2 text-sm rounded-lg outline-none"
+                              style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
+                            />
+                            <select
+                              value={editExtForm.assigned_to}
+                              onChange={e => setEditExtForm(p => ({ ...p, assigned_to: e.target.value }))}
+                              className="px-3 py-2 text-sm rounded-lg outline-none"
+                              style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
+                            >
+                              <option value="">담당자 선택 안 함</option>
+                              {Array.from(new Set([...members, ...extMembers].map(member => member.assigned_to).filter(Boolean))).sort().map(a => (
+                                <option key={a!} value={a!}>{a}</option>
+                              ))}
+                            </select>
+                            <input
+                              placeholder="컨텐츠제작항목"
+                              value={editExtForm.content_item}
+                              onChange={e => setEditExtForm(p => ({ ...p, content_item: e.target.value }))}
+                              className="px-3 py-2 text-sm rounded-lg outline-none"
+                              style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
+                            />
+                          </div>
+
+                          <div className="flex gap-2">
+                            <button
+                              onClick={saveEditExternalMember}
+                              disabled={editExtSaving || !editExtForm.name.trim()}
+                              className="flex-1 py-2 text-sm font-bold text-white rounded-lg disabled:opacity-50"
+                              style={{ background: "#3b82f6" }}
+                            >
+                              {editExtSaving ? "저장 중..." : "수정 저장"}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingExtId(null);
+                                setEditExtForm({ name: "", title: "", assigned_to: "", content_item: "" });
+                              }}
+                              className="px-4 py-2 text-sm rounded-lg"
+                              style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
+                            >
+                              취소
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div key={m.id} className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-colors"
                         onClick={() => expandMember(m.id)}
@@ -973,9 +1118,19 @@ export default function ContentManagePage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              deleteExternalMember(m.id, m.name);
+                              startEditExternalMember(m);
                             }}
                             className="ml-1 text-xs px-2 py-1.5 rounded font-bold"
+                            style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}
+                          >
+                            수정
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteExternalMember(m.id, m.name);
+                            }}
+                            className="text-xs px-2 py-1.5 rounded font-bold"
                             style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
                           >
                             삭제
