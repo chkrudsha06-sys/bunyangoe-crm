@@ -25,6 +25,7 @@ interface UploadedFile {
 interface ContentStatus {
   id?: number;
   contact_id: number;
+  resource_secured: boolean;
   photo_received: boolean;
   info_received: boolean;
   tf2_delivered: boolean;
@@ -63,7 +64,7 @@ interface ContentStatus {
 }
 
 const EMPTY_STATUS: Omit<ContentStatus, "contact_id"> = {
-  photo_received: false, info_received: false, tf2_delivered: false, pr_completed: false,
+  resource_secured: false, photo_received: false, info_received: false, tf2_delivered: false, pr_completed: false,
   production_impossible: false, impossible_reason: "",
   files: [],
   pr_name: "", pr_gender: "", pr_birth_date: "", pr_title_position: "", pr_age: "", pr_height: "", pr_body_type: "",
@@ -396,10 +397,10 @@ export default function ContentManagePage() {
 
     // 컨텐츠 현황 (파일 데이터 제외 — 경량 로드)
     const { data: cs } = await supabase.from("content_statuses")
-      .select("id,contact_id,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_activity_region,pr_company,pr_site_history_1,pr_site_history_2,pr_site_history_3,pr_site_history_4,pr_site_history_5,pr_intro,pr_request,pr_video_copy_1,pr_video_performance,pr_video_copy_2,pr_site_info,pr_photo_desc,pr_feed_text,pr_career,pr_years,pr_years_base_year,pr_output_server,pr_output_url,updated_at");
+      .select("id,contact_id,resource_secured,photo_received,info_received,tf2_delivered,pr_completed,production_impossible,impossible_reason,pr_name,pr_gender,pr_birth_date,pr_title_position,pr_age,pr_height,pr_body_type,pr_activity_region,pr_company,pr_site_history_1,pr_site_history_2,pr_site_history_3,pr_site_history_4,pr_site_history_5,pr_intro,pr_request,pr_video_copy_1,pr_video_performance,pr_video_copy_2,pr_site_info,pr_photo_desc,pr_feed_text,pr_career,pr_years,pr_years_base_year,pr_output_server,pr_output_url,updated_at");
     const map: Record<number, ContentStatus> = {};
     (cs || []).forEach((s: any) => {
-      map[s.contact_id] = { ...s, files: [] }; // 파일은 빈 배열로 초기화
+      map[s.contact_id] = { ...EMPTY_STATUS, ...s, files: [] }; // 파일은 lazy loading으로 별도 로드
     });
     setStatuses(map);
     setLoading(false);
@@ -675,6 +676,7 @@ export default function ContentManagePage() {
       <div className="px-6 py-3 flex gap-3 flex-shrink-0 flex-wrap">
         {[
           { key: "all", label: "총 회원", value: members.length, color: "#3b82f6" },
+          { key: "resource", label: "리소스확보중", value: Object.values(statuses).filter(s => s.resource_secured).length, color: "#14b8a6" },
           { key: "photo", label: "사진 수취", value: Object.values(statuses).filter(s => s.photo_received).length, color: "#8b5cf6" },
           { key: "info", label: "정보 수취", value: Object.values(statuses).filter(s => s.info_received).length, color: "#f59e0b" },
           { key: "tf2", label: "TF2 전달", value: Object.values(statuses).filter(s => s.tf2_delivered).length, color: "#10b981" },
@@ -815,6 +817,8 @@ export default function ContentManagePage() {
           className="px-3 py-2 text-sm rounded-xl outline-none"
           style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
           <option value="">전체 상태</option>
+          <option value="resource">리소스확보중 완료</option>
+          <option value="resource_no">리소스확보중 미완료</option>
           <option value="photo">사진 수취 완료</option>
           <option value="photo_no">사진 미수취</option>
           <option value="info">정보 수취 완료</option>
@@ -864,7 +868,8 @@ export default function ContentManagePage() {
               filtered = filtered.filter(m => {
                 const s = getStatus(m.id);
                 switch (cardFilter) {
-                  case "photo": return s.photo_received;
+                  case "resource": return s.resource_secured;
+                    case "photo": return s.photo_received;
                   case "info": return s.info_received;
                   case "tf2": return s.tf2_delivered;
                   case "pr": return s.pr_completed;
@@ -904,6 +909,7 @@ export default function ContentManagePage() {
               filtered = filtered.filter(m => {
                 const s = getStatus(m.id);
                 switch (filterStatus) {
+                  case "resource": return s.resource_secured; case "resource_no": return !s.resource_secured;
                   case "photo": return s.photo_received; case "photo_no": return !s.photo_received;
                   case "info": return s.info_received; case "info_no": return !s.info_received;
                   case "tf2": return s.tf2_delivered; case "tf2_no": return !s.tf2_delivered;
@@ -944,6 +950,7 @@ export default function ContentManagePage() {
                           {m.assigned_to && <span className="text-sm font-semibold mt-1 block" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
+                          <StatusBadge done={s.resource_secured} label="리소스" />
                           <StatusBadge done={s.photo_received} label="사진" />
                           <StatusBadge done={s.info_received} label="정보" />
                           <StatusBadge done={s.tf2_delivered} label="TF2" />
@@ -1001,6 +1008,7 @@ export default function ContentManagePage() {
                 filteredExtMembers = filteredExtMembers.filter(m => {
                   const s = getStatus(m.id);
                   switch (cardFilter) {
+                    case "resource": return s.resource_secured;
                     case "photo": return s.photo_received;
                     case "info": return s.info_received;
                     case "tf2": return s.tf2_delivered;
@@ -1050,6 +1058,8 @@ export default function ContentManagePage() {
                 filteredExtMembers = filteredExtMembers.filter(m => {
                   const s = getStatus(m.id);
                   switch (filterStatus) {
+                    case "resource": return s.resource_secured;
+                    case "resource_no": return !s.resource_secured;
                     case "photo": return s.photo_received;
                     case "photo_no": return !s.photo_received;
                     case "info": return s.info_received;
@@ -1189,6 +1199,7 @@ export default function ContentManagePage() {
                             {m.assigned_to && <span className="text-sm font-semibold mt-1 block" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">
+                            <StatusBadge done={s.resource_secured} label="리소스" />
                             <StatusBadge done={s.photo_received} label="사진" />
                             <StatusBadge done={s.info_received} label="정보" />
                             <StatusBadge done={s.tf2_delivered} label="TF2" />
@@ -1257,6 +1268,7 @@ export default function ContentManagePage() {
                     {/* 체크박스 */}
                     <div className="flex items-center gap-3 flex-wrap rounded-xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                       {[
+                        { field: "resource_secured", label: "리소스 확보중", icon: Upload },
                         { field: "photo_received", label: "사진 수취", icon: Camera },
                         { field: "info_received", label: "기본정보 수취", icon: FileText },
                         { field: "tf2_delivered", label: "TF2팀 전달", icon: Send },
