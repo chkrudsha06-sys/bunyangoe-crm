@@ -56,12 +56,15 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     !["계약완료","예약완료"].includes(x.meeting_result||"")
   );
 
-  const monthMeetings = (allContacts||[]).filter((x:any) => {
-    if (["계약완료","예약완료"].includes(x.meeting_result||"")) return false;
-    if (!x.meeting_date) return false;
-    return !isAll && x.meeting_date >= monthStart && x.meeting_date <= monthEnd;
-  });
-  const totalMeetings = (allContacts||[]).filter((x:any) => x.meeting_date).length;
+  // 미팅: calendar_events에서 분양회미팅만 카운팅
+  const { data: calMeetings = [] } = await supabase.from("calendar_events")
+    .select("id,date,event_type,title").eq("event_type", "분양회미팅");
+  const today = new Date().toISOString().split("T")[0];
+  const monthCalMeetings = (calMeetings||[]).filter((x:any) => x.date >= monthStart && x.date <= monthEnd);
+  const monthMeetingUpcoming = monthCalMeetings.filter((x:any) => x.date >= today).length;
+  const monthMeetingDoneCount = monthCalMeetings.filter((x:any) => x.date < today).length;
+  const totalMeetingUpcoming = (calMeetings||[]).filter((x:any) => x.date >= today).length;
+  const totalMeetingDoneCount = (calMeetings||[]).filter((x:any) => x.date < today).length;
 
   let adQ = supabase.from("ad_executions")
     .select("execution_amount,vat_amount,channel,team_member,refund_amount,contract_route,payment_date");
@@ -107,15 +110,6 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     .filter((x:any) => x.contract_route === "분양회" && AD_CHANNELS.includes(x.channel))
     .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
 
-  const monthMeetingDone = (allContacts||[]).filter((x:any) => {
-    if (!["계약완료","예약완료"].includes(x.meeting_result||"")) return false;
-    if (!x.meeting_date) return false;
-    return !isAll && x.meeting_date >= monthStart && x.meeting_date <= monthEnd;
-  });
-  const totalMeetingDone = (allContacts||[]).filter((x:any) =>
-    ["계약완료","예약완료"].includes(x.meeting_result||"") && x.meeting_date
-  ).length;
-
   const membershipCount = (isAll
     ? (allAd||[]).filter((x:any)=>x.channel==="분양회 입회비")
     : monthAd.filter((x:any)=>x.channel==="분양회 입회비")).length;
@@ -139,8 +133,8 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     leadCount: prospects.filter((x:any)=>x.management_stage==="리드").length,
     prospectingCount: prospects.filter((x:any)=>x.management_stage==="프로스펙팅").length,
     dealClosingCount: prospects.filter((x:any)=>x.management_stage==="딜크로징").length,
-    upcomingMeetings: isAll ? totalMeetings : monthMeetings.length,
-    meetingDone: isAll ? totalMeetingDone : monthMeetingDone.length,
+    upcomingMeetings: isAll ? totalMeetingUpcoming : monthMeetingUpcoming,
+    meetingDone: isAll ? totalMeetingDoneCount : monthMeetingDoneCount,
     membershipFeeAmt: isAll ? cumMembershipFee : membershipFeeAmt,
     membershipCount,
     monthlyFeeAmt: isAll ? cumMonthlyFee : monthlyFeeAmt,
