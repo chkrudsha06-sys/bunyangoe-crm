@@ -16,6 +16,8 @@ const STATUS_CFG: Record<string,{icon:any;color:string;bg:string}> = {
   "접수":{icon:Check,color:"text-cyan-500",bg:"bg-cyan-50"},
   "진행중":{icon:Clock,color:"text-amber-500",bg:"bg-amber-50"},
   "완료":{icon:Check,color:"text-emerald-500",bg:"bg-emerald-50"},
+  "확인완료":{icon:Check,color:"text-green-700",bg:"bg-green-100"},
+  "반려":{icon:AlertCircle,color:"text-red-500",bg:"bg-red-50"},
   "보류":{icon:Pause,color:"text-slate-400",bg:"bg-slate-100"},
 };
 const TEAM = [
@@ -121,19 +123,52 @@ export default function TasksPage() {
     } else if(form.category==="호갱노노 부킹요청"){
       content=`■ 분양회원: ${form.member_number} ${form.member_name} ${form.member_title}\n■ 현장명: ${form.site_name}\n■ 플랫폼: 호갱노노 채널톡\n■ 발송건수: ${fmtAmt(form.send_count)}건\n■ 발송일시: ${form.hope_date}${form.hope_date?` (${getWeekday(form.hope_date)})`:""} ${form.hope_time?form.hope_time+"시":""}\n■ 지역타겟팅: ①${form.region1} ②${form.region2} ③${form.region3}\n■ 타겟연령: ${form.age_range}`;
     }
-    const {error}=await supabase.from("tasks").insert({
+    const {error, data}=await supabase.from("tasks").insert({
       category:form.category,content,priority:form.priority,
       assignee:form.assignee,requester:me,status:"요청",
       tagged:form.tagged.length>0?form.tagged:null,
       file_urls:fileUrls.length>0?fileUrls:null,
-    });
+    }).select().single();
     if(error){alert("생성 실패: "+error.message);return;}
+    // 담당자에게 알림
+    if (data && form.assignee !== me) {
+      await supabase.from("notifications").insert({
+        assignee_name: form.assignee, title: `${me}님이 새 업무를 요청했습니다`,
+        message: (content || "").substring(0, 100),
+        source_type: "업무전달", source_id: data.id,
+      });
+    }
     setForm(initForm);setFiles([]);setShowCreate(false);loadData();
   };
 
   const handleStatus=async(taskId:number,status:string)=>{
-    await supabase.from("tasks").update({status,completed_at:status==="완료"?new Date().toISOString():null}).eq("id",taskId);
+    const task = tasks.find(t => t.id === taskId);
+    await supabase.from("tasks").update({
+      status,
+      completed_at: status==="완료" ? new Date().toISOString() : null,
+      confirmed_at: status==="확인완료" ? new Date().toISOString() : null,
+    }).eq("id",taskId);
     await supabase.from("task_comments").insert({task_id:taskId,author:me,content:`상태를 '${status}'(으)로 변경했습니다`,comment_type:"상태변경"});
+    
+    // 알림 생성
+    if (task) {
+      const notifMap: Record<string, { recipient: string; title: string }> = {
+        "접수": { recipient: task.requester, title: `${me}님이 업무를 접수했습니다` },
+        "진행중": { recipient: task.requester, title: `${me}님이 업무를 진행중으로 변경했습니다` },
+        "완료": { recipient: task.requester, title: `${me}님이 업무를 완료했습니다` },
+        "확인완료": { recipient: task.assignee, title: `${me}님이 업무 완료를 확인했습니다` },
+        "반려": { recipient: task.requester, title: `${me}님이 업무를 반려했습니다` },
+      };
+      const notif = notifMap[status];
+      if (notif && notif.recipient && notif.recipient !== me) {
+        await supabase.from("notifications").insert({
+          assignee_name: notif.recipient, title: notif.title,
+          message: task.content?.substring(0, 100) || "",
+          source_type: "업무전달", source_id: taskId,
+        });
+      }
+    }
+    
     loadData();if(selectedTask?.id===taskId)setSelectedTask({...selectedTask,status});
   };
   const handleComment=async()=>{
@@ -414,7 +449,7 @@ export default function TasksPage() {
                 </div>
                 <span className="text-xs text-slate-400">{fw(selectedTask.created_at)}</span>
               </div>
-              <div className="flex gap-1.5">{["요청","접수","진행중","완료","보류"].map(s=>{const cfg=getSt(s);const active=selectedTask.status===s;
+              <div className="flex gap-1.5">{["요청","접수","진행중","완료","확인완료","반려","보류"].map(s=>{const cfg=getSt(s);const active=selectedTask.status===s;
                 return(<button key={s} onClick={()=>handleStatus(selectedTask.id,s)}
                   className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${active?`${cfg.bg} ${cfg.color} border-current`:"bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"}`}>{s}</button>);
               })}</div>
