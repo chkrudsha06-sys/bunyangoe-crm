@@ -994,154 +994,234 @@ export default function ContentManagePage() {
                 </div>
               </div>
             )}
-            {extMembers.length === 0 && !showRegForm ? (
-              <div className="flex items-center justify-center py-16" style={{ color: "var(--text-subtle)" }}>
-                <p className="text-sm">등록된 외부 고객이 없습니다</p>
-              </div>
-            ) : (
-              <div className="px-4 pt-3">
-                <p className="text-sm px-2 py-2 font-semibold" style={{ color: "var(--text-muted)" }}>
-                  총 {extMembers.length}명
-                </p>
-                <div className="space-y-2">
-                  {extMembers.map((m, idx) => {
-                    const s = getStatus(m.id);
-                    const isSelected = expandedId === m.id;
-                    const contentItem = (m.memo || "").trim();
-                    const isEditing = editingExtId === m.id;
+            {(() => {
+              let filteredExtMembers = extMembers;
 
-                    if (isEditing) {
+              if (cardFilter && cardFilter !== "all") {
+                filteredExtMembers = filteredExtMembers.filter(m => {
+                  const s = getStatus(m.id);
+                  switch (cardFilter) {
+                    case "photo": return s.photo_received;
+                    case "info": return s.info_received;
+                    case "tf2": return s.tf2_delivered;
+                    case "pr": return s.pr_completed;
+                    case "impossible": return s.production_impossible;
+                    default: return true;
+                  }
+                });
+              }
+
+              if (searchQ) {
+                const q = searchQ.toLowerCase();
+                filteredExtMembers = filteredExtMembers.filter(m =>
+                  m.name.toLowerCase().includes(q) ||
+                  (m.title || "").toLowerCase().includes(q) ||
+                  (m.assigned_to || "").toLowerCase().includes(q) ||
+                  (m.memo || "").toLowerCase().includes(q) ||
+                  `e-${extMembers.findIndex(item => item.id === m.id) + 1}`.includes(q)
+                );
+              }
+
+              if (filterAssigned) filteredExtMembers = filteredExtMembers.filter(m => m.assigned_to === filterAssigned);
+
+              if (filterGender) {
+                filteredExtMembers = filteredExtMembers.filter(m => {
+                  const s = getStatus(m.id);
+                  return (s.pr_gender || "").trim() === filterGender;
+                });
+              }
+
+              if (filterAge) {
+                const decade = parseInt(filterAge);
+                filteredExtMembers = filteredExtMembers.filter(m => {
+                  const s = getStatus(m.id);
+                  const birthStr = (s.pr_birth_date || "").replace(/[^0-9]/g, "");
+                  if (!birthStr || birthStr.length < 2) return false;
+
+                  const yy = parseInt(birthStr.substring(0, 2));
+                  const birthYear = yy >= 40 ? 1900 + yy : 2000 + yy;
+                  const age = new Date().getFullYear() - birthYear;
+
+                  return age >= decade && age < decade + 10;
+                });
+              }
+
+              if (filterStatus) {
+                filteredExtMembers = filteredExtMembers.filter(m => {
+                  const s = getStatus(m.id);
+                  switch (filterStatus) {
+                    case "photo": return s.photo_received;
+                    case "photo_no": return !s.photo_received;
+                    case "info": return s.info_received;
+                    case "info_no": return !s.info_received;
+                    case "tf2": return s.tf2_delivered;
+                    case "tf2_no": return !s.tf2_delivered;
+                    case "pr": return s.pr_completed;
+                    case "pr_no": return !s.pr_completed;
+                    default: return true;
+                  }
+                });
+              }
+
+              if (filteredExtMembers.length === 0 && !showRegForm) {
+                return (
+                  <div className="flex items-center justify-center py-16" style={{ color: "var(--text-subtle)" }}>
+                    <p className="text-sm">
+                      {extMembers.length === 0 ? "등록된 외부 고객이 없습니다" : "필터 조건에 맞는 외부 고객이 없습니다"}
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="px-4 pt-3">
+                  <p className="text-sm px-2 py-2 font-semibold" style={{ color: "var(--text-muted)" }}>
+                    {filteredExtMembers.length === extMembers.length
+                      ? `총 ${extMembers.length}명`
+                      : `${filteredExtMembers.length}명 / ${extMembers.length}명`}
+                  </p>
+                  <div className="space-y-2">
+                    {filteredExtMembers.map((m) => {
+                      const originalIndex = extMembers.findIndex(item => item.id === m.id);
+                      const displayIndex = originalIndex >= 0 ? originalIndex : 0;
+                      const s = getStatus(m.id);
+                      const isSelected = expandedId === m.id;
+                      const contentItem = (m.memo || "").trim();
+                      const isEditing = editingExtId === m.id;
+
+                      if (isEditing) {
+                        return (
+                          <div
+                            key={m.id}
+                            className="rounded-xl p-3 space-y-3"
+                            onClick={e => e.stopPropagation()}
+                            style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.25)", minHeight: 64 }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold px-2 py-1 rounded-lg flex-shrink-0" style={{ background: "rgba(139,92,246,0.12)", color: "#8b5cf6", minWidth: 44, textAlign: "center" }}>
+                                {`E-${displayIndex + 1}`}
+                              </span>
+                              <span className="text-base font-bold" style={{ color: "var(--text)" }}>외부 고객 정보 수정</span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2.5">
+                              <input
+                                placeholder="고객명 *"
+                                value={editExtForm.name}
+                                onChange={e => setEditExtForm(p => ({ ...p, name: e.target.value }))}
+                                className="px-3 py-2 text-sm rounded-lg outline-none"
+                                style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
+                              />
+                              <input
+                                placeholder="직급"
+                                value={editExtForm.title}
+                                onChange={e => setEditExtForm(p => ({ ...p, title: e.target.value }))}
+                                className="px-3 py-2 text-sm rounded-lg outline-none"
+                                style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
+                              />
+                              <select
+                                value={editExtForm.assigned_to}
+                                onChange={e => setEditExtForm(p => ({ ...p, assigned_to: e.target.value }))}
+                                className="px-3 py-2 text-sm rounded-lg outline-none"
+                                style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
+                              >
+                                <option value="">담당자 선택 안 함</option>
+                                {Array.from(new Set([...members, ...extMembers].map(member => member.assigned_to).filter(Boolean))).sort().map(a => (
+                                  <option key={a!} value={a!}>{a}</option>
+                                ))}
+                              </select>
+                              <input
+                                placeholder="컨텐츠제작항목"
+                                value={editExtForm.content_item}
+                                onChange={e => setEditExtForm(p => ({ ...p, content_item: e.target.value }))}
+                                className="px-3 py-2 text-sm rounded-lg outline-none"
+                                style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
+                              />
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={saveEditExternalMember}
+                                disabled={editExtSaving || !editExtForm.name.trim()}
+                                className="flex-1 py-2 text-sm font-bold text-white rounded-lg disabled:opacity-50"
+                                style={{ background: "#3b82f6" }}
+                              >
+                                {editExtSaving ? "저장 중..." : "수정 저장"}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingExtId(null);
+                                  setEditExtForm({ name: "", title: "", assigned_to: "", content_item: "" });
+                                }}
+                                className="px-4 py-2 text-sm rounded-lg"
+                                style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
+                              >
+                                취소
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
-                        <div
-                          key={m.id}
-                          className="rounded-xl p-3 space-y-3"
-                          onClick={e => e.stopPropagation()}
-                          style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.25)", minHeight: 64 }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold px-2 py-1 rounded-lg flex-shrink-0" style={{ background: "rgba(139,92,246,0.12)", color: "#8b5cf6", minWidth: 44, textAlign: "center" }}>
-                              {`E-${idx + 1}`}
-                            </span>
-                            <span className="text-base font-bold" style={{ color: "var(--text)" }}>외부 고객 정보 수정</span>
+                        <div key={m.id} className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-colors"
+                          onClick={() => expandMember(m.id)}
+                          style={{
+                            background: isSelected ? "rgba(59,130,246,0.08)" : "transparent",
+                            border: isSelected ? "1px solid rgba(59,130,246,0.2)" : "1px solid transparent",
+                            minHeight: 64,
+                          }}>
+                          <span className="text-xs font-bold px-2 py-1 rounded-lg flex-shrink-0" style={{ background: "rgba(139,92,246,0.12)", color: "#8b5cf6", minWidth: 44, textAlign: "center" }}>
+                            {`E-${displayIndex + 1}`}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden">
+                              <span className="text-base font-bold truncate whitespace-nowrap" style={{ color: "var(--text)", maxWidth: 130 }}>{m.name}</span>
+                              {m.title && <span className="text-sm font-semibold truncate whitespace-nowrap" style={{ color: "var(--text-muted)", maxWidth: 90 }}>{m.title}</span>}
+                              {contentItem && (
+                                <span className="text-sm font-bold truncate whitespace-nowrap px-2 py-0.5 rounded-lg"
+                                  title={contentItem}
+                                  style={{ color: "#f59e0b", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.18)", maxWidth: 210 }}>
+                                  {contentItem}
+                                </span>
+                              )}
+                            </div>
+                            {m.assigned_to && <span className="text-sm font-semibold mt-1 block" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
                           </div>
-
-                          <div className="grid grid-cols-2 gap-2.5">
-                            <input
-                              placeholder="고객명 *"
-                              value={editExtForm.name}
-                              onChange={e => setEditExtForm(p => ({ ...p, name: e.target.value }))}
-                              className="px-3 py-2 text-sm rounded-lg outline-none"
-                              style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
-                            />
-                            <input
-                              placeholder="직급"
-                              value={editExtForm.title}
-                              onChange={e => setEditExtForm(p => ({ ...p, title: e.target.value }))}
-                              className="px-3 py-2 text-sm rounded-lg outline-none"
-                              style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
-                            />
-                            <select
-                              value={editExtForm.assigned_to}
-                              onChange={e => setEditExtForm(p => ({ ...p, assigned_to: e.target.value }))}
-                              className="px-3 py-2 text-sm rounded-lg outline-none"
-                              style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
-                            >
-                              <option value="">담당자 선택 안 함</option>
-                              {Array.from(new Set([...members, ...extMembers].map(member => member.assigned_to).filter(Boolean))).sort().map(a => (
-                                <option key={a!} value={a!}>{a}</option>
-                              ))}
-                            </select>
-                            <input
-                              placeholder="컨텐츠제작항목"
-                              value={editExtForm.content_item}
-                              onChange={e => setEditExtForm(p => ({ ...p, content_item: e.target.value }))}
-                              className="px-3 py-2 text-sm rounded-lg outline-none"
-                              style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
-                            />
-                          </div>
-
-                          <div className="flex gap-2">
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <StatusBadge done={s.photo_received} label="사진" />
+                            <StatusBadge done={s.info_received} label="정보" />
+                            <StatusBadge done={s.tf2_delivered} label="TF2" />
+                            <StatusBadge done={s.pr_completed} label="PR" />
+                            {s.production_impossible && <span className="text-[10px] px-1.5 py-1 rounded font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>불가</span>}
                             <button
-                              onClick={saveEditExternalMember}
-                              disabled={editExtSaving || !editExtForm.name.trim()}
-                              className="flex-1 py-2 text-sm font-bold text-white rounded-lg disabled:opacity-50"
-                              style={{ background: "#3b82f6" }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditExternalMember(m);
+                              }}
+                              className="ml-1 text-xs px-2 py-1.5 rounded font-bold"
+                              style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}
                             >
-                              {editExtSaving ? "저장 중..." : "수정 저장"}
+                              수정
                             </button>
                             <button
-                              onClick={() => {
-                                setEditingExtId(null);
-                                setEditExtForm({ name: "", title: "", assigned_to: "", content_item: "" });
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteExternalMember(m.id, m.name);
                               }}
-                              className="px-4 py-2 text-sm rounded-lg"
-                              style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
+                              className="text-xs px-2 py-1.5 rounded font-bold"
+                              style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
                             >
-                              취소
+                              삭제
                             </button>
                           </div>
                         </div>
                       );
-                    }
-
-                    return (
-                      <div key={m.id} className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-colors"
-                        onClick={() => expandMember(m.id)}
-                        style={{
-                          background: isSelected ? "rgba(59,130,246,0.08)" : "transparent",
-                          border: isSelected ? "1px solid rgba(59,130,246,0.2)" : "1px solid transparent",
-                          minHeight: 64,
-                        }}>
-                        <span className="text-xs font-bold px-2 py-1 rounded-lg flex-shrink-0" style={{ background: "rgba(139,92,246,0.12)", color: "#8b5cf6", minWidth: 44, textAlign: "center" }}>
-                          {`E-${idx + 1}`}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden">
-                            <span className="text-base font-bold truncate whitespace-nowrap" style={{ color: "var(--text)", maxWidth: 130 }}>{m.name}</span>
-                            {m.title && <span className="text-sm font-semibold truncate whitespace-nowrap" style={{ color: "var(--text-muted)", maxWidth: 90 }}>{m.title}</span>}
-                            {contentItem && (
-                              <span className="text-sm font-bold truncate whitespace-nowrap px-2 py-0.5 rounded-lg"
-                                title={contentItem}
-                                style={{ color: "#f59e0b", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.18)", maxWidth: 210 }}>
-                                {contentItem}
-                              </span>
-                            )}
-                          </div>
-                          {m.assigned_to && <span className="text-sm font-semibold mt-1 block" style={{ color: "#8b5cf6" }}>{m.assigned_to}</span>}
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <StatusBadge done={s.photo_received} label="사진" />
-                          <StatusBadge done={s.info_received} label="정보" />
-                          <StatusBadge done={s.tf2_delivered} label="TF2" />
-                          <StatusBadge done={s.pr_completed} label="PR" />
-                          {s.production_impossible && <span className="text-[10px] px-1.5 py-1 rounded font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>불가</span>}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEditExternalMember(m);
-                            }}
-                            className="ml-1 text-xs px-2 py-1.5 rounded font-bold"
-                            style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}
-                          >
-                            수정
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteExternalMember(m.id, m.name);
-                            }}
-                            className="text-xs px-2 py-1.5 rounded font-bold"
-                            style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
-                          >
-                            삭제
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       </div>
