@@ -5,6 +5,18 @@ import ClientLayout from "@/components/ClientLayout";
 export const metadata: Metadata = {
   title: "분양회 CRM | 광고인㈜ 대외협력팀",
   description: "분양회 VIP 멤버십 영업관리 시스템",
+  openGraph: {
+    title: "분양회 CRM | 광고인㈜ 대외협력팀",
+    description: "분양회 VIP 멤버십 영업관리 시스템",
+    siteName: "분양회 CRM",
+    type: "website",
+    url: "https://bunyangoe-crm.vercel.app",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "분양회 CRM | 광고인㈜ 대외협력팀",
+    description: "분양회 VIP 멤버십 영업관리 시스템",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
