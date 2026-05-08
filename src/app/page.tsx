@@ -56,14 +56,21 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
     !["계약완료","예약완료"].includes(x.meeting_result||"")
   );
 
-  // 미팅: calendar_events에서 분양회미팅만 카운팅
-  const { data: calMeetings = [] } = await supabase.from("calendar_events")
-    .select("id,date,event_type,title").eq("event_type", "분양회미팅");
-  const monthCalMeetings = (calMeetings||[]).filter((x:any) => x.date >= monthStart && x.date <= monthEnd);
-  const monthMeetingUpcoming = monthCalMeetings.filter((x:any) => x.date >= today).length;
-  const monthMeetingDoneCount = monthCalMeetings.filter((x:any) => x.date < today).length;
-  const totalMeetingUpcoming = (calMeetings||[]).filter((x:any) => x.date >= today).length;
-  const totalMeetingDoneCount = (calMeetings||[]).filter((x:any) => x.date < today).length;
+  // 미팅: contacts.meeting_date 기준 (캘린더와 동일 소스)
+  // 미팅예정 = 계약완료/예약완료 아닌 고객 중 meeting_date가 당월에 있는 건
+  const monthMeetingAll = (allContacts||[]).filter((x:any) => {
+    if (["계약완료","예약완료"].includes(x.meeting_result||"")) return false;
+    if (!x.meeting_date) return false;
+    return x.meeting_date >= monthStart && x.meeting_date <= monthEnd;
+  });
+  const monthMeetingUpcoming = monthMeetingAll.filter((x:any) => x.meeting_date >= today).length;
+  const monthMeetingDoneCount = monthMeetingAll.filter((x:any) => x.meeting_date < today).length;
+  const totalMeetingAll = (allContacts||[]).filter((x:any) => {
+    if (["계약완료","예약완료"].includes(x.meeting_result||"")) return false;
+    return !!x.meeting_date;
+  });
+  const totalMeetingUpcoming = totalMeetingAll.filter((x:any) => x.meeting_date >= today).length;
+  const totalMeetingDoneCount = totalMeetingAll.filter((x:any) => x.meeting_date < today).length;
 
   let adQ = supabase.from("ad_executions")
     .select("execution_amount,vat_amount,channel,team_member,refund_amount,contract_route,payment_date");
