@@ -59,7 +59,6 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
   // 미팅: calendar_events에서 분양회미팅만 카운팅
   const { data: calMeetings = [] } = await supabase.from("calendar_events")
     .select("id,date,event_type,title").eq("event_type", "분양회미팅");
-  const today = new Date().toISOString().split("T")[0];
   const monthCalMeetings = (calMeetings||[]).filter((x:any) => x.date >= monthStart && x.date <= monthEnd);
   const monthMeetingUpcoming = monthCalMeetings.filter((x:any) => x.date >= today).length;
   const monthMeetingDoneCount = monthCalMeetings.filter((x:any) => x.date < today).length;
