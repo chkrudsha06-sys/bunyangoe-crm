@@ -70,75 +70,82 @@ export default function MemberTimelinePage() {
 
   const loadTimeline = async (contactId: number) => {
     setEventsLoading(true);
-    const allEvents: TimelineEvent[] = [];
-    const member = members.find(m => m.id === contactId);
+    try {
+      const allEvents: TimelineEvent[] = [];
+      const member = members.find(m => m.id === contactId);
 
-    // 1. 가입일
-    if (member?.contract_date) {
-      allEvents.push({
-        id: `join-${contactId}`, date: member.contract_date, type: "가입",
-        title: "분양회 가입", detail: `${member.meeting_result} · ${member.contract_date}`,
-        source: "contacts", color: EVENT_COLORS["가입"].color, icon: EVENT_COLORS["가입"].icon,
+      // 1. 가입일
+      if (member?.contract_date) {
+        allEvents.push({
+          id: `join-${contactId}`, date: member.contract_date, type: "가입",
+          title: "분양회 가입", detail: `${member.meeting_result} · ${member.contract_date}`,
+          source: "contacts", color: EVENT_COLORS["가입"].color, icon: EVENT_COLORS["가입"].icon,
+        });
+      }
+
+      // 2~5. 병렬 조회 (Promise.all)
+      const [r_cs, r_ads, r_notes, r_manual] = await Promise.all([
+        supabase.from("content_statuses").select("*").eq("contact_id", contactId).maybeSingle(),
+        supabase.from("ad_executions").select("id,channel,execution_amount,payment_date,member_name,bunyanghoe_number")
+          .or(`member_name.eq.${member?.name || ""},bunyanghoe_number.eq.${member?.bunyanghoe_number || ""}`)
+          .order("payment_date", { ascending: true }),
+        supabase.from("contact_notes").select("id,note_date,content,author")
+          .eq("contact_id", contactId).order("note_date", { ascending: true }),
+        supabase.from("member_timeline").select("*")
+          .eq("contact_id", contactId).order("event_date", { ascending: true }),
+      ]);
+
+      // PR 상태
+      const cs = r_cs.data;
+      if (cs) {
+        const baseDate = cs.updated_at ? cs.updated_at.split("T")[0] : member?.contract_date || "";
+        if (cs.photo_received) allEvents.push({ id: `cs-photo-${contactId}`, date: baseDate, type: "사진수취", title: "사진 수취 완료", detail: "PR패키지용 사진 수취", source: "content_statuses", color: EVENT_COLORS["사진수취"].color, icon: EVENT_COLORS["사진수취"].icon });
+        if (cs.info_received) allEvents.push({ id: `cs-info-${contactId}`, date: baseDate, type: "정보수취", title: "기본정보 수취 완료", detail: "PR패키지 기본정보 입력 완료", source: "content_statuses", color: EVENT_COLORS["정보수취"].color, icon: EVENT_COLORS["정보수취"].icon });
+        if (cs.tf2_delivered) allEvents.push({ id: `cs-tf2-${contactId}`, date: baseDate, type: "TF2전달", title: "TF2팀 전달 완료", detail: "콘텐츠 제작팀에 자료 전달", source: "content_statuses", color: EVENT_COLORS["TF2전달"].color, icon: EVENT_COLORS["TF2전달"].icon });
+        if (cs.pr_completed) allEvents.push({ id: `cs-pr-${contactId}`, date: baseDate, type: "PR완료", title: "PR패키지 제작 완료", detail: "PR패키지 7종 제작 완료", source: "content_statuses", color: EVENT_COLORS["PR완료"].color, icon: EVENT_COLORS["PR완료"].icon });
+        if (cs.production_impossible) allEvents.push({ id: `cs-imp-${contactId}`, date: baseDate, type: "제작불가", title: "제작불가 처리", detail: cs.impossible_reason || "사유 미기재", source: "content_statuses", color: EVENT_COLORS["제작불가"].color, icon: EVENT_COLORS["제작불가"].icon });
+      }
+
+      // 광고집행
+      (r_ads.data || []).forEach((ad: any) => {
+        allEvents.push({
+          id: `ad-${ad.id}`, date: ad.payment_date || "", type: "광고집행",
+          title: `${ad.channel} 집행`, detail: `채널: ${ad.channel}\n금액: ${(ad.execution_amount || 0).toLocaleString()}원\n일자: ${ad.payment_date}`,
+          source: "ad_executions", sourceId: ad.id,
+          color: EVENT_COLORS["광고집행"].color, icon: EVENT_COLORS["광고집행"].icon,
+        });
       });
+
+      // 활동노트
+      (r_notes.data || []).forEach((n: any) => {
+        allEvents.push({
+          id: `note-${n.id}`, date: n.note_date, type: "활동노트",
+          title: `활동노트 (${n.author || ""})`, detail: n.content,
+          source: "contact_notes", sourceId: n.id,
+          color: EVENT_COLORS["활동노트"].color, icon: EVENT_COLORS["활동노트"].icon,
+        });
+      });
+
+      // 수동 이벤트
+      (r_manual.data || []).forEach((ev: any) => {
+        const evType = ev.event_type || "수동";
+        const ec = EVENT_COLORS[evType] || EVENT_COLORS["수동"];
+        allEvents.push({
+          id: `mt-${ev.id}`, date: ev.event_date, type: evType,
+          title: ev.event_title, detail: ev.event_detail || "",
+          source: "member_timeline", sourceId: ev.id,
+          color: ec.color, icon: ec.icon,
+        });
+      });
+
+      allEvents.sort((a, b) => a.date.localeCompare(b.date));
+      setEvents(allEvents);
+    } catch (e) {
+      console.error("타임라인 로드 에러:", e);
+      setEvents([]);
+    } finally {
+      setEventsLoading(false);
     }
-
-    // 2. PR 상태 (content_statuses)
-    const { data: cs } = await supabase.from("content_statuses")
-      .select("*").eq("contact_id", contactId).single();
-    if (cs) {
-      const baseDate = cs.updated_at ? cs.updated_at.split("T")[0] : member?.contract_date || "";
-      if (cs.photo_received) allEvents.push({ id: `cs-photo-${contactId}`, date: baseDate, type: "사진수취", title: "사진 수취 완료", detail: "PR패키지용 사진 수취", source: "content_statuses", color: EVENT_COLORS["사진수취"].color, icon: EVENT_COLORS["사진수취"].icon });
-      if (cs.info_received) allEvents.push({ id: `cs-info-${contactId}`, date: baseDate, type: "정보수취", title: "기본정보 수취 완료", detail: "PR패키지 기본정보 입력 완료", source: "content_statuses", color: EVENT_COLORS["정보수취"].color, icon: EVENT_COLORS["정보수취"].icon });
-      if (cs.tf2_delivered) allEvents.push({ id: `cs-tf2-${contactId}`, date: baseDate, type: "TF2전달", title: "TF2팀 전달 완료", detail: "콘텐츠 제작팀에 자료 전달", source: "content_statuses", color: EVENT_COLORS["TF2전달"].color, icon: EVENT_COLORS["TF2전달"].icon });
-      if (cs.pr_completed) allEvents.push({ id: `cs-pr-${contactId}`, date: baseDate, type: "PR완료", title: "PR패키지 제작 완료", detail: "PR패키지 7종 제작 완료", source: "content_statuses", color: EVENT_COLORS["PR완료"].color, icon: EVENT_COLORS["PR완료"].icon });
-      if (cs.production_impossible) allEvents.push({ id: `cs-imp-${contactId}`, date: baseDate, type: "제작불가", title: "제작불가 처리", detail: cs.impossible_reason || "사유 미기재", source: "content_statuses", color: EVENT_COLORS["제작불가"].color, icon: EVENT_COLORS["제작불가"].icon });
-    }
-
-    // 3. 광고집행 (ad_executions)
-    const { data: ads } = await supabase.from("ad_executions")
-      .select("id,channel,execution_amount,payment_date,member_name,bunyanghoe_number")
-      .or(`member_name.eq.${member?.name},bunyanghoe_number.eq.${member?.bunyanghoe_number}`)
-      .order("payment_date", { ascending: true });
-    (ads || []).forEach(ad => {
-      allEvents.push({
-        id: `ad-${ad.id}`, date: ad.payment_date || "", type: "광고집행",
-        title: `${ad.channel} 집행`, detail: `채널: ${ad.channel}\n금액: ${(ad.execution_amount || 0).toLocaleString()}원\n일자: ${ad.payment_date}`,
-        source: "ad_executions", sourceId: ad.id,
-        color: EVENT_COLORS["광고집행"].color, icon: EVENT_COLORS["광고집행"].icon,
-      });
-    });
-
-    // 4. 활동노트 (contact_notes)
-    const { data: notes } = await supabase.from("contact_notes")
-      .select("id,note_date,content,author")
-      .eq("contact_id", contactId).order("note_date", { ascending: true });
-    (notes || []).forEach(n => {
-      allEvents.push({
-        id: `note-${n.id}`, date: n.note_date, type: "활동노트",
-        title: `활동노트 (${n.author || ""})`, detail: n.content,
-        source: "contact_notes", sourceId: n.id,
-        color: EVENT_COLORS["활동노트"].color, icon: EVENT_COLORS["활동노트"].icon,
-      });
-    });
-
-    // 5. 수동 이벤트 (member_timeline)
-    const { data: manual } = await supabase.from("member_timeline")
-      .select("*").eq("contact_id", contactId).order("event_date", { ascending: true });
-    (manual || []).forEach(ev => {
-      const evType = ev.event_type || "수동";
-      const ec = EVENT_COLORS[evType] || EVENT_COLORS["수동"];
-      allEvents.push({
-        id: `mt-${ev.id}`, date: ev.event_date, type: evType,
-        title: ev.event_title, detail: ev.event_detail || "",
-        source: "member_timeline", sourceId: ev.id,
-        color: ec.color, icon: ec.icon,
-      });
-    });
-
-    // 날짜순 정렬
-    allEvents.sort((a, b) => a.date.localeCompare(b.date));
-    setEvents(allEvents);
-    setEventsLoading(false);
   };
 
   const selectMember = (id: number) => {
