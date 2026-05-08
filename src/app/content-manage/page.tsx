@@ -593,19 +593,32 @@ export default function ContentManagePage() {
     showToast(`${fileName} 삭제 완료`);
   };
 
-  const downloadFile = (file: UploadedFile) => {
-    // Storage URL → 새 탭에서 원본 다운로드
-    if (file.url.startsWith("http")) {
+  const downloadFile = async (file: UploadedFile) => {
+    try {
+      // Storage URL → fetch → blob → 강제 다운로드
+      if (file.url.startsWith("http")) {
+        const res = await fetch(file.url);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return;
+      }
+      // 기존 base64 호환
+      const a = document.createElement("a");
+      a.href = file.url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e) {
       window.open(file.url, "_blank");
-      return;
     }
-    // 기존 base64 호환
-    const a = document.createElement("a");
-    a.href = file.url;
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
   };
 
   const fmtSize = (bytes?: number) => {
