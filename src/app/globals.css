@@ -201,11 +201,11 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 }
 
 /* 테이블 헤더 */
-[data-theme="dark"] thead { background: #0F1A42 !important; }
-[data-theme="dark"] thead.sticky { background: #0F1A42 !important; z-index: 20; }
-[data-theme="dark"] .sticky.top-0 { background: #0F1A42 !important; }
-[data-theme="dark"] thead th { color: rgba(255,255,255,0.5) !important; border-color: var(--border) !important; }
-[data-theme="dark"] tbody td { border-color: rgba(255,255,255,0.03) !important; }
+[data-theme="dark"] thead { background: rgba(255,255,255,0.06) !important; }
+[data-theme="dark"] thead.sticky { background: var(--bg) !important; z-index: 20; }
+[data-theme="dark"] .sticky.top-0 { background: var(--bg) !important; }
+[data-theme="dark"] thead th { color: rgba(255,255,255,0.85) !important; border-color: var(--border) !important; }
+[data-theme="dark"] tbody td { border-color: rgba(255,255,255,0.06) !important; }
 [data-theme="dark"] tbody tr:hover { background: rgba(255,255,255,0.03) !important; }
 
 /* select / input 다크 — 아래 통합 룰 참조 */
@@ -407,14 +407,14 @@ input::placeholder, textarea::placeholder { color: var(--text-subtle); }
 [data-theme="dark"] .bg-blue-50\/40 { background: rgba(74,123,247,0.12) !important; }
 [data-theme="dark"] th.text-blue-600 { color: #93C5FD !important; }
 
-/* sticky thead 배경 확실히 불투명 */
+/* sticky thead 배경 */
 [data-theme="dark"] [class*="overflow-auto"] thead,
 [data-theme="dark"] [class*="overflow-x-auto"] thead {
-  background: #0F1A42 !important;
+  background: rgba(255,255,255,0.06) !important;
 }
 [data-theme="dark"] [class*="overflow-auto"] thead th,
 [data-theme="dark"] [class*="overflow-x-auto"] thead th {
-  background: #0F1A42 !important;
+  background: transparent !important;
 }
 
 /* 리워드 마일리지 셀 배경 + 텍스트 강화 */
