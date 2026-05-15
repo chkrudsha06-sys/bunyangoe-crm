@@ -759,7 +759,7 @@ export default function SettlementReport() {
                             {monthRange.map(m => <td key={m} className={td + " text-center font-semibold"}>{getMonthJoinCount(name, m)}명</td>)}
                             <td className={td + " text-center font-bold"} style={{ color: "#3b82f6" }}>{totalJoined}명</td>
                             <td className={td + " text-center font-bold"} style={{ color: "#10b981" }}>{paidThisMonth}건</td>
-                            <td className={td + " text-center font-bold"} style={{ color: "#f59e0b" }}>{notYetDue.length}건</td>
+                            <td className={td + " text-center font-bold"} style={{ color: "#f59e0b" }}>{unpaidMembers.length}건 / <span className="text-[10px] font-normal" style={{ color: "var(--text-muted)" }}>(미도래 {notYetDue.length}건)</span></td>
                             <td className={td + " text-[10px]"} style={{ color: "var(--text-muted)" }}>
                               {notYetDue.length > 0 && <span style={{ color: "#f59e0b" }}>미도래: {notYetDue.map(c => c.name).join(", ")}</span>}
                               {notYetDue.length > 0 && specialMembers.length > 0 && " / "}
