@@ -278,7 +278,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </button>
         </div>
       </div>
-      <main className="flex-1 overflow-auto pt-[52px] md:pt-0">
+      <main className="flex-1 overflow-auto pt-[52px] md:pt-0" style={{ background: "var(--bg)" }}>
         {children}
       </main>
 
