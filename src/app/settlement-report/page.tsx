@@ -47,6 +47,7 @@ export default function SettlementReport() {
   const [data, setData] = useState<any[]>([]);
   const [allExecs, setAllExecs] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
+  const [trucks, setTrucks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selMonth, setSelMonth] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; });
 
@@ -63,14 +64,16 @@ export default function SettlementReport() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [r1, r2, r3] = await Promise.all([
+      const [r1, r2, r3, r4] = await Promise.all([
         supabase.from("ad_executions").select("*").gte("payment_date", mStart).lte("payment_date", mEnd),
         supabase.from("contacts").select("id,name,title,bunyanghoe_number,meeting_result,assigned_to,contract_date,reservation_date").in("meeting_result", ["계약완료", "예약완료"]),
         supabase.from("ad_executions").select("id,member_name,channel,payment_date,execution_amount,vat_amount,refund_amount").eq("channel", "분양회 월회비"),
+        supabase.from("wanpan_trucks").select("*").gte("dispatch_date", mStart).lte("dispatch_date", mEnd).order("dispatch_date"),
       ]);
       setData(r1.data || []);
       setContacts(r2.data || []);
       setAllExecs(r3.data || []);
+      setTrucks(r4.data || []);
     } finally { setLoading(false); }
   };
 
@@ -193,6 +196,33 @@ export default function SettlementReport() {
                 </tbody>
               </table>
             </div>
+          </section>
+
+          {/* ═══ 1-2. 대협팀활동연계매출 - 하이타겟 ═══ */}
+          <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h2 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: "var(--text)" }}>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold text-white" style={{ background: "#3b82f6" }}>대협팀</span>
+              대협팀활동연계매출 — 하이타겟
+            </h2>
+            {(() => {
+              const daehyupHT = data.filter(e => e.contract_route === "대협팀 활동" && e.channel === "하이타겟" && (e.refund_amount || 0) === 0);
+              const rows = daehyupHT.map(e => ({
+                week: `${month}월${getWeekNumber(e.payment_date)}주차`, weekNum: getWeekNumber(e.payment_date),
+                amount: eff(e), teamMember: e.team_member || "-", consultant: e.consultant || "-",
+                customer: `${e.member_name || "-"} ${e.position || ""}`.trim(),
+              })).sort((a, b) => a.weekNum - b.weekNum);
+              return (
+                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ color: "var(--text-muted)" }}>
+                  <th className={th}>주차</th><th className={th}>금액</th><th className={th}>대외협력팀</th><th className={th}>컨설턴트</th><th className={th}>고객명(직급)</th>
+                </tr></thead><tbody>
+                  {rows.length === 0 ? <tr><td colSpan={5} className="text-center py-6 text-xs" style={{ color: "var(--text-subtle)" }}>데이터 없음</td></tr> :
+                    rows.map((r, i) => (<tr key={i} style={{ color: "var(--text)" }}><td className={td}><span className="font-semibold" style={{ color: "#3b82f6" }}>{r.week}</span></td><td className={td + " font-bold"}>{fmtMan(r.amount)}</td><td className={td}>{r.teamMember}</td><td className={td}>{r.consultant}</td><td className={td}>{r.customer}</td></tr>))}
+                  <tr className="font-bold" style={{ borderTop: "2px solid var(--border)", color: "var(--text)" }}>
+                    <td className={td}>합계</td><td className={td} style={{ color: "#3b82f6" }}>{fmt(rows.reduce((s, r) => s + r.amount, 0))}</td><td colSpan={3} className={td}>{rows.length}건</td>
+                  </tr>
+                </tbody></table></div>
+              );
+            })()}
           </section>
 
           {/* ═══ 2. 광고연계매출 - 완판트럭 ═══ */}
@@ -549,6 +579,7 @@ export default function SettlementReport() {
                         return joinMonths.map(jm => {
                           const members = contacts.filter(c => getJoinMonth(c) === jm.joinM);
                           const paidMembers = members.filter(c => monthFees.some((e: any) => e.member_name === c.name));
+                          const unpaidMembers = members.filter(c => !monthFees.some((e: any) => e.member_name === c.name));
                           const paidAmount = paidMembers.reduce((s, c) => {
                             const fee = monthFees.find((e: any) => e.member_name === c.name);
                             return s + (fee ? eff(fee) : 0);
@@ -556,9 +587,12 @@ export default function SettlementReport() {
                           return (
                             <tr key={jm.label} style={{ color: "var(--text)" }}>
                               <td className={td + " font-bold"}>{jm.label}</td>
-                              <td className={td + " text-center font-bold"} style={{ color: "#3b82f6" }}>{paidMembers.length}건</td>
+                              <td className={td + " text-center font-bold"} style={{ color: "#3b82f6" }}>{paidMembers.length}건 <span className="text-[10px] font-normal" style={{ color: "var(--text-muted)" }}>/ {members.length}명</span></td>
                               <td className={td + " font-semibold"}>{paidAmount > 0 ? fmt(paidAmount) : "-"}</td>
-                              <td className={td + " text-xs"}>{paidMembers.map(c => c.name).join(", ") || "-"}</td>
+                              <td className={td + " text-xs"}>
+                                {paidMembers.length > 0 && <span style={{ color: "#10b981" }}>✓ {paidMembers.map(c => c.name).join(", ")}</span>}
+                                {unpaidMembers.length > 0 && <span style={{ color: "#f59e0b" }}>{paidMembers.length > 0 ? " / " : ""}예정: {unpaidMembers.map(c => c.name).join(", ")}</span>}
+                              </td>
                             </tr>
                           );
                         });
@@ -625,6 +659,183 @@ export default function SettlementReport() {
               </>
             );
           })()}
+          {/* ═══════════════ PART 3. 완판트럭 ═══════════════ */}
+          <div className="mt-8 mb-4"><h2 className="text-lg font-black" style={{ color: "var(--text)" }}>PART 3. 완판트럭</h2></div>
+
+          <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>🚚 {monthLabel} 완판트럭 실행 현황</h2>
+            {(() => {
+              const TRUCK_BASE = 28; // 4월 마지막 회차
+              const truckRows = trucks.sort((a: any, b: any) => (a.dispatch_date || "").localeCompare(b.dispatch_date || "")).map((t: any, i: number) => ({
+                round: TRUCK_BASE + i + 1,
+                week: `${month}월${getWeekNumber(t.dispatch_date)}주차`,
+                siteName: t.site_name || "-",
+                date: t.dispatch_date || "-",
+                status: new Date(t.dispatch_date + "T23:59:59") <= new Date() ? "완료" : "예정",
+              }));
+              return (
+                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ color: "var(--text-muted)" }}>
+                  <th className={th}>회차</th><th className={th}>주차</th><th className={th}>현장명</th><th className={th}>실행일</th><th className={th}>상태</th>
+                </tr></thead><tbody>
+                  {truckRows.length === 0 ? <tr><td colSpan={5} className="text-center py-6 text-xs" style={{ color: "var(--text-subtle)" }}>데이터 없음</td></tr> :
+                    truckRows.map((r, i) => (
+                      <tr key={i} style={{ color: "var(--text)" }}>
+                        <td className={td + " font-bold"} style={{ color: "#f59e0b" }}>{r.round}회차</td>
+                        <td className={td}>{r.week}</td>
+                        <td className={td + " font-semibold"}>{r.siteName}</td>
+                        <td className={td}>{r.date}</td>
+                        <td className={td}><span className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: r.status === "완료" ? "rgba(16,185,129,0.1)" : "rgba(59,130,246,0.1)", color: r.status === "완료" ? "#10b981" : "#3b82f6" }}>{r.status}</span></td>
+                      </tr>
+                    ))}
+                </tbody></table></div>
+              );
+            })()}
+          </section>
+
+          {/* ═══════════════ PART 4. 신규회원 즉시 매출 패턴 ═══════════════ */}
+          <div className="mt-8 mb-4"><h2 className="text-lg font-black" style={{ color: "var(--text)" }}>PART 4. 신규회원 즉시 매출 패턴</h2></div>
+
+          <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>⚡ 가입 후 7일 이내 매출 발생 케이스</h2>
+            {(() => {
+              const monthNew = contacts.filter(c => { const d = c.contract_date || c.reservation_date || ""; return d >= mStart && d <= mEnd; });
+              const quickSales: any[] = [];
+              monthNew.forEach(c => {
+                const joinDate = c.contract_date || c.reservation_date || "";
+                const joinD = new Date(joinDate + "T00:00:00");
+                const within7 = new Date(joinD); within7.setDate(within7.getDate() + 7);
+                const w7str = within7.toISOString().split("T")[0];
+                const htSales = data.filter(e => e.channel === "하이타겟" && e.member_name === c.name && (e.refund_amount || 0) === 0 && e.payment_date >= joinDate && e.payment_date <= w7str);
+                if (htSales.length > 0) {
+                  const totalAmt = htSales.reduce((s: number, e: any) => s + eff(e), 0);
+                  quickSales.push({
+                    name: `${c.name} ${c.title || ""}`.trim(),
+                    num: c.bunyanghoe_number || "-",
+                    joinDate,
+                    salesDate: htSales[0].payment_date,
+                    amount: totalAmt,
+                    teamMember: c.assigned_to || "-",
+                    consultant: htSales[0].consultant || "-",
+                  });
+                }
+              });
+              return (
+                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ color: "var(--text-muted)" }}>
+                  <th className={th}>구분</th><th className={th}>회원명</th><th className={th}>가입시점(넘버링)</th><th className={th}>매출발생시점</th><th className={th}>매출유형</th><th className={th}>금액</th><th className={th}>R&R</th>
+                </tr></thead><tbody>
+                  {quickSales.length === 0 ? <tr><td colSpan={7} className="text-center py-6 text-xs" style={{ color: "var(--text-subtle)" }}>해당 케이스 없음</td></tr> :
+                    quickSales.map((r, i) => (
+                      <tr key={i} style={{ color: "var(--text)" }}>
+                        <td className={td + " font-bold"}>{i + 1}</td>
+                        <td className={td + " font-semibold"}>{r.name}</td>
+                        <td className={td}>{r.joinDate} ({r.num})</td>
+                        <td className={td}>{r.salesDate}</td>
+                        <td className={td}><span className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>광고연계</span></td>
+                        <td className={td + " font-bold"}>{fmt(r.amount)}</td>
+                        <td className={td}>{r.teamMember} / {r.consultant}</td>
+                      </tr>
+                    ))}
+                </tbody></table></div>
+              );
+            })()}
+          </section>
+
+          {/* ═══════════════ PART 5. 담당자별 매출 결산 ═══════════════ */}
+          <div className="mt-8 mb-4"><h2 className="text-lg font-black" style={{ color: "var(--text)" }}>PART 5. {monthLabel} 현재 진척사항 — 담당자별 매출 결산</h2></div>
+
+          {/* 실행파트 하이타겟 매출 */}
+          <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>🎯 실행파트 담당자별 하이타겟 매출 결산</h2>
+            {(() => {
+              const EXEC_TARGETS_HT: Record<string, number> = { "조계현": 30000000, "이세호": 20000000, "기여운": 35000000, "최연전": 25000000 };
+              const allHTMonth = data.filter(e => e.channel === "하이타겟");
+              const execNames = ["조계현", "이세호", "기여운", "최연전"];
+              const rows = execNames.map(name => {
+                const myData = allHTMonth.filter(e => e.team_member === name);
+                const weekSales = weeks.map(w => {
+                  return myData.filter(e => e.payment_date >= w.start && e.payment_date <= w.end && (e.refund_amount || 0) === 0).reduce((s: number, e: any) => s + eff(e), 0);
+                });
+                const refundAmt = myData.filter(e => (e.refund_amount || 0) > 0).reduce((s: number, e: any) => s + (e.refund_amount || 0), 0);
+                const totalSales = weekSales.reduce((s, v) => s + v, 0);
+                const net = totalSales - refundAmt;
+                const target = EXEC_TARGETS_HT[name] || 0;
+                const rate = target > 0 ? net / target * 100 : 0;
+                return { name, weekSales, refundAmt, net, target, rate };
+              });
+              const totals = {
+                weekSales: weeks.map((_, i) => rows.reduce((s, r) => s + r.weekSales[i], 0)),
+                refundAmt: rows.reduce((s, r) => s + r.refundAmt, 0),
+                net: rows.reduce((s, r) => s + r.net, 0),
+                target: rows.reduce((s, r) => s + r.target, 0),
+              };
+              return (
+                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ color: "var(--text-muted)" }}>
+                  <th className={th}>담당자</th><th className={th}>목표</th>
+                  {weeks.map(w => <th key={w.week} className={th}>{w.week}주</th>)}
+                  <th className={th} style={{ color: "#ef4444" }}>환불</th><th className={th}>{monthLabel} 진척(달성율)</th>
+                </tr></thead><tbody>
+                  {rows.map(r => (
+                    <tr key={r.name} style={{ color: "var(--text)" }}>
+                      <td className={td + " font-bold"}>{r.name}</td>
+                      <td className={td + " font-semibold"}>{fmtMan(r.target)}</td>
+                      {r.weekSales.map((v, i) => <td key={i} className={td + " font-semibold"}>{v > 0 ? fmtMan(v) : "-"}</td>)}
+                      <td className={td + " font-bold"} style={{ color: "#ef4444" }}>{r.refundAmt > 0 ? `-${fmtMan(r.refundAmt)}` : "-"}</td>
+                      <td className={td + " font-black"}>
+                        <div className="flex items-center gap-2">
+                          <span>{fmtMan(r.net)}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: r.rate >= 100 ? "rgba(16,185,129,0.1)" : "rgba(59,130,246,0.1)", color: r.rate >= 100 ? "#10b981" : "#3b82f6" }}>{r.rate.toFixed(1)}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="font-bold" style={{ borderTop: "2px solid var(--border)", color: "var(--text)" }}>
+                    <td className={td}>합계</td><td className={td}>{fmtMan(totals.target)}</td>
+                    {totals.weekSales.map((v, i) => <td key={i} className={td}>{v > 0 ? fmtMan(v) : "-"}</td>)}
+                    <td className={td} style={{ color: "#ef4444" }}>{totals.refundAmt > 0 ? `-${fmtMan(totals.refundAmt)}` : "-"}</td>
+                    <td className={td} style={{ color: "#3b82f6" }}>{fmtMan(totals.net)} ({(totals.target > 0 ? totals.net / totals.target * 100 : 0).toFixed(1)}%)</td>
+                  </tr>
+                </tbody></table></div>
+              );
+            })()}
+          </section>
+
+          {/* 운영파트 광고특전매출 */}
+          <section className="rounded-2xl p-5 mt-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>📊 운영파트 담당자별 광고특전매출 ({monthLabel} 진척)</h2>
+            {(() => {
+              const opsMembers = ["김재영", "최은정"];
+              const specialData = data.filter(e => (e.channel === "LMS" || HOG_CHS.includes(e.channel)) && (e.refund_amount || 0) === 0);
+              const rows = opsMembers.map(opsName => {
+                const myData = specialData.filter(e => OPS_MAP[e.team_member || ""] === opsName);
+                const weekSales = weeks.map(w => myData.filter(e => e.payment_date >= w.start && e.payment_date <= w.end).reduce((s: number, e: any) => s + eff(e), 0));
+                const total = weekSales.reduce((s, v) => s + v, 0);
+                return { name: opsName, weekSales, total };
+              });
+              const grandTotal = rows.reduce((s, r) => s + r.total, 0);
+              return (
+                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ color: "var(--text-muted)" }}>
+                  <th className={th}>운영파트</th>
+                  {weeks.map(w => <th key={w.week} className={th}>{w.week}주차</th>)}
+                  <th className={th}>누적</th><th className={th}>달성율</th>
+                </tr></thead><tbody>
+                  {rows.map(r => (
+                    <tr key={r.name} style={{ color: "var(--text)" }}>
+                      <td className={td + " font-bold"}>{r.name}</td>
+                      {r.weekSales.map((v, i) => <td key={i} className={td + " font-semibold"}>{v > 0 ? fmtMan(v) : "-"}</td>)}
+                      <td className={td + " font-bold"} style={{ color: "#10b981" }}>{fmt(r.total)}</td>
+                      <td className={td + " font-semibold"} style={{ color: "#3b82f6" }}>-</td>
+                    </tr>
+                  ))}
+                  <tr className="font-bold" style={{ borderTop: "2px solid var(--border)", color: "var(--text)" }}>
+                    <td className={td}>합계</td>
+                    {weeks.map((_, i) => <td key={i} className={td}>{fmtMan(rows.reduce((s, r) => s + r.weekSales[i], 0))}</td>)}
+                    <td className={td} style={{ color: "#10b981" }}>{fmt(grandTotal)}</td>
+                    <td className={td}>-</td>
+                  </tr>
+                </tbody></table></div>
+              );
+            })()}
+          </section>
         </>
       )}
     </div>
