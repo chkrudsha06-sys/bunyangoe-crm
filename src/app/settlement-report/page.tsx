@@ -738,7 +738,7 @@ export default function SettlementReport() {
                     <table className="w-full"><thead><tr style={{ background: "rgba(59,130,246,0.08)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                       <th className={th}>대협팀 담당자</th>
                       {monthRange.map(m => <th key={m} className={th}>{parseInt(m)}월 가입</th>)}
-                      <th className={th}>누적가입</th><th className={th}>결제완료</th><th className={th}>결제대기</th><th className={th}>결제대기회원</th>
+                      <th className={th}>누적가입</th><th className={th}>결제완료</th><th className={th}>결제대기<br/>(출금일 미도래)</th><th className={th}>결제대기회원</th>
                     </tr></thead><tbody>
                       {EXEC_MEMBERS.map(name => {
                         const myContacts = contacts.filter(c => c.assigned_to === name);
@@ -747,7 +747,11 @@ export default function SettlementReport() {
                           const c = myContacts.find(c2 => c2.name === e.member_name);
                           return !!c;
                         }).length;
-                        const unpaid = totalJoined - myContacts.filter(c => allFees.some((e: any) => e.member_name === c.name && e.payment_date >= mStart && e.payment_date <= mEnd)).length;
+                        const paidMembers = myContacts.filter(c => allFees.some((e: any) => e.member_name === c.name && e.payment_date >= mStart && e.payment_date <= mEnd));
+                        const unpaidMembers = myContacts.filter(c => !allFees.some((e: any) => e.member_name === c.name && e.payment_date >= mStart && e.payment_date <= mEnd));
+                        // 출금일 미도래: 특수케이스가 아닌 미결제 회원 (정기출금일이 아직 안 온 회원)
+                        const today = new Date().toISOString().split("T")[0];
+                        const notYetDue = unpaidMembers.filter(c => !SPECIAL_NOTES[c.name]);
                         const specialMembers = myContacts.filter(c => SPECIAL_NOTES[c.name]);
                         return (
                           <tr key={name} style={{ color: "var(--text)" }}>
@@ -755,8 +759,13 @@ export default function SettlementReport() {
                             {monthRange.map(m => <td key={m} className={td + " text-center font-semibold"}>{getMonthJoinCount(name, m)}명</td>)}
                             <td className={td + " text-center font-bold"} style={{ color: "#3b82f6" }}>{totalJoined}명</td>
                             <td className={td + " text-center font-bold"} style={{ color: "#10b981" }}>{paidThisMonth}건</td>
-                            <td className={td + " text-center font-bold"} style={{ color: "#f59e0b" }}>{unpaid}건</td>
-                            <td className={td + " text-[10px]"} style={{ color: "var(--text-muted)" }}>{specialMembers.map(c => `${c.name}: ${SPECIAL_NOTES[c.name]}`).join(" / ") || "-"}</td>
+                            <td className={td + " text-center font-bold"} style={{ color: "#f59e0b" }}>{notYetDue.length}건</td>
+                            <td className={td + " text-[10px]"} style={{ color: "var(--text-muted)" }}>
+                              {notYetDue.length > 0 && <span style={{ color: "#f59e0b" }}>미도래: {notYetDue.map(c => c.name).join(", ")}</span>}
+                              {notYetDue.length > 0 && specialMembers.length > 0 && " / "}
+                              {specialMembers.length > 0 && <span style={{ color: "#ef4444" }}>{specialMembers.map(c => `${c.name}: ${SPECIAL_NOTES[c.name]}`).join(" / ")}</span>}
+                              {notYetDue.length === 0 && specialMembers.length === 0 && "-"}
+                            </td>
                           </tr>
                         );
                       })}
