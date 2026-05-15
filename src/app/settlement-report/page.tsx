@@ -147,15 +147,107 @@ export default function SettlementReport() {
 
   // MD 파일 다운로드
   const downloadMD = () => {
-    let md = `# 결산보고서 — ${year}년 ${monthLabel}\n\n발행일: ${new Date().toLocaleDateString("ko-KR")}\n\n`;
+    let md = `# 대외협력팀 ${year}년 ${monthLabel} 결산보고서 데이터\n\n`;
+    md += `> 아래 데이터는 광고인㈜ 대외협력팀 CRM에서 자동 추출된 ${year}년 ${month}월 결산 데이터입니다.\n`;
+    md += `> 이 데이터를 기반으로 매출 분석, 트렌드 파악, 개선점 도출 등을 요청할 수 있습니다.\n\n`;
+    md += `---\n\n## 기본 정보\n- 보고 기간: ${mStart} ~ ${mEnd}\n- 발행일: ${new Date().toLocaleDateString("ko-KR")}\n- 실행파트: 조계현, 이세호, 기여운, 최연전\n- 운영파트: 김재영(목표 4,000만), 최은정(목표 2,000만)\n\n`;
 
-    md += `## PART 1. 광고연계매출\n\n`;
+    md += `---\n\n## PART 1. 광고연계매출\n\n### 1-1. 분양회 연계매출 (하이타겟)\n\n`;
+    bunyanghoeRows.forEach(r => { md += `- ${r.week} | ${fmtMan(r.amount)} | 담당: ${r.teamMember} | 컨설턴트: ${r.consultant} | 고객: ${r.customer}\n`; });
+    md += `- **소계: ${fmt(bunyanghoeRows.reduce((s,r)=>s+r.amount,0))} (${bunyanghoeRows.length}건)**\n`;
 
-    // 분양회 하이타겟
-    md += `### 광고연계매출 - 분양회 (하이타겟)\n\n`;
-    md += `| 주차 | 금액 | 대외협력팀 | 컨설턴트 | 고객명(직급) |\n|---|---|---|---|---|\n`;
-    bunyanghoeRows.forEach(r => { md += `| ${r.week} | ${fmtMan(r.amount)} | ${r.teamMember} | ${r.consultant} | ${r.customer} |\n`; });
-    md += `| **합계** | **${fmt(bunyanghoeRows.reduce((s,r)=>s+r.amount,0))}** | | | **${bunyanghoeRows.length}건** |\n\n`;
+    const dh2 = data.filter(e => e.contract_route==="대협팀활동" && e.channel==="하이타겟" && (e.refund_amount||0)===0);
+    md += `\n### 1-2. 대협팀활동 연계매출 (하이타겟)\n\n`;
+    dh2.forEach(e => { md += `- ${month}월${getWeekNumber(e.payment_date)}주차 | ${fmtMan(eff(e))} | 담당: ${e.team_member||"-"} | 컨설턴트: ${e.consultant||"-"} | 고객: ${e.member_name||"-"} ${e.position||""}\n`; });
+    md += `- **소계: ${fmt(dh2.reduce((s,e)=>s+eff(e),0))} (${dh2.length}건)**\n`;
+
+    md += `\n### 1-3. 완판트럭 연계매출 (하이타겟)\n\n`;
+    wanpanRows.forEach(r => { md += `- ${r.week} | ${fmtMan(r.amount)} | 담당: ${r.teamMember} | 컨설턴트: ${r.consultant}\n`; });
+    md += `- **소계: ${fmt(wanpanRows.reduce((s,r)=>s+r.amount,0))} (${wanpanRows.length}건)**\n`;
+
+    md += `\n### 1-4. 환불내역 (하이타겟)\n\n`;
+    refundRows.forEach(r => { md += `- ${r.week} | -${fmtMan(r.amount)} | 담당: ${r.teamMember}\n`; });
+    md += `- **환불 합계: -${fmt(totalRefund)} (${refundRows.length}건)**\n`;
+
+    md += `\n### 1-5. 하이타겟 주차별 마감\n\n`;
+    weeklyTotals.forEach(w => { md += `- ${w.label}: ${w.amount>0?fmt(w.amount):"0원"}\n`; });
+    md += `- 환불: -${fmt(totalRefund)}\n- **${monthLabel} 마감 총액: ${fmt(totalHTClose)}**\n`;
+
+    md += `\n### 1-6. 광고특전매출 (LMS+호갱노노, 운영파트 귀속)\n\n`;
+    specialRows.forEach(r => { md += `- ${r.week} | ${r.product} | ${fmtMan(r.amount)} | 광고주: ${r.customer} | 담당: ${r.teamMember} | 컨설턴트: ${r.consultant} | 운영파트: ${r.opsMember}\n`; });
+    md += `- **소계: ${fmt(specialRows.reduce((s,r)=>s+r.amount,0))} (${specialRows.length}건)**\n`;
+
+    md += `\n### 1-7. 매출 트랙별 ${monthLabel} 마감\n\n`;
+    md += `- 광고연계매출: 목표 ${fmt(track1Target)} → 현재 ${fmt(track1Total)} (${(track1Target>0?track1Total/track1Target*100:0).toFixed(1)}%) [실행파트]\n`;
+    md += `- 분양회 결제: 목표 ${track2Target}건 → 현재 ${track2Count}건 (${(track2Target>0?track2Count/track2Target*100:0).toFixed(1)}%) [실행파트]\n`;
+    md += `- 광고특전매출: 목표 ${fmt(track3Target)} → 현재 ${fmt(track3Total)} (${(track3Target>0?track3Total/track3Target*100:0).toFixed(1)}%) [운영파트]\n`;
+
+    md += `\n---\n\n## PART 2. 분양회\n\n### 전체 회원 현황 (${contacts.length}명)\n\n`;
+    const mf2 = allExecs.filter((e:any)=>(e.refund_amount||0)===0);
+    contacts.sort((a:any,b:any)=>{const na=parseInt((a.bunyanghoe_number||"").replace(/[^0-9]/g,""))||0;const nb=parseInt((b.bunyanghoe_number||"").replace(/[^0-9]/g,""))||0;return na-nb;}).forEach((c:any)=>{
+      const num=parseInt((c.bunyanghoe_number||"").replace(/[^0-9]/g,""))||0;
+      const jd=c.contract_date||c.reservation_date||"-";
+      const pays=mf2.filter((e:any)=>e.member_name===c.name).sort((a:any,b:any)=>(a.payment_date||"").localeCompare(b.payment_date||""));
+      const thisMo=pays.find((e:any)=>e.payment_date>=mStart&&e.payment_date<=mEnd);
+      md+=`- B-${num} ${c.name} ${c.title||""} | 가입: ${jd} | 담당: ${c.assigned_to||"-"} | 결제이력: ${pays.length}회 | 당월: ${thisMo?thisMo.payment_date:"미결제"}\n`;
+    });
+
+    md += `\n### 담당자별 ${monthLabel} 목표 vs 실적\n\n`;
+    const TG:Record<string,{c:number;a:number}>={"조계현":{c:9,a:4950000},"이세호":{c:8,a:4400000},"기여운":{c:14,a:7700000},"최연전":{c:9,a:4950000}};
+    const mfm=mf2.filter((e:any)=>e.payment_date>=mStart&&e.payment_date<=mEnd);
+    ["조계현","이세호","기여운","최연전"].forEach(n=>{
+      const mc=contacts.filter((c:any)=>c.assigned_to===n);
+      const pd=mfm.filter((e:any)=>mc.some((c:any)=>c.name===e.member_name));
+      const t=TG[n]||{c:0,a:0};
+      md+=`- ${n}: 가입 ${mc.length}명 | 결제목표 ${t.c}건→완료 ${pd.length}건(${(t.c>0?pd.length/t.c*100:0).toFixed(1)}%) | 매출목표 ${fmtMan(t.a)}→실적 ${fmt(pd.reduce((s:number,e:any)=>s+eff(e),0))}\n`;
+    });
+
+    md += `\n---\n\n## PART 3. 완판트럭\n\n`;
+    trucks.sort((a:any,b:any)=>(a.dispatch_date||"").localeCompare(b.dispatch_date||"")).forEach((t:any,i:number)=>{
+      md+=`- ${28+i+1}회차 | ${month}월${getWeekNumber(t.dispatch_date)}주차 | ${t.site_name||"-"} | ${t.dispatch_date} | ${new Date(t.dispatch_date+"T23:59:59")<=new Date()?"완료":"예정"}\n`;
+    });
+
+    md += `\n---\n\n## PART 4. 신규회원 즉시 매출 (가입 7일 이내 하이타겟)\n\n`;
+    let qc=0;
+    contacts.filter((c:any)=>{const d=c.contract_date||c.reservation_date||"";return d>=mStart&&d<=mEnd;}).forEach((c:any)=>{
+      const jd=c.contract_date||c.reservation_date||"";const jD=new Date(jd+"T00:00:00");const w7=new Date(jD);w7.setDate(w7.getDate()+7);
+      const ht=data.filter((e:any)=>e.channel==="하이타겟"&&e.member_name===c.name&&(e.refund_amount||0)===0&&e.payment_date>=jd&&e.payment_date<=w7.toISOString().split("T")[0]);
+      if(ht.length>0){qc++;md+=`- ${qc}. ${c.name} ${c.title||""} (${c.bunyanghoe_number||"-"}) | 가입: ${jd} | 매출: ${ht[0].payment_date} | ${fmt(ht.reduce((s:number,e:any)=>s+eff(e),0))} | ${c.assigned_to||"-"}/${ht[0].consultant||"-"}\n`;}
+    });
+    if(qc===0) md+=`- 해당 케이스 없음\n`;
+
+    md += `\n---\n\n## PART 5. 담당자별 매출 결산\n\n### 실행파트 하이타겟\n\n`;
+    const EHT:Record<string,number>={"조계현":30000000,"이세호":20000000,"기여운":35000000,"최연전":25000000};
+    let tES=0,tER=0;
+    ["조계현","이세호","기여운","최연전"].forEach(n=>{
+      const my=data.filter((e:any)=>e.channel==="하이타겟"&&e.team_member===n);
+      const s=my.filter((e:any)=>(e.refund_amount||0)===0).reduce((s:number,e:any)=>s+eff(e),0);
+      const r=my.filter((e:any)=>(e.refund_amount||0)>0).reduce((s:number,e:any)=>s+(e.refund_amount||0),0);
+      tES+=s;tER+=r;const net=s-r;
+      md+=`- ${n}: 목표 ${fmtMan(EHT[n])} | 매출 ${fmt(s)} | 환불 -${fmt(r)} | 순매출 ${fmt(net)} (${(EHT[n]>0?net/EHT[n]*100:0).toFixed(1)}%)\n`;
+      weeks.forEach(w=>{const ws=my.filter((e:any)=>e.payment_date>=w.start&&e.payment_date<=w.end&&(e.refund_amount||0)===0).reduce((s:number,e:any)=>s+eff(e),0);if(ws>0)md+=`  - ${w.week}주차: ${fmt(ws)}\n`;});
+    });
+    const tT=Object.values(EHT).reduce((s,v)=>s+v,0);
+    md+=`- **합계: 목표 ${fmt(tT)} | 매출 ${fmt(tES)} | 환불 -${fmt(tER)} | 순매출 ${fmt(tES-tER)} (${(tT>0?(tES-tER)/tT*100:0).toFixed(1)}%)**\n`;
+
+    md+=`\n### 운영파트 광고특전매출 (LMS+호갱노노)\n\n`;
+    const OT:Record<string,number>={"김재영":40000000,"최은정":20000000};
+    ["김재영","최은정"].forEach(on=>{
+      const my=data.filter((e:any)=>(e.channel==="LMS"||HOG_CHS.includes(e.channel))&&(e.refund_amount||0)===0&&OPS_MAP[e.team_member||""]===on);
+      const t=my.reduce((s:number,e:any)=>s+eff(e),0);const tg=OT[on]||0;
+      md+=`- ${on}: 목표 ${fmtMan(tg)} | 매출 ${fmt(t)} | 달성율 ${(tg>0?t/tg*100:0).toFixed(1)}%\n`;
+      weeks.forEach(w=>{const ws=my.filter((e:any)=>e.payment_date>=w.start&&e.payment_date<=w.end).reduce((s:number,e:any)=>s+eff(e),0);if(ws>0)md+=`  - ${w.week}주차: ${fmt(ws)}\n`;});
+    });
+
+    md+=`\n---\n\n> 이 데이터를 기반으로 월간 매출 분석, 담당자별 성과 평가, 채널별 효율 분석, 개선 방안 등을 요청해주세요.\n`;
+
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `결산보고서_${selMonth}.md`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
     // 대협팀활동
     const daehyupHT2 = data.filter(e => e.contract_route === "대협팀활동" && e.channel === "하이타겟" && (e.refund_amount||0)===0);
@@ -893,33 +985,38 @@ export default function SettlementReport() {
             <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>📊 운영파트 담당자별 광고특전매출 ({monthLabel} 진척)</h2>
             {(() => {
               const opsMembers = ["김재영", "최은정"];
+              const OPS_TGT: Record<string, number> = { "김재영": 40000000, "최은정": 20000000 };
               const specialData = data.filter(e => (e.channel === "LMS" || HOG_CHS.includes(e.channel)) && (e.refund_amount || 0) === 0);
               const rows = opsMembers.map(opsName => {
                 const myData = specialData.filter(e => OPS_MAP[e.team_member || ""] === opsName);
                 const weekSales = weeks.map(w => myData.filter(e => e.payment_date >= w.start && e.payment_date <= w.end).reduce((s: number, e: any) => s + eff(e), 0));
                 const total = weekSales.reduce((s, v) => s + v, 0);
-                return { name: opsName, weekSales, total };
+                const target = OPS_TGT[opsName] || 0;
+                const rate = target > 0 ? total / target * 100 : 0;
+                return { name: opsName, weekSales, total, target, rate };
               });
               const grandTotal = rows.reduce((s, r) => s + r.total, 0);
               return (
                 <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
-                  <th className={th}>운영파트</th>
+                  <th className={th}>운영파트</th><th className={th}>목표</th>
                   {weeks.map(w => <th key={w.week} className={th}>{w.week}주차</th>)}
                   <th className={th}>누적</th><th className={th}>달성율</th>
                 </tr></thead><tbody>
                   {rows.map(r => (
                     <tr key={r.name} style={{ color: "var(--text)" }}>
                       <td className={td + " font-bold"}>{r.name}</td>
+                      <td className={td + " font-semibold"}>{fmtMan(r.target)}</td>
                       {r.weekSales.map((v, i) => <td key={i} className={td + " font-semibold"}>{v > 0 ? fmtMan(v) : "-"}</td>)}
                       <td className={td + " font-bold"} style={{ color: "#10b981" }}>{fmt(r.total)}</td>
-                      <td className={td + " font-semibold"} style={{ color: "#3b82f6" }}>-</td>
+                      <td className={td + " font-black"} style={{ color: r.rate >= 100 ? "#10b981" : r.rate >= 50 ? "#3b82f6" : "#ef4444" }}>{r.rate.toFixed(1)}%</td>
                     </tr>
                   ))}
                   <tr className="font-bold" style={{ borderTop: "2px solid var(--border)", color: "var(--text)" }}>
                     <td className={td}>합계</td>
+                    <td className={td}>{fmtMan(rows.reduce((s,r)=>s+r.target,0))}</td>
                     {weeks.map((_, i) => <td key={i} className={td}>{fmtMan(rows.reduce((s, r) => s + r.weekSales[i], 0))}</td>)}
                     <td className={td} style={{ color: "#10b981" }}>{fmt(grandTotal)}</td>
-                    <td className={td}>-</td>
+                    <td className={td} style={{ color: "#3b82f6" }}>{(rows.reduce((s,r)=>s+r.target,0)>0?grandTotal/rows.reduce((s,r)=>s+r.target,0)*100:0).toFixed(1)}%</td>
                   </tr>
                 </tbody></table></div>
               );
