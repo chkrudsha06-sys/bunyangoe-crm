@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
+import ExcelJS from "exceljs";
 
 // 주차 계산: 일요일~토요일 기준
 function getWeekNumber(dateStr: string): number {
@@ -249,6 +250,139 @@ export default function SettlementReport() {
     URL.revokeObjectURL(url);
   };
 
+  // 엑셀 다운로드
+  const downloadExcel = async () => {
+    const wb = new ExcelJS.Workbook();
+    const hdr = (ws: ExcelJS.Worksheet, cols: string[]) => {
+      const row = ws.addRow(cols);
+      row.eachCell(c => { c.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B2A4A" } }; c.alignment = { horizontal: "center", vertical: "middle" }; c.border = { bottom: { style: "thin" } }; });
+    };
+    const styleRow = (row: ExcelJS.Row) => { row.eachCell(c => { c.alignment = { horizontal: "center", vertical: "middle" }; c.border = { bottom: { style: "hair", color: { argb: "FFE5E7EB" } } }; c.font = { size: 10 }; }); };
+    const fmtN = (n: number) => n.toLocaleString();
+
+    // Sheet 1: 광고연계매출
+    const s1 = wb.addWorksheet("광고연계매출");
+    s1.columns = [{ width: 14 },{ width: 16 },{ width: 12 },{ width: 12 },{ width: 18 },{ width: 14 }];
+    s1.addRow(["PART 1. 광고연계매출"]).font = { bold: true, size: 13 };
+    s1.addRow([]);
+    s1.addRow(["■ 분양회 연계매출 (하이타겟)"]).font = { bold: true, size: 11 };
+    hdr(s1, ["주차", "금액", "대외협력팀", "컨설턴트", "고객명(직급)"]);
+    bunyanghoeRows.forEach(r => { const row = s1.addRow([r.week, r.amount, r.teamMember, r.consultant, r.customer]); styleRow(row); row.getCell(2).numFmt = "#,##0"; });
+    const bSum = s1.addRow(["합계", bunyanghoeRows.reduce((s,r)=>s+r.amount,0), "", "", `${bunyanghoeRows.length}건`]); bSum.font = { bold: true }; bSum.getCell(2).numFmt = "#,##0"; styleRow(bSum);
+
+    s1.addRow([]); s1.addRow(["■ 대협팀활동 연계매출 (하이타겟)"]).font = { bold: true, size: 11 };
+    hdr(s1, ["주차", "금액", "대외협력팀", "컨설턴트", "고객명(직급)"]);
+    const dh = data.filter(e => e.contract_route === "대협팀활동" && e.channel === "하이타겟" && (e.refund_amount||0)===0);
+    dh.forEach(e => { const row = s1.addRow([`${month}월${getWeekNumber(e.payment_date)}주차`, eff(e), e.team_member||"-", e.consultant||"-", `${e.member_name||"-"} ${e.position||""}`]); styleRow(row); row.getCell(2).numFmt = "#,##0"; });
+    const dhSum = s1.addRow(["합계", dh.reduce((s,e)=>s+eff(e),0), "", "", `${dh.length}건`]); dhSum.font = { bold: true }; dhSum.getCell(2).numFmt = "#,##0"; styleRow(dhSum);
+
+    s1.addRow([]); s1.addRow(["■ 완판트럭 연계매출 (하이타겟)"]).font = { bold: true, size: 11 };
+    hdr(s1, ["주차", "금액", "대외협력팀", "컨설턴트"]);
+    wanpanRows.forEach(r => { const row = s1.addRow([r.week, r.amount, r.teamMember, r.consultant]); styleRow(row); row.getCell(2).numFmt = "#,##0"; });
+    const wSum = s1.addRow(["합계", wanpanRows.reduce((s,r)=>s+r.amount,0), "", `${wanpanRows.length}건`]); wSum.font = { bold: true }; wSum.getCell(2).numFmt = "#,##0"; styleRow(wSum);
+
+    s1.addRow([]); s1.addRow(["■ 환불내역 (하이타겟)"]).font = { bold: true, size: 11 };
+    hdr(s1, ["주차", "금액", "대외협력팀"]);
+    refundRows.forEach(r => { const row = s1.addRow([r.week, -r.amount, r.teamMember]); styleRow(row); row.getCell(2).numFmt = "#,##0"; });
+    const rSum = s1.addRow(["환불합계", -totalRefund, `${refundRows.length}건`]); rSum.font = { bold: true, color: { argb: "FFEF4444" } }; rSum.getCell(2).numFmt = "#,##0"; styleRow(rSum);
+
+    s1.addRow([]); s1.addRow(["■ 주차별 마감 (하이타겟)"]).font = { bold: true, size: 11 };
+    hdr(s1, ["구분", ...weeklyTotals.map(w=>w.label), "환불", `${monthLabel}마감`]);
+    const wkRow = s1.addRow(["매출액", ...weeklyTotals.map(w=>w.amount), -totalRefund, totalHTClose]); styleRow(wkRow); wkRow.eachCell((c,i) => { if(i>1) c.numFmt = "#,##0"; }); wkRow.font = { bold: true };
+
+    // Sheet 2: 광고특전매출
+    const s2 = wb.addWorksheet("광고특전매출");
+    s2.columns = [{ width: 14 },{ width: 10 },{ width: 14 },{ width: 18 },{ width: 12 },{ width: 12 },{ width: 12 }];
+    s2.addRow(["광고특전매출 (LMS+호갱노노, 운영파트)"]).font = { bold: true, size: 13 };
+    s2.addRow([]);
+    hdr(s2, ["주차", "상품", "금액", "광고주", "대외협력팀", "컨설턴트", "운영파트"]);
+    specialRows.forEach(r => { const row = s2.addRow([r.week, r.product, r.amount, r.customer, r.teamMember, r.consultant, r.opsMember]); styleRow(row); row.getCell(3).numFmt = "#,##0"; });
+    const spSum = s2.addRow(["합계", "", specialRows.reduce((s,r)=>s+r.amount,0), "", "", "", `${specialRows.length}건`]); spSum.font = { bold: true }; spSum.getCell(3).numFmt = "#,##0"; styleRow(spSum);
+
+    // Sheet 3: 트랙별 마감
+    const s3 = wb.addWorksheet("트랙별마감");
+    s3.columns = [{ width: 18 },{ width: 18 },{ width: 18 },{ width: 12 },{ width: 16 }];
+    s3.addRow([`매출 트랙별 ${monthLabel} 마감`]).font = { bold: true, size: 13 };
+    s3.addRow([]);
+    hdr(s3, ["매출트랙", `${monthLabel}목표`, "현재진행", "달성율", "성격"]);
+    [{ t: "광고연계매출", tg: track1Target, c: track1Total, n: "실행파트" },
+     { t: "분양회(결제완료)", tg: track2Target, c: track2Count, n: "실행파트(건수)" },
+     { t: "광고특전매출", tg: track3Target, c: track3Total, n: "운영파트" }].forEach(x => {
+      const rate = x.tg > 0 ? (x.c / x.tg * 100).toFixed(1) + "%" : "0%";
+      const row = s3.addRow([x.t, x.tg, x.c, rate, x.n]); styleRow(row);
+      row.getCell(2).numFmt = "#,##0"; row.getCell(3).numFmt = "#,##0";
+    });
+
+    // Sheet 4: 분양회
+    const s4 = wb.addWorksheet("분양회");
+    s4.columns = [{ width: 8 },{ width: 10 },{ width: 10 },{ width: 14 },{ width: 14 },{ width: 14 },{ width: 14 },{ width: 14 },{ width: 10 },{ width: 30 }];
+    s4.addRow(["PART 2. 분양회 전체회원 결제현황"]).font = { bold: true, size: 13 };
+    s4.addRow([]);
+    const allFees2 = allExecs.filter((e:any) => (e.refund_amount||0)===0).sort((a:any,b:any)=>(a.payment_date||"").localeCompare(b.payment_date||""));
+    hdr(s4, ["연번", "이름", "직급", "가입일", "1차", "2차", "3차", "4차", "실행파트", "비고"]);
+    const SPECIAL_NOTES2: Record<string,string> = {"백민엽":"3월 예약→계약 미전환","김나윤":"3월 예약→계약 미전환","이연수":"4월 예약→계약 미전환","윤권":"현장 딜레이","김정환":"현장문제 해소후","장은경":"사업자발행 후 입금","김성주":"사업자발행 후 입금","최두식":"개인계좌 별도입금","이정재":"매월 별도입금","신우진":"임시중단"};
+    contacts.sort((a:any,b:any)=>{const na=parseInt((a.bunyanghoe_number||"").replace(/[^0-9]/g,""))||0;const nb=parseInt((b.bunyanghoe_number||"").replace(/[^0-9]/g,""))||0;return na-nb;}).forEach((c:any)=>{
+      const num=parseInt((c.bunyanghoe_number||"").replace(/[^0-9]/g,""))||0;
+      const pays=allFees2.filter((e:any)=>e.member_name===c.name);
+      const row=s4.addRow([num,c.name,c.title||"-",c.contract_date||c.reservation_date||"-",pays[0]?.payment_date||"-",pays[1]?.payment_date||"-",pays[2]?.payment_date||"-",pays[3]?.payment_date||"-",c.assigned_to||"-",SPECIAL_NOTES2[c.name]||""]);
+      styleRow(row);
+    });
+
+    // Sheet 5: 완판트럭
+    const s5 = wb.addWorksheet("완판트럭");
+    s5.columns = [{ width: 10 },{ width: 14 },{ width: 24 },{ width: 14 },{ width: 10 }];
+    s5.addRow(["PART 3. 완판트럭 실행 현황"]).font = { bold: true, size: 13 };
+    s5.addRow([]);
+    hdr(s5, ["회차", "주차", "현장명", "실행일", "상태"]);
+    trucks.sort((a:any,b:any)=>(a.dispatch_date||"").localeCompare(b.dispatch_date||"")).forEach((t:any,i:number)=>{
+      const status = new Date(t.dispatch_date+"T23:59:59") <= new Date() ? "완료" : "예정";
+      const row = s5.addRow([`${28+i+1}회차`, `${month}월${getWeekNumber(t.dispatch_date)}주차`, t.site_name||"-", t.dispatch_date, status]); styleRow(row);
+    });
+
+    // Sheet 6: 담당자별 결산
+    const s6 = wb.addWorksheet("담당자별결산");
+    const wkCols = weeks.map(w => ({ width: 14 }));
+    s6.columns = [{ width: 10 },{ width: 14 }, ...wkCols, { width: 14 },{ width: 18 }];
+    s6.addRow(["PART 5. 실행파트 하이타겟 매출 결산"]).font = { bold: true, size: 13 };
+    s6.addRow([]);
+    const EXEC_HT2: Record<string,number> = {"조계현":30000000,"이세호":20000000,"기여운":35000000,"최연전":25000000};
+    hdr(s6, ["담당자", "목표", ...weeks.map(w=>`${w.week}주`), "환불", `${monthLabel}진척(달성율)`]);
+    let tES2=0,tER2=0;
+    const tWS2 = weeks.map(()=>0);
+    ["조계현","이세호","기여운","최연전"].forEach(n=>{
+      const my=data.filter((e:any)=>e.channel==="하이타겟"&&e.team_member===n);
+      const ws=weeks.map((w,i)=>{const v=my.filter((e:any)=>e.payment_date>=w.start&&e.payment_date<=w.end&&(e.refund_amount||0)===0).reduce((s:number,e:any)=>s+eff(e),0);tWS2[i]+=v;return v;});
+      const rf=my.filter((e:any)=>(e.refund_amount||0)>0).reduce((s:number,e:any)=>s+(e.refund_amount||0),0);
+      const net=ws.reduce((s,v)=>s+v,0)-rf; tES2+=ws.reduce((s,v)=>s+v,0); tER2+=rf;
+      const rate=EXEC_HT2[n]>0?net/EXEC_HT2[n]*100:0;
+      const row=s6.addRow([n,EXEC_HT2[n],...ws,rf>0?-rf:0,`${fmtN(net)} (${rate.toFixed(1)}%)`]); styleRow(row);
+      for(let i=2;i<=2+weeks.length;i++) row.getCell(i).numFmt="#,##0";
+    });
+    const tNet2=tES2-tER2; const tRate2=Object.values(EXEC_HT2).reduce((s,v)=>s+v,0);
+    const totRow=s6.addRow(["합계",tRate2,...tWS2,tER2>0?-tER2:0,`${fmtN(tNet2)} (${(tRate2>0?tNet2/tRate2*100:0).toFixed(1)}%)`]); totRow.font={bold:true}; styleRow(totRow);
+    for(let i=2;i<=2+weeks.length;i++) totRow.getCell(i).numFmt="#,##0";
+
+    s6.addRow([]); s6.addRow([]); s6.addRow(["운영파트 광고특전매출"]).font = { bold: true, size: 13 };
+    s6.addRow([]);
+    const OT2: Record<string,number> = {"김재영":40000000,"최은정":20000000};
+    hdr(s6, ["운영파트", "목표", ...weeks.map(w=>`${w.week}주차`), "누적", "달성율"]);
+    ["김재영","최은정"].forEach(on=>{
+      const my=data.filter((e:any)=>(e.channel==="LMS"||HOG_CHS.includes(e.channel))&&(e.refund_amount||0)===0&&OPS_MAP[e.team_member||""]===on);
+      const ws=weeks.map(w=>my.filter((e:any)=>e.payment_date>=w.start&&e.payment_date<=w.end).reduce((s:number,e:any)=>s+eff(e),0));
+      const total=ws.reduce((s,v)=>s+v,0); const tg=OT2[on]||0; const rate=tg>0?total/tg*100:0;
+      const row=s6.addRow([on,tg,...ws,total,`${rate.toFixed(1)}%`]); styleRow(row);
+      for(let i=2;i<=3+weeks.length;i++) row.getCell(i).numFmt="#,##0";
+    });
+
+    // 파일 저장
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `결산보고서_${selMonth}.xlsx`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   if (!user || !["admin", "ops"].includes(user.role)) return (
     <div className="flex items-center justify-center h-screen" style={{ color: "var(--text-subtle)" }}>
       <p>관리자 전용 메뉴입니다.</p>
@@ -264,7 +398,8 @@ export default function SettlementReport() {
           <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>당월 기준 매출 결산 · {year}년 {monthLabel}</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={downloadMD} className="px-4 py-2 text-xs font-bold rounded-lg" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>📥 MD 다운로드</button>
+          <button onClick={downloadExcel} className="px-4 py-2 text-xs font-bold rounded-lg" style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }}>📊 엑셀 다운로드</button>
+            <button onClick={downloadMD} className="px-4 py-2 text-xs font-bold rounded-lg" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>📥 MD 다운로드</button>
           <input type="month" value={selMonth} onChange={e => setSelMonth(e.target.value)}
             className="px-3 py-2 text-sm rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
         </div>
