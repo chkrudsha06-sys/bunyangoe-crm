@@ -145,6 +145,92 @@ export default function SettlementReport() {
   const th = "px-3 py-2.5 text-center text-xs font-bold border-b-2";
   const td = "px-3 py-2 text-xs border-b text-center";
 
+  // MD 파일 다운로드
+  const downloadMD = () => {
+    let md = `# 결산보고서 — ${year}년 ${monthLabel}\n\n발행일: ${new Date().toLocaleDateString("ko-KR")}\n\n`;
+
+    md += `## PART 1. 광고연계매출\n\n`;
+
+    // 분양회 하이타겟
+    md += `### 광고연계매출 - 분양회 (하이타겟)\n\n`;
+    md += `| 주차 | 금액 | 대외협력팀 | 컨설턴트 | 고객명(직급) |\n|---|---|---|---|---|\n`;
+    bunyanghoeRows.forEach(r => { md += `| ${r.week} | ${fmtMan(r.amount)} | ${r.teamMember} | ${r.consultant} | ${r.customer} |\n`; });
+    md += `| **합계** | **${fmt(bunyanghoeRows.reduce((s,r)=>s+r.amount,0))}** | | | **${bunyanghoeRows.length}건** |\n\n`;
+
+    // 대협팀활동
+    const daehyupHT2 = data.filter(e => e.contract_route === "대협팀활동" && e.channel === "하이타겟" && (e.refund_amount||0)===0);
+    md += `### 대협팀활동연계매출 - 하이타겟\n\n`;
+    md += `| 주차 | 금액 | 대외협력팀 | 컨설턴트 | 고객명(직급) |\n|---|---|---|---|---|\n`;
+    daehyupHT2.forEach(e => { md += `| ${month}월${getWeekNumber(e.payment_date)}주차 | ${fmtMan(eff(e))} | ${e.team_member||"-"} | ${e.consultant||"-"} | ${e.member_name||"-"} ${e.position||""} |\n`; });
+    md += `| **합계** | **${fmt(daehyupHT2.reduce((s,e)=>s+eff(e),0))}** | | | **${daehyupHT2.length}건** |\n\n`;
+
+    // 완판트럭
+    md += `### 광고연계매출 - 완판트럭 (하이타겟)\n\n`;
+    md += `| 주차 | 금액 | 대외협력팀 | 컨설턴트 |\n|---|---|---|---|\n`;
+    wanpanRows.forEach(r => { md += `| ${r.week} | ${fmtMan(r.amount)} | ${r.teamMember} | ${r.consultant} |\n`; });
+    md += `| **합계** | **${fmt(wanpanRows.reduce((s,r)=>s+r.amount,0))}** | | **${wanpanRows.length}건** |\n\n`;
+
+    // 환불
+    md += `### 광고연계매출 - 환불내역\n\n`;
+    md += `| 주차 | 금액 | 대외협력팀 |\n|---|---|---|\n`;
+    refundRows.forEach(r => { md += `| ${r.week} | -${fmtMan(r.amount)} | ${r.teamMember} |\n`; });
+    md += `| **환불합계** | **-${fmt(totalRefund)}** | **${refundRows.length}건** |\n\n`;
+
+    // 주차별마감
+    md += `### 광고연계매출 주차별 마감 (하이타겟)\n\n`;
+    md += `| 구분 | ${weeklyTotals.map(w=>w.label).join(" | ")} | 환불 | ${monthLabel}마감 |\n|---|${weeklyTotals.map(()=>"---").join("|")}|---|---|\n`;
+    md += `| 매출액 | ${weeklyTotals.map(w=>w.amount>0?fmtMan(w.amount):"-").join(" | ")} | ${totalRefund>0?`-${fmtMan(totalRefund)}`:"-"} | **${fmt(totalHTClose)}** |\n\n`;
+
+    // 광고특전매출
+    md += `### 광고특전매출 (운영파트귀속) - LMS+호갱노노\n\n`;
+    md += `| 주차 | 상품 | 금액 | 광고주 | 대외협력팀 | 컨설턴트 | 운영파트 |\n|---|---|---|---|---|---|---|\n`;
+    specialRows.forEach(r => { md += `| ${r.week} | ${r.product} | ${fmtMan(r.amount)} | ${r.customer} | ${r.teamMember} | ${r.consultant} | ${r.opsMember} |\n`; });
+    md += `| **합계** | | **${fmt(specialRows.reduce((s,r)=>s+r.amount,0))}** | | | | **${specialRows.length}건** |\n\n`;
+
+    // 트랙별마감
+    md += `### 매출 트랙별 ${monthLabel} 마감\n\n`;
+    md += `| 매출트랙 | ${monthLabel}목표 | 현재진행 | 달성율 | 성격 |\n|---|---|---|---|---|\n`;
+    md += `| 광고연계매출 | ${fmt(track1Target)} | ${fmt(track1Total)} | ${(track1Target>0?track1Total/track1Target*100:0).toFixed(1)}% | 실행파트귀속 |\n`;
+    md += `| 분양회(결제완료) | ${track2Target}건 | ${track2Count}건 | ${(track2Target>0?track2Count/track2Target*100:0).toFixed(1)}% | 실행파트(결제건수) |\n`;
+    md += `| 광고특전매출 | ${fmt(track3Target)} | ${fmt(track3Total)} | ${(track3Target>0?track3Total/track3Target*100:0).toFixed(1)}% | 운영파트귀속 |\n\n`;
+
+    // PART 2
+    md += `## PART 2. 분양회\n\n`;
+    md += `### 전체회원 결제현황\n\n`;
+    md += `| 연번 | 이름 | 직급 | 가입일 | 실행파트 | 비고 |\n|---|---|---|---|---|---|\n`;
+    contacts.sort((a:any,b:any) => {const na=parseInt((a.bunyanghoe_number||"").replace(/[^0-9]/g,""))||0; const nb=parseInt((b.bunyanghoe_number||"").replace(/[^0-9]/g,""))||0; return na-nb;}).forEach((c:any) => {
+      const num = parseInt((c.bunyanghoe_number||"").replace(/[^0-9]/g,""))||0;
+      md += `| ${num} | ${c.name} | ${c.title||"-"} | ${c.contract_date||c.reservation_date||"-"} | ${c.assigned_to||"-"} | |\n`;
+    });
+    md += `\n`;
+
+    // PART 3
+    md += `## PART 3. 완판트럭\n\n`;
+    md += `| 회차 | 주차 | 현장명 | 실행일 | 상태 |\n|---|---|---|---|---|\n`;
+    trucks.sort((a:any,b:any)=>(a.dispatch_date||"").localeCompare(b.dispatch_date||"")).forEach((t:any,i:number) => {
+      const status = new Date(t.dispatch_date+"T23:59:59") <= new Date() ? "완료" : "예정";
+      md += `| ${28+i+1}회차 | ${month}월${getWeekNumber(t.dispatch_date)}주차 | ${t.site_name||"-"} | ${t.dispatch_date} | ${status} |\n`;
+    });
+    md += `\n`;
+
+    // PART 5 담당자별
+    md += `## PART 5. 담당자별 매출 결산\n\n`;
+    const EXEC_TARGETS_HT2: Record<string,number> = {"조계현":30000000,"이세호":20000000,"기여운":35000000,"최연전":25000000};
+    ["조계현","이세호","기여운","최연전"].forEach(name => {
+      const myHT = data.filter(e=>e.channel==="하이타겟"&&e.team_member===name);
+      const sales = myHT.filter(e=>(e.refund_amount||0)===0).reduce((s:number,e:any)=>s+eff(e),0);
+      const refund = myHT.filter(e=>(e.refund_amount||0)>0).reduce((s:number,e:any)=>s+(e.refund_amount||0),0);
+      md += `- ${name}: 목표 ${fmtMan(EXEC_TARGETS_HT2[name])} / 매출 ${fmt(sales)} / 환불 ${fmt(refund)} / 순매출 ${fmt(sales-refund)} (${(EXEC_TARGETS_HT2[name]>0?(sales-refund)/EXEC_TARGETS_HT2[name]*100:0).toFixed(1)}%)\n`;
+    });
+
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `결산보고서_${selMonth}.md`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   if (!user || !["admin", "ops"].includes(user.role)) return (
     <div className="flex items-center justify-center h-screen" style={{ color: "var(--text-subtle)" }}>
       <p>관리자 전용 메뉴입니다.</p>
@@ -159,8 +245,11 @@ export default function SettlementReport() {
           <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>📊 결산보고서</h1>
           <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>당월 기준 매출 결산 · {year}년 {monthLabel}</p>
         </div>
-        <input type="month" value={selMonth} onChange={e => setSelMonth(e.target.value)}
-          className="px-3 py-2 text-sm rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+        <div className="flex items-center gap-3">
+          <button onClick={downloadMD} className="px-4 py-2 text-xs font-bold rounded-lg" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>📥 MD 다운로드</button>
+          <input type="month" value={selMonth} onChange={e => setSelMonth(e.target.value)}
+            className="px-3 py-2 text-sm rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+        </div>
       </div>
 
       {loading ? (
@@ -360,7 +449,7 @@ export default function SettlementReport() {
                         <td className={td + " font-bold"}><span style={{ color: t.color }}>●</span> {t.track}</td>
                         <td className={td + " font-semibold"}>{t.unit === "원" ? fmt(t.target) : `${t.target}건`}</td>
                         <td className={td}>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center gap-2">
                             <span className="font-bold">{t.unit === "원" ? fmt(t.current) : `${t.current}건`}</span>
                             <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--border)", maxWidth: 120 }}>
                               <div className="h-full rounded-full" style={{ width: `${Math.min(rate, 100)}%`, background: t.color }} />
@@ -547,7 +636,7 @@ export default function SettlementReport() {
                             <td className={td + " font-semibold"}>{fmt(paidAmount)}</td>
                             <td className={td + " text-center"}>{target}건</td>
                             <td className={td + " font-black"} style={{ color: rate >= 100 ? "#10b981" : rate >= 50 ? "#3b82f6" : "#ef4444" }}>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-center gap-2">
                                 <span>{rate.toFixed(1)}%</span>
                                 <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--border)", maxWidth: 80 }}>
                                   <div className="h-full rounded-full" style={{ width: `${Math.min(rate, 100)}%`, background: rate >= 100 ? "#10b981" : "#3b82f6" }} />
@@ -622,7 +711,7 @@ export default function SettlementReport() {
                             <td className={td + " font-bold"}>{fmt(paidAmount)}</td>
                             <td className={td + " font-semibold"}>{fmt(targetAmt)}</td>
                             <td className={td + " font-black"} style={{ color: rate >= 100 ? "#10b981" : rate >= 50 ? "#3b82f6" : "#ef4444" }}>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-center gap-2">
                                 <span>{rate.toFixed(1)}%</span>
                                 <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--border)", maxWidth: 100 }}>
                                   <div className="h-full rounded-full" style={{ width: `${Math.min(rate, 100)}%`, background: rate >= 100 ? "#10b981" : "#3b82f6" }} />
@@ -781,7 +870,7 @@ export default function SettlementReport() {
                       {r.weekSales.map((v, i) => <td key={i} className={td + " font-semibold"}>{v > 0 ? fmtMan(v) : "-"}</td>)}
                       <td className={td + " font-bold"} style={{ color: "#ef4444" }}>{r.refundAmt > 0 ? `-${fmtMan(r.refundAmt)}` : "-"}</td>
                       <td className={td + " font-black"}>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center gap-2">
                           <span>{fmtMan(r.net)}</span>
                           <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: r.rate >= 100 ? "rgba(16,185,129,0.1)" : "rgba(59,130,246,0.1)", color: r.rate >= 100 ? "#10b981" : "#3b82f6" }}>{r.rate.toFixed(1)}%</span>
                         </div>
