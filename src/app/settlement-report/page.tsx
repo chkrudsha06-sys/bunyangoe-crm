@@ -417,11 +417,11 @@ export default function SettlementReport() {
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                <thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                   <th className={th}>주차</th><th className={th}>금액</th><th className={th}>대외협력팀</th><th className={th}>컨설턴트</th><th className={th}>고객명(직급)</th>
                 </tr></thead>
                 <tbody>
-                  {bunyanghoeRows.length === 0 ? <tr><td colSpan={5} className="text-center py-6 text-xs" style={{ color: "var(--text-subtle)" }}>데이터 없음</td></tr> :
+                  {bunyanghoeRows.length === 0 ? <tr><td colSpan={5} className="text-center py-6 text-xs" style={{ color: "var(--text-muted)" }}>데이터 없음</td></tr> :
                     bunyanghoeRows.map((r, i) => (
                       <tr key={i} style={{ color: "var(--text)" }}>
                         <td className={td}><span className="font-semibold" style={{ color: "#8b5cf6" }}>{r.week}</span></td>
@@ -454,10 +454,10 @@ export default function SettlementReport() {
                 customer: `${e.member_name || "-"} ${e.position || ""}`.trim(),
               })).sort((a, b) => a.weekNum - b.weekNum);
               return (
-                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                   <th className={th}>주차</th><th className={th}>금액</th><th className={th}>대외협력팀</th><th className={th}>컨설턴트</th><th className={th}>고객명(직급)</th>
                 </tr></thead><tbody>
-                  {rows.length === 0 ? <tr><td colSpan={5} className="text-center py-6 text-xs" style={{ color: "var(--text-subtle)" }}>데이터 없음</td></tr> :
+                  {rows.length === 0 ? <tr><td colSpan={5} className="text-center py-6 text-xs" style={{ color: "var(--text-muted)" }}>데이터 없음</td></tr> :
                     rows.map((r, i) => (<tr key={i} style={{ color: "var(--text)" }}><td className={td}><span className="font-semibold" style={{ color: "#3b82f6" }}>{r.week}</span></td><td className={td + " font-bold"}>{fmtMan(r.amount)}</td><td className={td}>{r.teamMember}</td><td className={td}>{r.consultant}</td><td className={td}>{r.customer}</td></tr>))}
                   <tr className="font-bold" style={{ borderTop: "2px solid var(--border)", color: "var(--text)" }}>
                     <td className={td}>합계</td><td className={td} style={{ color: "#3b82f6" }}>{fmt(rows.reduce((s, r) => s + r.amount, 0))}</td><td colSpan={3} className={td}>{rows.length}건</td>
@@ -475,11 +475,11 @@ export default function SettlementReport() {
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                <thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                   <th className={th}>주차</th><th className={th}>금액</th><th className={th}>대외협력팀</th><th className={th}>컨설턴트</th>
                 </tr></thead>
                 <tbody>
-                  {wanpanRows.length === 0 ? <tr><td colSpan={4} className="text-center py-6 text-xs" style={{ color: "var(--text-subtle)" }}>데이터 없음</td></tr> :
+                  {wanpanRows.length === 0 ? <tr><td colSpan={4} className="text-center py-6 text-xs" style={{ color: "var(--text-muted)" }}>데이터 없음</td></tr> :
                     wanpanRows.map((r, i) => (
                       <tr key={i} style={{ color: "var(--text)" }}>
                         <td className={td}><span className="font-semibold" style={{ color: "#f59e0b" }}>{r.week}</span></td>
@@ -505,11 +505,11 @@ export default function SettlementReport() {
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                <thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                   <th className={th}>주차</th><th className={th}>금액</th><th className={th}>대외협력팀</th>
                 </tr></thead>
                 <tbody>
-                  {refundRows.length === 0 ? <tr><td colSpan={3} className="text-center py-6 text-xs" style={{ color: "var(--text-subtle)" }}>환불 내역 없음</td></tr> :
+                  {refundRows.length === 0 ? <tr><td colSpan={3} className="text-center py-6 text-xs" style={{ color: "var(--text-muted)" }}>환불 내역 없음</td></tr> :
                     refundRows.map((r, i) => (
                       <tr key={i} style={{ color: "var(--text)" }}>
                         <td className={td}><span className="font-semibold" style={{ color: "#ef4444" }}>{r.week}</span></td>
@@ -530,7 +530,7 @@ export default function SettlementReport() {
             <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>📅 광고연계매출 주차별 마감 (하이타겟)</h2>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                <thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                   <th className={th}>구분</th>
                   {weeklyTotals.map(w => <th key={w.label} className={th}>{w.label}</th>)}
                   <th className={th} style={{ color: "#ef4444" }}>환불</th>
@@ -556,11 +556,11 @@ export default function SettlementReport() {
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                <thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                   <th className={th}>주차</th><th className={th}>상품</th><th className={th}>금액</th><th className={th}>광고주</th><th className={th}>대외협력팀</th><th className={th}>컨설턴트</th><th className={th}>운영파트</th>
                 </tr></thead>
                 <tbody>
-                  {specialRows.length === 0 ? <tr><td colSpan={7} className="text-center py-6 text-xs" style={{ color: "var(--text-subtle)" }}>데이터 없음</td></tr> :
+                  {specialRows.length === 0 ? <tr><td colSpan={7} className="text-center py-6 text-xs" style={{ color: "var(--text-muted)" }}>데이터 없음</td></tr> :
                     specialRows.map((r, i) => (
                       <tr key={i} style={{ color: "var(--text)" }}>
                         <td className={td}><span className="font-semibold" style={{ color: "#10b981" }}>{r.week}</span></td>
@@ -587,7 +587,7 @@ export default function SettlementReport() {
             <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>🏁 매출 트랙별 {monthLabel} 마감 (3트랙 독립)</h2>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                <thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                   <th className={th}>매출트랙</th><th className={th}>{monthLabel} 목표</th><th className={th}>현재 진행</th><th className={th}>달성률</th><th className={th}>성격</th>
                 </tr></thead>
                 <tbody>
@@ -681,10 +681,10 @@ export default function SettlementReport() {
                 <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                   <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>📋 당월 주차별 신규모집</h2>
                   <div className="overflow-x-auto">
-                    <table className="w-full"><thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                    <table className="w-full"><thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                       <th className={th}>연번</th><th className={th}>이름</th><th className={th}>직급</th><th className={th}>실행파트</th><th className={th}>결제상태</th><th className={th}>비고</th>
                     </tr></thead><tbody>
-                      {monthNewMembers.length === 0 ? <tr><td colSpan={6} className="text-center py-6 text-xs" style={{ color: "var(--text-subtle)" }}>당월 신규가입 없음</td></tr> :
+                      {monthNewMembers.length === 0 ? <tr><td colSpan={6} className="text-center py-6 text-xs" style={{ color: "var(--text-muted)" }}>당월 신규가입 없음</td></tr> :
                         monthNewMembers.map(c => {
                           const paidDate = getPaymentStatus(c.name);
                           return (
@@ -706,7 +706,7 @@ export default function SettlementReport() {
                 <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                   <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>💳 전체회원 결제현황</h2>
                   <div className="overflow-x-auto">
-                    <table className="w-full"><thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                    <table className="w-full"><thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                       <th className={th}>연번</th><th className={th}>이름</th><th className={th}>직급</th><th className={th}>가입일</th>
                       <th className={th}>1차</th><th className={th}>2차</th><th className={th}>3차</th><th className={th}>4차</th>
                       <th className={th}>실행파트</th><th className={th}>비고</th>
@@ -735,7 +735,7 @@ export default function SettlementReport() {
                 <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                   <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>📈 월별 담당자 분양회 모집실적 (가입 VS 결제 분리)</h2>
                   <div className="overflow-x-auto">
-                    <table className="w-full"><thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                    <table className="w-full"><thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                       <th className={th}>대협팀 담당자</th>
                       {monthRange.map(m => <th key={m} className={th}>{parseInt(m)}월 가입</th>)}
                       <th className={th}>누적가입</th><th className={th}>결제완료</th><th className={th}>결제대기</th><th className={th}>결제대기회원</th>
@@ -768,7 +768,7 @@ export default function SettlementReport() {
                 <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                   <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>🎯 실행파트 담당자별 현재 진척율</h2>
                   <div className="overflow-x-auto">
-                    <table className="w-full"><thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                    <table className="w-full"><thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                       <th className={th}>담당자</th><th className={th}>{monthLabel} 가입</th><th className={th}>결제완료</th><th className={th}>결제미완료</th><th className={th}>결제매출</th><th className={th}>{monthLabel} 목표</th><th className={th}>달성율</th>
                     </tr></thead><tbody>
                       {EXEC_MEMBERS.map(name => {
@@ -807,7 +807,7 @@ export default function SettlementReport() {
                 <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                   <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>📊 {monthLabel} 차수별 결제 진행율</h2>
                   <div className="overflow-x-auto">
-                    <table className="w-full"><thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                    <table className="w-full"><thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                       <th className={th}>결제분류</th><th className={th}>건수</th><th className={th}>매출</th><th className={th}>회원명</th>
                     </tr></thead><tbody>
                       {(() => {
@@ -847,7 +847,7 @@ export default function SettlementReport() {
                 <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                   <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>💰 담당자별 {monthLabel} 회비 매출</h2>
                   <div className="overflow-x-auto">
-                    <table className="w-full"><thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                    <table className="w-full"><thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                       <th className={th}>담당자</th><th className={th}>결제건수</th><th className={th}>회비매출</th><th className={th}>목표매출</th><th className={th}>달성율</th>
                     </tr></thead><tbody>
                       {EXEC_MEMBERS.map(name => {
@@ -916,10 +916,10 @@ export default function SettlementReport() {
                 status: new Date(t.dispatch_date + "T23:59:59") <= new Date() ? "완료" : "예정",
               }));
               return (
-                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                   <th className={th}>회차</th><th className={th}>주차</th><th className={th}>현장명</th><th className={th}>실행일</th><th className={th}>상태</th>
                 </tr></thead><tbody>
-                  {truckRows.length === 0 ? <tr><td colSpan={5} className="text-center py-6 text-xs" style={{ color: "var(--text-subtle)" }}>데이터 없음</td></tr> :
+                  {truckRows.length === 0 ? <tr><td colSpan={5} className="text-center py-6 text-xs" style={{ color: "var(--text-muted)" }}>데이터 없음</td></tr> :
                     truckRows.map((r, i) => (
                       <tr key={i} style={{ color: "var(--text)" }}>
                         <td className={td + " font-bold"} style={{ color: "#f59e0b" }}>{r.round}회차</td>
@@ -962,10 +962,10 @@ export default function SettlementReport() {
                 }
               });
               return (
-                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                   <th className={th}>구분</th><th className={th}>회원명</th><th className={th}>가입시점(넘버링)</th><th className={th}>매출발생시점</th><th className={th}>매출유형</th><th className={th}>금액</th><th className={th}>R&R</th>
                 </tr></thead><tbody>
-                  {quickSales.length === 0 ? <tr><td colSpan={7} className="text-center py-6 text-xs" style={{ color: "var(--text-subtle)" }}>해당 케이스 없음</td></tr> :
+                  {quickSales.length === 0 ? <tr><td colSpan={7} className="text-center py-6 text-xs" style={{ color: "var(--text-muted)" }}>해당 케이스 없음</td></tr> :
                     quickSales.map((r, i) => (
                       <tr key={i} style={{ color: "var(--text)" }}>
                         <td className={td + " font-bold"}>{i + 1}</td>
@@ -1011,7 +1011,7 @@ export default function SettlementReport() {
                 target: rows.reduce((s, r) => s + r.target, 0),
               };
               return (
-                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                   <th className={th}>담당자</th><th className={th}>목표</th>
                   {weeks.map(w => <th key={w.week} className={th}>{w.week}주</th>)}
                   <th className={th} style={{ color: "#ef4444" }}>환불</th><th className={th}>{monthLabel} 진척(달성율)</th>
@@ -1058,7 +1058,7 @@ export default function SettlementReport() {
               });
               const grandTotal = rows.reduce((s, r) => s + r.total, 0);
               return (
-                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "var(--border)", color: "var(--text)" }}>
+                <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "var(--surface)", color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
                   <th className={th}>운영파트</th><th className={th}>목표</th>
                   {weeks.map(w => <th key={w.week} className={th}>{w.week}주차</th>)}
                   <th className={th}>누적</th><th className={th}>달성율</th>
