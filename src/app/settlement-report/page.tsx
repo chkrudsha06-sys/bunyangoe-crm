@@ -142,8 +142,8 @@ export default function SettlementReport() {
   const track3Total = data.filter(e => e.channel === "하이타겟" && (e.refund_amount || 0) === 0).reduce((s, e) => s + eff(e), 0);
   const track3Target = 110000000;
 
-  const th = "px-3 py-2.5 text-left text-xs font-bold border-b-2";
-  const td = "px-3 py-2 text-xs border-b";
+  const th = "px-3 py-2.5 text-center text-xs font-bold border-b-2";
+  const td = "px-3 py-2 text-xs border-b text-center";
 
   if (!user || !["admin", "ops"].includes(user.role)) return (
     <div className="flex items-center justify-center h-screen" style={{ color: "var(--text-subtle)" }}>
@@ -205,7 +205,7 @@ export default function SettlementReport() {
               대협팀활동연계매출 — 하이타겟
             </h2>
             {(() => {
-              const daehyupHT = data.filter(e => e.contract_route === "대협팀 활동" && e.channel === "하이타겟" && (e.refund_amount || 0) === 0);
+              const daehyupHT = data.filter(e => e.contract_route === "대협팀활동" && e.channel === "하이타겟" && (e.refund_amount || 0) === 0);
               const rows = daehyupHT.map(e => ({
                 week: `${month}월${getWeekNumber(e.payment_date)}주차`, weekNum: getWeekNumber(e.payment_date),
                 amount: eff(e), teamMember: e.team_member || "-", consultant: e.consultant || "-",
