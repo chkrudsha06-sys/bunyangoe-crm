@@ -4,6 +4,13 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
 
 const EXEC_MEMBERS = ["조계현", "이세호", "기여운", "최연전"];
+const MEMBER_MAP: Record<string, string[]> = {
+  "조계현": ["백민엽","김나윤","김성호","박수근","김영성","이정재","김부성","신승훈","이인영","홍완호","이민경"],
+  "이세호": ["위성민","김이태","임순석","장은경"],
+  "기여운": ["최준호","김선호","허덕연","오정연","윤민","김정환","어수지","박홍배","이연수"],
+  "최연전": ["최두식","김건하","신우진","윤권","김윤아","한세이","오세혁","윤지민"],
+};
+interface FeeRow { name: string; paid: string; expected: string; churn: string; note: string; }
 const ROUTES = [
   { key: "route_vip", label: "컨설턴트 VIP", color: "#2563eb" },
   { key: "route_cross", label: "컨설턴트 교차소개", color: "#ea7c1e" },
@@ -27,6 +34,7 @@ export default function SalesStatus() {
   const [month, setMonth] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; });
   const [data, setData] = useState<any>({});
   const [pipeline, setPipeline] = useState<PipelineRow[]>([]);
+  const [feeStatus, setFeeStatus] = useState<FeeRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
   const [showInsight, setShowInsight] = useState(false);
@@ -39,9 +47,10 @@ export default function SalesStatus() {
 
   const loadData = async () => {
     const { data: d } = await supabase.from("sales_status").select("*").eq("user_name", viewUser).eq("month", month).maybeSingle();
-    if (d) { setData(d); setPipeline(Array.isArray(d.pipeline) ? d.pipeline : []); }
-    else { setData({}); setPipeline([]); }
+    if (d) { setData(d); setPipeline(Array.isArray(d.pipeline) ? d.pipeline : []); setFeeStatus(Array.isArray(d.fee_status) ? d.fee_status : initFee(viewUser)); }
+    else { setData({}); setPipeline([]); setFeeStatus(initFee(viewUser)); }
   };
+  const initFee = (name: string): FeeRow[] => (MEMBER_MAP[name] || []).map(n => ({ name: n, paid: "X", expected: "X", churn: "X", note: "" }));
   const loadTeamData = async () => {
     const { data: d } = await supabase.from("sales_status").select("*").eq("month", month).in("user_name", EXEC_MEMBERS);
     setTeamData(d || []);
@@ -58,7 +67,7 @@ export default function SalesStatus() {
       route_vip: val("route_vip"), route_cross: val("route_cross"), route_tm: val("route_tm"), route_truck: val("route_truck"), route_mgm: val("route_mgm"),
       funnel_lead: val("funnel_lead"), funnel_prospect: val("funnel_prospect"), funnel_closing: val("funnel_closing"), funnel_reserve: val("funnel_reserve"), funnel_contract: val("funnel_contract"),
       ht_goal: val("ht_goal"), ht_current: val("ht_current"), member_goal: val("member_goal"), member_current: val("member_current"),
-      pipeline, updated_at: new Date().toISOString(),
+      pipeline, fee_status: feeStatus, updated_at: new Date().toISOString(),
     };
     const { error } = await supabase.from("sales_status").upsert(payload, { onConflict: "user_name,month" });
     setSaving(false);
@@ -240,6 +249,64 @@ export default function SalesStatus() {
 
           {/* 저장 + 분석 */}
           <div className="flex items-center justify-center gap-4">
+
+          {/* 회비 납부 현황 */}
+          <div className="w-full rounded-2xl p-5 mb-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h3 className="text-sm font-bold mb-4 pb-3" style={{ color: "var(--text)", borderBottom: "2px solid var(--border)" }}>
+              💳 {month.split("-")[1]}월 회비 납부 현황 — {viewUser}
+              <span className="font-normal text-xs ml-2" style={{ color: "var(--text-muted)" }}>
+                납부 {feeStatus.filter(r=>r.paid==="O").length}명 / 전체 {feeStatus.length}명
+              </span>
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full"><thead><tr style={{ background: "rgba(59,130,246,0.06)" }}>
+                <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)", width: 50 }}>No</th>
+                <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)", width: 90 }}>고객명</th>
+                <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "#16a34a", width: 90 }}>납부여부</th>
+                <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "#2563eb", width: 90 }}>납부예정</th>
+                <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "#dc2626", width: 90 }}>이탈확정</th>
+                <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>특이사항</th>
+              </tr></thead><tbody>
+                {feeStatus.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-xs" style={{ color: "var(--text-muted)" }}>담당 회원이 없습니다</td></tr> :
+                  feeStatus.map((r, i) => (
+                    <tr key={i} style={{ color: "var(--text)", background: r.churn === "O" ? "rgba(220,38,38,0.04)" : r.paid === "O" ? "rgba(22,163,74,0.03)" : "transparent" }}>
+                      <td className="px-3 py-2 text-xs text-center font-bold" style={{ borderBottom: "1px solid var(--border)" }}>{i + 1}</td>
+                      <td className="px-3 py-2 text-xs text-center font-bold" style={{ borderBottom: "1px solid var(--border)" }}>{r.name}</td>
+                      <td className="px-3 py-2 text-center" style={{ borderBottom: "1px solid var(--border)" }}>
+                        <select value={r.paid} onChange={e => { const n = [...feeStatus]; n[i].paid = e.target.value; setFeeStatus(n); }} disabled={!canEdit}
+                          className="px-2 py-1.5 text-xs font-bold rounded-lg outline-none text-center" style={{ ...inpS, color: r.paid === "O" ? "#16a34a" : "var(--text-muted)", minWidth: 60 }}>
+                          <option value="O">O</option><option value="X">X</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 text-center" style={{ borderBottom: "1px solid var(--border)" }}>
+                        <select value={r.expected} onChange={e => { const n = [...feeStatus]; n[i].expected = e.target.value; setFeeStatus(n); }} disabled={!canEdit}
+                          className="px-2 py-1.5 text-xs font-bold rounded-lg outline-none text-center" style={{ ...inpS, color: r.expected === "O" ? "#2563eb" : "var(--text-muted)", minWidth: 60 }}>
+                          <option value="O">O</option><option value="X">X</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 text-center" style={{ borderBottom: "1px solid var(--border)" }}>
+                        <select value={r.churn} onChange={e => { const n = [...feeStatus]; n[i].churn = e.target.value; setFeeStatus(n); }} disabled={!canEdit}
+                          className="px-2 py-1.5 text-xs font-bold rounded-lg outline-none text-center" style={{ ...inpS, color: r.churn === "O" ? "#dc2626" : "var(--text-muted)", minWidth: 60 }}>
+                          <option value="O">O</option><option value="X">X</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
+                        <input type="text" value={r.note} onChange={e => { const n = [...feeStatus]; n[i].note = e.target.value; setFeeStatus(n); }} disabled={!canEdit}
+                          className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" style={inpS} placeholder="특이사항 입력" />
+                      </td>
+                    </tr>
+                  ))}
+              </tbody></table>
+            </div>
+            {feeStatus.length > 0 && (
+              <div className="mt-3 flex gap-4 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
+                <span>✅ 납부완료 <strong style={{ color: "#16a34a" }}>{feeStatus.filter(r=>r.paid==="O").length}명</strong></span>
+                <span>📋 납부예정 <strong style={{ color: "#2563eb" }}>{feeStatus.filter(r=>r.expected==="O").length}명</strong></span>
+                <span>🚨 이탈확정 <strong style={{ color: "#dc2626" }}>{feeStatus.filter(r=>r.churn==="O").length}명</strong></span>
+                <span>⏳ 미정 <strong>{feeStatus.filter(r=>r.paid==="X"&&r.expected==="X"&&r.churn==="X").length}명</strong></span>
+              </div>
+            )}
+          </div>
             {canEdit && <button onClick={saveData} disabled={saving} className="px-8 py-3.5 text-sm font-bold text-white rounded-xl" style={{ background: "#2563eb", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}>{saving ? "저장 중..." : "💾 데이터 저장"}</button>}
             <button onClick={() => setShowInsight(v => !v)} className="px-8 py-3.5 text-sm font-bold rounded-xl" style={{ background: "rgba(22,163,74,0.08)", color: "#16a34a", border: "1.5px solid #16a34a" }}>📊 분석 실행</button>
           </div>
