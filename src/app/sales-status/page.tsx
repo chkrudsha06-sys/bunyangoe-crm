@@ -47,7 +47,7 @@ export default function SalesStatus() {
 
   const loadData = async () => {
     const { data: d } = await supabase.from("sales_status").select("*").eq("user_name", viewUser).eq("month", month).maybeSingle();
-    if (d) { setData(d); setPipeline(Array.isArray(d.pipeline) ? d.pipeline : []); setFeeStatus(Array.isArray(d.fee_status) ? d.fee_status : initFee(viewUser)); }
+    if (d) { setData(d); setPipeline(Array.isArray(d.pipeline) ? d.pipeline : []); const fs = Array.isArray(d.fee_status) && d.fee_status.length > 0 ? d.fee_status : initFee(viewUser); setFeeStatus(fs); }
     else { setData({}); setPipeline([]); setFeeStatus(initFee(viewUser)); }
   };
   const initFee = (name: string): FeeRow[] => (MEMBER_MAP[name] || []).map(n => ({ name: n, paid: "X", expected: "X", churn: "X", note: "" }));
