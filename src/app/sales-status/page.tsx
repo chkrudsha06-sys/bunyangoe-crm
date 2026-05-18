@@ -4,253 +4,273 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
 
 const EXEC_MEMBERS = ["조계현", "이세호", "기여운", "최연전"];
-const DB_FIELDS = [
-  { key: "db_total", label: "전체 관리 DB" },
-  { key: "db_vip", label: "컨설턴트 VIP DB" },
-  { key: "db_cross", label: "컨설턴트 교차 DB" },
-  { key: "db_tm", label: "신규 TM DB" },
-  { key: "db_truck", label: "완판트럭 DB" },
-  { key: "db_mgm", label: "분양회 MGM DB" },
+const ROUTES = [
+  { key: "route_vip", label: "컨설턴트 VIP", color: "#2563eb" },
+  { key: "route_cross", label: "컨설턴트 교차소개", color: "#ea7c1e" },
+  { key: "route_tm", label: "신규 TM", color: "#16a34a" },
+  { key: "route_truck", label: "완판트럭", color: "#d97706" },
+  { key: "route_mgm", label: "분양회 MGM", color: "#7c3aed" },
 ];
-const FUNNEL = [
-  { key: "fn_lead", label: "리드", color: "#94a3b8" },
-  { key: "fn_prospect", label: "프로스펙팅", color: "#3b82f6" },
-  { key: "fn_closing", label: "딜 클로징", color: "#f59e0b" },
-  { key: "fn_reserve", label: "예약 완료", color: "#8b5cf6" },
-  { key: "fn_contract", label: "계약 완료", color: "#10b981" },
+const FUNNELS = [
+  { key: "funnel_lead", label: "리드", color: "#9ca3af" },
+  { key: "funnel_prospect", label: "프로스펙팅", color: "#ea7c1e" },
+  { key: "funnel_closing", label: "딜클로징", color: "#2563eb" },
+  { key: "funnel_reserve", label: "예약완료", color: "#d97706" },
+  { key: "funnel_contract", label: "계약완료", color: "#16a34a" },
 ];
-
-interface RevItem { name: string; ad_type: string; amount: number; prob: number }
-interface FeeRow { name: string; paid: string; plan: string; churn: string; note: string }
-interface SData {
-  user_name: string; month: string;
-  db_total: number; db_vip: number; db_cross: number; db_tm: number; db_truck: number; db_mgm: number;
-  fn_lead: number; fn_prospect: number; fn_closing: number; fn_reserve: number; fn_contract: number;
-  rev_goal: number; rev_current: number; rev_items: RevItem[]; fee_data: FeeRow[];
-}
-const empty = (n: string, m: string): SData => ({
-  user_name: n, month: m, db_total: 0, db_vip: 0, db_cross: 0, db_tm: 0, db_truck: 0, db_mgm: 0,
-  fn_lead: 0, fn_prospect: 0, fn_closing: 0, fn_reserve: 0, fn_contract: 0,
-  rev_goal: 0, rev_current: 0, rev_items: [], fee_data: [],
-});
-const fmt = (n: number) => n.toLocaleString();
+interface PipelineRow { id: string; customer: string; amount: number; adType: string; prob: number; manager: string; note: string; }
+const emptyRow = (): PipelineRow => ({ id: Date.now().toString(), customer: "", amount: 0, adType: "하이타겟", prob: 50, manager: "", note: "" });
 
 export default function SalesStatus() {
   const [user, setUser] = useState<any>(null);
-  const [selMonth, setSelMonth] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; });
-  const [view, setView] = useState("");
-  const [data, setData] = useState<Record<string, SData>>({});
-  const [loading, setLoading] = useState(true);
+  const [viewUser, setViewUser] = useState("");
+  const [month, setMonth] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; });
+  const [data, setData] = useState<any>({});
+  const [pipeline, setPipeline] = useState<PipelineRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2000); };
-  const isAdm = user?.role === "admin" || user?.role === "ops";
+  const [showInsight, setShowInsight] = useState(false);
+  const [teamData, setTeamData] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<"my"|"team">("my");
 
-  useEffect(() => { const u = getCurrentUser(); setUser(u); if (u) setView(u.role === "exec" ? u.name : "전체"); }, []);
-  useEffect(() => { if (user) load(); }, [user, selMonth]);
+  useEffect(() => { const u = getCurrentUser(); setUser(u); if (u) setViewUser(u.name); }, []);
+  useEffect(() => { if (viewUser && month) loadData(); }, [viewUser, month]);
+  useEffect(() => { if (user && month && (user.role === "admin" || user.role === "ops")) loadTeamData(); }, [user, month]);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const { data: rows } = await supabase.from("sales_status").select("*").eq("month", selMonth);
-      const m: Record<string, SData> = {};
-      (rows || []).forEach((r: any) => { m[r.user_name] = { ...r, rev_items: r.rev_items || [], fee_data: r.fee_data || [] }; });
-      EXEC_MEMBERS.forEach(n => { if (!m[n]) m[n] = empty(n, selMonth); });
-      setData(m);
-    } finally { setLoading(false); }
+  const loadData = async () => {
+    const { data: d } = await supabase.from("sales_status").select("*").eq("user_name", viewUser).eq("month", month).maybeSingle();
+    if (d) { setData(d); setPipeline(Array.isArray(d.pipeline) ? d.pipeline : []); }
+    else { setData({}); setPipeline([]); }
+  };
+  const loadTeamData = async () => {
+    const { data: d } = await supabase.from("sales_status").select("*").eq("month", month).in("user_name", EXEC_MEMBERS);
+    setTeamData(d || []);
   };
 
-  const save = async (name: string) => {
+  const val = (key: string) => data[key] || 0;
+  const setVal = (key: string, v: number) => setData((p: any) => ({ ...p, [key]: v }));
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2000); };
+
+  const saveData = async () => {
     setSaving(true);
-    const d = data[name]; if (!d) { setSaving(false); return; }
-    const p = { ...d, month: selMonth, updated_at: new Date().toISOString() };
-    delete (p as any).id;
-    const { error } = await supabase.from("sales_status").upsert(p, { onConflict: "user_name,month" });
+    const payload = {
+      user_name: viewUser, month, total_db: val("total_db"),
+      route_vip: val("route_vip"), route_cross: val("route_cross"), route_tm: val("route_tm"), route_truck: val("route_truck"), route_mgm: val("route_mgm"),
+      funnel_lead: val("funnel_lead"), funnel_prospect: val("funnel_prospect"), funnel_closing: val("funnel_closing"), funnel_reserve: val("funnel_reserve"), funnel_contract: val("funnel_contract"),
+      ht_goal: val("ht_goal"), ht_current: val("ht_current"), member_goal: val("member_goal"), member_current: val("member_current"),
+      pipeline, updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("sales_status").upsert(payload, { onConflict: "user_name,month" });
     setSaving(false);
-    showToast(error ? "저장 실패" : "저장 완료 ✓");
+    if (error) showToast("저장 실패: " + error.message); else { showToast("저장 완료"); loadTeamData(); }
   };
 
-  const upd = (n: string, f: string, v: number) => setData(p => ({ ...p, [n]: { ...p[n], [f]: v } }));
-  const addRev = (n: string) => setData(p => ({ ...p, [n]: { ...p[n], rev_items: [...p[n].rev_items, { name: "", ad_type: "하이타겟", amount: 0, prob: 80 }] } }));
-  const delRev = (n: string, i: number) => setData(p => ({ ...p, [n]: { ...p[n], rev_items: p[n].rev_items.filter((_, j) => j !== i) } }));
-  const updRev = (n: string, i: number, f: string, v: any) => setData(p => { const items = [...p[n].rev_items]; items[i] = { ...items[i], [f]: v }; return { ...p, [n]: { ...p[n], rev_items: items } }; });
-  const addFee = (n: string) => setData(p => ({ ...p, [n]: { ...p[n], fee_data: [...p[n].fee_data, { name: "", paid: "", plan: "", churn: "", note: "" }] } }));
-  const delFee = (n: string, i: number) => setData(p => ({ ...p, [n]: { ...p[n], fee_data: p[n].fee_data.filter((_, j) => j !== i) } }));
-  const updFee = (n: string, i: number, f: string, v: string) => setData(p => { const rows = [...p[n].fee_data]; rows[i] = { ...rows[i], [f]: v }; return { ...p, [n]: { ...p[n], fee_data: rows } }; });
+  const isAdmin = user?.role === "admin" || user?.role === "ops";
+  const canEdit = viewUser === user?.name;
+  const routeTotal = ROUTES.reduce((s, r) => s + val(r.key), 0);
+  const funnelTotal = FUNNELS.reduce((s, f) => s + val(f.key), 0);
+  const htPct = val("ht_goal") > 0 ? (val("ht_current") / val("ht_goal") * 100) : 0;
+  const pColor = (p: number) => p >= 80 ? "#16a34a" : p >= 50 ? "#ea7c1e" : "#dc2626";
+  const weighted = pipeline.reduce((s, r) => s + (r.amount * r.prob / 100), 0);
+  const confirmed = pipeline.filter(r => r.prob === 100).reduce((s, r) => s + r.amount, 0);
+  const teamSum = (key: string) => teamData.reduce((s, d) => s + (d[key] || 0), 0);
 
-  const renderMember = (name: string, edit: boolean) => {
-    const d = data[name] || empty(name, selMonth);
-    const revW = d.rev_items.reduce((s, r) => s + r.amount * r.prob / 100, 0);
-    const rate = d.rev_goal > 0 ? d.rev_current / d.rev_goal * 100 : 0;
-    const paidCnt = d.fee_data.filter(f => f.paid === "O").length;
+  const inp = "px-3 py-2.5 text-sm rounded-lg outline-none font-semibold";
+  const inpS = { background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" };
 
-    const inp = (field: string, val: number) => edit ? (
-      <input type="number" value={val || ""} onChange={e => upd(name, field, parseInt(e.target.value) || 0)}
-        className="w-full px-3 py-2 text-sm font-semibold rounded-lg outline-none text-center"
-        style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }} />
-    ) : <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{fmt(val)}</span>;
+  if (!user) return null;
 
-    return (
-      <div key={name} className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-lg font-black" style={{ color: "var(--text)" }}>{name}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>실행파트</span>
-          </div>
-          {edit && <button onClick={() => save(name)} disabled={saving} className="px-5 py-2 text-sm font-bold text-white rounded-lg disabled:opacity-50" style={{ background: "#3b82f6" }}>{saving ? "저장 중..." : "💾 저장"}</button>}
+  return (
+    <div className="p-6 max-w-[1400px] mx-auto space-y-5">
+      {/* 헤더 */}
+      <div className="rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderBottom: "4px solid #2563eb" }}>
+        <div>
+          <h1 className="text-2xl font-black tracking-wider" style={{ color: "#2563eb" }}>SALES STATUS</h1>
+          <p className="text-xs font-semibold mt-1" style={{ color: "var(--text-muted)" }}>영업현황 대시보드 · {viewUser}</p>
         </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {isAdmin && (
+            <>
+              <button onClick={() => setViewMode("team")} className="px-3 py-1.5 text-xs font-bold rounded-full" style={{ background: viewMode === "team" ? "#2563eb" : "transparent", color: viewMode === "team" ? "#fff" : "var(--text-muted)", border: "1px solid var(--border)" }}>팀 전체</button>
+              {EXEC_MEMBERS.map(n => (
+                <button key={n} onClick={() => { setViewUser(n); setViewMode("my"); }} className="px-3 py-1.5 text-xs font-bold rounded-full" style={{ background: viewUser === n && viewMode === "my" ? "#2563eb" : "transparent", color: viewUser === n && viewMode === "my" ? "#fff" : "var(--text-muted)", border: "1px solid var(--border)" }}>{n}</button>
+              ))}
+            </>
+          )}
+          <input type="month" value={month} onChange={e => setMonth(e.target.value)} className="px-3 py-1.5 text-xs rounded-lg outline-none" style={inpS} />
+        </div>
+      </div>
 
-        {/* ① 고객 DB */}
-        <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-          <h3 className="text-sm font-bold mb-4 pb-2" style={{ color: "var(--text)", borderBottom: "2px solid var(--border)" }}>① 고객 DB 현황</h3>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-            {DB_FIELDS.map(f => (
-              <div key={f.key} className="rounded-xl p-3" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                <p className="text-[10px] font-bold mb-1.5" style={{ color: "var(--text-muted)" }}>{f.label}</p>
-                <div className="flex items-center gap-2">{inp(f.key, (d as any)[f.key])}<span className="text-xs" style={{ color: "var(--text-muted)" }}>건</span></div>
+      {viewMode === "team" && isAdmin ? (
+        <>
+          {/* 팀 KPI */}
+          <div className="grid grid-cols-4 gap-4">
+            {[{ l: "팀 전체 DB", v: teamSum("total_db"), c: "#2563eb" }, { l: "팀 퍼널 합계", v: FUNNELS.reduce((s,f) => s + teamSum(f.key), 0), c: "#ea7c1e" }, { l: "팀 HT 달성", v: teamSum("ht_current"), c: "#16a34a", sub: `목표 ${teamSum("ht_goal").toLocaleString()}만` }, { l: "팀 가중 예상매출", v: Math.round(teamData.reduce((s,d) => s + (Array.isArray(d.pipeline) ? d.pipeline.reduce((s2: number,r: any) => s2 + ((r.amount||0)*(r.prob||0)/100), 0) : 0), 0)), c: "#d97706" }].map(k => (
+              <div key={k.l} className="rounded-xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderTop: `4px solid ${k.c}` }}>
+                <p className="text-xs font-bold mb-2" style={{ color: "var(--text-muted)" }}>{k.l}</p>
+                <p className="text-3xl font-black" style={{ color: k.c }}>{k.v.toLocaleString()}</p>
+                {k.sub && <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{k.sub}</p>}
               </div>
             ))}
           </div>
-          <h4 className="text-xs font-bold mb-3" style={{ color: "var(--text-muted)" }}>세일즈 퍼널</h4>
-          <div className="grid grid-cols-5 gap-2">
-            {FUNNEL.map(f => (
-              <div key={f.key} className="rounded-xl p-3 text-center" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                <p className="text-[10px] font-bold mb-1.5" style={{ color: f.color }}>{f.label}</p>
-                {inp(f.key, (d as any)[f.key])}
+          {/* 담당자별 비교 테이블 */}
+          <div className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h3 className="text-sm font-bold mb-4" style={{ color: "var(--text)" }}>📊 담당자별 현황 비교</h3>
+            <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "rgba(59,130,246,0.06)" }}>
+              {["담당자","전체DB",...FUNNELS.map(f=>f.label),"HT목표","HT달성","달성율","가중예상"].map(h => <th key={h} className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>{h}</th>)}
+            </tr></thead><tbody>
+              {EXEC_MEMBERS.map(name => {
+                const d: any = teamData.find(x => x.user_name === name) || {};
+                const pct = (d.ht_goal||0) > 0 ? ((d.ht_current||0)/d.ht_goal*100) : 0;
+                const wt = Array.isArray(d.pipeline) ? d.pipeline.reduce((s: number,r: any) => s+((r.amount||0)*(r.prob||0)/100), 0) : 0;
+                return (<tr key={name} style={{ color: "var(--text)" }}>
+                  <td className="px-3 py-2 text-xs text-center font-bold">{name}</td>
+                  <td className="px-3 py-2 text-xs text-center">{(d.total_db||0).toLocaleString()}</td>
+                  {FUNNELS.map(f => <td key={f.key} className="px-3 py-2 text-xs text-center font-bold" style={{ color: f.color }}>{(d[f.key]||0)}</td>)}
+                  <td className="px-3 py-2 text-xs text-center">{(d.ht_goal||0).toLocaleString()}만</td>
+                  <td className="px-3 py-2 text-xs text-center font-bold">{(d.ht_current||0).toLocaleString()}만</td>
+                  <td className="px-3 py-2 text-xs text-center font-black" style={{ color: pColor(pct) }}>{pct.toFixed(1)}%</td>
+                  <td className="px-3 py-2 text-xs text-center font-bold" style={{ color: "#d97706" }}>{Math.round(wt).toLocaleString()}만</td>
+                </tr>);
+              })}
+            </tbody></table></div>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* 개인 뷰 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* 전체 관리 DB */}
+            <div className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <h3 className="text-sm font-bold mb-4 pb-3" style={{ color: "var(--text)", borderBottom: "2px solid var(--border)" }}>📋 전체 관리 DB</h3>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold" style={{ color: "var(--text-muted)" }}>전체 DB 수</span>
+                <input type="number" value={val("total_db")||""} onChange={e => setVal("total_db",+e.target.value)} disabled={!canEdit} className={inp} style={inpS} placeholder="0" />
+                <span className="text-sm font-bold" style={{ color: "var(--text-muted)" }}>건</span>
               </div>
-            ))}
+            </div>
+            {/* DB 경로별 */}
+            <div className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <h3 className="text-sm font-bold mb-4 pb-3" style={{ color: "var(--text)", borderBottom: "2px solid var(--border)" }}>🔀 DB 유치대상 경로별 <span className="font-normal text-xs" style={{ color: "var(--text-muted)" }}>합계 {routeTotal}건</span></h3>
+              <div className="grid grid-cols-2 gap-3">
+                {ROUTES.map(r => (
+                  <div key={r.key} className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: r.color }} />
+                    <span className="text-xs font-bold flex-shrink-0" style={{ color: "var(--text-muted)", minWidth: 90 }}>{r.label}</span>
+                    <input type="number" value={val(r.key)||""} onChange={e => setVal(r.key,+e.target.value)} disabled={!canEdit} className={inp+" flex-1"} style={inpS} placeholder="0" />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </section>
 
-        {/* ② 매출 */}
-        <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-          <h3 className="text-sm font-bold mb-4 pb-2" style={{ color: "var(--text)", borderBottom: "2px solid var(--border)" }}>② 매출 현황 (하이타겟)</h3>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-              <p className="text-[10px] font-bold mb-2" style={{ color: "var(--text-muted)" }}>목표 (만원)</p>{inp("rev_goal", d.rev_goal)}
-            </div>
-            <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-              <p className="text-[10px] font-bold mb-2" style={{ color: "var(--text-muted)" }}>달성 (만원)</p>{inp("rev_current", d.rev_current)}
-            </div>
-          </div>
-          {d.rev_goal > 0 && <div className="mb-4"><div className="flex justify-between mb-1"><span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>달성율</span><span className="text-lg font-black" style={{ color: rate >= 100 ? "#10b981" : "#3b82f6" }}>{rate.toFixed(1)}%</span></div><div className="h-3 rounded-full overflow-hidden" style={{ background: "var(--border)" }}><div className="h-full rounded-full" style={{ width: `${Math.min(rate, 100)}%`, background: rate >= 100 ? "#10b981" : "#3b82f6" }} /></div></div>}
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>예상 매출액</h4>
-            {edit && <button onClick={() => addRev(name)} className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.08)", color: "#3b82f6" }}>+ 추가</button>}
-          </div>
-          {d.rev_items.map((r, i) => (
-            <div key={i} className="flex items-center gap-2 mb-2 rounded-lg p-2" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-              <input value={r.name} onChange={e => updRev(name, i, "name", e.target.value)} placeholder="회원명" disabled={!edit} className="flex-1 px-2 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-              <select value={r.ad_type} onChange={e => updRev(name, i, "ad_type", e.target.value)} disabled={!edit} className="px-2 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
-                <option>하이타겟</option><option>LMS</option><option>호갱노노</option><option>메타</option>
-              </select>
-              <input type="number" value={r.amount || ""} onChange={e => updRev(name, i, "amount", parseInt(e.target.value) || 0)} placeholder="만원" disabled={!edit} className="w-20 px-2 py-1.5 text-xs rounded-lg outline-none text-center" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-              <select value={r.prob} onChange={e => updRev(name, i, "prob", parseInt(e.target.value))} disabled={!edit} className="px-2 py-1.5 text-xs rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
-                {[100, 80, 60, 40, 20].map(p => <option key={p} value={p}>{p}%</option>)}
-              </select>
-              {edit && <button onClick={() => delRev(name, i)} className="text-xs" style={{ color: "#ef4444" }}>✕</button>}
-            </div>
-          ))}
-          {d.rev_items.length > 0 && <p className="text-xs font-bold mt-2" style={{ color: "var(--text-muted)" }}>가중 예상: <span style={{ color: "#3b82f6" }}>{fmt(revW)}만원</span></p>}
-        </section>
-
-        {/* ③ 월회비 */}
-        <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-          <div className="flex items-center justify-between mb-3 pb-2" style={{ borderBottom: "2px solid var(--border)" }}>
-            <h3 className="text-sm font-bold" style={{ color: "var(--text)" }}>③ 월회비 납부 현황</h3>
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>납부 {paidCnt}/{d.fee_data.length}명</span>
-              {edit && <button onClick={() => addFee(name)} className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.08)", color: "#3b82f6" }}>+ 추가</button>}
-            </div>
-          </div>
-          {d.fee_data.length === 0 ? <p className="text-center py-6 text-xs" style={{ color: "var(--text-muted)" }}>회원을 추가해주세요</p> : (
-            <div className="space-y-2">
-              {d.fee_data.map((f, i) => (
-                <div key={i} className="flex items-center gap-2 rounded-lg p-2" style={{ background: f.churn === "O" ? "rgba(239,68,68,0.05)" : "var(--bg)", border: "1px solid var(--border)" }}>
-                  {edit ? <input value={f.name} onChange={e => updFee(name, i, "name", e.target.value)} placeholder="고객명" className="w-20 px-2 py-1 text-xs font-bold rounded outline-none text-center" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} /> : <span className="text-xs font-bold w-20 text-center" style={{ color: "var(--text)" }}>{f.name}</span>}
-                  {[{k:"paid",l:"납부"},{k:"plan",l:"예정"},{k:"churn",l:"이탈"}].map(c => (
-                    <div key={c.k} className="text-center">
-                      <p className="text-[8px] font-bold mb-0.5" style={{ color: "var(--text-muted)" }}>{c.l}</p>
-                      {edit ? <select value={(f as any)[c.k]} onChange={e => updFee(name, i, c.k, e.target.value)} className="px-1.5 py-1 text-xs rounded outline-none text-center font-bold" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: (f as any)[c.k] === "O" ? (c.k === "churn" ? "#ef4444" : "#10b981") : "var(--text)", width: 44 }}><option value="">-</option><option value="O">O</option><option value="X">X</option></select>
-                      : <span className="text-xs font-bold" style={{ color: (f as any)[c.k] === "O" ? (c.k === "churn" ? "#ef4444" : "#10b981") : "var(--text-muted)" }}>{(f as any)[c.k] || "-"}</span>}
-                    </div>
-                  ))}
-                  {edit ? <input value={f.note} onChange={e => updFee(name, i, "note", e.target.value)} placeholder="특이사항" className="flex-1 px-2 py-1 text-xs rounded outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} /> : <span className="flex-1 text-[10px]" style={{ color: "var(--text-muted)" }}>{f.note || ""}</span>}
-                  {edit && <button onClick={() => delFee(name, i)} className="text-xs" style={{ color: "#ef4444" }}>✕</button>}
+          {/* 세일즈 퍼널 */}
+          <div className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h3 className="text-sm font-bold mb-4 pb-3" style={{ color: "var(--text)", borderBottom: "2px solid var(--border)" }}>🔽 세일즈 퍼널 <span className="font-normal text-xs" style={{ color: "var(--text-muted)" }}>합계 {funnelTotal}건</span></h3>
+            <div className="grid grid-cols-5 gap-3">
+              {FUNNELS.map(f => (
+                <div key={f.key} className="rounded-xl p-3 text-center" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                  <p className="text-xs font-bold mb-2" style={{ color: f.color }}>{f.label}</p>
+                  <input type="number" value={val(f.key)||""} onChange={e => setVal(f.key,+e.target.value)} disabled={!canEdit} className="w-full px-2 py-2 text-center text-sm font-bold rounded-lg outline-none" style={inpS} placeholder="0" />
                 </div>
               ))}
             </div>
-          )}
-        </section>
-      </div>
-    );
-  };
-
-  const renderTeam = () => {
-    const team: Record<string, number> = {};
-    EXEC_MEMBERS.forEach(n => { const d = data[n] || empty(n, selMonth); [...DB_FIELDS, ...FUNNEL].forEach(f => { team[f.key] = (team[f.key] || 0) + (d as any)[f.key]; }); team.rev_goal = (team.rev_goal || 0) + d.rev_goal; team.rev_current = (team.rev_current || 0) + d.rev_current; });
-    return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {EXEC_MEMBERS.map(n => {
-            const d = data[n] || empty(n, selMonth);
-            const r = d.rev_goal > 0 ? d.rev_current / d.rev_goal * 100 : 0;
-            return (
-              <div key={n} className="rounded-xl p-4 cursor-pointer transition-all hover:scale-[1.02]" onClick={() => setView(n)}
-                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                <p className="text-xs font-bold mb-2" style={{ color: "var(--text-muted)" }}>{n}</p>
-                <p className="text-xl font-black mb-1" style={{ color: "var(--text)" }}>{fmt(d.rev_current)}만</p>
-                <div className="flex items-center gap-2"><div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--border)" }}><div className="h-full rounded-full" style={{ width: `${Math.min(r, 100)}%`, background: r >= 100 ? "#10b981" : "#3b82f6" }} /></div><span className="text-[10px] font-bold" style={{ color: r >= 100 ? "#10b981" : "#3b82f6" }}>{r.toFixed(0)}%</span></div>
-                <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>DB {fmt(d.db_total)} · 계약 {d.fn_contract}</p>
-              </div>
-            );
-          })}
-        </div>
-        <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-          <h3 className="text-sm font-bold mb-4" style={{ color: "var(--text)" }}>팀 전체 세일즈 퍼널</h3>
-          <div className="flex items-center gap-2 flex-wrap">
-            {FUNNEL.map((f, i) => (
-              <div key={f.key} className="flex items-center gap-2">
-                <div className="rounded-xl px-5 py-3 text-center" style={{ background: "var(--bg)", border: `2px solid ${f.color}` }}>
-                  <p className="text-[10px] font-bold mb-1" style={{ color: f.color }}>{f.label}</p>
-                  <p className="text-xl font-black" style={{ color: "var(--text)" }}>{team[f.key] || 0}</p>
-                </div>
-                {i < FUNNEL.length - 1 && <span style={{ color: "var(--text-muted)" }}>→</span>}
-              </div>
-            ))}
           </div>
-        </section>
-        <section className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-          <h3 className="text-sm font-bold mb-4" style={{ color: "var(--text)" }}>담당자별 매출 비교</h3>
-          {EXEC_MEMBERS.map(n => { const d = data[n] || empty(n, selMonth); const r = d.rev_goal > 0 ? d.rev_current / d.rev_goal * 100 : 0; return (
-            <div key={n} className="flex items-center gap-3 mb-3">
-              <span className="text-xs font-bold w-16" style={{ color: "var(--text)" }}>{n}</span>
-              <div className="flex-1 h-4 rounded-full overflow-hidden" style={{ background: "var(--border)" }}><div className="h-full rounded-full" style={{ width: `${Math.min(r, 100)}%`, background: r >= 100 ? "#10b981" : r >= 50 ? "#3b82f6" : "#f59e0b" }} /></div>
-              <span className="text-xs font-bold w-28 text-right" style={{ color: "var(--text)" }}>{fmt(d.rev_current)}/{fmt(d.rev_goal)}만</span>
-              <span className="text-xs font-black w-12 text-right" style={{ color: r >= 100 ? "#10b981" : "#3b82f6" }}>{r.toFixed(0)}%</span>
-            </div>
-          ); })}
-        </section>
-      </div>
-    );
-  };
 
-  if (!user) return null;
-  return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-5">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>📊 영업현황 대시보드</h1><p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>SALES DASHBOARD · {selMonth}</p></div>
-        <input type="month" value={selMonth} onChange={e => setSelMonth(e.target.value)} className="px-3 py-2 text-sm rounded-lg outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-      </div>
-      <div className="flex gap-2 flex-wrap">
-        {isAdm && <button onClick={() => setView("전체")} className="px-4 py-2 text-xs font-bold rounded-full" style={{ background: view === "전체" ? "#3b82f6" : "var(--surface)", color: view === "전체" ? "#fff" : "var(--text-muted)", border: `1px solid ${view === "전체" ? "#3b82f6" : "var(--border)"}` }}>팀 전체</button>}
-        {(isAdm ? EXEC_MEMBERS : [user.name]).map(n => (
-          <button key={n} onClick={() => setView(n)} className="px-4 py-2 text-xs font-bold rounded-full" style={{ background: view === n ? "#3b82f6" : "var(--surface)", color: view === n ? "#fff" : "var(--text-muted)", border: `1px solid ${view === n ? "#3b82f6" : "var(--border)"}` }}>{n}</button>
-        ))}
-      </div>
-      {loading ? <div className="flex justify-center py-20"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
-      : view === "전체" ? renderTeam() : renderMember(view, (user.role === "exec" && view === user.name) || isAdm)}
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-500 shadow-lg">{toast}</div>}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* HT 진척율 */}
+            <div className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <h3 className="text-sm font-bold mb-4 pb-3" style={{ color: "var(--text)", borderBottom: "2px solid var(--border)" }}>📈 하이타겟 매출 진척율</h3>
+              <div className="space-y-3">
+                {[{l:"월 목표",k:"ht_goal",u:"만원"},{l:"현재 달성",k:"ht_current",u:"만원"}].map(i => (
+                  <div key={i.k} className="flex items-center gap-3">
+                    <span className="text-xs font-bold" style={{ color: "var(--text-muted)", minWidth: 70 }}>{i.l}</span>
+                    <input type="number" value={val(i.k)||""} onChange={e => setVal(i.k,+e.target.value)} disabled={!canEdit} className={inp+" flex-1"} style={inpS} placeholder="0" />
+                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>{i.u}</span>
+                  </div>
+                ))}
+                <div><div className="flex justify-between text-xs font-bold mb-1"><span style={{ color: "var(--text-muted)" }}>달성율</span><span style={{ color: pColor(htPct) }}>{htPct.toFixed(1)}%</span></div>
+                <div className="h-3 rounded-full overflow-hidden" style={{ background: "var(--border)" }}><div className="h-full rounded-full" style={{ width: `${Math.min(htPct,100)}%`, background: pColor(htPct) }} /></div></div>
+              </div>
+            </div>
+            {/* 분양회 모집 */}
+            <div className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <h3 className="text-sm font-bold mb-4 pb-3" style={{ color: "var(--text)", borderBottom: "2px solid var(--border)" }}>🏆 분양회 모집 현황</h3>
+              <div className="space-y-3">
+                {[{l:"월 목표",k:"member_goal",u:"명"},{l:"현재 모집",k:"member_current",u:"명"}].map(i => (
+                  <div key={i.k} className="flex items-center gap-3">
+                    <span className="text-xs font-bold" style={{ color: "var(--text-muted)", minWidth: 70 }}>{i.l}</span>
+                    <input type="number" value={val(i.k)||""} onChange={e => setVal(i.k,+e.target.value)} disabled={!canEdit} className={inp+" flex-1"} style={inpS} placeholder="0" />
+                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>{i.u}</span>
+                  </div>
+                ))}
+                {val("member_goal") > 0 && (() => { const r = val("member_current")/val("member_goal")*100; return (
+                  <div><div className="flex justify-between text-xs font-bold mb-1"><span style={{ color: "var(--text-muted)" }}>달성율</span><span style={{ color: pColor(r) }}>{r.toFixed(1)}%</span></div>
+                  <div className="h-3 rounded-full overflow-hidden" style={{ background: "var(--border)" }}><div className="h-full rounded-full" style={{ width: `${Math.min(r,100)}%`, background: pColor(r) }} /></div></div>
+                ); })()}
+              </div>
+            </div>
+          </div>
+
+          {/* 파이프라인 */}
+          <div className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center justify-between mb-4 pb-3" style={{ borderBottom: "2px solid var(--border)" }}>
+              <h3 className="text-sm font-bold" style={{ color: "var(--text)" }}>💰 예상 매출 파이프라인 <span className="font-normal text-xs" style={{ color: "var(--text-muted)" }}>가중 {Math.round(weighted).toLocaleString()}만 / 확정 {confirmed.toLocaleString()}만</span></h3>
+              {canEdit && <button onClick={() => setPipeline(p => [...p, emptyRow()])} className="px-3 py-1.5 text-xs font-bold rounded-lg" style={{ background: "rgba(37,99,235,0.08)", color: "#2563eb", border: "1px solid rgba(37,99,235,0.15)" }}>+ 추가</button>}
+            </div>
+            <div className="overflow-x-auto"><table className="w-full"><thead><tr style={{ background: "rgba(59,130,246,0.06)" }}>
+              {["고객/현장","금액(만)","광고구분","성사확률","담당자","비고",canEdit?"":""].filter(Boolean).map(h => <th key={h} className="px-2 py-2 text-xs font-bold text-center" style={{ color: "var(--text)" }}>{h}</th>)}
+            </tr></thead><tbody>
+              {pipeline.length === 0 ? <tr><td colSpan={7} className="text-center py-8 text-xs" style={{ color: "var(--text-muted)" }}>항목을 추가해주세요</td></tr> :
+                pipeline.map((r, i) => (
+                  <tr key={r.id} style={{ color: "var(--text)" }}>
+                    <td className="px-2 py-1.5"><input type="text" value={r.customer} onChange={e => { const n=[...pipeline]; n[i].customer=e.target.value; setPipeline(n); }} disabled={!canEdit} className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" style={inpS} /></td>
+                    <td className="px-2 py-1.5"><input type="number" value={r.amount||""} onChange={e => { const n=[...pipeline]; n[i].amount=+e.target.value; setPipeline(n); }} disabled={!canEdit} className="w-20 px-2 py-1.5 text-xs text-center rounded-lg outline-none" style={inpS} /></td>
+                    <td className="px-2 py-1.5"><select value={r.adType} onChange={e => { const n=[...pipeline]; n[i].adType=e.target.value; setPipeline(n); }} disabled={!canEdit} className="px-2 py-1.5 text-xs rounded-lg outline-none" style={inpS}>
+                      {["하이타겟","LMS","호갱노노","메타","기타"].map(o => <option key={o}>{o}</option>)}</select></td>
+                    <td className="px-2 py-1.5"><select value={r.prob} onChange={e => { const n=[...pipeline]; n[i].prob=+e.target.value; setPipeline(n); }} disabled={!canEdit} className="px-2 py-1.5 text-xs rounded-lg outline-none" style={inpS}>
+                      {[10,20,30,40,50,60,70,80,90,100].map(o => <option key={o} value={o}>{o}%</option>)}</select></td>
+                    <td className="px-2 py-1.5"><input type="text" value={r.manager} onChange={e => { const n=[...pipeline]; n[i].manager=e.target.value; setPipeline(n); }} disabled={!canEdit} className="w-20 px-2 py-1.5 text-xs rounded-lg outline-none" style={inpS} /></td>
+                    <td className="px-2 py-1.5"><input type="text" value={r.note} onChange={e => { const n=[...pipeline]; n[i].note=e.target.value; setPipeline(n); }} disabled={!canEdit} className="w-full px-2 py-1.5 text-xs rounded-lg outline-none" style={inpS} /></td>
+                    {canEdit && <td className="px-2 py-1.5"><button onClick={() => setPipeline(p => p.filter((_,j)=>j!==i))} className="text-xs px-2 py-1 rounded" style={{ color: "#ef4444" }}>삭제</button></td>}
+                  </tr>))}
+            </tbody></table></div>
+          </div>
+
+          {/* 저장 + 분석 */}
+          <div className="flex items-center justify-center gap-4">
+            {canEdit && <button onClick={saveData} disabled={saving} className="px-8 py-3.5 text-sm font-bold text-white rounded-xl" style={{ background: "#2563eb", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}>{saving ? "저장 중..." : "💾 데이터 저장"}</button>}
+            <button onClick={() => setShowInsight(v => !v)} className="px-8 py-3.5 text-sm font-bold rounded-xl" style={{ background: "rgba(22,163,74,0.08)", color: "#16a34a", border: "1.5px solid #16a34a" }}>📊 분석 실행</button>
+          </div>
+
+          {/* 인사이트 */}
+          {showInsight && (
+            <div className="rounded-2xl p-5 space-y-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <h3 className="text-sm font-bold" style={{ color: "var(--text)" }}>📊 분석 인사이트</h3>
+              <div className="grid grid-cols-4 gap-3">
+                {[{l:"전체 DB",v:val("total_db"),c:"#2563eb"},{l:"퍼널 합계",v:funnelTotal,c:"#ea7c1e"},{l:"HT 진척율",v:`${htPct.toFixed(1)}%`,c:pColor(htPct)},{l:"가중 예상매출",v:`${Math.round(weighted).toLocaleString()}만`,c:"#d97706"}].map(k => (
+                  <div key={k.l} className="rounded-xl p-4" style={{ background: "var(--bg)", borderTop: `4px solid ${k.c}` }}>
+                    <p className="text-[10px] font-bold mb-1" style={{ color: "var(--text-muted)" }}>{k.l}</p>
+                    <p className="text-2xl font-black" style={{ color: k.c }}>{typeof k.v==="number"?k.v.toLocaleString():k.v}</p>
+                  </div>))}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                  <p className="text-xs font-bold mb-3" style={{ color: "var(--text)" }}>📋 DB 경로별</p>
+                  {ROUTES.map(r => (<div key={r.key} className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold" style={{ color: "var(--text-muted)", minWidth: 80 }}>{r.label}</span><div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--border)" }}><div className="h-full rounded-full" style={{ width: `${routeTotal>0?val(r.key)/routeTotal*100:0}%`, background: r.color }} /></div><span className="text-xs font-bold" style={{ color: "var(--text)" }}>{val(r.key)}</span></div>))}
+                </div>
+                <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                  <p className="text-xs font-bold mb-3" style={{ color: "var(--text)" }}>🔽 세일즈 퍼널</p>
+                  <div className="flex items-center gap-1">{FUNNELS.map(f => (<div key={f.key} className="flex-1 text-center"><p className="text-[10px] font-bold" style={{ color: f.color }}>{f.label}</p><p className="text-lg font-black" style={{ color: f.color }}>{val(f.key)}</p></div>))}</div>
+                  {funnelTotal>0&&val("funnel_contract")>0&&<p className="text-xs mt-3 font-semibold" style={{ color: "var(--text-muted)" }}>계약 전환율: <span style={{ color: "#16a34a", fontWeight: 800 }}>{(val("funnel_contract")/funnelTotal*100).toFixed(1)}%</span></p>}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg" style={{ background: "#111827" }}>{toast}</div>}
     </div>
   );
 }
