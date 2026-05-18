@@ -28,6 +28,7 @@ interface SidebarProps {
 
 const EXEC_MENUS = [
   { href: "/", label: "대시보드", emoji: "📊" },
+  { href: "/sales-status", label: "영업현황", emoji: "📈" },
   { href: "/customer-register", label: "고객등록", emoji: "📋" },
   { href: "/customer-journey", label: "고객여정", emoji: "🗺️" },
   { href: "/tasks", label: "업무전달", emoji: "📬" },
