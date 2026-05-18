@@ -152,12 +152,13 @@ export default function SalesStatus() {
             {/* DB 경로별 */}
             <div className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
               <h3 className="text-sm font-bold mb-4 pb-3" style={{ color: "var(--text)", borderBottom: "2px solid var(--border)" }}>🔀 DB 유치대상 경로별 <span className="font-normal text-xs" style={{ color: "var(--text-muted)" }}>합계 {routeTotal}건</span></h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
                 {ROUTES.map(r => (
-                  <div key={r.key} className="flex items-center gap-2">
+                  <div key={r.key} className="flex items-center gap-3">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: r.color }} />
-                    <span className="text-xs font-bold flex-shrink-0" style={{ color: "var(--text-muted)", minWidth: 90 }}>{r.label}</span>
-                    <input type="number" value={val(r.key)||""} onChange={e => setVal(r.key,+e.target.value)} disabled={!canEdit} className={inp+" flex-1"} style={inpS} placeholder="0" />
+                    <span className="text-xs font-bold flex-shrink-0 w-[110px]" style={{ color: "var(--text-muted)" }}>{r.label}</span>
+                    <input type="number" value={val(r.key)||""} onChange={e => setVal(r.key,+e.target.value)} disabled={!canEdit} className={inp+" w-[100px]"} style={inpS} placeholder="0" />
+                    <span className="text-xs flex-shrink-0" style={{ color: "var(--text-muted)" }}>건</span>
                   </div>
                 ))}
               </div>
