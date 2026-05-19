@@ -89,6 +89,16 @@ export default function DailyActivity() {
     showToast("저장 완료"); fetchRows();
   };
 
+  const handleDelete = async (targetDate?: string) => {
+    const delDate = targetDate || date;
+    const delName = targetDate ? selOwner : user?.name;
+    if (!delName) return;
+    if (!confirm(`${fmtDate(delDate)} ${delName}의 활동기록을 삭제하시겠습니까?`)) return;
+    const { error } = await supabase.from("daily_activity_goals").delete().eq("work_date", delDate).eq("owner_name", delName);
+    if (error) { alert("삭제 실패: " + error.message); return; }
+    showToast("삭제 완료"); fetchRows();
+  };
+
   // 팀 요약
   const teamGoalTm = dailyRows.reduce((s, r) => s + gv(r,"new_tm") + gv(r,"manage_tm"), 0);
   const teamResultTm = dailyRows.reduce((s, r) => s + rv(r,"new_tm") + rv(r,"manage_tm"), 0);
@@ -247,10 +257,15 @@ export default function DailyActivity() {
                 </div>
               )}
               {canEdit && (
-                <div className="mt-5 text-center">
+                <div className="mt-5 flex items-center justify-center gap-3">
                   <button onClick={handleSave} disabled={saving} className="px-8 py-3 text-sm font-bold text-white rounded-xl" style={{ background: "#7c3aed", boxShadow: "0 4px 16px rgba(124,58,237,0.3)" }}>
                     {saving ? "저장 중..." : "💾 활동기록 저장"}
                   </button>
+                  {dailyRows.some(r => r.owner_name === user?.name) && (
+                    <button onClick={() => handleDelete()} className="px-6 py-3 text-sm font-bold rounded-xl" style={{ color: "#dc2626", border: "1.5px solid rgba(220,38,38,0.3)", background: "rgba(220,38,38,0.05)" }}>
+                      🗑 오늘 기록 삭제
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -273,8 +288,9 @@ export default function DailyActivity() {
                   <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>상태</th>
                   {FIELDS.map(f => <th key={f.key} className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>{f.label}</th>)}
                   <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>미팅</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}></th>
                 </tr></thead><tbody>
-                  {selPeriod.length === 0 ? <tr><td colSpan={8} className="text-center py-8 text-xs" style={{ color: "var(--text-muted)" }}>기록 없음</td></tr> :
+                  {selPeriod.length === 0 ? <tr><td colSpan={9} className="text-center py-8 text-xs" style={{ color: "var(--text-muted)" }}>기록 없음</td></tr> :
                     selPeriod.map(r => (
                       <tr key={r.work_date} style={{ color: "var(--text)", background: r.work_date === date ? "rgba(124,58,237,0.04)" : "transparent" }}>
                         <td className="px-3 py-2 text-xs text-center font-semibold" style={{ borderBottom: "1px solid var(--border)" }}>{fmtDate(r.work_date)}</td>
@@ -288,6 +304,9 @@ export default function DailyActivity() {
                         ))}
                         <td className="px-3 py-2 text-xs text-center" style={{ borderBottom: "1px solid var(--border)" }}>
                           {r.is_outside_meeting ? "-" : <><span className="font-bold" style={{ color: "#d97706" }}>{rv(r,"meeting_confirmed")}</span>/{gv(r,"meeting_confirmed")}</>}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-center" style={{ borderBottom: "1px solid var(--border)" }}>
+                          <button onClick={() => handleDelete(r.work_date)} className="text-[10px] px-2 py-1 rounded font-bold" style={{ color: "#dc2626", background: "rgba(220,38,38,0.06)" }}>삭제</button>
                         </td>
                       </tr>
                     ))}
