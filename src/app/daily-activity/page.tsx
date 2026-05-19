@@ -45,6 +45,7 @@ export default function DailyActivity() {
   const [result, setResult] = useState<FV>({...EMPTY});
   const [selOwner, setSelOwner] = useState(EXEC_MEMBERS[0].name);
   const [viewTab, setViewTab] = useState<"daily"|"weekly"|"monthly">("daily");
+  const [delDate, setDelDate] = useState(todayStr());
 
   const isAdmin = user?.role === "admin" || user?.role === "ops";
   const isMember = EXEC_MEMBERS.some(m => m.name === user?.name);
@@ -266,6 +267,25 @@ export default function DailyActivity() {
                       🗑 오늘 기록 삭제
                     </button>
                   )}
+                </div>
+              )}
+              {/* 과거 기록 검색 삭제 */}
+              {isMember && (
+                <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
+                  <p className="text-xs font-bold mb-2" style={{ color: "var(--text-muted)" }}>📅 과거 기록 삭제</p>
+                  <div className="flex items-center gap-2">
+                    <input type="date" value={delDate} onChange={e => setDelDate(e.target.value)} className="px-3 py-2 text-xs rounded-lg outline-none font-semibold" style={inpS} />
+                    <button onClick={async () => {
+                      if (!delDate || !user?.name) return;
+                      const { data: check } = await supabase.from("daily_activity_goals").select("id").eq("work_date", delDate).eq("owner_name", user.name).maybeSingle();
+                      if (!check) { showToast("해당 날짜에 기록이 없습니다"); return; }
+                      if (!confirm(`${fmtDate(delDate)} 활동기록을 삭제하시겠습니까?`)) return;
+                      await supabase.from("daily_activity_goals").delete().eq("work_date", delDate).eq("owner_name", user.name);
+                      showToast("삭제 완료"); fetchRows();
+                    }} className="px-4 py-2 text-xs font-bold rounded-lg" style={{ color: "#dc2626", border: "1px solid rgba(220,38,38,0.2)", background: "rgba(220,38,38,0.05)" }}>
+                      🗑 해당일 삭제
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
