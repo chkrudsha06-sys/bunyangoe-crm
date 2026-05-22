@@ -90,7 +90,7 @@ export default function SalesStatus() {
   if (!user) return null;
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-5">
+    <div className="p-6 space-y-5">
       {/* 헤더 */}
       <div className="rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderBottom: "4px solid #2563eb" }}>
         <div>

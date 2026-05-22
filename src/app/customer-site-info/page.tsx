@@ -79,7 +79,7 @@ export default function CustomerSiteInfo() {
   if (!user) return null;
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-5">
+    <div className="p-6 space-y-5">
       {/* 헤더 */}
       <div className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderBottom: "4px solid #3b82f6" }}>
         <h1 className="text-xl font-black" style={{ color: "var(--text)" }}>🏗️ 고객현장정보</h1>
