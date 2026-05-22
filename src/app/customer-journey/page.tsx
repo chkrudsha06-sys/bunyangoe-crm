@@ -35,7 +35,7 @@ interface LastNote { contact_id: number; note_date: string; content: string; }
 interface CustomerAnalysis {
   id: number; contact_id: number;
   region: string; population: string; site_condition: string; contract_terms: string;
-  sales_rate: string; agency_info: string; ad_schedule: string; relocation_plan: string; site_name?: string; relocation_month?: string; keep_current?: boolean;
+  sales_rate: string; agency_info: string; ad_schedule: string; relocation_plan: string; site_name?: string; relocation_month?: string; relocation_site?: string; keep_current?: boolean;
   org_chart: string; org_count: string; rt: string;
   ad_cost_type: string; ad_total_cost: string; ad_items: string;
   created_by: string; created_at: string;
@@ -123,7 +123,7 @@ export default function CustomerJourneyPage() {
   const [analysisPanel, setAnalysisPanel] = useState<{ contactId: number; name: string } | null>(null);
   const [analysisForm, setAnalysisForm] = useState({
     region: "", population: "", site_condition: "", contract_terms: "",
-    sales_rate: "", agency_info: "", ad_schedule: "", relocation_plan: "", site_name: "", relocation_month: "", keep_current: false,
+    sales_rate: "", agency_info: "", ad_schedule: "", relocation_plan: "", site_name: "", relocation_month: "", relocation_site: "", keep_current: false,
     org_chart: "", org_count: "", rt: "",
     ad_cost_type: "", ad_total_cost: "", ad_items: "",
   });
@@ -264,12 +264,12 @@ export default function CustomerJourneyPage() {
         region: latest.region || "", population: latest.population || "",
         site_condition: latest.site_condition || "", contract_terms: latest.contract_terms || "",
         sales_rate: latest.sales_rate || "", agency_info: latest.agency_info || "",
-        ad_schedule: latest.ad_schedule || "", relocation_plan: latest.relocation_plan || "", site_name: latest.site_name || "", relocation_month: latest.relocation_month || "", keep_current: latest.keep_current || false,
+        ad_schedule: latest.ad_schedule || "", relocation_plan: latest.relocation_plan || "", site_name: latest.site_name || "", relocation_month: latest.relocation_month || "", relocation_site: latest.relocation_site || "", keep_current: latest.keep_current || false,
         org_chart: latest.org_chart || "", org_count: latest.org_count || "", rt: latest.rt || "",
         ad_cost_type: latest.ad_cost_type || "", ad_total_cost: latest.ad_total_cost || "", ad_items: latest.ad_items || "",
       });
     } else {
-      setAnalysisForm({ region: "", population: "", site_condition: "", contract_terms: "", sales_rate: "", agency_info: "", ad_schedule: "", relocation_plan: "", site_name: "", relocation_month: "", keep_current: false, org_chart: "", org_count: "", rt: "", ad_cost_type: "", ad_total_cost: "", ad_items: "" });
+      setAnalysisForm({ region: "", population: "", site_condition: "", contract_terms: "", sales_rate: "", agency_info: "", ad_schedule: "", relocation_plan: "", site_name: "", relocation_month: "", relocation_site: "", keep_current: false, org_chart: "", org_count: "", rt: "", ad_cost_type: "", ad_total_cost: "", ad_items: "" });
     }
   };
 
@@ -301,7 +301,7 @@ export default function CustomerJourneyPage() {
     setAnalysisHistory(history);
     if (history.length > 0) {
       const latest = history[0];
-      setAnalysisForm({ region: latest.region || "", population: latest.population || "", site_condition: latest.site_condition || "", contract_terms: latest.contract_terms || "", sales_rate: latest.sales_rate || "", agency_info: latest.agency_info || "", ad_schedule: latest.ad_schedule || "", relocation_plan: latest.relocation_plan || "", site_name: latest.site_name || "", relocation_month: latest.relocation_month || "", keep_current: latest.keep_current || false, org_chart: latest.org_chart || "", org_count: latest.org_count || "", rt: latest.rt || "", ad_cost_type: latest.ad_cost_type || "", ad_total_cost: latest.ad_total_cost || "", ad_items: latest.ad_items || "" });
+      setAnalysisForm({ region: latest.region || "", population: latest.population || "", site_condition: latest.site_condition || "", contract_terms: latest.contract_terms || "", sales_rate: latest.sales_rate || "", agency_info: latest.agency_info || "", ad_schedule: latest.ad_schedule || "", relocation_plan: latest.relocation_plan || "", site_name: latest.site_name || "", relocation_month: latest.relocation_month || "", relocation_site: latest.relocation_site || "", keep_current: latest.keep_current || false, org_chart: latest.org_chart || "", org_count: latest.org_count || "", rt: latest.rt || "", ad_cost_type: latest.ad_cost_type || "", ad_total_cost: latest.ad_total_cost || "", ad_items: latest.ad_items || "" });
     }
   };
 
@@ -782,7 +782,7 @@ export default function CustomerJourneyPage() {
                                 {h.sales_rate && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>분양률:</span> <b style={{ color: "var(--text)" }}>{h.sales_rate}</b></div>}
                                 {h.agency_info && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>대행사:</span> <b style={{ color: "var(--text)" }}>{h.agency_info}</b></div>}
                                 {h.ad_schedule && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>광고스케줄:</span> <b style={{ color: "var(--text)" }}>{h.ad_schedule}</b></div>}
-                                {(h.relocation_month || h.keep_current || h.relocation_plan) && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>이동계획:</span> <b style={{ color: h.keep_current ? "#16a34a" : "#ea7c1e" }}>{h.keep_current ? "기존현장 유지" : h.relocation_month ? `${h.relocation_month} 이동예정` : ""}</b>{h.relocation_plan && <span style={{ color: "var(--text-muted)" }}> · {h.relocation_plan}</span>}</div>}
+                                {(h.relocation_month || h.keep_current || h.relocation_plan) && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>이동계획:</span> <b style={{ color: h.keep_current ? "#16a34a" : "#ea7c1e" }}>{h.keep_current ? "기존현장 유지" : h.relocation_month ? `${h.relocation_month} 이동예정` : ""}{h.relocation_site ? ` → ${h.relocation_site}` : ""}</b>{h.relocation_plan && <span style={{ color: "var(--text-muted)" }}> · {h.relocation_plan}</span>}</div>}
                               </div>
                             </div>
                           )}
@@ -885,6 +885,13 @@ export default function CustomerJourneyPage() {
                         <input type="month" value={analysisForm.relocation_month || ""} onChange={e => setAnalysisForm(p => ({ ...p, relocation_month: e.target.value, keep_current: false }))}
                           disabled={analysisForm.keep_current === true}
                           className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                          style={{ background: "var(--surface)", border: "1px solid var(--border)", color: analysisForm.keep_current ? "var(--text-muted)" : "var(--text)" }} />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>이동예정 현장명</label>
+                        <input type="text" value={analysisForm.relocation_site || ""} onChange={e => setAnalysisForm(p => ({ ...p, relocation_site: e.target.value }))}
+                          disabled={analysisForm.keep_current === true}
+                          placeholder="예: 힐스테이트 용인" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
                           style={{ background: "var(--surface)", border: "1px solid var(--border)", color: analysisForm.keep_current ? "var(--text-muted)" : "var(--text)" }} />
                       </div>
                       <div className="flex-shrink-0 pt-4">
