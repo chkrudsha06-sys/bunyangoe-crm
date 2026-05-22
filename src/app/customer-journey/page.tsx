@@ -35,7 +35,7 @@ interface LastNote { contact_id: number; note_date: string; content: string; }
 interface CustomerAnalysis {
   id: number; contact_id: number;
   region: string; population: string; site_condition: string; contract_terms: string;
-  sales_rate: string; agency_info: string; ad_schedule: string; relocation_plan: string;
+  sales_rate: string; agency_info: string; ad_schedule: string; relocation_plan: string; site_name?: string; relocation_month?: string; keep_current?: boolean;
   org_chart: string; org_count: string; rt: string;
   ad_cost_type: string; ad_total_cost: string; ad_items: string;
   created_by: string; created_at: string;
@@ -119,11 +119,11 @@ export default function CustomerJourneyPage() {
   const [resultDateModal, setResultDateModal] = useState<{ contactId: number; name: string; result: string } | null>(null);
   const [resultDate, setResultDate] = useState(new Date().toISOString().split("T")[0]);
 
-  // 고객정보히스토리 슬라이드 패널
+  // 현장정보 슬라이드 패널
   const [analysisPanel, setAnalysisPanel] = useState<{ contactId: number; name: string } | null>(null);
   const [analysisForm, setAnalysisForm] = useState({
     region: "", population: "", site_condition: "", contract_terms: "",
-    sales_rate: "", agency_info: "", ad_schedule: "", relocation_plan: "",
+    sales_rate: "", agency_info: "", ad_schedule: "", relocation_plan: "", site_name: "", relocation_month: "", keep_current: false,
     org_chart: "", org_count: "", rt: "",
     ad_cost_type: "", ad_total_cost: "", ad_items: "",
   });
@@ -248,10 +248,10 @@ export default function CustomerJourneyPage() {
     fetchAll();
   };
 
-  // 고객정보히스토리 패널 열기
+  // 현장정보 패널 열기
   const openAnalysisPanel = async (c: Contact) => {
     setAnalysisPanel({ contactId: c.id, name: c.name });
-    // 최신 히스토리 로드
+    // 최신 기록 로드
     const { data } = await supabase.from("customer_analysis")
       .select("*").eq("contact_id", c.id)
       .order("created_at", { ascending: false }).limit(50);
@@ -264,16 +264,16 @@ export default function CustomerJourneyPage() {
         region: latest.region || "", population: latest.population || "",
         site_condition: latest.site_condition || "", contract_terms: latest.contract_terms || "",
         sales_rate: latest.sales_rate || "", agency_info: latest.agency_info || "",
-        ad_schedule: latest.ad_schedule || "", relocation_plan: latest.relocation_plan || "",
+        ad_schedule: latest.ad_schedule || "", relocation_plan: latest.relocation_plan || "", site_name: latest.site_name || "", relocation_month: latest.relocation_month || "", keep_current: latest.keep_current || false,
         org_chart: latest.org_chart || "", org_count: latest.org_count || "", rt: latest.rt || "",
         ad_cost_type: latest.ad_cost_type || "", ad_total_cost: latest.ad_total_cost || "", ad_items: latest.ad_items || "",
       });
     } else {
-      setAnalysisForm({ region: "", population: "", site_condition: "", contract_terms: "", sales_rate: "", agency_info: "", ad_schedule: "", relocation_plan: "", org_chart: "", org_count: "", rt: "", ad_cost_type: "", ad_total_cost: "", ad_items: "" });
+      setAnalysisForm({ region: "", population: "", site_condition: "", contract_terms: "", sales_rate: "", agency_info: "", ad_schedule: "", relocation_plan: "", site_name: "", relocation_month: "", keep_current: false, org_chart: "", org_count: "", rt: "", ad_cost_type: "", ad_total_cost: "", ad_items: "" });
     }
   };
 
-  // 고객정보히스토리 저장
+  // 현장정보 저장
   const saveAnalysis = async () => {
     if (!analysisPanel) return;
     setAnalysisSaving(true);
@@ -282,7 +282,7 @@ export default function CustomerJourneyPage() {
     });
     if (error) { showToast(`저장 실패: ${error.message}`); setAnalysisSaving(false); return; }
     showToast(`${analysisPanel.name} 고객정보 저장 완료`);
-    // 히스토리 갱신
+    // 기록 갱신
     const { data } = await supabase.from("customer_analysis")
       .select("*").eq("contact_id", analysisPanel.contactId)
       .order("created_at", { ascending: false }).limit(50);
@@ -291,9 +291,9 @@ export default function CustomerJourneyPage() {
   };
 
   const deleteAnalysis = async (historyId: number) => {
-    if (!analysisPanel || !confirm("해당 히스토리를 삭제하시겠습니까?")) return;
+    if (!analysisPanel || !confirm("해당 기록을 삭제하시겠습니까?")) return;
     await supabase.from("customer_analysis").delete().eq("id", historyId);
-    showToast("히스토리 삭제 완료");
+    showToast("기록 삭제 완료");
     const { data } = await supabase.from("customer_analysis")
       .select("*").eq("contact_id", analysisPanel.contactId)
       .order("created_at", { ascending: false }).limit(50);
@@ -301,7 +301,7 @@ export default function CustomerJourneyPage() {
     setAnalysisHistory(history);
     if (history.length > 0) {
       const latest = history[0];
-      setAnalysisForm({ region: latest.region || "", population: latest.population || "", site_condition: latest.site_condition || "", contract_terms: latest.contract_terms || "", sales_rate: latest.sales_rate || "", agency_info: latest.agency_info || "", ad_schedule: latest.ad_schedule || "", relocation_plan: latest.relocation_plan || "", org_chart: latest.org_chart || "", org_count: latest.org_count || "", rt: latest.rt || "", ad_cost_type: latest.ad_cost_type || "", ad_total_cost: latest.ad_total_cost || "", ad_items: latest.ad_items || "" });
+      setAnalysisForm({ region: latest.region || "", population: latest.population || "", site_condition: latest.site_condition || "", contract_terms: latest.contract_terms || "", sales_rate: latest.sales_rate || "", agency_info: latest.agency_info || "", ad_schedule: latest.ad_schedule || "", relocation_plan: latest.relocation_plan || "", site_name: latest.site_name || "", relocation_month: latest.relocation_month || "", keep_current: latest.keep_current || false, org_chart: latest.org_chart || "", org_count: latest.org_count || "", rt: latest.rt || "", ad_cost_type: latest.ad_cost_type || "", ad_total_cost: latest.ad_total_cost || "", ad_items: latest.ad_items || "" });
     }
   };
 
@@ -510,7 +510,7 @@ export default function CustomerJourneyPage() {
                               <button onClick={e => { e.stopPropagation(); openAnalysisPanel(c); }}
                                 className="flex-1 text-center py-1.5 rounded-lg text-[10px] font-bold"
                                 style={{ background: "rgba(59,130,246,0.06)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.15)" }}>
-                                📋 히스토리
+                                📋 현장정보
                               </button>
                               <button onClick={e => { e.stopPropagation(); setExpandedId(expandedId === c.id ? null : c.id); }}
                                 className="flex-1 text-center py-1.5 rounded-lg text-[10px] font-bold"
@@ -613,11 +613,11 @@ export default function CustomerJourneyPage() {
                   </div>
                   <ContactNotes contactId={c.id} authorName={userName} />
                 </div>
-                {/* 고객정보히스토리 */}
+                {/* 현장정보 */}
                 <button onClick={() => openAnalysisPanel(c)}
                   className="w-full py-3 text-sm font-bold rounded-xl"
                   style={{ background: "rgba(59,130,246,0.06)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.15)" }}>
-                  📋 고객정보 히스토리 열기
+                  📋 현장정보 열기
                 </button>
                 {/* 삭제 */}
                 <button onClick={() => { handleDeleteContact(c.id, c.name); setExpandedId(null); }}
@@ -725,7 +725,7 @@ export default function CustomerJourneyPage() {
         </div>
       )}
 
-      {/* 고객정보히스토리 슬라이드 패널 */}
+      {/* 현장정보 슬라이드 패널 */}
       {analysisPanel && (
         <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(0,0,0,0.4)" }}
           onClick={() => setAnalysisPanel(null)}>
@@ -738,7 +738,7 @@ export default function CustomerJourneyPage() {
               <div className="flex items-center gap-2">
                 <span className="text-base">📋</span>
                 <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{analysisPanel.name}</span>
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>고객정보 히스토리</span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>현장정보</span>
               </div>
               <button onClick={() => setAnalysisPanel(null)} className="p-1 rounded-lg" style={{ color: "var(--text-muted)" }}><X size={18} /></button>
             </div>
@@ -748,7 +748,7 @@ export default function CustomerJourneyPage() {
               {analysisHistory.length > 0 && (
                 <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
                   <h3 className="text-sm font-bold mb-3 pb-2" style={{ color: "var(--text)", borderBottom: "1px solid var(--border)" }}>
-                    📜 히스토리 ({analysisHistory.length}건)
+                    📜 기록 ({analysisHistory.length}건)
                   </h3>
                   <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {analysisHistory.map(h => (
@@ -770,10 +770,11 @@ export default function CustomerJourneyPage() {
                         </summary>
                         <div className="px-4 pb-3 pt-2 space-y-3" style={{ borderTop: "1px solid var(--border)" }}>
                           {/* 현장분석 */}
-                          {(h.region || h.population || h.site_condition || h.contract_terms || h.sales_rate || h.agency_info || h.ad_schedule || h.relocation_plan) && (
+                          {(h.site_name || h.region || h.population || h.site_condition || h.contract_terms || h.sales_rate || h.agency_info || h.ad_schedule || h.relocation_plan) && (
                             <div>
-                              <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#3b82f6", borderBottom: "1px dashed var(--border)" }}>🏗️ 현장분석</p>
+                              <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#3b82f6", borderBottom: "1px dashed var(--border)" }}>🏗️ 현장정보</p>
                               <div className="grid grid-cols-2 gap-1.5 text-xs">
+                                {h.site_name && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>현장명:</span> <b style={{ color: "#3b82f6" }}>{h.site_name}</b></div>}
                                 {h.region && <div><span style={{ color: "var(--text-subtle)" }}>지역:</span> <b style={{ color: "var(--text)" }}>{h.region}</b></div>}
                                 {h.population && <div><span style={{ color: "var(--text-subtle)" }}>인구:</span> <b style={{ color: "var(--text)" }}>{h.population}</b></div>}
                                 {h.site_condition && <div><span style={{ color: "var(--text-subtle)" }}>컨디션:</span> <b style={{ color: "var(--text)" }}>{h.site_condition}</b></div>}
@@ -781,14 +782,14 @@ export default function CustomerJourneyPage() {
                                 {h.sales_rate && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>분양률:</span> <b style={{ color: "var(--text)" }}>{h.sales_rate}</b></div>}
                                 {h.agency_info && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>대행사:</span> <b style={{ color: "var(--text)" }}>{h.agency_info}</b></div>}
                                 {h.ad_schedule && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>광고스케줄:</span> <b style={{ color: "var(--text)" }}>{h.ad_schedule}</b></div>}
-                                {h.relocation_plan && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>이동계획:</span> <b style={{ color: "var(--text)" }}>{h.relocation_plan}</b></div>}
+                                {(h.relocation_month || h.keep_current || h.relocation_plan) && <div className="col-span-2"><span style={{ color: "var(--text-subtle)" }}>이동계획:</span> <b style={{ color: h.keep_current ? "#16a34a" : "#ea7c1e" }}>{h.keep_current ? "기존현장 유지" : h.relocation_month ? `${h.relocation_month} 이동예정` : ""}</b>{h.relocation_plan && <span style={{ color: "var(--text-muted)" }}> · {h.relocation_plan}</span>}</div>}
                               </div>
                             </div>
                           )}
                           {/* 조직분석 */}
                           {(h.org_chart || h.org_count || h.rt) && (
                             <div>
-                              <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#8b5cf6", borderBottom: "1px dashed var(--border)" }}>👥 조직분석</p>
+                              <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#8b5cf6", borderBottom: "1px dashed var(--border)" }}>👥 조직정보</p>
                               <div className="grid grid-cols-3 gap-1.5 text-xs">
                                 {h.org_chart && <div><span style={{ color: "var(--text-subtle)" }}>조직도:</span> <b style={{ color: "var(--text)" }}>{h.org_chart}</b></div>}
                                 {h.org_count && <div><span style={{ color: "var(--text-subtle)" }}>조직수:</span> <b style={{ color: "var(--text)" }}>{h.org_count}</b></div>}
@@ -799,7 +800,7 @@ export default function CustomerJourneyPage() {
                           {/* 광고 */}
                           {(h.ad_cost_type || h.ad_total_cost || h.ad_items) && (
                             <div>
-                              <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#10b981", borderBottom: "1px dashed var(--border)" }}>📡 광고</p>
+                              <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#10b981", borderBottom: "1px dashed var(--border)" }}>📡 광고정보</p>
                               <div className="grid grid-cols-2 gap-1.5 text-xs">
                                 {h.ad_cost_type && <div><span style={{ color: "var(--text-subtle)" }}>광고비용:</span> <b style={{ color: "var(--text)" }}>{h.ad_cost_type}</b></div>}
                                 {h.ad_total_cost && <div><span style={{ color: "var(--text-subtle)" }}>총비용:</span> <b style={{ color: "var(--text)" }}>{h.ad_total_cost}</b></div>}
@@ -821,8 +822,14 @@ export default function CustomerJourneyPage() {
 
               {/* 1. 현장분석 */}
               <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                <h3 className="text-xs font-bold mb-3 pb-2 flex items-center gap-1.5" style={{ color: "#3b82f6", borderBottom: "1px solid var(--border)" }}>🏗️ 현장분석</h3>
+                <h3 className="text-xs font-bold mb-3 pb-2 flex items-center gap-1.5" style={{ color: "#3b82f6", borderBottom: "1px solid var(--border)" }}>🏗️ 현장정보</h3>
                 <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>현장명</label>
+                    <input type="text" value={analysisForm.site_name || ""} onChange={e => setAnalysisForm(p => ({ ...p, site_name: e.target.value }))}
+                      placeholder="예: 평촌롯데캐슬르씨엘" className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  </div>
                   <div>
                     <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>지역 (입지)</label>
                     <input type="text" value={analysisForm.region} onChange={e => setAnalysisForm(p => ({ ...p, region: e.target.value }))}
@@ -872,8 +879,24 @@ export default function CustomerJourneyPage() {
                   </div>
                   <div className="col-span-2">
                     <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>현장 이동계획</label>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex-1">
+                        <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>이동예정월</label>
+                        <input type="month" value={analysisForm.relocation_month || ""} onChange={e => setAnalysisForm(p => ({ ...p, relocation_month: e.target.value, keep_current: false }))}
+                          disabled={analysisForm.keep_current === true}
+                          className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                          style={{ background: "var(--surface)", border: "1px solid var(--border)", color: analysisForm.keep_current ? "var(--text-muted)" : "var(--text)" }} />
+                      </div>
+                      <div className="flex-shrink-0 pt-4">
+                        <label className="flex items-center gap-1.5 cursor-pointer px-3 py-2 rounded-lg" style={{ background: analysisForm.keep_current ? "rgba(16,163,74,0.08)" : "var(--surface)", border: `1px solid ${analysisForm.keep_current ? "rgba(16,163,74,0.3)" : "var(--border)"}` }}>
+                          <input type="checkbox" checked={analysisForm.keep_current === true} onChange={e => setAnalysisForm(p => ({ ...p, keep_current: e.target.checked, relocation_month: e.target.checked ? "" : p.relocation_month }))}
+                            className="w-3.5 h-3.5 rounded" />
+                          <span className="text-[11px] font-bold" style={{ color: analysisForm.keep_current ? "#16a34a" : "var(--text-muted)" }}>기존현장 유지</span>
+                        </label>
+                      </div>
+                    </div>
                     <textarea value={analysisForm.relocation_plan} onChange={e => setAnalysisForm(p => ({ ...p, relocation_plan: e.target.value }))}
-                      placeholder="이동계획 입력" rows={2} className="w-full px-3 py-2 text-sm rounded-lg outline-none resize-none"
+                      placeholder={analysisForm.keep_current ? "기존현장 유지 관련 메모 (선택)" : "이동계획 상세 입력"} rows={2} className="w-full px-3 py-2 text-sm rounded-lg outline-none resize-none"
                       style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                   </div>
                 </div>
@@ -881,7 +904,7 @@ export default function CustomerJourneyPage() {
 
               {/* 2. 조직분석 */}
               <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                <h3 className="text-xs font-bold mb-3 pb-2 flex items-center gap-1.5" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>👥 조직분석</h3>
+                <h3 className="text-xs font-bold mb-3 pb-2 flex items-center gap-1.5" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>👥 조직정보</h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>조직도</label>
@@ -904,9 +927,9 @@ export default function CustomerJourneyPage() {
                 </div>
               </div>
 
-              {/* 3. 광고 */}
+              {/* 3. 광고정보 */}
               <div className="rounded-xl p-4" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                <h3 className="text-xs font-bold mb-3 pb-2 flex items-center gap-1.5" style={{ color: "#10b981", borderBottom: "1px solid var(--border)" }}>📡 광고</h3>
+                <h3 className="text-xs font-bold mb-3 pb-2 flex items-center gap-1.5" style={{ color: "#10b981", borderBottom: "1px solid var(--border)" }}>📡 광고정보</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--text-muted)" }}>광고비용</label>
