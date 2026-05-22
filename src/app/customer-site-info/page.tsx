@@ -191,29 +191,25 @@ export default function CustomerSiteInfo() {
               </div>
 
               {/* 조직정보 */}
-              {(selected.org_chart || selected.org_count || selected.rt) && (
-                <div className="rounded-xl p-4 mb-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                  <h3 className="text-xs font-bold mb-3 pb-2" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>👥 조직정보</h3>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div><span style={{ color: "var(--text-muted)" }}>조직도</span> <b className="block" style={{ color: "var(--text)" }}>{selected.org_chart || "-"}</b></div>
-                    <div><span style={{ color: "var(--text-muted)" }}>인원수</span> <b className="block" style={{ color: "var(--text)" }}>{selected.org_count || "-"}</b></div>
-                    {selected.rt && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>RT</span> <b className="block" style={{ color: "var(--text)" }}>{selected.rt}</b></div>}
-                  </div>
+              <div className="rounded-xl p-4 mb-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <h3 className="text-xs font-bold mb-3 pb-2" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>👥 조직정보</h3>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div><span style={{ color: "var(--text-muted)" }}>조직도</span> <b className="block" style={{ color: "var(--text)" }}>{selected.org_chart || "-"}</b></div>
+                  <div><span style={{ color: "var(--text-muted)" }}>인원수</span> <b className="block" style={{ color: "var(--text)" }}>{selected.org_count || "-"}</b></div>
+                  <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>RT</span> <b className="block" style={{ color: "var(--text)" }}>{selected.rt || "-"}</b></div>
                 </div>
-              )}
+              </div>
 
               {/* 광고정보 */}
-              {(selected.ad_cost_type || selected.ad_total_cost || selected.ad_items || selected.ad_schedule) && (
-                <div className="rounded-xl p-4 mb-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                  <h3 className="text-xs font-bold mb-3 pb-2" style={{ color: "#10b981", borderBottom: "1px solid var(--border)" }}>📡 광고정보</h3>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div><span style={{ color: "var(--text-muted)" }}>광고비용 유형</span> <b className="block" style={{ color: "var(--text)" }}>{selected.ad_cost_type || "-"}</b></div>
-                    <div><span style={{ color: "var(--text-muted)" }}>광고 총액</span> <b className="block" style={{ color: "var(--text)" }}>{selected.ad_total_cost || "-"}</b></div>
-                    {selected.ad_items && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>광고 품목</span> <b className="block" style={{ color: "var(--text)" }}>{selected.ad_items}</b></div>}
-                    {selected.ad_schedule && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>광고 스케줄</span> <b className="block" style={{ color: "var(--text)" }}>{selected.ad_schedule}</b></div>}
-                  </div>
+              <div className="rounded-xl p-4 mb-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <h3 className="text-xs font-bold mb-3 pb-2" style={{ color: "#10b981", borderBottom: "1px solid var(--border)" }}>📡 광고정보</h3>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div><span style={{ color: "var(--text-muted)" }}>광고비용 유형</span> <b className="block" style={{ color: "var(--text)" }}>{selected.ad_cost_type || "-"}</b></div>
+                  <div><span style={{ color: "var(--text-muted)" }}>광고 총액</span> <b className="block" style={{ color: "var(--text)" }}>{selected.ad_total_cost || "-"}</b></div>
+                  <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>광고 품목</span> <b className="block" style={{ color: "var(--text)" }}>{selected.ad_items || "-"}</b></div>
+                  <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>광고 스케줄</span> <b className="block" style={{ color: "var(--text)" }}>{selected.ad_schedule || "-"}</b></div>
                 </div>
-              )}
+              </div>
 
               {/* 히스토리 */}
               <h3 className="text-xs font-bold mb-3" style={{ color: "var(--text)" }}>📜 현장정보 기록 ({history.length}건)</h3>
@@ -230,48 +226,42 @@ export default function CustomerSiteInfo() {
                       </summary>
                       <div className="px-4 pb-3 pt-2 space-y-3 text-xs" style={{ borderTop: "1px solid var(--border)" }}>
                         {/* 현장정보 */}
-                        {(h.site_name || h.region || h.population || h.site_condition) && (
-                          <div>
-                            <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#3b82f6", borderBottom: "1px dashed var(--border)" }}>🏗️ 현장정보</p>
-                            <div className="grid grid-cols-2 gap-1 text-[11px]">
-                              {h.site_name && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>현장명:</span> <b style={{ color: "#3b82f6" }}>{h.site_name}</b></div>}
-                              {h.region && <div><span style={{ color: "var(--text-muted)" }}>지역:</span> <b>{h.region}</b></div>}
-                              {h.population && <div><span style={{ color: "var(--text-muted)" }}>인구:</span> <b>{h.population}</b></div>}
-                              {h.site_condition && <div><span style={{ color: "var(--text-muted)" }}>컨디션:</span> <b>{h.site_condition}</b></div>}
-                              {h.contract_terms && <div><span style={{ color: "var(--text-muted)" }}>계약:</span> <b>{h.contract_terms}</b></div>}
-                              {h.sales_rate && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>분양률:</span> <b>{h.sales_rate}</b></div>}
-                              {h.agency_info && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>대행사:</span> <b>{h.agency_info}</b></div>}
-                              {h.ad_schedule && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>광고:</span> <b>{h.ad_schedule}</b></div>}
-                              {(h.relocation_month || h.keep_current || h.relocation_plan) && (
-                                <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>이동:</span> <b style={{ color: h.keep_current ? "#16a34a" : "#ea7c1e" }}>
-                                  {h.keep_current ? "기존현장 유지" : h.relocation_month ? `${h.relocation_month} 이동` : ""}{h.relocation_site ? ` → ${h.relocation_site}` : ""}
-                                </b>{h.relocation_plan && <span style={{ color: "var(--text-muted)" }}> · {h.relocation_plan}</span>}</div>
-                              )}
-                            </div>
+                        <div>
+                          <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#3b82f6", borderBottom: "1px dashed var(--border)" }}>🏗️ 현장정보</p>
+                          <div className="grid grid-cols-2 gap-1 text-[11px]">
+                            {h.site_name && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>현장명:</span> <b style={{ color: "#3b82f6" }}>{h.site_name}</b></div>}
+                            <div><span style={{ color: "var(--text-muted)" }}>지역:</span> <b>{h.region || "-"}</b></div>
+                            <div><span style={{ color: "var(--text-muted)" }}>인구:</span> <b>{h.population || "-"}</b></div>
+                            <div><span style={{ color: "var(--text-muted)" }}>컨디션:</span> <b>{h.site_condition || "-"}</b></div>
+                            <div><span style={{ color: "var(--text-muted)" }}>계약:</span> <b>{h.contract_terms || "-"}</b></div>
+                            <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>분양률:</span> <b>{h.sales_rate || "-"}</b></div>
+                            <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>대행사:</span> <b>{h.agency_info || "-"}</b></div>
+                            {(h.relocation_month || h.keep_current || h.relocation_plan) && (
+                              <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>이동:</span> <b style={{ color: h.keep_current ? "#16a34a" : "#ea7c1e" }}>
+                                {h.keep_current ? "기존현장 유지" : h.relocation_month ? `${h.relocation_month} 이동` : ""}{h.relocation_site ? ` → ${h.relocation_site}` : ""}
+                              </b>{h.relocation_plan && <span style={{ color: "var(--text-muted)" }}> · {h.relocation_plan}</span>}</div>
+                            )}
                           </div>
-                        )}
+                        </div>
                         {/* 조직정보 */}
-                        {(h.org_chart || h.org_count || h.rt) && (
-                          <div>
-                            <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#8b5cf6", borderBottom: "1px dashed var(--border)" }}>👥 조직정보</p>
-                            <div className="grid grid-cols-2 gap-1 text-[11px]">
-                              {h.org_chart && <div><span style={{ color: "var(--text-muted)" }}>조직도:</span> <b>{h.org_chart}</b></div>}
-                              {h.org_count && <div><span style={{ color: "var(--text-muted)" }}>인원:</span> <b>{h.org_count}</b></div>}
-                              {h.rt && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>RT:</span> <b>{h.rt}</b></div>}
-                            </div>
+                        <div>
+                          <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#8b5cf6", borderBottom: "1px dashed var(--border)" }}>👥 조직정보</p>
+                          <div className="grid grid-cols-2 gap-1 text-[11px]">
+                            <div><span style={{ color: "var(--text-muted)" }}>조직도:</span> <b>{h.org_chart || "-"}</b></div>
+                            <div><span style={{ color: "var(--text-muted)" }}>인원:</span> <b>{h.org_count || "-"}</b></div>
+                            <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>RT:</span> <b>{h.rt || "-"}</b></div>
                           </div>
-                        )}
+                        </div>
                         {/* 광고정보 */}
-                        {(h.ad_cost_type || h.ad_total_cost || h.ad_items) && (
-                          <div>
-                            <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#10b981", borderBottom: "1px dashed var(--border)" }}>📡 광고정보</p>
-                            <div className="grid grid-cols-2 gap-1 text-[11px]">
-                              {h.ad_cost_type && <div><span style={{ color: "var(--text-muted)" }}>비용:</span> <b>{h.ad_cost_type}</b></div>}
-                              {h.ad_total_cost && <div><span style={{ color: "var(--text-muted)" }}>총액:</span> <b>{h.ad_total_cost}</b></div>}
-                              {h.ad_items && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>품목:</span> <b>{h.ad_items}</b></div>}
-                            </div>
+                        <div>
+                          <p className="text-[11px] font-bold mb-1.5 pb-1" style={{ color: "#10b981", borderBottom: "1px dashed var(--border)" }}>📡 광고정보</p>
+                          <div className="grid grid-cols-2 gap-1 text-[11px]">
+                            <div><span style={{ color: "var(--text-muted)" }}>비용유형:</span> <b>{h.ad_cost_type || "-"}</b></div>
+                            <div><span style={{ color: "var(--text-muted)" }}>총액:</span> <b>{h.ad_total_cost || "-"}</b></div>
+                            <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>품목:</span> <b>{h.ad_items || "-"}</b></div>
+                            <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>스케줄:</span> <b>{h.ad_schedule || "-"}</b></div>
                           </div>
-                        )}
+                        </div>
                       </div>
                     </details>
                   ))}
