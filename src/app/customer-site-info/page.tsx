@@ -7,6 +7,8 @@ interface SiteRow {
   contact_id: string; name: string; title: string; assigned_to: string; consultant: string;
   site_name: string; site_condition: string; has_relocation: boolean; relocation_site: string; relocation_month: string; keep_current: boolean;
   region: string; population: string; contract_terms: string; sales_rate: string; agency_info: string; ad_schedule: string; relocation_plan: string;
+  org_chart: string; org_count: string; rt: string;
+  ad_cost_type: string; ad_total_cost: string; ad_items: string;
   latest_date: string;
 }
 
@@ -50,6 +52,8 @@ export default function CustomerSiteInfo() {
         keep_current: a.keep_current || false,
         population: a.population || "", contract_terms: a.contract_terms || "", sales_rate: a.sales_rate || "",
         agency_info: a.agency_info || "", ad_schedule: a.ad_schedule || "", relocation_plan: a.relocation_plan || "",
+        org_chart: a.org_chart || "", org_count: a.org_count || "", rt: a.rt || "",
+        ad_cost_type: a.ad_cost_type || "", ad_total_cost: a.ad_total_cost || "", ad_items: a.ad_items || "",
         latest_date: a.created_at ? new Date(a.created_at).toLocaleDateString("ko-KR") : "",
       });
     });
@@ -185,6 +189,31 @@ export default function CustomerSiteInfo() {
                   </div>
                 </div>
               </div>
+
+              {/* 조직정보 */}
+              {(selected.org_chart || selected.org_count || selected.rt) && (
+                <div className="rounded-xl p-4 mb-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                  <h3 className="text-xs font-bold mb-3 pb-2" style={{ color: "#8b5cf6", borderBottom: "1px solid var(--border)" }}>👥 조직정보</h3>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><span style={{ color: "var(--text-muted)" }}>조직도</span> <b className="block" style={{ color: "var(--text)" }}>{selected.org_chart || "-"}</b></div>
+                    <div><span style={{ color: "var(--text-muted)" }}>인원수</span> <b className="block" style={{ color: "var(--text)" }}>{selected.org_count || "-"}</b></div>
+                    {selected.rt && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>RT</span> <b className="block" style={{ color: "var(--text)" }}>{selected.rt}</b></div>}
+                  </div>
+                </div>
+              )}
+
+              {/* 광고정보 */}
+              {(selected.ad_cost_type || selected.ad_total_cost || selected.ad_items || selected.ad_schedule) && (
+                <div className="rounded-xl p-4 mb-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                  <h3 className="text-xs font-bold mb-3 pb-2" style={{ color: "#10b981", borderBottom: "1px solid var(--border)" }}>📡 광고정보</h3>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><span style={{ color: "var(--text-muted)" }}>광고비용 유형</span> <b className="block" style={{ color: "var(--text)" }}>{selected.ad_cost_type || "-"}</b></div>
+                    <div><span style={{ color: "var(--text-muted)" }}>광고 총액</span> <b className="block" style={{ color: "var(--text)" }}>{selected.ad_total_cost || "-"}</b></div>
+                    {selected.ad_items && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>광고 품목</span> <b className="block" style={{ color: "var(--text)" }}>{selected.ad_items}</b></div>}
+                    {selected.ad_schedule && <div className="col-span-2"><span style={{ color: "var(--text-muted)" }}>광고 스케줄</span> <b className="block" style={{ color: "var(--text)" }}>{selected.ad_schedule}</b></div>}
+                  </div>
+                </div>
+              )}
 
               {/* 히스토리 */}
               <h3 className="text-xs font-bold mb-3" style={{ color: "var(--text)" }}>📜 현장정보 기록 ({history.length}건)</h3>
