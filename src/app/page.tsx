@@ -92,17 +92,17 @@ async function fetchStats(user: CRMUser, start: string, end: string, isAll = fal
 
   const membershipFeeAmt = monthAd
     .filter((x:any) => x.channel === "분양회 입회비")
-    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
+    .reduce((s:number,x:any) => s + effAmt(x), 0);
   const monthlyFeeAmt = monthAd
     .filter((x:any) => x.channel === "분양회 월회비")
-    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
+    .reduce((s:number,x:any) => s + effAmt(x), 0);
 
   const cumMembershipFee = (allAd||[])
     .filter((x:any) => x.channel === "분양회 입회비")
-    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
+    .reduce((s:number,x:any) => s + effAmt(x), 0);
   const cumMonthlyFee = (allAd||[])
     .filter((x:any) => x.channel === "분양회 월회비")
-    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
+    .reduce((s:number,x:any) => s + effAmt(x), 0);
 
   const linkedRevenue = monthAd
     .filter((x:any) => x.channel === "하이타겟")
