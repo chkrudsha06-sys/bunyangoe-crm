@@ -335,8 +335,8 @@ export default function SalesPage() {
 
     return {
       total:     sumEff(list) - refundTotal,
-      inBunyan:  sumEff(filterCh(list,"분양회 입회비")),
-      monBunyan: sumEff(filterCh(list,"분양회 월회비")),
+      inBunyan:  sumEff(filterCh(list,"분양회 입회비")) - refundByChannel("분양회 입회비"),
+      monBunyan: sumEff(filterCh(list,"분양회 월회비")) - refundByChannel("분양회 월회비"),
       adSpecial: sumEff(adSpecialList) - refundAdSpecial,
       hightarget:sumEff(filterCh(list,"하이타겟")) - refundByChannel("하이타겟"),
       hogaengCh: sumEff(filterCh(list,"호갱노노_채널톡")) - refundByChannel("호갱노노_채널톡"),
