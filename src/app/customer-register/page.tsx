@@ -85,7 +85,7 @@ export default function CustomerRegisterPage() {
     const u = getCurrentUser();
     let q = supabase.from("contacts")
       .select("id,name,title,phone,customer_type,prospect_type,management_stage,assigned_to,consultant,intake_route,meeting_date,meeting_address,meeting_result,memo,tm_sensitivity,contract_date,reservation_date,operating_site,total_org_count,team_org_count,rt")
-      .order("id", { ascending: false }).limit(500);
+      .order("id", { ascending: false });
     if (u?.role === "exec") q = q.eq("assigned_to", u.name);
     const { data } = await q;
     setContacts((data || []) as Contact[]);
