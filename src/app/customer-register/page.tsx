@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, Plus, ChevronDown, ChevronUp, Pencil, Trash2, X, Save } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search, Plus, ChevronDown, ChevronUp, Pencil, Trash2, X, Save, Upload, Download } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
 import ContactNotes from "@/components/ContactNotes";
@@ -57,6 +57,9 @@ export default function CustomerRegisterPage() {
   const [userName, setUserName] = useState("");
   const [toast, setToast] = useState("");
   const [notesPopup, setNotesPopup] = useState<{ contactId: number; name: string } | null>(null);
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 50;
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // 검색/필터
   const [search, setSearch] = useState("");
@@ -157,6 +160,37 @@ export default function CustomerRegisterPage() {
     return true;
   });
 
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  useEffect(() => { setPage(1); }, [search, fIntake, fCustomerType, fStage, fAssigned, fConsultant]);
+
+  // 양식 다운로드
+  const downloadTemplate = () => {
+    const header = "고객명,직급,연락처,유입경로,고객유형,관리구간,담당자,담당컨설턴트";
+    const sample = "홍길동,본부장,010-1234-5678,컨설턴트교차DB,기고객,리드,조계현,박민경";
+    const blob = new Blob(["\uFEFF" + header + "\n" + sample], { type: "text/csv" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = "고객일괄등록_양식.csv"; a.click();
+  };
+
+  // 일괄업로드
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const text = await file.text();
+    const lines = text.split("\n").filter(l => l.trim());
+    if (lines.length < 2) { alert("데이터가 없습니다"); return; }
+    const rows = lines.slice(1).map(l => {
+      const cols = l.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+      return { name: cols[0], title: cols[1]||null, phone: cols[2]||null, inflow_route: cols[3]||null, customer_type: cols[4]||"기고객", management_stage: cols[5]||"리드", assigned_to: cols[6]||null, consultant: cols[7]||null };
+    }).filter(r => r.name);
+    if (rows.length === 0) { alert("유효한 데이터가 없습니다"); return; }
+    if (!confirm(`${rows.length}건을 일괄 등록하시겠습니까?`)) return;
+    const { error } = await supabase.from("contacts").insert(rows);
+    if (error) { alert("업로드 실패: " + error.message); return; }
+    alert(`${rows.length}건 등록 완료`); loadContacts();
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
   const f = (key: string, val: string) => setForm(p => ({ ...p, [key]: val }));
   const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400";
   const lbl = "block text-xs font-semibold text-slate-500 mb-1";
@@ -185,11 +219,20 @@ export default function CustomerRegisterPage() {
               {search || activeFilters > 0 ? ` (전체 ${contacts.length}명)` : ""}
             </p>
           </div>
-          <button onClick={() => { setShowAdd(true); setEditId(null); setForm({ ...EMPTY_FORM }); }}
-            className="flex items-center gap-2 px-4 py-2.5 text-white text-sm font-bold rounded-xl shadow-sm transition-colors"
-            style={{ background: "#1E3A8A" }}>
-            <Plus size={15} /> 신규 등록
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={downloadTemplate} className="flex items-center gap-1 px-3 py-2 text-xs font-bold rounded-xl" style={{ background: "rgba(16,185,129,0.08)", color: "#16a34a", border: "1px solid rgba(16,185,129,0.2)" }}>
+              <Download size={13} /> 양식 다운로드
+            </button>
+            <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1 px-3 py-2 text-xs font-bold rounded-xl" style={{ background: "rgba(234,124,30,0.08)", color: "#ea7c1e", border: "1px solid rgba(234,124,30,0.2)" }}>
+              <Upload size={13} /> 일괄 업로드
+            </button>
+            <input ref={fileRef} type="file" accept=".csv" onChange={handleBulkUpload} className="hidden" />
+            <button onClick={() => { setShowAdd(true); setEditId(null); setForm({ ...EMPTY_FORM }); }}
+              className="flex items-center gap-2 px-4 py-2.5 text-white text-sm font-bold rounded-xl shadow-sm transition-colors"
+              style={{ background: "#1E3A8A" }}>
+              <Plus size={15} /> 신규 등록
+            </button>
+          </div>
         </div>
 
         {/* 검색 + 필터 */}
@@ -244,8 +287,8 @@ export default function CustomerRegisterPage() {
           </div>
         ) : (
           <div className="space-y-1">
-            {/* 컬럼 헤더 */}
-            <div className="flex items-center px-3 py-2 rounded-xl" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            {/* 컬럼 헤더 - sticky */}
+            <div className="flex items-center px-3 py-2 rounded-xl sticky top-0 z-10" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
               <span className="w-8 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>No</span>
               <span className="w-20 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>유입경로</span>
               <span className="w-16 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>고객명</span>
@@ -262,8 +305,9 @@ export default function CustomerRegisterPage() {
               <span className="flex-1 min-w-0 mx-2 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>활동노트</span>
               <span className="w-16 text-center text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>관리</span>
             </div>
-            {filtered.map((c, idx) => {
+            {paged.map((c, idx) => {
               const isExpanded = expandedId === c.id;
+              const globalIdx = (page - 1) * PER_PAGE + idx;
               return (
                 <div key={c.id} className="rounded-xl overflow-hidden"
                   style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
@@ -271,7 +315,7 @@ export default function CustomerRegisterPage() {
                   <div className="flex items-center px-3 cursor-pointer"
                     onClick={() => setExpandedId(isExpanded ? null : c.id)}
                     style={{ borderLeft: `3px solid ${stageColor(c.management_stage)}`, height: 44 }}>
-                    <span className="w-8 text-center text-xs font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>{idx + 1}</span>
+                    <span className="w-8 text-center text-xs font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>{globalIdx + 1}</span>
                     <span className="w-20 text-center flex-shrink-0">
                       {c.intake_route ? (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
@@ -403,6 +447,23 @@ export default function CustomerRegisterPage() {
           </div>
         );
       })()}
+
+      {/* 페이지네이션 */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 py-4 px-6" style={{ borderTop: "1px solid var(--border)" }}>
+          <button onClick={() => setPage(1)} disabled={page === 1} className="px-2 py-1 text-xs font-bold rounded" style={{ color: page === 1 ? "var(--text-subtle)" : "#3b82f6" }}>≪</button>
+          <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="px-2 py-1 text-xs font-bold rounded" style={{ color: page === 1 ? "var(--text-subtle)" : "#3b82f6" }}>‹ 이전</button>
+          {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => {
+            const start = Math.max(1, Math.min(page - 4, totalPages - 9));
+            const p = start + i;
+            if (p > totalPages) return null;
+            return <button key={p} onClick={() => setPage(p)} className="w-7 h-7 text-xs font-bold rounded" style={{ background: p === page ? "#3b82f6" : "transparent", color: p === page ? "#fff" : "var(--text-muted)" }}>{p}</button>;
+          })}
+          <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="px-2 py-1 text-xs font-bold rounded" style={{ color: page === totalPages ? "var(--text-subtle)" : "#3b82f6" }}>다음 ›</button>
+          <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="px-2 py-1 text-xs font-bold rounded" style={{ color: page === totalPages ? "var(--text-subtle)" : "#3b82f6" }}>≫</button>
+          <span className="text-xs ml-2" style={{ color: "var(--text-muted)" }}>{page}/{totalPages} ({filtered.length}건)</span>
+        </div>
+      )}
 
       {/* 신규등록 / 수정 모달 */}
       {showAdd && (
