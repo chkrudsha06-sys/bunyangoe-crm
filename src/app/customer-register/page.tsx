@@ -187,7 +187,7 @@ export default function CustomerRegisterPage() {
     if (!confirm(`${rows.length}건을 일괄 등록하시겠습니까?`)) return;
     const { error } = await supabase.from("contacts").insert(rows);
     if (error) { alert("업로드 실패: " + error.message); return; }
-    alert(`${rows.length}건 등록 완료`); loadContacts();
+    alert(`${rows.length}건 등록 완료`); fetchContacts();
     if (fileRef.current) fileRef.current.value = "";
   };
 
