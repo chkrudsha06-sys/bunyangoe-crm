@@ -123,33 +123,11 @@ function bunNumValue(n: string | null): number {
   return m ? parseInt(m[0], 10) : Infinity;
 }
 
-// ─── 납부 상태 판정 ───
-// 계약완료 시점 ~ 현재까지 매월 납부해야 할 횟수 vs 실제 납부 횟수
-function calcPaymentStatus(c: VipContact, feeCnt: number): "정상"|"이상"|"예약" {
+// ─── 납부 상태 판정 (당월 기준) ───
+function calcPaymentStatus(c: VipContact, feeCnt: number, monthlyPaid: Set<string>): "결제완료"|"미결제"|"예약" {
   if (c.meeting_result === "예약완료") return "예약";
-  if (!c.contract_date) return "이상";
-
-  const contractDate = new Date(c.contract_date);
-  const now = new Date();
-
-  // 계약월 다음달부터 현재월까지 몇 개월인지 계산
-  const contractY = contractDate.getFullYear();
-  const contractM = contractDate.getMonth(); // 0-based
-  const nowY = now.getFullYear();
-  const nowM = now.getMonth();
-
-  // 정기출금일 기준: 현재일이 출금일 이전이면 이번 달은 아직 미도래
-  const payDay = parseInt(c.regular_payment_date || "0") || 0;
-  const todayDay = now.getDate();
-
-  // 예상 납부 횟수 = (현재년월 - 계약년월) + 1 (계약 당월 포함)
-  // 단, 이번 달 출금일이 아직 안 지났으면 이번 달은 제외
-  let expectedMonths = (nowY - contractY) * 12 + (nowM - contractM) + 1;
-  if (payDay > 0 && todayDay < payDay) expectedMonths -= 1;
-  if (expectedMonths < 1) expectedMonths = 1;
-
-  if (feeCnt >= expectedMonths) return "정상";
-  return "이상";
+  if (monthlyPaid.has(c.name)) return "결제완료";
+  return "미결제";
 }
 
 // ─── 대시보드 코드 관리 셀 ───
@@ -219,6 +197,7 @@ export default function MemberManagePage() {
   const [filterPayStatus, setFilterPayStatus] = useState("");
   const [filterConsultant, setFilterConsultant] = useState("");
   const [feeCount, setFeeCount] = useState<Record<string, number>>({});
+  const [monthlyPaid, setMonthlyPaid] = useState<Set<string>>(new Set());
 
   const TEAM = ["조계현","이세호","기여운","최연전"];
 
@@ -247,6 +226,21 @@ export default function MemberManagePage() {
       if (e.bunyanghoe_number) counts[`num:${e.bunyanghoe_number}`] = (counts[`num:${e.bunyanghoe_number}`] || 0) + 1;
     });
     setFeeCount(counts);
+
+    // 당월 결제 여부 조회
+    const now = new Date();
+    const mStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`;
+    const mEnd = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(new Date(now.getFullYear(),now.getMonth()+1,0).getDate()).padStart(2,"0")}`;
+    const { data: monthFeeData } = await supabase.from("ad_executions")
+      .select("member_name,bunyanghoe_number")
+      .eq("channel", "분양회 월회비")
+      .gte("payment_date", mStart).lte("payment_date", mEnd)
+      .is("refund_amount", null).or("refund_amount.eq.0");
+    const mfNames = new Set<string>();
+    ((monthFeeData || []) as any[]).forEach(e => {
+      if (e.member_name) mfNames.add(e.member_name);
+    });
+    setMonthlyPaid(mfNames);
     setLoading(false);
   };
 
@@ -257,7 +251,7 @@ export default function MemberManagePage() {
       (c.bunyanghoe_number && c.bunyanghoe_number.includes(search)) ||
       (c.bank_holder && c.bank_holder.includes(search));
     const feeCnt = feeCount[c.name] || (c.bunyanghoe_number ? feeCount[`num:${c.bunyanghoe_number}`] : 0) || 0;
-    const payStatus = calcPaymentStatus(c, feeCnt);
+    const payStatus = calcPaymentStatus(c, feeCnt, monthlyPaid);
     const matchPayStatus = !filterPayStatus || payStatus === filterPayStatus;
     const matchConsultant = !filterConsultant || c.consultant === filterConsultant;
     return matchSearch && matchPayStatus && matchConsultant;
@@ -288,6 +282,15 @@ export default function MemberManagePage() {
               <p className="text-lg font-bold text-amber-600">{filtered.length}</p>
               <p className="text-xs text-amber-500">전체</p>
             </div>
+            <div className="w-px h-10 bg-slate-200" />
+            <div className="text-center px-4 py-2 bg-green-50 rounded-xl border border-green-100">
+              <p className="text-lg font-bold text-green-600">{contracts.filter(c => monthlyPaid.has(c.name)).length}명</p>
+              <p className="text-xs text-green-500">당월 결제완료</p>
+            </div>
+            <div className="text-center px-4 py-2 bg-red-50 rounded-xl border border-red-100">
+              <p className="text-lg font-bold text-red-500">{contracts.filter(c => !monthlyPaid.has(c.name)).length}명</p>
+              <p className="text-xs text-red-400">미결제</p>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -298,9 +301,9 @@ export default function MemberManagePage() {
               className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400"/>
           </div>
           <select value={filterPayStatus} onChange={e=>setFilterPayStatus(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
-            <option value="">상태</option>
-            <option value="정상">정상</option>
-            <option value="이상">이상</option>
+            <option value="">결제상태</option>
+            <option value="결제완료">결제완료</option>
+            <option value="미결제">미결제</option>
             <option value="예약">예약</option>
           </select>
           <select value={filterConsultant} onChange={e=>setFilterConsultant(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
@@ -346,10 +349,10 @@ export default function MemberManagePage() {
               <tbody>
                 {filtered.map((c) => {
                   const feeCnt = feeCount[c.name] || (c.bunyanghoe_number ? feeCount[`num:${c.bunyanghoe_number}`] : 0) || 0;
-                  const payStatus = calcPaymentStatus(c, feeCnt);
-                  const statusStyle = payStatus === "정상"
+                  const payStatus = calcPaymentStatus(c, feeCnt, monthlyPaid);
+                  const statusStyle = payStatus === "결제완료"
                     ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                    : payStatus === "이상"
+                    : payStatus === "미결제"
                     ? "bg-red-100 text-red-700 border-red-200"
                     : "bg-blue-100 text-blue-700 border-blue-200";
                   return (
