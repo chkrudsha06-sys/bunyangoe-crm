@@ -124,8 +124,7 @@ function bunNumValue(n: string | null): number {
 }
 
 // ─── 납부 상태 판정 (당월 기준) ───
-function calcPaymentStatus(c: VipContact, feeCnt: number, monthlyPaid: Set<string>): "결제완료"|"미결제"|"예약" {
-  if (c.meeting_result === "예약완료") return "예약";
+function calcPaymentStatus(c: VipContact, feeCnt: number, monthlyPaid: Set<string>): "결제완료"|"미결제" {
   if (monthlyPaid.has(c.name)) return "결제완료";
   return "미결제";
 }
@@ -284,11 +283,11 @@ export default function MemberManagePage() {
             </div>
             <div className="w-px h-10 bg-slate-200" />
             <div className="text-center px-4 py-2 bg-green-50 rounded-xl border border-green-100">
-              <p className="text-lg font-bold text-green-600">{contracts.filter(c => monthlyPaid.has(c.name)).length}명</p>
+              <p className="text-lg font-bold text-green-600">{filtered.filter(c => monthlyPaid.has(c.name)).length}명</p>
               <p className="text-xs text-green-500">당월 결제완료</p>
             </div>
             <div className="text-center px-4 py-2 bg-red-50 rounded-xl border border-red-100">
-              <p className="text-lg font-bold text-red-500">{contracts.filter(c => !monthlyPaid.has(c.name)).length}명</p>
+              <p className="text-lg font-bold text-red-500">{filtered.filter(c => !monthlyPaid.has(c.name)).length}명</p>
               <p className="text-xs text-red-400">미결제</p>
             </div>
           </div>
@@ -304,7 +303,6 @@ export default function MemberManagePage() {
             <option value="">결제상태</option>
             <option value="결제완료">결제완료</option>
             <option value="미결제">미결제</option>
-            <option value="예약">예약</option>
           </select>
           <select value={filterConsultant} onChange={e=>setFilterConsultant(e.target.value)} className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
             <option value="">담당컨설턴트</option>
@@ -352,9 +350,7 @@ export default function MemberManagePage() {
                   const payStatus = calcPaymentStatus(c, feeCnt, monthlyPaid);
                   const statusStyle = payStatus === "결제완료"
                     ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                    : payStatus === "미결제"
-                    ? "bg-red-100 text-red-700 border-red-200"
-                    : "bg-blue-100 text-blue-700 border-blue-200";
+                    : "bg-red-100 text-red-700 border-red-200";
                   return (
                   <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="px-3 py-3 text-center align-middle">
