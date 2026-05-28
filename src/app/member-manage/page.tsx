@@ -235,7 +235,7 @@ export default function MemberManagePage() {
       .select("member_name,bunyanghoe_number")
       .eq("channel", "분양회 월회비")
       .gte("payment_date", mStart).lte("payment_date", mEnd)
-      .is("refund_amount", null).or("refund_amount.eq.0");
+      .or("refund_amount.is.null,refund_amount.eq.0");
     const mfNames = new Set<string>();
     ((monthFeeData || []) as any[]).forEach(e => {
       if (e.member_name) mfNames.add(e.member_name);
