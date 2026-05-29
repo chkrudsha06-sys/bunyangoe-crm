@@ -20,6 +20,8 @@ interface AdExecution {
   team_member: string | null;
   consultant: string | null;
   hightarget_reward_type: string | null;
+  manual_mileage: number;
+  manual_reward: number;
   hightarget_mileage: number;
   hightarget_reward: number;
   hogaengnono_reward: number;
@@ -47,6 +49,8 @@ const EMPTY_FORM = {
   channel:"", payment_date:"",
   team_member:"", consultant:"",
   hightarget_reward_type:"",
+  manual_mileage:0,
+  manual_reward:0,
   refund_amount:"",
 };
 
@@ -355,8 +359,16 @@ export default function SalesPage() {
   const vatAmount  = form.vat_yn === "여" ? Math.round(rawAmount * 1.1) : rawAmount;
 
   // 리워드 미리보기 (집행금액 기준)
-  const previewRewards = form.channel && rawAmount > 0
-    ? calcRewards(form.channel, rawAmount, form.hightarget_reward_type)
+  const previewRewards = form.channel && (rawAmount > 0 || form.hightarget_reward_type === "수기입력")
+    ? (form.hightarget_reward_type === "수기입력"
+        ? (() => {
+            const m = form.manual_mileage || 0, r = form.manual_reward || 0;
+            if (form.channel === "하이타겟") return { hightarget_mileage: m, hightarget_reward: r, hogaengnono_reward: 0, lms_reward: 0 };
+            if (form.channel.startsWith("호갱노노")) return { hightarget_mileage: m, hightarget_reward: 0, hogaengnono_reward: r, lms_reward: 0 };
+            if (form.channel === "LMS") return { hightarget_mileage: m, hightarget_reward: 0, hogaengnono_reward: 0, lms_reward: r };
+            return { hightarget_mileage: 0, hightarget_reward: 0, hogaengnono_reward: 0, lms_reward: 0 };
+          })()
+        : calcRewards(form.channel, rawAmount, form.hightarget_reward_type))
     : null;
 
   // ── 분양회 입회자 선택 ────────────────────────────────────
@@ -382,7 +394,16 @@ export default function SalesPage() {
     setSaving(true);
     const isRefundOnly = !rawAmount && refundAmt > 0;
     const calcBase = isRefundOnly ? refundAmt : rawAmount;
-    const rawRewards = calcRewards(form.channel, calcBase, form.hightarget_reward_type);
+    const rawRewards = form.hightarget_reward_type === "수기입력"
+      ? (() => {
+          const m = form.manual_mileage || 0;
+          const r = form.manual_reward || 0;
+          if (form.channel === "하이타겟") return { hightarget_mileage: m, hightarget_reward: r, hogaengnono_reward: 0, lms_reward: 0 };
+          if (form.channel.startsWith("호갱노노")) return { hightarget_mileage: m, hightarget_reward: 0, hogaengnono_reward: r, lms_reward: 0 };
+          if (form.channel === "LMS") return { hightarget_mileage: m, hightarget_reward: 0, hogaengnono_reward: 0, lms_reward: r };
+          return { hightarget_mileage: 0, hightarget_reward: 0, hogaengnono_reward: 0, lms_reward: 0 };
+        })()
+      : calcRewards(form.channel, calcBase, form.hightarget_reward_type);
     // 환불이면 모든 리워드/마일리지 음수
     const rewards = isRefundOnly || refundAmt > 0 ? {
       hightarget_mileage: -Math.abs(rawRewards.hightarget_mileage),
@@ -490,6 +511,8 @@ export default function SalesPage() {
       team_member: e.team_member||"",
       consultant: e.consultant||"",
       hightarget_reward_type: e.hightarget_reward_type||"",
+      manual_mileage: e.hightarget_reward_type === "수기입력" ? (e.hightarget_mileage||0) : 0,
+      manual_reward: e.hightarget_reward_type === "수기입력" ? (e.hightarget_reward||e.hogaengnono_reward||e.lms_reward||0) : 0,
       refund_amount: e.refund_amount ? e.refund_amount.toLocaleString() : "",
     });
     setShowModal(true);
@@ -880,7 +903,14 @@ export default function SalesPage() {
                           <option value="">선택</option>
                           <option value="마일리지10%">마일리지 10%</option>
                           <option value="리워드5%">리워드 5%</option>
+                          <option value="수기입력">수기입력</option>
                         </select>
+                        {form.hightarget_reward_type==="수기입력" && (
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            <div><label className={lbl}>마일리지 (원)</label><input type="number" className={inp} value={form.manual_mileage||""} onChange={e=>setForm({...form,manual_mileage:+e.target.value})} placeholder="0" /></div>
+                            <div><label className={lbl}>리워드 (원)</label><input type="number" className={inp} value={form.manual_reward||""} onChange={e=>setForm({...form,manual_reward:+e.target.value})} placeholder="0" /></div>
+                          </div>
+                        )}
                       </div>
                     )}
                     {(form.channel==="호갱노노_채널톡"||form.channel==="호갱노노_단지마커"||form.channel==="호갱노노_기타") && (
@@ -890,7 +920,14 @@ export default function SalesPage() {
                           <option value="">선택</option>
                           <option value="마일리지5%">하이타겟 마일리지 5%</option>
                           <option value="리워드5%">리워드 5%</option>
+                          <option value="수기입력">수기입력</option>
                         </select>
+                        {form.hightarget_reward_type==="수기입력" && (
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            <div><label className={lbl}>HT마일리지 (원)</label><input type="number" className={inp} value={form.manual_mileage||""} onChange={e=>setForm({...form,manual_mileage:+e.target.value})} placeholder="0" /></div>
+                            <div><label className={lbl}>호갱노노리워드 (원)</label><input type="number" className={inp} value={form.manual_reward||""} onChange={e=>setForm({...form,manual_reward:+e.target.value})} placeholder="0" /></div>
+                          </div>
+                        )}
                       </div>
                     )}
                     {form.channel==="LMS" && (
@@ -900,7 +937,14 @@ export default function SalesPage() {
                           <option value="">선택</option>
                           <option value="마일리지15%">하이타겟 마일리지 15%</option>
                           <option value="리워드15%">리워드 15%</option>
+                          <option value="수기입력">수기입력</option>
                         </select>
+                        {form.hightarget_reward_type==="수기입력" && (
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            <div><label className={lbl}>HT마일리지 (원)</label><input type="number" className={inp} value={form.manual_mileage||""} onChange={e=>setForm({...form,manual_mileage:+e.target.value})} placeholder="0" /></div>
+                            <div><label className={lbl}>LMS리워드 (원)</label><input type="number" className={inp} value={form.manual_reward||""} onChange={e=>setForm({...form,manual_reward:+e.target.value})} placeholder="0" /></div>
+                          </div>
+                        )}
                       </div>
                     )}
                     <div>
