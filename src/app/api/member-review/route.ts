@@ -3,6 +3,16 @@ import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: CORS });
+}
+
 function getSupabase() {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -45,14 +55,14 @@ export async function POST(request: NextRequest) {
     const payload = await request.json();
     const data = normalize(payload);
     if (!data.name && !data.phone) {
-      return NextResponse.json({ ok: false, message: "고객명 또는 연락처가 필요합니다." }, { status: 400 });
+      return NextResponse.json({ ok: false, message: "고객명 또는 연락처가 필요합니다." }, { status: 400, headers: CORS });
     }
     const sb = getSupabase();
     const { data: row, error } = await sb.from("member_reviews").insert(data).select("*").single();
-    if (error) return NextResponse.json({ ok: false, message: "저장 실패", error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, message: "심사 결과가 저장되었습니다.", data: row }, { status: 201 });
+    if (error) return NextResponse.json({ ok: false, message: "저장 실패", error: error.message }, { status: 500, headers: CORS });
+    return NextResponse.json({ ok: true, message: "심사 결과가 저장되었습니다.", data: row }, { status: 201, headers: CORS });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, message: "서버 오류", error: e.message }, { status: 500 });
+    return NextResponse.json({ ok: false, message: "서버 오류", error: e.message }, { status: 500, headers: CORS });
   }
 }
 
@@ -60,9 +70,9 @@ export async function GET() {
   try {
     const sb = getSupabase();
     const { data, error } = await sb.from("member_reviews").select("*").order("created_at", { ascending: false });
-    if (error) return NextResponse.json({ ok: false, message: "조회 실패", error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, data });
+    if (error) return NextResponse.json({ ok: false, message: "조회 실패", error: error.message }, { status: 500, headers: CORS });
+    return NextResponse.json({ ok: true, data }, { headers: CORS });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, message: "서버 오류", error: e.message }, { status: 500 });
+    return NextResponse.json({ ok: false, message: "서버 오류", error: e.message }, { status: 500, headers: CORS });
   }
 }
