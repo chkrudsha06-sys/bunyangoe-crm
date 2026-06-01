@@ -30,6 +30,7 @@ const EXEC_MENUS = [
   { href: "/", label: "대시보드", emoji: "📊" },
   { href: "/sales-status", label: "영업현황", emoji: "📈" },
   { href: "/daily-activity", label: "일별활동기록", emoji: "🎯" },
+  { href: "/customer-review", label: "고객별심사결과", emoji: "📋" },
   { href: "/customer-register", label: "고객등록", emoji: "📋" },
   { href: "/customer-journey", label: "고객여정", emoji: "🗺️" },
   { href: "/customer-site-info", label: "고객현장정보", emoji: "🏗️" },
