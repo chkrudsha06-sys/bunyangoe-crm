@@ -38,6 +38,8 @@ function normalize(p: any) {
     networking: p.networking ?? null,
     monthly_ad_budget: toNum(p.monthly_ad_budget ?? p.monthlyAdBudget),
     ad_support: p.ad_support ?? p.adSupport ?? null,
+    trained_consultants: toNum(p.trained_consultants ?? p.trainedConsultants),
+    ad_setting_operation: p.ad_setting_operation ?? p.adSettingOperation ?? null,
     field_score: toNum(p.field_score ?? p.fieldScore),
     organization_score: toNum(p.organization_score ?? p.organizationScore),
     branding_score: toNum(p.branding_score ?? p.brandingScore),
