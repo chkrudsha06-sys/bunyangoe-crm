@@ -191,6 +191,20 @@ export default function CustomerRegisterPage() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
+  // 엑셀 다운로드 (필터 적용된 데이터)
+  const downloadExcel = () => {
+    const header = ["No","고객명","직급","연락처","유입경로","고객유형","관리구간","담당자","담당컨설턴트","미팅일","미팅결과","메모"];
+    const rows = filtered.map((c: any, i: number) => [
+      i+1, c.name||"", c.title||"", c.phone||"", c.intake_route||"", c.customer_type||"",
+      c.management_stage||"", c.assigned_to||"", c.consultant||"", c.meeting_date||"", c.meeting_result||"", c.memo||""
+    ]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `고객등록_${filtered.length}건_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+
   const f = (key: string, val: string) => setForm(p => ({ ...p, [key]: val }));
   const inp = "w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400";
   const lbl = "block text-xs font-semibold text-slate-500 mb-1";
@@ -227,6 +241,9 @@ export default function CustomerRegisterPage() {
               <Upload size={13} /> 일괄 업로드
             </button>
             <input ref={fileRef} type="file" accept=".csv" onChange={handleBulkUpload} className="hidden" />
+            <button onClick={downloadExcel} className="flex items-center gap-1 px-3 py-2 text-xs font-bold rounded-xl" style={{ background: "rgba(59,130,246,0.08)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>
+              <Download size={13} /> 엑셀저장
+            </button>
             <button onClick={() => { setShowAdd(true); setEditId(null); setForm({ ...EMPTY_FORM }); }}
               className="flex items-center gap-2 px-4 py-2.5 text-white text-sm font-bold rounded-xl shadow-sm transition-colors"
               style={{ background: "#1E3A8A" }}>
