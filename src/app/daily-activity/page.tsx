@@ -1,7 +1,36 @@
 "use client";
-import { useState, useEffect, useCallback, useMemo } from "react";
+
+import EmptyState from "@/components/EmptyState";
+import { getCurrentUser, type CRMUser } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { getCurrentUser } from "@/lib/auth";
+import {
+  BarChart3,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardCopy,
+  Clock3,
+  Coffee,
+  Eye,
+  FileCheck2,
+  Flag,
+  PlusCircle,
+  RefreshCw,
+  Save,
+  Sparkles,
+  Target,
+  Trash2,
+  TrendingUp,
+  UserCheck,
+  Users,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ElementType,
+  type ReactNode,
+} from "react";
 
 const EXEC_MEMBERS = [
   { name: "조계현", title: "어쏘" },
@@ -9,343 +38,1801 @@ const EXEC_MEMBERS = [
   { name: "기여운", title: "어쏘" },
   { name: "최연전", title: "CX" },
 ];
-const FIELDS = [
-  { key: "consultant_db", label: "컨설턴트 DB", unit: "개" },
-  { key: "second_touch", label: "2차 접점", unit: "개" },
-  { key: "new_tm", label: "신규 TM", unit: "개" },
-  { key: "manage_tm", label: "관리 TM", unit: "개" },
-  { key: "coldtalk", label: "콜드톡 발송", unit: "개" },
+
+const OPS_NAMES = ["최은정", "김재영"];
+const ADMIN_NAMES = ["문시욱", "김정후", "김창완", "최웅"];
+
+const ACTIVITY_FIELDS = [
+  { key: "new_tm", label: "당일 TM", goalLabel: "당일 TM 목표", resultLabel: "당일 TM 달성", unit: "건" },
+  { key: "coldtalk", label: "당일 콜드톡", goalLabel: "당일 콜드톡 목표", resultLabel: "당일 콜드톡 달성", unit: "건" },
+  { key: "consultant_db", label: "브론즈 DB 확보", goalLabel: "브론즈 DB 확보 목표", resultLabel: "브론즈 DB 확보 달성", unit: "개" },
+  { key: "second_touch", label: "1% DB 확보", goalLabel: "1% DB 확보 목표", resultLabel: "1% DB 확보 달성", unit: "개" },
 ] as const;
-type AKey = (typeof FIELDS)[number]["key"];
-type FV = Record<AKey | "meeting_confirmed", number>;
-interface Row { id: number; work_date: string; owner_name: string; is_outside_meeting: boolean;
-  goal_consultant_db: number; goal_second_touch: number; goal_new_tm: number; goal_manage_tm: number; goal_coldtalk: number; goal_meeting_confirmed: number;
-  result_consultant_db: number; result_second_touch: number; result_new_tm: number; result_manage_tm: number; result_coldtalk: number; result_meeting_confirmed: number; }
-const EMPTY: FV = { consultant_db: 0, second_touch: 0, new_tm: 0, manage_tm: 0, coldtalk: 0, meeting_confirmed: 0 };
 
-function todayStr() { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`; }
-function fmtDate(d: string) { const dt = new Date(d+"T00:00:00"); const days = ["일","월","화","수","목","금","토"]; return `${dt.getMonth()+1}월 ${dt.getDate()}일 (${days[dt.getDay()]})`; }
-function monthStart(d: string) { const dt = new Date(d+"T00:00:00"); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-01`; }
-function monthEnd(d: string) { const dt = new Date(d+"T00:00:00"); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(new Date(dt.getFullYear(),dt.getMonth()+1,0).getDate()).padStart(2,"0")}`; }
-function gv(r: Row|undefined, k: string) { return r ? Number((r as any)[`goal_${k}`] || 0) : 0; }
-function rv(r: Row|undefined, k: string) { return r ? Number((r as any)[`result_${k}`] || 0) : 0; }
-function pct(r: number, g: number) { return g > 0 ? Math.round(r/g*100) : r > 0 ? 100 : 0; }
-function pctColor(p: number) { return p >= 100 ? "#16a34a" : p >= 70 ? "#2563eb" : p >= 40 ? "#ea7c1e" : "#dc2626"; }
+type ActivityKey = (typeof ACTIVITY_FIELDS)[number]["key"];
 
-export default function DailyActivity() {
-  const [user, setUser] = useState<any>(null);
-  const [date, setDate] = useState(todayStr());
-  const [dailyRows, setDailyRows] = useState<Row[]>([]);
-  const [periodRows, setPeriodRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState("");
-  const [outside, setOutside] = useState(false);
-  const [goal, setGoal] = useState<FV>({...EMPTY});
-  const [result, setResult] = useState<FV>({...EMPTY});
-  const [selOwner, setSelOwner] = useState(EXEC_MEMBERS[0].name);
-  const [viewTab, setViewTab] = useState<"daily"|"weekly"|"monthly">("daily");
-  const [delDate, setDelDate] = useState(todayStr());
+type FormValues = Record<ActivityKey | "meeting_confirmed", number>;
 
-  const isAdmin = user?.role === "admin" || user?.role === "ops";
-  const isMember = EXEC_MEMBERS.some(m => m.name === user?.name);
-  const canEdit = isMember && date === todayStr();
+type WorkItem = {
+  id: string;
+  text: string;
+  done: boolean;
+};
 
-  const fetchRows = useCallback(async () => {
-    setLoading(true);
-    const u = getCurrentUser(); setUser(u);
-    const ms = monthStart(date), me = monthEnd(date);
-    const [r1, r2] = await Promise.all([
-      supabase.from("daily_activity_goals").select("*").eq("work_date", date),
-      supabase.from("daily_activity_goals").select("*").gte("work_date", ms).lte("work_date", me).order("work_date", { ascending: false }),
-    ]);
-    setDailyRows((r1.data || []) as Row[]);
-    setPeriodRows((r2.data || []) as Row[]);
-    // 내 데이터 로드
-    const myRow = u?.name ? (r1.data || []).find((x: any) => x.owner_name === u.name) as Row|undefined : undefined;
-    if (myRow) {
-      setOutside(myRow.is_outside_meeting);
-      setGoal({ consultant_db: myRow.goal_consultant_db||0, second_touch: myRow.goal_second_touch||0, new_tm: myRow.goal_new_tm||0, manage_tm: myRow.goal_manage_tm||0, coldtalk: myRow.goal_coldtalk||0, meeting_confirmed: myRow.goal_meeting_confirmed||0 });
-      setResult({ consultant_db: myRow.result_consultant_db||0, second_touch: myRow.result_second_touch||0, new_tm: myRow.result_new_tm||0, manage_tm: myRow.result_manage_tm||0, coldtalk: myRow.result_coldtalk||0, meeting_confirmed: myRow.result_meeting_confirmed||0 });
-    } else { setOutside(false); setGoal({...EMPTY}); setResult({...EMPTY}); }
-    setLoading(false);
-  }, [date]);
+function createEmptyWorkItems(): WorkItem[] {
+  return [1, 2, 3].map((index) => ({
+    id: `task-${Date.now()}-${index}`,
+    text: "",
+    done: false,
+  }));
+}
 
-  useEffect(() => { fetchRows(); }, [fetchRows]);
-  useEffect(() => { if (user && isMember) setSelOwner(user.name); }, [user]);
+function normalizeWorkItems(value: unknown): WorkItem[] {
+  if (!Array.isArray(value)) return createEmptyWorkItems();
+  const items = value
+    .map((item, index) => {
+      if (!item || typeof item !== "object") return null;
+      const data = item as Partial<WorkItem>;
+      return {
+        id: String(data.id || `task-${Date.now()}-${index}`),
+        text: String(data.text || ""),
+        done: Boolean(data.done),
+      };
+    })
+    .filter(Boolean) as WorkItem[];
+  return items.length > 0 ? items : createEmptyWorkItems();
+}
 
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2000); };
+function activeWorkItems(items: WorkItem[]) {
+  return items.filter((item) => item.text.trim().length > 0);
+}
 
-  const handleSave = async () => {
-    if (!user || !isMember) return;
-    setSaving(true);
-    const member = EXEC_MEMBERS.find(m => m.name === user.name);
-    const payload: any = { work_date: date, owner_name: user.name, owner_title: member?.title, owner_role: "exec", is_outside_meeting: outside };
-    FIELDS.forEach(f => { payload[`goal_${f.key}`] = outside ? 0 : goal[f.key]; payload[`result_${f.key}`] = outside ? 0 : result[f.key]; });
-    payload.goal_meeting_confirmed = outside ? 0 : goal.meeting_confirmed;
-    payload.result_meeting_confirmed = outside ? 0 : result.meeting_confirmed;
-    const { error } = await supabase.from("daily_activity_goals").upsert(payload, { onConflict: "work_date,owner_name" });
-    setSaving(false);
-    if (error) { alert("저장 실패: " + error.message); return; }
-    showToast("저장 완료"); fetchRows();
+
+type DailyActivityRow = {
+  id: number;
+  work_date: string;
+  owner_name: string;
+  owner_title: string | null;
+  owner_role: string | null;
+  is_outside_meeting: boolean;
+  goal_consultant_db: number;
+  goal_second_touch: number;
+  goal_new_tm: number;
+  goal_manage_tm: number;
+  goal_coldtalk: number;
+  goal_media_mix: number;
+  goal_meeting_confirmed: number;
+  goal_work_items: WorkItem[] | null;
+  result_consultant_db: number;
+  result_second_touch: number;
+  result_new_tm: number;
+  result_manage_tm: number;
+  result_coldtalk: number;
+  result_media_mix: number;
+  result_meeting_confirmed: number;
+  created_at: string;
+  updated_at: string;
+};
+
+const EMPTY_VALUES: FormValues = {
+  new_tm: 0,
+  coldtalk: 0,
+  consultant_db: 0,
+  second_touch: 0,
+  meeting_confirmed: 0,
+};
+
+function todayString() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function startOfWeek(dateText: string) {
+  const date = new Date(`${dateText}T00:00:00`);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  return toDateInput(date);
+}
+
+function endOfWeek(dateText: string) {
+  const date = new Date(`${startOfWeek(dateText)}T00:00:00`);
+  date.setDate(date.getDate() + 6);
+  return toDateInput(date);
+}
+
+function startOfMonth(dateText: string) {
+  const date = new Date(`${dateText}T00:00:00`);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function endOfMonth(dateText: string) {
+  const date = new Date(`${dateText}T00:00:00`);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()).padStart(2, "0")}`;
+}
+
+function toDateInput(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+
+function nextDateString(dateText: string) {
+  const date = new Date(`${dateText}T00:00:00`);
+  date.setDate(date.getDate() + 1);
+  return toDateInput(date);
+}
+
+async function loadAutoResultCounts(workDate: string, ownerName?: string): Promise<FormValues> {
+  const start = `${workDate}T00:00:00`;
+  const end = `${nextDateString(workDate)}T00:00:00`;
+  let query = supabase
+    .from("contacts")
+    .select("id,created_at,activity_type,customer_grade,crm_db_source,assigned_to")
+    .gte("created_at", start)
+    .lt("created_at", end);
+
+  if (ownerName) query = query.eq("assigned_to", ownerName);
+
+  const { data, error } = await query;
+
+  if (error) return { ...EMPTY_VALUES };
+
+  const rows = (data || []) as Array<{
+    activity_type?: string | null;
+    customer_grade?: string | null;
+    crm_db_source?: string | null;
+    assigned_to?: string | null;
+  }>;
+
+  return {
+    new_tm: rows.filter((row) => String(row.activity_type || "").trim() === "TM").length,
+    coldtalk: rows.filter((row) => String(row.activity_type || "").trim() === "콜드톡").length,
+    consultant_db: rows.filter(
+      (row) =>
+        String(row.crm_db_source || "").trim() === "vip_activity" &&
+        String(row.customer_grade || "").trim() === "브론즈",
+    ).length,
+    second_touch: rows.filter((row) => {
+      const grade = String(row.customer_grade || "").trim();
+      return String(row.crm_db_source || "").trim() === "vip_activity" && (grade === "마스터" || grade === "챌린저");
+    }).length,
+    meeting_confirmed: 0,
   };
+}
 
-  const handleDelete = async (targetDate?: string) => {
-    const delDate = targetDate || date;
-    const delName = targetDate ? selOwner : user?.name;
-    if (!delName) return;
-    if (!confirm(`${fmtDate(delDate)} ${delName}의 활동기록을 삭제하시겠습니까?`)) return;
-    const { error } = await supabase.from("daily_activity_goals").delete().eq("work_date", delDate).eq("owner_name", delName);
-    if (error) { alert("삭제 실패: " + error.message); return; }
-    showToast("삭제 완료"); fetchRows();
+function formatKoreanDate(dateText: string) {
+  const date = new Date(`${dateText}T00:00:00`);
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  return `${date.getMonth() + 1}월 ${date.getDate()}일 (${days[date.getDay()]})`;
+}
+
+function n(value: number | null | undefined) {
+  return Number(value || 0);
+}
+
+function percent(result: number, goal: number) {
+  if (!goal) return result > 0 ? 100 : 0;
+  return Math.round((result / goal) * 100);
+}
+
+function goalValue(
+  row: DailyActivityRow | undefined,
+  key: ActivityKey | "meeting_confirmed",
+) {
+  if (!row) return 0;
+  return n(row[`goal_${key}` as keyof DailyActivityRow] as number);
+}
+
+function resultValue(
+  row: DailyActivityRow | undefined,
+  key: ActivityKey | "meeting_confirmed",
+) {
+  if (!row) return 0;
+  return n(row[`result_${key}` as keyof DailyActivityRow] as number);
+}
+
+function totalTmGoal(row: DailyActivityRow | undefined) {
+  if (!row || row.is_outside_meeting) return 0;
+  return goalValue(row, "new_tm");
+}
+
+function totalTmResult(row: DailyActivityRow | undefined) {
+  if (!row || row.is_outside_meeting) return 0;
+  return resultValue(row, "new_tm");
+}
+
+function totalFieldGoal(rows: Array<{ row?: DailyActivityRow }>, key: ActivityKey) {
+  return rows.reduce((sum, item) => sum + goalValue(item.row, key), 0);
+}
+
+function totalFieldResult(rows: Array<{ row?: DailyActivityRow }>, key: ActivityKey) {
+  return rows.reduce((sum, item) => sum + resultValue(item.row, key), 0);
+}
+
+function totalSpecialGoal(rows: Array<{ row?: DailyActivityRow }>) {
+  return rows.reduce(
+    (sum, item) =>
+      sum + activeWorkItems(normalizeWorkItems(item.row?.goal_work_items)).length,
+    0,
+  );
+}
+
+function totalSpecialResult(rows: Array<{ row?: DailyActivityRow }>) {
+  return rows.reduce(
+    (sum, item) =>
+      sum +
+      activeWorkItems(normalizeWorkItems(item.row?.goal_work_items)).filter(
+        (task) => task.done,
+      ).length,
+    0,
+  );
+}
+
+function isGoalEntered(row: DailyActivityRow | undefined) {
+  if (!row) return false;
+  if (row.is_outside_meeting) return true;
+  return (
+    ACTIVITY_FIELDS.some((field) => goalValue(row, field.key) > 0) ||
+    goalValue(row, "meeting_confirmed") > 0 ||
+    activeWorkItems(normalizeWorkItems(row.goal_work_items)).length > 0
+  );
+}
+
+function isResultEntered(row: DailyActivityRow | undefined) {
+  if (!row) return false;
+  if (row.is_outside_meeting) return true;
+  return (
+    ACTIVITY_FIELDS.some((field) => resultValue(row, field.key) > 0) ||
+    resultValue(row, "meeting_confirmed") > 0 ||
+    activeWorkItems(normalizeWorkItems(row.goal_work_items)).some((item) => item.done)
+  );
+}
+
+function roleAccess(user: CRMUser | null) {
+  const name = user?.name || "";
+  const role = user?.role || "shared";
+  const isExec =
+    role === "exec" || EXEC_MEMBERS.some((member) => member.name === name);
+  const isOps = role === "ops" || OPS_NAMES.includes(name);
+  const isAdmin = role === "admin" || ADMIN_NAMES.includes(name);
+  return {
+    isExec,
+    isOps,
+    isAdmin,
+    canViewAll: isOps || isAdmin,
+    canCopy: isAdmin,
   };
+}
 
-  // 팀 요약
-  const teamGoalTm = dailyRows.reduce((s, r) => s + gv(r,"new_tm") + gv(r,"manage_tm"), 0);
-  const teamResultTm = dailyRows.reduce((s, r) => s + rv(r,"new_tm") + rv(r,"manage_tm"), 0);
-  const teamGoalMeeting = dailyRows.reduce((s, r) => s + gv(r,"meeting_confirmed"), 0);
-  const teamResultMeeting = dailyRows.reduce((s, r) => s + rv(r,"meeting_confirmed"), 0);
-  const enteredGoal = dailyRows.filter(r => FIELDS.some(f => gv(r,f.key) > 0) || gv(r,"meeting_confirmed") > 0 || r.is_outside_meeting).length;
-  const enteredResult = dailyRows.filter(r => FIELDS.some(f => rv(r,f.key) > 0) || rv(r,"meeting_confirmed") > 0 || r.is_outside_meeting).length;
+function rowForMember(rows: DailyActivityRow[], name: string) {
+  return rows.find((row) => row.owner_name === name);
+}
 
-  // 선택 담당자 기간 데이터
-  const selPeriod = periodRows.filter(r => r.owner_name === selOwner);
-  const summaryRows = viewTab === "daily" ? dailyRows : selPeriod;
+function copyToClipboard(text: string) {
+  return navigator.clipboard.writeText(text);
+}
 
-  const inp = "px-3 py-2 text-sm rounded-lg outline-none font-semibold text-center";
-  const inpS = { background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" };
+function buildGoalReport(dateText: string, rows: DailyActivityRow[]) {
+  const lines = [
+    `■ ${formatKoreanDate(dateText)}`,
+    "대외협력팀 실행파트 당일 활동목표",
+    "",
+    "@all",
+    "──────────────",
+  ];
 
-  if (!user) return null;
+  EXEC_MEMBERS.forEach((member) => {
+    const row = rowForMember(rows, member.name);
+    lines.push(`@${member.name}`);
+    lines.push(`1. 당일 TM 목표 : ${goalValue(row, "new_tm")}건`);
+    lines.push(`2. 당일 콜드톡 목표 : ${goalValue(row, "coldtalk")}건`);
+    lines.push(`3. 브론즈 DB 확보 목표 : ${goalValue(row, "consultant_db")}개`);
+    lines.push(`4. 1% DB 확보 목표 : ${goalValue(row, "second_touch")}개`);
+    lines.push("");
+  });
+
+  const totalTm = EXEC_MEMBERS.reduce(
+    (sum, member) => sum + totalTmGoal(rowForMember(rows, member.name)),
+    0,
+  );
+  const totalMeeting = EXEC_MEMBERS.reduce(
+    (sum, member) =>
+      sum + goalValue(rowForMember(rows, member.name), "meeting_confirmed"),
+    0,
+  );
+
+  lines.push("──────────");
+  lines.push(`▶ 당일 TM 목표 : ${totalTm}건`);
+  lines.push(`▶ 전체 목표 합계 : ${EXEC_MEMBERS.reduce((sum, member) => {
+    const row = rowForMember(rows, member.name);
+    return sum + ACTIVITY_FIELDS.reduce((fieldSum, field) => fieldSum + goalValue(row, field.key), 0);
+  }, 0)}건`);
+
+  EXEC_MEMBERS.forEach((member) => {
+    const row = rowForMember(rows, member.name);
+    const tasks = activeWorkItems(normalizeWorkItems(row?.goal_work_items));
+    if (tasks.length > 0) {
+      lines.push("");
+      lines.push(`@${member.name} 당일활동목표`);
+      tasks.forEach((task, index) => lines.push(`${index + 1}. ${task.text}`));
+    }
+  });
+
+  return lines.join("\n");
+}
+
+function buildResultReport(dateText: string, rows: DailyActivityRow[]) {
+  const lines = [
+    `■ ${formatKoreanDate(dateText)}`,
+    "대외협력팀 실행파트 당일 활동결과",
+    "",
+    "@all",
+    "──────────────",
+  ];
+
+  EXEC_MEMBERS.forEach((member, index) => {
+    const row = rowForMember(rows, member.name);
+    lines.push(`@${member.name}`);
+    lines.push(
+      `1. 당일 TM : ${goalValue(row, "new_tm")}건(목표) / ${resultValue(row, "new_tm")}건(달성) / 달성율 ${percent(resultValue(row, "new_tm"), goalValue(row, "new_tm"))}%`,
+    );
+    lines.push(
+      `2. 당일 콜드톡 : ${goalValue(row, "coldtalk")}건(목표) / ${resultValue(row, "coldtalk")}건(달성) / 달성율 ${percent(resultValue(row, "coldtalk"), goalValue(row, "coldtalk"))}%`,
+    );
+    lines.push(
+      `3. 브론즈 DB 확보 : ${goalValue(row, "consultant_db")}개(목표) / ${resultValue(row, "consultant_db")}개(달성) / 달성율 ${percent(resultValue(row, "consultant_db"), goalValue(row, "consultant_db"))}%`,
+    );
+    lines.push(
+      `4. 1% DB 확보 : ${goalValue(row, "second_touch")}개(목표) / ${resultValue(row, "second_touch")}개(달성) / 달성율 ${percent(resultValue(row, "second_touch"), goalValue(row, "second_touch"))}%`,
+    );
+    lines.push("──────────");
+    lines.push(
+      `▶ 당일 TM : ${goalValue(row, "new_tm")}건(목표) / ${resultValue(row, "new_tm")}건(달성) / 달성율 ${percent(resultValue(row, "new_tm"), goalValue(row, "new_tm"))}%`,
+    );
+    const tasks = activeWorkItems(normalizeWorkItems(row?.goal_work_items));
+    if (tasks.length > 0) {
+      lines.push("▶ 당일활동목표 체크");
+      tasks.forEach((task, taskIndex) =>
+        lines.push(`${taskIndex + 1}. ${task.done ? "완료" : "미완료"} - ${task.text}`),
+      );
+    }
+    if (index < EXEC_MEMBERS.length - 1) lines.push("");
+  });
+
+  return lines.join("\n");
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  tone = "info",
+}: {
+  icon: ElementType;
+  label: string;
+  value: string | number;
+  sub?: string;
+  tone?: "info" | "success" | "warning" | "purple" | "danger";
+}) {
+  const styleMap = {
+    info: {
+      bg: "var(--info-bg)",
+      border: "var(--info-border)",
+      color: "var(--info-text)",
+    },
+    success: {
+      bg: "var(--success-bg)",
+      border: "var(--success-border)",
+      color: "var(--success-text)",
+    },
+    warning: {
+      bg: "var(--warning-bg)",
+      border: "var(--warning-border)",
+      color: "var(--warning-text)",
+    },
+    purple: {
+      bg: "var(--purple-bg)",
+      border: "var(--purple-border)",
+      color: "var(--purple-text)",
+    },
+    danger: {
+      bg: "var(--danger-bg)",
+      border: "var(--danger-border)",
+      color: "var(--danger-text)",
+    },
+  }[tone];
 
   return (
-    <div className="p-6 space-y-5">
-      {/* 헤더 */}
-      <div className="rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderBottom: "4px solid #7c3aed" }}>
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: "#7c3aed" }}>🎯 일별활동기록</span>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold" style={{ background: "var(--bg)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>{fmtDate(date)} 기준</span>
-            {isAdmin && <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold" style={{ background: "rgba(59,130,246,0.1)", color: "#2563eb" }}>전체 보기</span>}
+    <div className="premium-card flex min-h-[104px] items-center justify-between p-4">
+      <div>
+        <p className="crm-tiny">{label}</p>
+        <p
+          className="mt-2 text-[25px] font-[820] tracking-[-0.06em]"
+          style={{ color: "var(--text-strong)" }}
+        >
+          {typeof value === "number" ? value.toLocaleString() : value}
+        </p>
+        {sub && <p className="crm-row-sub mt-1">{sub}</p>}
+      </div>
+      <div
+        className="flex h-11 w-11 items-center justify-center rounded-[14px] border"
+        style={{
+          background: styleMap.bg,
+          borderColor: styleMap.border,
+          color: styleMap.color,
+        }}
+      >
+        <Icon size={20} />
+      </div>
+    </div>
+  );
+}
+
+function NumberInput({
+  label,
+  value,
+  onChange,
+  disabled,
+  unit = "건",
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  disabled?: boolean;
+  unit?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="crm-meta mb-2 block">{label}</span>
+      <div className="relative">
+        <input
+          type="number"
+          min={0}
+          value={value}
+          disabled={disabled}
+          onChange={(event) =>
+            onChange(Math.max(0, Number(event.target.value || 0)))
+          }
+          className="h-[42px] w-full rounded-[13px] border px-3 pr-10 text-[14px] font-[760] outline-none disabled:opacity-50"
+          style={{
+            background: "var(--surface-2)",
+            borderColor: "var(--border)",
+            color: "var(--text)",
+          }}
+        />
+        <span
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-bold"
+          style={{ color: "var(--text-faint)" }}
+        >
+          {unit}
+        </span>
+      </div>
+    </label>
+  );
+}
+
+function ProgressBar({ result, goal }: { result: number; goal: number }) {
+  const rate = percent(result, goal);
+  const width = Math.min(100, Math.max(3, rate));
+  const color =
+    rate >= 100
+      ? "var(--success)"
+      : rate >= 70
+        ? "var(--info)"
+        : rate >= 40
+          ? "var(--warning)"
+          : "var(--danger)";
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-[11px] font-bold">
+        <span style={{ color: "var(--text-subtle)" }}>
+          {goal.toLocaleString()} / {result.toLocaleString()}
+        </span>
+        <span style={{ color }}>{rate}%</span>
+      </div>
+      <div
+        className="h-2 overflow-hidden rounded-full"
+        style={{ background: "var(--surface-3)" }}
+      >
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${width}%`, background: color }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AdminMemberCards({
+  dailyMemberRows,
+  selectedOwner,
+  onSelect,
+}: {
+  dailyMemberRows: { member: { name: string; title: string }; row?: DailyActivityRow }[];
+  selectedOwner: string;
+  onSelect: (name: string) => void;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {dailyMemberRows.map(({ member, row }) => {
+        const excluded = row?.is_outside_meeting;
+        const goalEntered = isGoalEntered(row);
+        const resultEntered = isResultEntered(row);
+        const isSelected = selectedOwner === member.name;
+        return (
+          <button
+            key={member.name}
+            type="button"
+            onClick={() => onSelect(isSelected ? "" : member.name)}
+            className="rounded-[13px] border p-4 text-left transition-all"
+            style={{
+              borderColor: isSelected ? "var(--accent-border)" : "var(--border)",
+              background: isSelected ? "var(--accent-subtle)" : "var(--surface-2)",
+              outline: "none",
+            }}
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className="crm-avatar"
+                  style={{ background: "linear-gradient(135deg,#8b7cf6,#60a5fa)", width: 32, height: 32, fontSize: 13 }}
+                >
+                  {member.name.slice(0, 1)}
+                </div>
+                <div>
+                  <p className="text-[13px] font-[760]" style={{ color: "var(--text-strong)" }}>{member.name}</p>
+                  <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>{member.title}</p>
+                </div>
+              </div>
+              <span className={`badge-premium ${excluded ? "badge-warning" : resultEntered ? "badge-success" : goalEntered ? "badge-info" : "badge-muted"}`} style={{ fontSize: 10 }}>
+                {excluded ? "외근" : resultEntered ? "결과입력" : goalEntered ? "목표입력" : "대기"}
+              </span>
+            </div>
+            <div
+              className="rounded-[8px] px-3 py-2 text-center text-[12px] font-[760]"
+              style={{
+                background: goalEntered ? "var(--success-bg)" : "var(--surface-3)",
+                color: goalEntered ? "var(--success-text)" : "var(--text-faint)",
+              }}
+            >
+              {excluded ? "기록 제외" : goalEntered ? "✓ 목표설정 완료" : "목표 미설정"}
+            </div>
+            {isSelected && (
+              <p className="mt-2 text-center text-[11px]" style={{ color: "var(--accent-text)" }}>▲ 세부내역 보기</p>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MemberDayCard({
+  member,
+  row,
+}: {
+  member: { name: string; title: string };
+  row?: DailyActivityRow;
+}) {
+  const excluded = row?.is_outside_meeting;
+  const workItems = row ? (normalizeWorkItems(row.goal_work_items)).filter((item) => item.text.trim().length > 0) : [];
+  return (
+    <article className="premium-card overflow-hidden p-4">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            className="crm-avatar"
+            style={{ background: "linear-gradient(135deg,#8b7cf6,#60a5fa)" }}
+          >
+            {member.name.slice(0, 1)}
           </div>
-          <h1 className="text-xl font-black" style={{ color: "var(--text)" }}>일별활동기록</h1>
-          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>개인별 활동목표와 결과 기록을 일·주·월 단위로 관리합니다.</p>
+          <div className="min-w-0">
+            <p className="crm-row-main">
+              {member.name} <span className="crm-row-sub">{member.title}</span>
+            </p>
+            <p className="crm-tiny mt-1">
+              {excluded
+                ? "외근(미팅) 기록대상 제외"
+                : row
+                  ? "일별 활동기록 입력됨"
+                  : "미입력"}
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="px-3 py-2 text-xs rounded-full outline-none font-bold" style={inpS} />
-          <button onClick={fetchRows} className="px-4 py-2 text-xs font-bold rounded-full" style={{ background: "var(--bg)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>🔄 최신화</button>
-        </div>
+        <span
+          className={`badge-premium ${excluded ? "badge-warning" : isResultEntered(row) ? "badge-success" : isGoalEntered(row) ? "badge-info" : "badge-muted"}`}
+        >
+          {excluded
+            ? "외근"
+            : isResultEntered(row)
+              ? "결과입력"
+              : isGoalEntered(row)
+                ? "목표입력"
+                : "대기"}
+        </span>
       </div>
 
-      {loading ? <div className="flex justify-center py-20"><div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div> : (
-        <>
-          {/* 팀 요약 KPI */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[
-              { label: "목표 입력", value: `${enteredGoal}/4`, sub: "실행파트", color: "#7c3aed" },
-              { label: "결과 입력", value: `${enteredResult}/4`, sub: "실행파트", color: "#2563eb" },
-              { label: "팀 TM 합계", value: `${teamResultTm}/${teamGoalTm}`, sub: `달성율 ${pct(teamResultTm,teamGoalTm)}%`, color: pctColor(pct(teamResultTm,teamGoalTm)) },
-              { label: "팀 미팅 확정", value: `${teamResultMeeting}/${teamGoalMeeting}`, sub: `달성율 ${pct(teamResultMeeting,teamGoalMeeting)}%`, color: pctColor(pct(teamResultMeeting,teamGoalMeeting)) },
-            ].map(k => (
-              <div key={k.label} className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderTop: `4px solid ${k.color}` }}>
-                <p className="text-[10px] font-bold mb-1" style={{ color: "var(--text-muted)" }}>{k.label}</p>
-                <p className="text-2xl font-black" style={{ color: k.color }}>{k.value}</p>
-                <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>{k.sub}</p>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {ACTIVITY_FIELDS.map((field) => (
+          <div
+            key={field.key}
+            className="rounded-[13px] border p-3"
+            style={{
+              borderColor: "var(--border)",
+              background: "var(--surface-2)",
+            }}
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="crm-tiny">{field.label}</p>
+              <p
+                className="text-[12px] font-[780]"
+                style={{ color: "var(--text)" }}
+              >
+                목표 {goalValue(row, field.key)} / 달성 {resultValue(row, field.key)} {field.unit}
+              </p>
+            </div>
+            <ProgressBar
+              result={resultValue(row, field.key)}
+              goal={goalValue(row, field.key)}
+            />
+          </div>
+        ))}
+      </div>
+
+      {workItems.length > 0 && (
+        <div className="mt-3 rounded-[13px] border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+          <p className="crm-tiny mb-2" style={{ fontWeight: 700 }}>특발성 활동목표</p>
+          <div className="space-y-1">
+            {workItems.map((item) => (
+              <div key={item.id} className="flex items-center gap-2.5 rounded-[8px] px-2.5 py-2" style={{ background: "var(--surface-3)" }}>
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border" style={{ background: item.done ? "var(--success-bg)" : "var(--surface)", borderColor: item.done ? "var(--success-border)" : "var(--border)", color: "var(--success-text)" }}>
+                  {item.done && <span style={{ fontSize: 11 }}>✓</span>}
+                </div>
+                <span className="text-[13px]" style={{ color: item.done ? "var(--text-faint)" : "var(--text-strong)", textDecoration: item.done ? "line-through" : "none" }}>
+                  {item.text}
+                </span>
+                {item.done && <span className="ml-auto text-[11px]" style={{ color: "var(--success-text)" }}>달성</span>}
               </div>
             ))}
           </div>
+        </div>
+      )}
+    </article>
+  );
+}
 
-          {/* 팀 전체 현황 테이블 */}
-          <div className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-            <h3 className="text-sm font-bold mb-4" style={{ color: "var(--text)" }}>👥 팀 전체 현황 — {fmtDate(date)}</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full"><thead><tr style={{ background: "rgba(124,58,237,0.06)" }}>
-                <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>담당자</th>
-                <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>상태</th>
-                {FIELDS.map(f => <th key={f.key} className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>{f.label}</th>)}
-                <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>미팅확정</th>
-                <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>TM합계</th>
-              </tr></thead><tbody>
-                {EXEC_MEMBERS.map(m => {
-                  const row = dailyRows.find(r => r.owner_name === m.name);
-                  const isOut = row?.is_outside_meeting;
-                  const hasGoal = row && (FIELDS.some(f => gv(row,f.key)>0) || gv(row,"meeting_confirmed")>0 || isOut);
-                  const hasResult = row && (FIELDS.some(f => rv(row,f.key)>0) || rv(row,"meeting_confirmed")>0 || isOut);
-                  return (
-                    <tr key={m.name} style={{ color: "var(--text)" }}>
-                      <td className="px-3 py-2 text-xs text-center font-bold" style={{ borderBottom: "1px solid var(--border)" }}>{m.name}</td>
-                      <td className="px-3 py-2 text-xs text-center" style={{ borderBottom: "1px solid var(--border)" }}>
-                        {isOut ? <span className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: "rgba(234,124,30,0.1)", color: "#ea7c1e" }}>외근</span> :
-                         hasResult ? <span className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: "rgba(22,163,74,0.1)", color: "#16a34a" }}>결과입력</span> :
-                         hasGoal ? <span className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: "rgba(37,99,235,0.1)", color: "#2563eb" }}>목표입력</span> :
-                         <span className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: "var(--bg)", color: "var(--text-muted)" }}>미입력</span>}
-                      </td>
-                      {FIELDS.map(f => (
-                        <td key={f.key} className="px-3 py-2 text-xs text-center" style={{ borderBottom: "1px solid var(--border)" }}>
-                          {isOut ? "-" : <><span className="font-bold" style={{ color: pctColor(pct(rv(row,f.key),gv(row,f.key))) }}>{rv(row,f.key)}</span><span style={{ color: "var(--text-muted)" }}>/{gv(row,f.key)}</span></>}
-                        </td>
-                      ))}
-                      <td className="px-3 py-2 text-xs text-center" style={{ borderBottom: "1px solid var(--border)" }}>
-                        {isOut ? "-" : <><span className="font-bold" style={{ color: "#d97706" }}>{rv(row,"meeting_confirmed")}</span><span style={{ color: "var(--text-muted)" }}>/{gv(row,"meeting_confirmed")}</span></>}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-center font-bold" style={{ borderBottom: "1px solid var(--border)", color: pctColor(pct(rv(row,"new_tm")+rv(row,"manage_tm"), gv(row,"new_tm")+gv(row,"manage_tm"))) }}>
-                        {isOut ? "-" : `${rv(row,"new_tm")+rv(row,"manage_tm")}/${gv(row,"new_tm")+gv(row,"manage_tm")}`}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody></table>
+function PeriodSummary({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: DailyActivityRow[];
+}) {
+  const included = rows.filter((row) => !row.is_outside_meeting);
+  const goals = ACTIVITY_FIELDS.reduce(
+    (sum, field) =>
+      sum + included.reduce((s, row) => s + goalValue(row, field.key), 0),
+    0,
+  );
+  const results = ACTIVITY_FIELDS.reduce(
+    (sum, field) =>
+      sum + included.reduce((s, row) => s + resultValue(row, field.key), 0),
+    0,
+  );
+  const meetings = included.reduce(
+    (sum, row) => sum + resultValue(row, "meeting_confirmed"),
+    0,
+  );
+  const excluded = rows.length - included.length;
+
+  return (
+    <div className="premium-card p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="crm-card-title">{title}</p>
+          <p className="crm-tiny mt-1">외근 제외 {included.length}건 기준</p>
+        </div>
+        {excluded > 0 && (
+          <span className="badge-premium badge-warning">
+            외근 제외 {excluded}
+          </span>
+        )}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div>
+          <p className="crm-tiny">활동목표</p>
+          <p className="crm-row-main mt-1">{goals.toLocaleString()}개</p>
+        </div>
+        <div>
+          <p className="crm-tiny">활동결과</p>
+          <p className="crm-row-main mt-1">{results.toLocaleString()}개</p>
+        </div>
+        <div>
+          <p className="crm-tiny">미팅확정</p>
+          <p className="crm-row-main mt-1">{meetings.toLocaleString()}건</p>
+        </div>
+      </div>
+      <div className="mt-3">
+        <ProgressBar result={results} goal={goals} />
+      </div>
+    </div>
+  );
+}
+
+function GuideBox({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="rounded-[16px] border px-4 py-3 text-[13px] font-[650] leading-relaxed"
+      style={{
+        background: "var(--accent-subtle)",
+        borderColor: "var(--accent-border)",
+        color: "var(--accent-text)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function WorkItemsEditor({
+  items,
+  disabled,
+  onTextChange,
+  onAdd,
+  onRemove,
+}: {
+  items: WorkItem[];
+  disabled?: boolean;
+  onTextChange: (id: string, text: string) => void;
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div
+      className="flex h-full min-h-[240px] w-full flex-col rounded-[16px] border p-4"
+      style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="crm-section-title">특발성활동목표</p>
+          <p className="crm-tiny mt-1">오늘 처리해야 할 업무를 텍스트로 정리합니다.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onAdd}
+          disabled={disabled}
+          className="btn-premium btn-secondary"
+        >
+          <PlusCircle size={14} /> 칸추가
+        </button>
+      </div>
+      <div className="flex-1 space-y-2">
+        {items.map((item, index) => (
+          <div key={item.id} className="flex items-center gap-2">
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-[850]"
+              style={{ background: "var(--accent-subtle)", color: "var(--accent-text)" }}
+            >
+              {index + 1}
+            </span>
+            <input
+              value={item.text}
+              disabled={disabled}
+              onChange={(event) => onTextChange(item.id, event.target.value)}
+              placeholder="오늘 처리할 과업을 입력하세요"
+              className="h-[42px] min-w-0 flex-1 rounded-[13px] border px-3 text-[14px] font-[700] outline-none disabled:opacity-50"
+              style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+            />
+            <button
+              type="button"
+              onClick={() => onRemove(item.id)}
+              disabled={disabled || items.length <= 3}
+              className="flex h-[42px] w-[42px] items-center justify-center rounded-[13px] border disabled:opacity-40"
+              style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WorkItemsResultChecklist({
+  items,
+  disabled,
+  onToggle,
+}: {
+  items: WorkItem[];
+  disabled?: boolean;
+  onToggle: (id: string) => void;
+}) {
+  const visibleItems = items.length > 0 ? items : createEmptyWorkItems();
+  return (
+    <div
+      className="flex h-full min-h-[240px] w-full flex-col rounded-[16px] border p-4"
+      style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+    >
+      <div className="mb-3">
+        <p className="crm-section-title">퇴근 전 활동결과</p>
+        <p className="crm-tiny mt-1">완료한 업무를 체크하면 중간선으로 완료 표시됩니다.</p>
+      </div>
+      <div className="flex-1 space-y-2">
+        {visibleItems.map((item, index) => {
+          const hasText = item.text.trim().length > 0;
+          return (
+            <label
+              key={item.id}
+              className="flex h-[42px] cursor-pointer items-center gap-3 rounded-[13px] border px-3"
+              style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+            >
+              <input
+                type="checkbox"
+                checked={item.done}
+                disabled={disabled || !hasText}
+                onChange={() => onToggle(item.id)}
+              />
+              <span
+                className={`min-w-0 flex-1 text-[14px] font-[760] ${item.done ? "line-through" : ""}`}
+                style={{ color: item.done ? "var(--text-faint)" : "var(--text)" }}
+              >
+                {hasText ? item.text : `${index + 1}. 입력된 업무가 없습니다`}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+function GoalInputPanel({
+  goal,
+  disabled,
+  onChange,
+}: {
+  goal: FormValues;
+  disabled?: boolean;
+  onChange: (key: ActivityKey, value: number) => void;
+}) {
+  return (
+    <div
+      className="flex h-full min-h-[240px] flex-col rounded-[16px] border p-4"
+      style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+    >
+      <div className="mb-3">
+        <p className="crm-section-title">당일 활동목표</p>
+        <p className="crm-tiny mt-1">목표는 앞쪽, 달성은 뒤쪽 기준으로 집계됩니다.</p>
+      </div>
+      <div className="grid flex-1 content-start gap-3 sm:grid-cols-2">
+        {ACTIVITY_FIELDS.map((field) => (
+          <NumberInput
+            key={field.key}
+            label={field.goalLabel}
+            value={goal[field.key]}
+            unit={field.unit}
+            disabled={disabled}
+            onChange={(value) => onChange(field.key, value)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AutoResultNotice({ goal, result }: { goal: FormValues; result: FormValues }) {
+  return (
+    <div
+      className="flex h-full min-h-[240px] flex-col rounded-[16px] border p-4"
+      style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+    >
+      <div className="mb-3">
+        <p className="crm-section-title">자동 집계 활동결과</p>
+        <p className="crm-tiny mt-1">
+          TM·콜드톡·DB 확보 달성값은 관련 데이터 입력 시 자동으로 집계됩니다.
+        </p>
+      </div>
+      <div className="grid flex-1 content-start gap-2 sm:grid-cols-2">
+        {ACTIVITY_FIELDS.map((field) => (
+          <div
+            key={field.key}
+            className="rounded-[13px] border px-3 py-3"
+            style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+          >
+            <p className="crm-tiny">{field.label} 달성</p>
+            <p className="crm-row-main mt-1">
+              {goal[field.key].toLocaleString()} / {result[field.key].toLocaleString()} {field.unit}
+            </p>
+            <p className="crm-tiny mt-1">달성율 {percent(result[field.key], goal[field.key])}%</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function DailyActivityPage() {
+  const [user, setUser] = useState<CRMUser | null>(null);
+  const [date, setDate] = useState(todayString());
+  const [monthFilter, setMonthFilter] = useState(todayString().slice(0, 7));
+  const [dailyRows, setDailyRows] = useState<DailyActivityRow[]>([]);
+  const [periodRows, setPeriodRows] = useState<DailyActivityRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState("");
+  const [isOutsideMeeting, setIsOutsideMeeting] = useState(false);
+  const [goal, setGoal] = useState<FormValues>({ ...EMPTY_VALUES });
+  const [result, setResult] = useState<FormValues>({ ...EMPTY_VALUES });
+  const [workItems, setWorkItems] = useState<WorkItem[]>(createEmptyWorkItems());
+  const [selectedOwner, setSelectedOwner] = useState(EXEC_MEMBERS[0].name);
+
+  const access = useMemo(() => roleAccess(user), [user]);
+  const currentMember = useMemo(
+    () => EXEC_MEMBERS.find((member) => member.name === user?.name),
+    [user?.name],
+  );
+  const dailyMemberRows = useMemo(
+    () =>
+      EXEC_MEMBERS.map((member) => ({
+        member,
+        row: rowForMember(dailyRows, member.name),
+      })),
+    [dailyRows],
+  );
+  const myRow = useMemo(
+    () => (user?.name ? rowForMember(dailyRows, user.name) : undefined),
+    [dailyRows, user?.name],
+  );
+
+  const monthOptions = useMemo(() => {
+    const base = new Date(`${todayString()}T00:00:00`);
+    return Array.from({ length: 18 }, (_, index) => {
+      const d = new Date(base.getFullYear(), base.getMonth() - index, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      return {
+        value,
+        label: `${d.getFullYear()}년 ${d.getMonth() + 1}월`,
+      };
+    });
+  }, []);
+
+  const fetchRows = useCallback(async () => {
+    setLoading(true);
+    const loginUser = getCurrentUser();
+    setUser(loginUser);
+
+    const monthStart = `${monthFilter}-01`;
+    const monthEnd = endOfMonth(monthStart);
+
+    const [dailyRes, periodRes, autoResult] = await Promise.all([
+      supabase.from("daily_activity_goals").select("*").eq("work_date", date),
+      supabase
+        .from("daily_activity_goals")
+        .select("*")
+        .gte("work_date", monthStart)
+        .lte("work_date", monthEnd)
+        .order("work_date", { ascending: false }),
+      loadAutoResultCounts(date, loginUser?.name),
+    ]);
+
+    if (dailyRes.error) {
+      alert(`일별 활동기록을 불러오지 못했습니다.\n${dailyRes.error.message}`);
+      setDailyRows([]);
+    } else {
+      setDailyRows((dailyRes.data || []) as DailyActivityRow[]);
+    }
+
+    if (periodRes.error) {
+      setPeriodRows([]);
+    } else {
+      setPeriodRows((periodRes.data || []) as DailyActivityRow[]);
+    }
+
+    const row = loginUser?.name
+      ? ((dailyRes.data || []).find(
+          (item) => item.owner_name === loginUser.name,
+        ) as DailyActivityRow | undefined)
+      : undefined;
+    if (row) {
+      setIsOutsideMeeting(row.is_outside_meeting);
+      setGoal({
+        new_tm: row.goal_new_tm || 0,
+        coldtalk: row.goal_coldtalk || 0,
+        consultant_db: row.goal_consultant_db || 0,
+        second_touch: row.goal_second_touch || 0,
+        meeting_confirmed: 0,
+      });
+      setResult(autoResult);
+      setWorkItems(normalizeWorkItems(row.goal_work_items));
+    } else {
+      setIsOutsideMeeting(false);
+      setGoal({ ...EMPTY_VALUES });
+      setResult(autoResult);
+      setWorkItems(createEmptyWorkItems());
+    }
+
+    setLoading(false);
+  }, [date, monthFilter]);
+
+  useEffect(() => {
+    fetchRows();
+  }, [fetchRows]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (access.canViewAll) {
+      setSelectedOwner((prev) => prev || EXEC_MEMBERS[0].name);
+      return;
+    }
+    if (currentMember) setSelectedOwner(currentMember.name);
+  }, [access.canViewAll, currentMember, user]);
+
+  useEffect(() => {
+    let alive = true;
+    const refreshAutoResult = async () => {
+      const next = await loadAutoResultCounts(date, user?.name);
+      if (alive) setResult(next);
+    };
+    refreshAutoResult();
+    const timer = window.setInterval(refreshAutoResult, 60_000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [date, user?.name]);
+
+
+  const showToast = (message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2200);
+  };
+
+  const updateWorkItemText = (id: string, text: string) => {
+    setWorkItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, text } : item)),
+    );
+  };
+
+  const toggleWorkItemDone = (id: string) => {
+    setWorkItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, done: !item.done } : item,
+      ),
+    );
+  };
+
+  const addWorkItem = () => {
+    setWorkItems((prev) => [
+      ...prev,
+      { id: `task-${Date.now()}-${prev.length + 1}`, text: "", done: false },
+    ]);
+  };
+
+  const removeWorkItem = (id: string) => {
+    setWorkItems((prev) =>
+      prev.length <= 3 ? createEmptyWorkItems() : prev.filter((item) => item.id !== id),
+    );
+  };
+
+  const handleSave = async () => {
+    if (!user || !currentMember) {
+      alert("실행파트 인원만 활동기록을 입력할 수 있습니다.");
+      return;
+    }
+
+    setSaving(true);
+    const autoResult = await loadAutoResultCounts(date, currentMember.name);
+    const payload = {
+      work_date: date,
+      owner_name: currentMember.name,
+      owner_title: currentMember.title,
+      owner_role: "exec",
+      is_outside_meeting: isOutsideMeeting,
+      goal_consultant_db: isOutsideMeeting ? 0 : goal.consultant_db,
+      goal_second_touch: isOutsideMeeting ? 0 : goal.second_touch,
+      goal_new_tm: isOutsideMeeting ? 0 : goal.new_tm,
+      goal_manage_tm: 0,
+      goal_coldtalk: isOutsideMeeting ? 0 : goal.coldtalk,
+      goal_media_mix: 0,
+      goal_meeting_confirmed: 0,
+      goal_work_items: isOutsideMeeting ? [] : workItems,
+      result_consultant_db: isOutsideMeeting ? 0 : autoResult.consultant_db,
+      result_second_touch: isOutsideMeeting ? 0 : autoResult.second_touch,
+      result_new_tm: isOutsideMeeting ? 0 : autoResult.new_tm,
+      result_manage_tm: 0,
+      result_coldtalk: isOutsideMeeting ? 0 : autoResult.coldtalk,
+      result_media_mix: 0,
+      result_meeting_confirmed: 0,
+    };
+
+    const { error } = await supabase
+      .from("daily_activity_goals")
+      .upsert(payload, { onConflict: "work_date,owner_name" });
+    setSaving(false);
+
+    if (error) {
+      alert(`저장 실패\n${error.message}`);
+      return;
+    }
+
+    // 카카오워크 이벤트 알림방으로 활동목표 발송 (실패해도 저장에는 영향 없음)
+    fetch("/api/kakaowork/notify-event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "daily_activity_saved",
+        data: {
+          owner_name: currentMember.name,
+          owner_title: currentMember.title,
+          work_date: date,
+          goal_new_tm: isOutsideMeeting ? 0 : goal.new_tm,
+          goal_coldtalk: isOutsideMeeting ? 0 : goal.coldtalk,
+          goal_consultant_db: isOutsideMeeting ? 0 : goal.consultant_db,
+          goal_second_touch: isOutsideMeeting ? 0 : goal.second_touch,
+          is_outside_meeting: isOutsideMeeting,
+          work_items: isOutsideMeeting ? [] : activeWorkItems(workItems),
+        },
+      }),
+    }).catch(() => {});
+
+    showToast("일별 활동기록이 저장되었습니다");
+    fetchRows();
+  };
+
+  const handleEditDetailRow = (row: DailyActivityRow) => {
+    if (!user?.name || row.owner_name !== user.name) {
+      alert("본인 활동기록만 수정할 수 있습니다.");
+      return;
+    }
+
+    setDate(row.work_date);
+    setIsOutsideMeeting(row.is_outside_meeting);
+    setGoal({
+      new_tm: row.goal_new_tm || 0,
+      coldtalk: row.goal_coldtalk || 0,
+      consultant_db: row.goal_consultant_db || 0,
+      second_touch: row.goal_second_touch || 0,
+      meeting_confirmed: 0,
+    });
+    setResult({
+      new_tm: row.result_new_tm || 0,
+      coldtalk: row.result_coldtalk || 0,
+      consultant_db: row.result_consultant_db || 0,
+      second_touch: row.result_second_touch || 0,
+      meeting_confirmed: 0,
+    });
+    setWorkItems(normalizeWorkItems(row.goal_work_items));
+
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    showToast(`${formatKoreanDate(row.work_date)} 기록을 수정 모드로 불러왔습니다`);
+  };
+
+  const handleDeleteDetailRow = async (row: DailyActivityRow) => {
+    if (!user?.name || row.owner_name !== user.name) {
+      alert("본인 활동기록만 삭제할 수 있습니다.");
+      return;
+    }
+
+    const ok = window.confirm(`${formatKoreanDate(row.work_date)} 활동기록을 삭제할까요?`);
+    if (!ok) return;
+
+    setSaving(true);
+    const { error } = await supabase
+      .from("daily_activity_goals")
+      .delete()
+      .eq("id", row.id)
+      .eq("owner_name", user.name);
+    setSaving(false);
+
+    if (error) {
+      alert(`삭제 실패\n${error.message}`);
+      return;
+    }
+
+    if (row.work_date === date) {
+      setIsOutsideMeeting(false);
+      setGoal({ ...EMPTY_VALUES });
+      setResult({ ...EMPTY_VALUES });
+      setWorkItems(createEmptyWorkItems());
+    }
+
+    showToast("월간 상세 기록이 삭제되었습니다");
+    fetchRows();
+  };
+
+  const copyGoalReport = async () => {
+    await copyToClipboard(buildGoalReport(date, dailyRows));
+    showToast("카카오워크 활동목표 양식이 복사되었습니다");
+  };
+
+  const copyResultReport = async () => {
+    await copyToClipboard(buildResultReport(date, dailyRows));
+    showToast("카카오워크 활동결과 양식이 복사되었습니다");
+  };
+
+  const weekRows = useMemo(() => {
+    const s = startOfWeek(date);
+    const e = endOfWeek(date);
+    return periodRows.filter((row) => row.work_date >= s && row.work_date <= e);
+  }, [date, periodRows]);
+
+  const monthRows = useMemo(() => periodRows, [periodRows]);
+  const personalRows = useMemo(
+    () =>
+      user?.name
+        ? periodRows.filter((row) => row.owner_name === user.name)
+        : [],
+    [periodRows, user?.name],
+  );
+  const personalWeekRows = useMemo(() => {
+    const s = startOfWeek(date);
+    const e = endOfWeek(date);
+    return personalRows.filter(
+      (row) => row.work_date >= s && row.work_date <= e,
+    );
+  }, [date, personalRows]);
+
+  const selectedMember = useMemo(
+    () =>
+      EXEC_MEMBERS.find((member) => member.name === selectedOwner) ||
+      EXEC_MEMBERS[0],
+    [selectedOwner],
+  );
+  const selectedDailyRow = useMemo(
+    () => rowForMember(dailyRows, selectedMember.name),
+    [dailyRows, selectedMember.name],
+  );
+  const selectedPeriodRows = useMemo(
+    () => periodRows.filter((row) => row.owner_name === selectedMember.name),
+    [periodRows, selectedMember.name],
+  );
+  const selectedWeekRows = useMemo(() => {
+    const s = startOfWeek(date);
+    const e = endOfWeek(date);
+    return selectedPeriodRows.filter(
+      (row) => row.work_date >= s && row.work_date <= e,
+    );
+  }, [date, selectedPeriodRows]);
+
+  const visibleDetailRows = access.canViewAll
+    ? selectedPeriodRows
+    : personalRows;
+  const visibleWeekRows = access.canViewAll
+    ? selectedWeekRows
+    : personalWeekRows;
+  const visibleMonthRows = access.canViewAll
+    ? selectedPeriodRows
+    : personalRows;
+
+  const enteredGoals = dailyMemberRows.filter(({ row }) =>
+    isGoalEntered(row),
+  ).length;
+  const enteredResults = dailyMemberRows.filter(({ row }) =>
+    isResultEntered(row),
+  ).length;
+  const totalGoalTm = dailyMemberRows.reduce(
+    (sum, item) => sum + totalTmGoal(item.row),
+    0,
+  );
+  const totalResultTm = dailyMemberRows.reduce(
+    (sum, item) => sum + totalTmResult(item.row),
+    0,
+  );
+  const totalGoalMeeting = dailyMemberRows.reduce(
+    (sum, item) => sum + goalValue(item.row, "meeting_confirmed"),
+    0,
+  );
+  const totalResultMeeting = dailyMemberRows.reduce(
+    (sum, item) => sum + resultValue(item.row, "meeting_confirmed"),
+    0,
+  );
+  const totalGoalColdtalk = totalFieldGoal(dailyMemberRows, "coldtalk");
+  const totalResultColdtalk = totalFieldResult(dailyMemberRows, "coldtalk");
+  const totalGoalBronzeDb = totalFieldGoal(dailyMemberRows, "consultant_db");
+  const totalResultBronzeDb = totalFieldResult(dailyMemberRows, "consultant_db");
+  const totalGoalOnePercentDb = totalFieldGoal(dailyMemberRows, "second_touch");
+  const totalResultOnePercentDb = totalFieldResult(dailyMemberRows, "second_touch");
+  const totalGoalSpecial = totalSpecialGoal(dailyMemberRows);
+  const totalResultSpecial = totalSpecialResult(dailyMemberRows);
+
+  return (
+    <div className="premium-page h-full overflow-y-auto">
+      <div className="premium-shell px-5 py-5 md:px-7 md:py-6">
+        <header className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="badge-premium badge-purple">
+                <Target size={13} /> 일별활동기록
+              </span>
+              <span className="badge-premium badge-muted">
+                {formatKoreanDate(date)} 기준
+              </span>
+              {access.canViewAll ? (
+                <span className="badge-premium badge-info">
+                  <Eye size={13} /> 전체 보기
+                </span>
+              ) : (
+                <span className="badge-premium badge-success">
+                  <UserCheck size={13} /> 개인 입력
+                </span>
+              )}
             </div>
+            <h1 className="crm-title">일별활동기록</h1>
+            <p className="crm-subtitle mt-2">
+              대시보드는 핵심 지표 중심으로 유지하고, 개인별 활동목표와 결과
+              기록은 이 메뉴에서 일·주·월 단위로 관리합니다.
+            </p>
           </div>
 
-          {/* 내 활동 입력 (실행파트만) */}
-          {isMember && (
-            <div className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-              <div className="flex items-center justify-between mb-4 pb-3" style={{ borderBottom: "2px solid var(--border)" }}>
-                <h3 className="text-sm font-bold" style={{ color: "var(--text)" }}>✏️ 내 활동기록 — {user?.name}</h3>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={outside} onChange={e => setOutside(e.target.checked)} disabled={!canEdit} className="w-4 h-4 rounded" />
-                  <span className="text-xs font-bold" style={{ color: "#ea7c1e" }}>외근/미팅</span>
-                </label>
-              </div>
-              {outside ? (
-                <div className="text-center py-8"><p className="text-sm font-bold" style={{ color: "#ea7c1e" }}>🚗 외근/미팅일입니다</p><p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>활동목표 및 결과 입력이 면제됩니다</p></div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* 목표 */}
-                  <div>
-                    <h4 className="text-xs font-bold mb-3 flex items-center gap-2" style={{ color: "#7c3aed" }}>🎯 오늘의 목표</h4>
-                    <div className="space-y-2">
-                      {FIELDS.map(f => (
-                        <div key={f.key} className="flex items-center gap-3">
-                          <span className="text-xs font-bold w-[90px]" style={{ color: "var(--text-muted)" }}>{f.label}</span>
-                          <input type="number" value={goal[f.key]||""} onChange={e => setGoal(p => ({...p,[f.key]:+e.target.value}))} disabled={!canEdit} className={inp+" w-20"} style={inpS} placeholder="0" />
-                          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{f.unit}</span>
-                        </div>
-                      ))}
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold w-[90px]" style={{ color: "#d97706" }}>미팅 확정</span>
-                        <input type="number" value={goal.meeting_confirmed||""} onChange={e => setGoal(p => ({...p,meeting_confirmed:+e.target.value}))} disabled={!canEdit} className={inp+" w-20"} style={inpS} placeholder="0" />
-                        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>건</span>
-                      </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              className="h-[38px] rounded-full border px-3 text-[13px] font-[740] outline-none"
+              style={{
+                background: "var(--surface-2)",
+                borderColor: "var(--border)",
+                color: "var(--text)",
+              }}
+            />
+            <button
+              type="button"
+              onClick={fetchRows}
+              className="btn-premium btn-secondary"
+            >
+              <RefreshCw size={14} /> 최신화
+            </button>
+
+          </div>
+        </header>
+
+        <section className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-5">
+          <StatCard
+            icon={Clock3}
+            label="당일 TM 목표 달성율"
+            value={`${totalGoalTm}/${totalResultTm}`}
+            sub={`목표/달성 · 달성율 ${percent(totalResultTm, totalGoalTm)}%`}
+            tone="warning"
+          />
+          <StatCard
+            icon={CheckCircle2}
+            label="당일 콜드톡 목표 달성율"
+            value={`${totalGoalColdtalk}/${totalResultColdtalk}`}
+            sub={`목표/달성 · 달성율 ${percent(totalResultColdtalk, totalGoalColdtalk)}%`}
+            tone="success"
+          />
+          <StatCard
+            icon={Users}
+            label="당일 브론즈DB 확보 달성율"
+            value={`${totalGoalBronzeDb}/${totalResultBronzeDb}`}
+            sub={`목표/달성 · 달성율 ${percent(totalResultBronzeDb, totalGoalBronzeDb)}%`}
+            tone="info"
+          />
+          <StatCard
+            icon={CalendarDays}
+            label="1% DB 확보 달성율"
+            value={`${totalGoalOnePercentDb}/${totalResultOnePercentDb}`}
+            sub={`목표/달성 · 달성율 ${percent(totalResultOnePercentDb, totalGoalOnePercentDb)}%`}
+            tone="purple"
+          />
+          <StatCard
+            icon={Flag}
+            label="특발성목표 달성율"
+            value={`${totalGoalSpecial}/${totalResultSpecial}`}
+            sub={`목표/달성 · 달성율 ${percent(totalResultSpecial, totalGoalSpecial)}%`}
+            tone="danger"
+          />
+        </section>
+
+
+
+        {loading ? (
+          <div className="flex min-h-[420px] items-center justify-center">
+            <div
+              className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
+              style={{
+                borderColor: "var(--accent)",
+                borderTopColor: "transparent",
+              }}
+            />
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {access.isExec && !access.canViewAll && currentMember && (
+              <section className="premium-card overflow-hidden">
+                <div
+                  className="flex items-center justify-between gap-3 border-b px-5 py-4"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="crm-avatar"
+                      style={{
+                        background: "linear-gradient(135deg,#8b7cf6,#60a5fa)",
+                      }}
+                    >
+                      {currentMember.name.slice(0, 1)}
+                    </div>
+                    <div>
+                      <p className="crm-section-title">
+                        {currentMember.name} {currentMember.title} 당일 활동
+                        입력
+                      </p>
+                      <p className="crm-tiny mt-1">
+                        본인 기록만 입력 가능하며, 다른 실행파트 인원의 기록은
+                        표시되지 않습니다.
+                      </p>
                     </div>
                   </div>
-                  {/* 결과 */}
-                  <div>
-                    <h4 className="text-xs font-bold mb-3 flex items-center gap-2" style={{ color: "#16a34a" }}>✅ 오늘의 결과</h4>
-                    <div className="space-y-2">
-                      {FIELDS.map(f => {
-                        const p = pct(result[f.key], goal[f.key]);
-                        return (
-                          <div key={f.key} className="flex items-center gap-3">
-                            <span className="text-xs font-bold w-[90px]" style={{ color: "var(--text-muted)" }}>{f.label}</span>
-                            <input type="number" value={result[f.key]||""} onChange={e => setResult(p => ({...p,[f.key]:+e.target.value}))} disabled={!canEdit} className={inp+" w-20"} style={inpS} placeholder="0" />
-                            <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--border)", maxWidth: 80 }}>
-                              <div className="h-full rounded-full" style={{ width: `${Math.min(p,100)}%`, background: pctColor(p) }} />
-                            </div>
-                            <span className="text-[10px] font-bold w-10 text-right" style={{ color: pctColor(p) }}>{p}%</span>
-                          </div>
-                        );
-                      })}
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold w-[90px]" style={{ color: "#d97706" }}>미팅 확정</span>
-                        <input type="number" value={result.meeting_confirmed||""} onChange={e => setResult(p => ({...p,meeting_confirmed:+e.target.value}))} disabled={!canEdit} className={inp+" w-20"} style={inpS} placeholder="0" />
-                        {(() => { const p = pct(result.meeting_confirmed, goal.meeting_confirmed); return (
-                          <><div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--border)", maxWidth: 80 }}><div className="h-full rounded-full" style={{ width: `${Math.min(p,100)}%`, background: pctColor(p) }} /></div><span className="text-[10px] font-bold w-10 text-right" style={{ color: pctColor(p) }}>{p}%</span></>
-                        ); })()}
-                      </div>
-                    </div>
+                  <label
+                    className="flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-[780]"
+                    style={{
+                      borderColor: isOutsideMeeting
+                        ? "var(--warning-border)"
+                        : "var(--border)",
+                      background: isOutsideMeeting
+                        ? "var(--warning-bg)"
+                        : "var(--surface-2)",
+                      color: isOutsideMeeting
+                        ? "var(--warning-text)"
+                        : "var(--text-muted)",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isOutsideMeeting}
+                      onChange={(event) =>
+                        setIsOutsideMeeting(event.target.checked)
+                      }
+                    />
+                    외근(미팅) 기록대상 제외
+                  </label>
+                </div>
+
+                <div className="space-y-4 p-5">
+                  <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <GoalInputPanel
+                      goal={goal}
+                      disabled={isOutsideMeeting}
+                      onChange={(key, value) =>
+                        setGoal((prev) => ({ ...prev, [key]: value }))
+                      }
+                    />
+                    <AutoResultNotice goal={goal} result={result} />
+                  </div>
+                  <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <WorkItemsEditor
+                      items={workItems}
+                      disabled={isOutsideMeeting}
+                      onTextChange={updateWorkItemText}
+                      onAdd={addWorkItem}
+                      onRemove={removeWorkItem}
+                    />
+                    <WorkItemsResultChecklist
+                      items={workItems}
+                      disabled={isOutsideMeeting}
+                      onToggle={toggleWorkItemDone}
+                    />
                   </div>
                 </div>
-              )}
-              {canEdit && (
-                <div className="mt-5 flex items-center justify-center gap-3">
-                  <button onClick={handleSave} disabled={saving} className="px-8 py-3 text-sm font-bold text-white rounded-xl" style={{ background: "#7c3aed", boxShadow: "0 4px 16px rgba(124,58,237,0.3)" }}>
-                    {saving ? "저장 중..." : "💾 활동기록 저장"}
+
+                <div
+                  className="flex items-center justify-end gap-2 border-t px-5 py-4"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="btn-premium btn-primary"
+                  >
+                    <Save size={14} /> {saving ? "저장 중..." : "활동기록 저장"}
                   </button>
-                  {dailyRows.some(r => r.owner_name === user?.name) && (
-                    <button onClick={() => handleDelete()} className="px-6 py-3 text-sm font-bold rounded-xl" style={{ color: "#dc2626", border: "1.5px solid rgba(220,38,38,0.3)", background: "rgba(220,38,38,0.05)" }}>
-                      🗑 오늘 기록 삭제
-                    </button>
+                </div>
+              </section>
+            )}
+
+            {access.canViewAll && (
+              <section className="premium-card overflow-hidden">
+                <div
+                  className="flex flex-col gap-3 border-b px-5 py-4 xl:flex-row xl:items-center xl:justify-between"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <div>
+                    <p className="crm-section-title">
+                      실행파트 개인별 일별 활동 현황
+                    </p>
+                    <p className="crm-tiny mt-1">
+                      카드를 클릭하면 세부 활동내역을 확인할 수 있습니다.
+                    </p>
+                  </div>
+                  <span className="badge-premium badge-muted">
+                    {formatKoreanDate(date)}
+                  </span>
+                </div>
+                <div className="p-4">
+                  <AdminMemberCards
+                    dailyMemberRows={dailyMemberRows}
+                    selectedOwner={selectedOwner}
+                    onSelect={setSelectedOwner}
+                  />
+                  {selectedOwner && (
+                    <div className="mt-4">
+                      <MemberDayCard
+                        member={selectedMember}
+                        row={selectedDailyRow}
+                      />
+                    </div>
                   )}
                 </div>
+              </section>
+            )}
+
+            {access.canViewAll && (
+              <section className="premium-card overflow-hidden">
+                <div className="flex flex-col gap-3 border-b px-5 py-4" style={{ borderColor: "var(--border)" }}>
+                  <p className="crm-section-title">실행파트 전체 특발성 활동목표</p>
+                  <p className="crm-tiny">각 담당자가 입력한 오늘의 특발성 활동목표 전체 현황입니다.</p>
+                </div>
+                <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {dailyMemberRows.map(({ member, row }) => {
+                    const items = row ? normalizeWorkItems(row.goal_work_items).filter((item) => item.text.trim().length > 0) : [];
+                    return (
+                      <div key={member.name} className="rounded-[13px] border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+                        <div className="mb-2 flex items-center gap-2">
+                          <div className="crm-avatar" style={{ background: "linear-gradient(135deg,#8b7cf6,#60a5fa)", width: 28, height: 28, fontSize: 12 }}>
+                            {member.name.slice(0, 1)}
+                          </div>
+                          <p className="text-[13px] font-[760]" style={{ color: "var(--text-strong)" }}>{member.name}</p>
+                        </div>
+                        {items.length === 0 ? (
+                          <p className="text-[12px]" style={{ color: "var(--text-faint)" }}>미입력</p>
+                        ) : (
+                          <div className="space-y-1">
+                            {items.map((item) => (
+                              <div key={item.id} className="flex items-center gap-2 rounded-[6px] px-2 py-1.5" style={{ background: "var(--surface-3)" }}>
+                                <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border" style={{ background: item.done ? "var(--success-bg)" : "var(--surface)", borderColor: item.done ? "var(--success-border)" : "var(--border)" }}>
+                                  {item.done && <span style={{ fontSize: 9, color: "var(--success-text)" }}>✓</span>}
+                                </div>
+                                <span className="text-[12px]" style={{ color: item.done ? "var(--text-faint)" : "var(--text)", textDecoration: item.done ? "line-through" : "none" }}>
+                                  {item.text}
+                                </span>
+                                {item.done && <span className="ml-auto text-[10px]" style={{ color: "var(--success-text)" }}>완료</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {!access.isExec && !access.canViewAll && (
+              <section className="premium-card p-8">
+                <EmptyState
+                  icon="🔒"
+                  title="접근 가능한 활동기록이 없습니다"
+                  description="실행파트는 본인 기록 입력, 운영파트/관리자는 전체 현황 확인이 가능합니다."
+                />
+              </section>
+            )}
+
+            <section className="grid gap-4 xl:grid-cols-2">
+              {access.canViewAll ? (
+                <>
+                  <PeriodSummary
+                    title={`${selectedMember.name} 주간 통계`}
+                    rows={visibleWeekRows}
+                  />
+                  <PeriodSummary
+                    title={`${selectedMember.name} 월간 통계`}
+                    rows={visibleMonthRows}
+                  />
+                </>
+              ) : (
+                <>
+                  <PeriodSummary
+                    title="나의 주간 통계"
+                    rows={visibleWeekRows}
+                  />
+                  <PeriodSummary
+                    title="나의 월간 통계"
+                    rows={visibleMonthRows}
+                  />
+                </>
               )}
-              {/* 과거 기록 검색 삭제 */}
-              {isMember && (
-                <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
-                  <p className="text-xs font-bold mb-2" style={{ color: "var(--text-muted)" }}>📅 과거 기록 삭제</p>
-                  <div className="flex items-center gap-2">
-                    <input type="date" value={delDate} onChange={e => setDelDate(e.target.value)} className="px-3 py-2 text-xs rounded-lg outline-none font-semibold" style={inpS} />
-                    <button onClick={async () => {
-                      if (!delDate || !user?.name) return;
-                      const { data: check } = await supabase.from("daily_activity_goals").select("id").eq("work_date", delDate).eq("owner_name", user.name).maybeSingle();
-                      if (!check) { showToast("해당 날짜에 기록이 없습니다"); return; }
-                      if (!confirm(`${fmtDate(delDate)} 활동기록을 삭제하시겠습니까?`)) return;
-                      await supabase.from("daily_activity_goals").delete().eq("work_date", delDate).eq("owner_name", user.name);
-                      showToast("삭제 완료"); fetchRows();
-                    }} className="px-4 py-2 text-xs font-bold rounded-lg" style={{ color: "#dc2626", border: "1px solid rgba(220,38,38,0.2)", background: "rgba(220,38,38,0.05)" }}>
-                      🗑 해당일 삭제
-                    </button>
+            </section>
+
+            <section className="premium-card overflow-hidden">
+              <div
+                className="flex flex-col gap-4 border-b px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <div className="flex items-center gap-3">
+                  <BarChart3 size={18} style={{ color: "var(--accent-text)" }} />
+                  <div>
+                    <p className="crm-section-title">
+                      {access.canViewAll
+                        ? `${selectedMember.name} 월간 상세 기록`
+                        : "나의 월간 상세 기록"}
+                    </p>
+                    <p className="crm-tiny mt-1">
+                      선택한 월 기준 기록입니다. 최대 10개 행 높이까지만 보이고,
+                      추가 기록은 박스 안에서 스크롤됩니다.
+                    </p>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* 기간별 조회 (관리자/운영) */}
-          {isAdmin && (
-            <div className="rounded-2xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-              <div className="flex items-center justify-between mb-4 pb-3" style={{ borderBottom: "2px solid var(--border)" }}>
-                <h3 className="text-sm font-bold" style={{ color: "var(--text)" }}>📊 기간별 조회</h3>
-                <div className="flex items-center gap-2">
-                  {EXEC_MEMBERS.map(m => (
-                    <button key={m.name} onClick={() => setSelOwner(m.name)} className="px-3 py-1.5 text-xs font-bold rounded-full" style={{ background: selOwner === m.name ? "#7c3aed" : "transparent", color: selOwner === m.name ? "#fff" : "var(--text-muted)", border: "1px solid var(--border)" }}>{m.name}</button>
-                  ))}
+                <div className="flex items-center justify-center gap-2">
+                  <span className="crm-tiny font-[800]">월별 검색</span>
+                  <select
+                    value={monthFilter}
+                    onChange={(event) => setMonthFilter(event.target.value)}
+                    className="h-[38px] min-w-[150px] rounded-full border px-3 text-center text-[13px] font-[800] outline-none"
+                    style={{
+                      background: "var(--surface-2)",
+                      borderColor: "var(--border)",
+                      color: "var(--text)",
+                    }}
+                  >
+                    {monthOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full"><thead><tr style={{ background: "rgba(124,58,237,0.06)" }}>
-                  <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>날짜</th>
-                  <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>상태</th>
-                  {FIELDS.map(f => <th key={f.key} className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>{f.label}</th>)}
-                  <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}>미팅</th>
-                  <th className="px-3 py-2.5 text-center text-xs font-bold" style={{ color: "var(--text)" }}></th>
-                </tr></thead><tbody>
-                  {selPeriod.length === 0 ? <tr><td colSpan={9} className="text-center py-8 text-xs" style={{ color: "var(--text-muted)" }}>기록 없음</td></tr> :
-                    selPeriod.map(r => (
-                      <tr key={r.work_date} style={{ color: "var(--text)", background: r.work_date === date ? "rgba(124,58,237,0.04)" : "transparent" }}>
-                        <td className="px-3 py-2 text-xs text-center font-semibold" style={{ borderBottom: "1px solid var(--border)" }}>{fmtDate(r.work_date)}</td>
-                        <td className="px-3 py-2 text-xs text-center" style={{ borderBottom: "1px solid var(--border)" }}>
-                          {r.is_outside_meeting ? <span style={{ color: "#ea7c1e" }}>외근</span> : <span style={{ color: "#16a34a" }}>기록</span>}
-                        </td>
-                        {FIELDS.map(f => (
-                          <td key={f.key} className="px-3 py-2 text-xs text-center" style={{ borderBottom: "1px solid var(--border)" }}>
-                            {r.is_outside_meeting ? "-" : <><span className="font-bold" style={{ color: pctColor(pct(rv(r,f.key),gv(r,f.key))) }}>{rv(r,f.key)}</span><span style={{ color: "var(--text-muted)" }}>/{gv(r,f.key)}</span></>}
-                          </td>
-                        ))}
-                        <td className="px-3 py-2 text-xs text-center" style={{ borderBottom: "1px solid var(--border)" }}>
-                          {r.is_outside_meeting ? "-" : <><span className="font-bold" style={{ color: "#d97706" }}>{rv(r,"meeting_confirmed")}</span>/{gv(r,"meeting_confirmed")}</>}
-                        </td>
-                        <td className="px-3 py-2 text-xs text-center" style={{ borderBottom: "1px solid var(--border)" }}>
-                          <button onClick={() => handleDelete(r.work_date)} className="text-[10px] px-2 py-1 rounded font-bold" style={{ color: "#dc2626", background: "rgba(220,38,38,0.06)" }}>삭제</button>
+              <div className="max-h-[560px] overflow-auto">
+                <table className="crm-table min-w-[1240px] table-fixed text-center [&_td>*]:mx-auto [&_td]:!px-2 [&_td]:!text-center [&_td]:align-middle [&_th]:!px-2 [&_th]:!text-center [&_th]:align-middle">
+                  <colgroup>
+                    <col className="w-[10%]" />
+                    <col className="w-[13%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[13%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[10%]" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th className="sticky top-0 z-10 text-center align-middle" style={{ textAlign: "center" }}>일자</th>
+                      <th className="sticky top-0 z-10 text-center align-middle" style={{ textAlign: "center" }}>담당자</th>
+                      <th className="sticky top-0 z-10 text-center align-middle" style={{ textAlign: "center" }}>상태</th>
+                      <th className="sticky top-0 z-10 text-center align-middle" style={{ textAlign: "center" }}>TM 목표/달성</th>
+                      <th className="sticky top-0 z-10 text-center align-middle" style={{ textAlign: "center" }}>콜드톡 목표/달성</th>
+                      <th className="sticky top-0 z-10 text-center align-middle" style={{ textAlign: "center" }}>브론즈DB 목표/달성</th>
+                      <th className="sticky top-0 z-10 text-center align-middle" style={{ textAlign: "center" }}>1%DB 목표/달성</th>
+                      <th className="sticky top-0 z-10 text-center align-middle" style={{ textAlign: "center" }}>특발성활동목표 목표/달성</th>
+                      <th className="sticky top-0 z-10 text-center align-middle" style={{ textAlign: "center" }}>수정일</th>
+                      <th className="sticky top-0 z-10 text-center align-middle" style={{ textAlign: "center" }}>관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleDetailRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={10} className="text-center align-middle">
+                          기록이 없습니다.
                         </td>
                       </tr>
-                    ))}
-                  {/* 합계 */}
-                  {selPeriod.length > 0 && (
-                    <tr className="font-bold" style={{ borderTop: "2px solid var(--border)", color: "var(--text)" }}>
-                      <td className="px-3 py-2 text-xs text-center">합계</td><td className="px-3 py-2 text-xs text-center">{selPeriod.length}일</td>
-                      {FIELDS.map(f => <td key={f.key} className="px-3 py-2 text-xs text-center" style={{ color: "#7c3aed" }}>{selPeriod.reduce((s,r)=>s+rv(r,f.key),0)}/{selPeriod.reduce((s,r)=>s+gv(r,f.key),0)}</td>)}
-                      <td className="px-3 py-2 text-xs text-center" style={{ color: "#d97706" }}>{selPeriod.reduce((s,r)=>s+rv(r,"meeting_confirmed"),0)}/{selPeriod.reduce((s,r)=>s+gv(r,"meeting_confirmed"),0)}</td>
-                    </tr>
-                  )}
-                </tbody></table>
+                    ) : (
+                      visibleDetailRows.map((row) => (
+                        <tr key={row.id}>
+                          <td className="text-center align-middle" style={{ textAlign: "center" }}>
+                            <span className="block w-full text-center">{formatKoreanDate(row.work_date)}</span>
+                          </td>
+                          <td className="text-center align-middle" style={{ textAlign: "center" }}>
+                            <div className="flex w-full items-center justify-center gap-1.5 whitespace-nowrap">
+                              <span className="crm-row-main text-center">
+                                {row.owner_name}
+                              </span>
+                              {row.owner_title ? (
+                                <span
+                                  className="rounded-full border px-2 py-0.5 text-[11px] font-[850]"
+                                  style={{
+                                    borderColor: "var(--border)",
+                                    background: "var(--surface-2)",
+                                    color: "var(--text-muted)",
+                                  }}
+                                >
+                                  {row.owner_title}
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="text-center align-middle" style={{ textAlign: "center" }}>
+                            <span
+                              className={`badge-premium mx-auto inline-flex justify-center ${row.is_outside_meeting ? "badge-warning" : "badge-success"}`}
+                            >
+                              {row.is_outside_meeting
+                                ? "외근 제외"
+                                : "기록대상"}
+                            </span>
+                          </td>
+                          <td className="text-center align-middle tabular-nums" style={{ textAlign: "center" }}>
+                            {goalValue(row, "new_tm").toLocaleString()} / {resultValue(row, "new_tm").toLocaleString()}
+                          </td>
+                          <td className="text-center align-middle tabular-nums" style={{ textAlign: "center" }}>
+                            {goalValue(row, "coldtalk").toLocaleString()} / {resultValue(row, "coldtalk").toLocaleString()}
+                          </td>
+                          <td className="text-center align-middle tabular-nums" style={{ textAlign: "center" }}>
+                            {goalValue(row, "consultant_db").toLocaleString()} / {resultValue(row, "consultant_db").toLocaleString()}
+                          </td>
+                          <td className="text-center align-middle tabular-nums" style={{ textAlign: "center" }}>
+                            {goalValue(row, "second_touch").toLocaleString()} / {resultValue(row, "second_touch").toLocaleString()}
+                          </td>
+                          <td className="text-center align-middle tabular-nums" style={{ textAlign: "center" }}>
+                            {activeWorkItems(normalizeWorkItems(row.goal_work_items)).length.toLocaleString()} / {activeWorkItems(normalizeWorkItems(row.goal_work_items)).filter((item) => item.done).length.toLocaleString()}
+                          </td>
+                          <td className="text-center align-middle" style={{ textAlign: "center" }}>
+                            {new Date(row.updated_at).toLocaleString("ko-KR", {
+                              month: "2-digit",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </td>
+                          <td className="text-center align-middle" style={{ textAlign: "center" }}>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleEditDetailRow(row)}
+                                disabled={saving || row.owner_name !== user?.name}
+                                className="rounded-full border px-2.5 py-1 text-[11px] font-[850] transition hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                                style={{
+                                  borderColor: "var(--border)",
+                                  background: "var(--surface-2)",
+                                  color: "var(--text)",
+                                }}
+                              >
+                                수정
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteDetailRow(row)}
+                                disabled={saving || row.owner_name !== user?.name}
+                                className="rounded-full border px-2.5 py-1 text-[11px] font-[850] transition hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                                style={{
+                                  borderColor: "var(--danger-border)",
+                                  background: "var(--danger-bg)",
+                                  color: "var(--danger-text)",
+                                }}
+                              >
+                                삭제
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          )}
-        </>
-      )}
+            </section>
+          </div>
+        )}
+      </div>
 
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg" style={{ background: "#111827" }}>{toast}</div>}
+
+      {toast && (
+        <div
+          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] px-5 py-3 text-[13px] font-[780] text-white shadow-lg"
+          style={{ background: "linear-gradient(135deg,#10b981,#059669)" }}
+        >
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
