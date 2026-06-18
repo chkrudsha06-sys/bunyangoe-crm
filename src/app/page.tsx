@@ -1,1318 +1,2466 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { getCurrentUser, CRMUser } from "@/lib/auth";
-import { Clock, ChevronLeft, ChevronRight, Plus, X, Save, Trash2 } from "lucide-react";
+import { getCurrentUser } from "@/lib/auth";
+import type { ElementType, ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  BadgeCheck,
+  BarChart3,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  CircleDollarSign,
+  Clock3,
+  CreditCard,
+  Database,
+  FileDown,
+  FileText,
+  Filter,
+  LineChart,
+  Loader2,
+  MessageCircle,
+  PhoneCall,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  UserCheck,
+  Users,
+  WalletCards,
+  X,
+  Zap,
+} from "lucide-react";
 
-// ── 타입 ──
-interface Stats {
-  totalRevenue: number;
-  joinCount: number; contractCount: number; reservationCount: number;
-  leadCount: number; prospectingCount: number; dealClosingCount: number;
-  upcomingMeetings: number; meetingDone: number;
-  membershipFeeAmt: number; membershipCount: number;
-  monthlyFeeAmt: number; monthlyFeeCount: number;
-  linkedRevenue: number; linkedCount: number;
-}
-// 누적용 별도 Stats (동일 구조 재활용)
-const EMPTY: Stats = {
-  totalRevenue:0, joinCount:0, contractCount:0, reservationCount:0,
-  leadCount:0, prospectingCount:0, dealClosingCount:0,
-  upcomingMeetings:0, meetingDone:0, membershipFeeAmt:0, membershipCount:0, monthlyFeeAmt:0, monthlyFeeCount:0, linkedRevenue:0, linkedCount:0,
+type CRMUserLite = {
+  name?: string;
+  title?: string;
+  role?: string;
+  id?: string;
 };
-interface MonthlyRevenue { month: string; hightarget: number; special: number; bunyanghoe: number; }
-interface TodayEvent { id: number; name: string; phone: string | null; meeting_date: string; meeting_address: string | null; assigned_to: string; }
-interface Notice { id: number; title: string; content: string | null; author: string; created_at: string; is_pinned: boolean; }
-interface WorkRequest { id: number; title: string; content: string | null; author: string; assigned_to: string | null; status: string; created_at: string; }
 
-function fw(n: number) {
-  if (!n) return "0원";
-  return n.toLocaleString() + "원";
+type ContactRow = Record<string, any> & {
+  id: number;
+  name?: string | null;
+  title?: string | null;
+  phone?: string | null;
+  bunyanghoe_number?: string | null;
+  intake_route?: string | null;
+  activity_type?: string | null;
+  has_tm?: boolean | null;
+  tm_date?: string | null;
+  meeting_result?: string | null;
+  management_stage?: string | null;
+  customer_grade?: string | null;
+  crm_db_source?: string | null;
+  vip_transferred_at?: string | null;
+  assigned_to?: string | null;
+  consultant?: string | null;
+  contract_date?: string | null;
+  reservation_date?: string | null;
+  churn_date?: string | null;
+  regular_payment_date?: string | null;
+  payment_channel?: string | null;
+  memo?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+type NoteRow = Record<string, any> & {
+  id: number;
+  contact_id: number;
+  note_date?: string | null;
+  content?: string | null;
+  author?: string | null;
+  created_at?: string | null;
+};
+
+type SalesRow = Record<string, any> & {
+  id: number;
+  member_name?: string | null;
+  execution_amount?: number | null;
+  vat_amount?: number | null;
+  refund_amount?: number | null;
+  channel?: string | null;
+  contract_route?: string | null;
+  payment_date?: string | null;
+  team_member?: string | null;
+  consultant?: string | null;
+  bunyanghoe_number?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+type KpiRow = Record<string, any> & {
+  year: number;
+  month: number;
+  week: number;
+  scope: "team" | "execution" | "operation";
+  target_name: string;
+  recruit_count?: number | null;
+  master_count?: number | null;
+  challenger_count?: number | null;
+  bronze_count?: number | null;
+  bunyanghoe_revenue?: number | null;
+  linked_revenue?: number | null;
+  special_revenue?: number | null;
+  wanpan_truck_count?: number | null;
+  ad_operation_revenue?: number | null;
+};
+
+type ActionItem = {
+  key: string;
+  type: string;
+  tone: ToneName;
+  title: string;
+  desc: string;
+  href: string;
+  priority: number;
+};
+
+type ToneName = "info" | "success" | "warning" | "danger" | "purple" | "cyan" | "muted";
+
+type FunnelRow = {
+  label: string;
+  value: number;
+  sub: string;
+  tone: ToneName;
+};
+
+const EXECUTION_PART_NAMES = ["조계현", "이세호", "기여운", "최연전"];
+const OPERATION_PART_NAMES = ["김재영", "최은정"];
+const ADMIN_NAMES = ["문시욱", "김정후", "김창완", "최웅"];
+const PIPELINE_STAGES = ["리드", "프로스펙팅", "딜클로징", "리텐션", "이탈/탈퇴"];
+const HIGH_VALUE_GRADES = ["마스터", "챌린저", "1%", "상위"];
+const CORE_VIP_GRADES = ["마스터", "챌린저", "브론즈"];
+const PAYMENT_CHANNEL_OPTIONS = ["자동이체 (효성CMS)", "카드 (사이다페이)", "기타 (별도입금)"];
+const PAYMENT_DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => i + 1);
+const MONTH_LABEL_FORMAT = new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "2-digit" });
+const TODAY = new Date();
+
+function normalizePersonName(value?: string | null) {
+  return String(value || "")
+    .replace(/님|팀장|파트장|본부장|대표|메인|어쏘|CX|어시|관리자/g, "")
+    .replace(/\s+/g, "")
+    .trim();
 }
 
-async function fetchStats(user: CRMUser, start: string, end: string, isAll = false): Promise<Stats> {
-  const isExec = user.role === "exec";
-  const _n = new Date();
-  const today = `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,"0")}-${String(_n.getDate()).padStart(2,"0")}`;
-  const monthStart = start;
-  const monthEnd   = end;
-
-  let joinQ = supabase.from("contacts")
-    .select("meeting_result,prospect_type,management_stage,contract_date,reservation_date,meeting_date,assigned_to");
-  if (isExec) joinQ = joinQ.eq("assigned_to", user.name);
-  const { data: allContacts = [] } = await joinQ;
-
-  const monthJoined = (allContacts||[]).filter((x:any) => {
-    const d = x.meeting_result === "계약완료" ? x.contract_date : x.reservation_date;
-    if (!d) return false;
-    return !isAll && d >= monthStart && d <= monthEnd;
-  });
-  const allJoined = (allContacts||[]).filter((x:any) =>
-    ["계약완료","예약완료"].includes(x.meeting_result||"")
-  );
-
-  const prospects = (allContacts||[]).filter((x:any) =>
-    !["계약완료","예약완료"].includes(x.meeting_result||"")
-  );
-
-  // 미팅: contacts.meeting_date 기준 (캘린더와 동일 소스)
-  // 미팅예정 = 계약완료/예약완료 아닌 고객 중 meeting_date가 당월에 있는 건
-  const monthMeetingAll = (allContacts||[]).filter((x:any) => {
-    if (["계약완료","예약완료"].includes(x.meeting_result||"")) return false;
-    if (!x.meeting_date) return false;
-    return x.meeting_date >= monthStart && x.meeting_date <= monthEnd;
-  });
-  const monthMeetingUpcoming = monthMeetingAll.filter((x:any) => x.meeting_date >= today).length;
-  const monthMeetingDoneCount = monthMeetingAll.filter((x:any) => x.meeting_date < today).length;
-  const totalMeetingAll = (allContacts||[]).filter((x:any) => {
-    if (["계약완료","예약완료"].includes(x.meeting_result||"")) return false;
-    return !!x.meeting_date;
-  });
-  const totalMeetingUpcoming = totalMeetingAll.filter((x:any) => x.meeting_date >= today).length;
-  const totalMeetingDoneCount = totalMeetingAll.filter((x:any) => x.meeting_date < today).length;
-
-  let adQ = supabase.from("ad_executions")
-    .select("execution_amount,vat_amount,channel,team_member,refund_amount,contract_route,payment_date");
-  if (isExec) adQ = adQ.eq("team_member", user.name);
-  const { data: allAd = [] } = await adQ;
-
-  const effAmt = (x:any) => (x.vat_amount && x.vat_amount !== x.execution_amount) ? (x.vat_amount||0) : (x.execution_amount||0);
-
-  const AD_CHANNELS = ["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"];
-  const monthAd = (allAd||[]).filter((x:any) => {
-    if (isAll) return false;
-    return x.payment_date >= monthStart && x.payment_date <= monthEnd;
-  });
-
-  const monthAdSpecial = monthAd.filter((x:any) =>
-    x.contract_route === "분양회" && AD_CHANNELS.includes(x.channel)
-  );
-  const totalRevenue = monthAdSpecial.reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
-
-  const membershipFeeAmt = monthAd
-    .filter((x:any) => x.channel === "분양회 입회비")
-    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
-  const monthlyFeeAmt = monthAd
-    .filter((x:any) => x.channel === "분양회 월회비")
-    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
-
-  const cumMembershipFee = (allAd||[])
-    .filter((x:any) => x.channel === "분양회 입회비")
-    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
-  const cumMonthlyFee = (allAd||[])
-    .filter((x:any) => x.channel === "분양회 월회비")
-    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
-
-  const linkedRevenue = monthAd
-    .filter((x:any) => x.channel === "하이타겟")
-    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
-
-  const cumLinkedRevenue = (allAd||[])
-    .filter((x:any) => x.channel === "하이타겟")
-    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
-
-  const cumTotalRevenue = (allAd||[])
-    .filter((x:any) => x.contract_route === "분양회" && AD_CHANNELS.includes(x.channel))
-    .reduce((s:number,x:any) => s + effAmt(x) - (x.refund_amount||0), 0);
-
-  const membershipCount = (isAll
-    ? (allAd||[]).filter((x:any)=>x.channel==="분양회 입회비")
-    : monthAd.filter((x:any)=>x.channel==="분양회 입회비")).length;
-  const monthlyFeeCount = (isAll
-    ? (allAd||[]).filter((x:any)=>x.channel==="분양회 월회비")
-    : monthAd.filter((x:any)=>x.channel==="분양회 월회비")).length;
-
-  const linkedCount = (isAll
-    ? (allAd||[]).filter((x:any)=>x.channel==="하이타겟")
-    : monthAd.filter((x:any)=>x.channel==="하이타겟")).length;
-
-  return {
-    totalRevenue: isAll ? cumTotalRevenue : totalRevenue,
-    joinCount: isAll ? allJoined.length : monthJoined.length,
-    contractCount: isAll
-      ? allJoined.filter((x:any)=>x.meeting_result==="계약완료").length
-      : monthJoined.filter((x:any)=>x.meeting_result==="계약완료").length,
-    reservationCount: isAll
-      ? allJoined.filter((x:any)=>x.meeting_result==="예약완료").length
-      : monthJoined.filter((x:any)=>x.meeting_result==="예약완료").length,
-    leadCount: prospects.filter((x:any)=>x.management_stage==="리드").length,
-    prospectingCount: prospects.filter((x:any)=>x.management_stage==="프로스펙팅").length,
-    dealClosingCount: prospects.filter((x:any)=>x.management_stage==="딜크로징").length,
-    upcomingMeetings: isAll ? totalMeetingUpcoming : monthMeetingUpcoming,
-    meetingDone: isAll ? totalMeetingDoneCount : monthMeetingDoneCount,
-    membershipFeeAmt: isAll ? cumMembershipFee : membershipFeeAmt,
-    membershipCount,
-    monthlyFeeAmt: isAll ? cumMonthlyFee : monthlyFeeAmt,
-    monthlyFeeCount,
-    linkedRevenue: isAll ? cumLinkedRevenue : linkedRevenue,
-    linkedCount,
-  };
+function normalizeText(value?: string | null) {
+  return String(value || "").replace(/\s+/g, "").trim();
 }
 
-async function fetchMonthlyRevenue(user: CRMUser, year: number, month: number): Promise<MonthlyRevenue[]> {
-  const isExec = user.role === "exec";
-  const fmtD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-  const today = fmtD(new Date());
-  const offsets = Array.from({length: 3}, (_, i) => i - 2);
-  const months = offsets.map(offset => {
-    const d = new Date(year, month - 1 + offset, 1);
-    const s = fmtD(new Date(d.getFullYear(), d.getMonth(), 1));
-    let e = fmtD(new Date(d.getFullYear(), d.getMonth()+1, 0));
-    // 현재 월은 오늘까지만 집계
-    if (e > today) e = today;
-    return { label: `${String(d.getFullYear()).slice(2)}.${String(d.getMonth()+1).padStart(2,"0")}`, s, e };
+function readUserFromStorage(): CRMUserLite | null {
+  try {
+    const current = getCurrentUser();
+    if (current) return current;
+    const raw = localStorage.getItem("crm_user");
+    if (!raw) return null;
+    return JSON.parse(raw) as CRMUserLite;
+  } catch {
+    return null;
+  }
+}
+
+function isExecutionUser(user?: CRMUserLite | null) {
+  const role = String(user?.role || "").toLowerCase();
+  const name = normalizePersonName(user?.name);
+  return role === "exec" || role.includes("실행") || EXECUTION_PART_NAMES.some((item) => normalizePersonName(item) === name);
+}
+
+function isOperationUser(user?: CRMUserLite | null) {
+  const role = String(user?.role || "").toLowerCase();
+  const name = normalizePersonName(user?.name);
+  return role === "ops" || role.includes("운영") || OPERATION_PART_NAMES.some((item) => normalizePersonName(item) === name);
+}
+
+function isAdminUser(user?: CRMUserLite | null) {
+  const role = String(user?.role || "").toLowerCase();
+  const name = normalizePersonName(user?.name);
+  return role === "admin" || ADMIN_NAMES.some((item) => normalizePersonName(item) === name);
+}
+
+function contactOwner(row: Pick<ContactRow, "assigned_to" | "consultant">) {
+  return row.assigned_to || row.consultant || "미지정";
+}
+
+function rowMatchesOwner(row: Pick<ContactRow, "assigned_to" | "consultant">, owner: string) {
+  if (!owner || owner === "전체") return true;
+  const target = normalizePersonName(owner);
+  return normalizePersonName(row.assigned_to) === target || normalizePersonName(row.consultant) === target;
+}
+
+type SalesOwnerLookup = {
+  byName: Map<string, string>;
+  byNumber: Map<string, string>;
+};
+
+function isCompanyManagerName(value?: string | null) {
+  const text = normalizeText(value);
+  return text === "주식회사광고인" || text === "광고인" || text.includes("주식회사광고인");
+}
+
+function buildSalesOwnerLookup(contacts: ContactRow[]): SalesOwnerLookup {
+  const byName = new Map<string, string>();
+  const byNumber = new Map<string, string>();
+
+  contacts.forEach((contact) => {
+    const owner = (contact.assigned_to || contact.consultant || "").trim();
+    if (!owner) return;
+
+    const nameKey = normalizeText(contact.name);
+    const numberKey = normalizeText(contact.bunyanghoe_number);
+
+    if (nameKey && !byName.has(nameKey)) byName.set(nameKey, owner);
+    if (numberKey && !byNumber.has(numberKey)) byNumber.set(numberKey, owner);
   });
-  const results: MonthlyRevenue[] = [];
-  for (const m of months) {
-    let q = supabase.from("ad_executions").select("execution_amount,vat_amount,refund_amount,channel,contract_route")
-      .gte("payment_date", m.s).lte("payment_date", m.e);
-    if (isExec) q = q.eq("team_member", user.name);
-    const { data: a = [] } = await q;
-    const eff = (x:any) => ((x.vat_amount && x.vat_amount !== x.execution_amount) ? (x.vat_amount||0) : (x.execution_amount||0)) - (x.refund_amount||0);
-    results.push({
-      month: m.label,
-      hightarget: (a||[]).filter((x:any)=>x.channel==="하이타겟").reduce((s:number,x:any)=>s+eff(x),0),
-      special: (a||[]).filter((x:any)=>x.contract_route==="분양회" && ["호갱노노_채널톡","호갱노노_단지마커","호갱노노_기타","LMS"].includes(x.channel)).reduce((s:number,x:any)=>s+eff(x),0),
-      bunyanghoe: (a||[]).filter((x:any)=>["분양회 입회비","분양회 월회비"].includes(x.channel)).reduce((s:number,x:any)=>s+eff(x),0),
+
+  return { byName, byNumber };
+}
+
+function resolveSalesOwner(row: SalesRow, lookup?: SalesOwnerLookup) {
+  const directOwner = String(row.team_member || "").trim();
+
+  // 통합매출관리와 동일하게, 담당자가 실제 담당자명으로 들어온 경우에는 그 값을 우선 사용합니다.
+  if (directOwner && !isCompanyManagerName(directOwner)) return directOwner;
+
+  // 사이다페이/효성CMS에서 담당자가 "주식회사 광고인"으로 들어온 경우,
+  // 분양회 입회자/contacts의 회원번호 또는 고객명으로 실제 assigned_to 담당자를 매칭합니다.
+  const numberOwner = lookup?.byNumber.get(normalizeText(row.bunyanghoe_number));
+  if (numberOwner) return numberOwner;
+
+  const nameOwner = lookup?.byName.get(normalizeText(row.member_name));
+  if (nameOwner) return nameOwner;
+
+  const fallbackOwner = String(row.consultant || "").trim();
+  if (fallbackOwner && !/^\d{7,}$/.test(normalizeText(fallbackOwner))) return fallbackOwner;
+
+  return directOwner || fallbackOwner || "미지정";
+}
+
+function salesMatchesOwner(row: SalesRow, owner: string, lookup?: SalesOwnerLookup) {
+  if (!owner || owner === "전체") return true;
+  const target = normalizePersonName(owner);
+  return normalizePersonName(resolveSalesOwner(row, lookup)) === target;
+}
+
+function parseDate(value?: string | null) {
+  if (!value) return null;
+  const normalized = String(value).length === 10 ? `${value}T00:00:00` : String(value);
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function toDateKey(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function monthKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthWindow(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  const start = new Date(year, month - 1, 1, 0, 0, 0, 0);
+  const end = new Date(year, month, 1, 0, 0, 0, 0);
+  return { start, end, year, month };
+}
+
+function isInMonth(value: string | null | undefined, selectedMonth: string) {
+  const date = parseDate(value);
+  if (!date) return false;
+  const { start, end } = getMonthWindow(selectedMonth);
+  return date >= start && date < end;
+}
+
+type FilterMode = "daily" | "weekly" | "monthly";
+
+function getMonthWeeks(year: number, month: number): { week: number; start: Date; end: Date; label: string }[] {
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const weeks: { week: number; start: Date; end: Date; label: string }[] = [];
+  let weekStart = new Date(firstDay);
+  let weekNum = 1;
+
+  while (weekStart <= lastDay) {
+    const dow = weekStart.getDay();
+    const daysToSun = dow === 0 ? 0 : 7 - dow;
+    let weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + daysToSun);
+    if (weekEnd > lastDay) weekEnd = new Date(lastDay);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const s = new Date(weekStart); s.setHours(0, 0, 0, 0);
+    weeks.push({
+      week: weekNum,
+      start: s,
+      end: weekEnd,
+      label: `${weekNum}주차 (${s.getDate()}일~${weekEnd.getDate()}일)`,
     });
+
+    weekNum++;
+    const nextMon = new Date(weekEnd);
+    nextMon.setDate(weekEnd.getDate() + 1);
+    nextMon.setHours(0, 0, 0, 0);
+    weekStart = nextMon;
   }
-  return results;
+  return weeks;
 }
 
-async function fetchTodayEvents(user: CRMUser, date: string): Promise<TodayEvent[]> {
-  const isExec = user.role === "exec";
-  let q = supabase.from("contacts").select("id,name,phone,meeting_date,meeting_address,assigned_to,prospect_type,meeting_result")
-    .eq("meeting_date", date).order("meeting_date");
-  if (isExec) q = q.eq("assigned_to", user.name);
-  const { data = [] } = await q;
-  return (data || []) as TodayEvent[];
-}
-
-// ── 카드 컴포넌트 ──
-function DashCard({ icon, label, main, subs, cumLabel, prevValue, currentValue }: {
-  icon: string; label: string; main: string;
-  subs?: { label: string; value: string; color?: string }[];
-  cumLabel: string;
-  prevValue?: number; currentValue?: number;
-}) {
-  // 전월 대비 증감률 계산
-  let growthRate: number | null = null;
-  if (prevValue !== undefined && currentValue !== undefined && prevValue > 0) {
-    growthRate = Math.round(((currentValue - prevValue) / prevValue) * 100);
-  } else if (prevValue !== undefined && currentValue !== undefined && prevValue === 0 && currentValue > 0) {
-    growthRate = 100;
+function getCurrentWeekNum(year: number, month: number): number {
+  const weeks = getMonthWeeks(year, month);
+  const today = new Date(); today.setHours(12, 0, 0, 0);
+  for (const w of weeks) {
+    if (today >= w.start && today <= w.end) return w.week;
   }
-
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col" style={{ minWidth: 180, flex: "1 1 0" }}>
-      <div className="flex items-start justify-between mb-3">
-        <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl bg-slate-50">{icon}</div>
-        {growthRate !== null && (
-          <div className={`flex items-center gap-0.5 px-2 py-1 rounded-lg text-xs font-bold ${
-            growthRate > 0 ? "bg-emerald-50 text-emerald-600" : growthRate < 0 ? "bg-red-50 text-red-500" : "bg-slate-50 text-slate-400"
-          }`}>
-            {growthRate > 0 ? "▲" : growthRate < 0 ? "▼" : "─"}{Math.abs(growthRate)}%
-          </div>
-        )}
-      </div>
-      <p className="text-sm text-slate-400 font-semibold mb-1.5">{label}</p>
-      <p className="text-3xl font-black text-slate-800 leading-tight">{main}</p>
-      {subs && subs.length > 0 && (
-        <div className="mt-2.5 space-y-1 flex-1">
-          {subs.map(s => (
-            <div key={s.label} className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 whitespace-nowrap">{s.label}</span>
-              <span className={`text-xs font-bold whitespace-nowrap ${s.color || "text-slate-600"}`}>{s.value}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {!subs && <div className="flex-1" />}
-      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-        <p className="text-sm font-bold text-slate-700">누적 {cumLabel}</p>
-        {prevValue !== undefined && <p className="text-[10px] text-slate-400">전월 {prevValue.toLocaleString()}</p>}
-      </div>
-    </div>
-  );
+  return weeks.length;
 }
 
-// ── 바 차트 (색상: 특전=#F59E0B, 하이타겟=#6366F1, 분양회=#10B981) ──
-function BarChart({ data }: { data: MonthlyRevenue[] }) {
-  const max = Math.max(...data.flatMap(d => [d.special, d.hightarget, d.bunyanghoe]), 1);
-  const bar = (v: number) => Math.max(6, Math.round((v / max) * 160));
-  const BARS = [
-    { key: "special",    color: "#F59E0B", label: "특전총매출" },
-    { key: "hightarget", color: "#6366F1", label: "하이타겟" },
-    { key: "bunyanghoe", color: "#10B981", label: "분양회" },
-  ];
-
-  const fmt = (v: number): string => {
-    if (!v) return "";
-    if (v >= 100_000_000) {
-      const uk = v / 100_000_000;
-      return uk % 1 === 0 ? `${uk}억` : `${uk.toFixed(1)}억`;
-    }
-    if (v >= 10_000) return `${Math.floor(v / 10_000).toLocaleString()}만`;
-    return v.toLocaleString();
-  };
-
-  return (
-    <div className="flex items-end justify-around gap-3 w-full h-full min-h-[200px] px-3 pt-2">
-      {data.map((d, i) => (
-        <div key={i} className="flex flex-col items-center gap-2 flex-1 min-w-0">
-          <div className="flex items-end gap-1.5 w-full justify-center">
-            {BARS.map(b => {
-              const v = (d as any)[b.key] as number;
-              return (
-                <div key={b.key} className="flex flex-col items-center gap-1">
-                  <span className="text-xs font-black whitespace-nowrap" style={{color:b.color}}>{fmt(v)}</span>
-                  <div className="rounded-t-md" style={{ width:"26px", height:`${bar(v)}px`, background:b.color, opacity: 0.9 }}/>
-                </div>
-              );
-            })}
-          </div>
-          <span className="text-sm text-slate-600 font-bold whitespace-nowrap">{d.month}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── KPI 대시보드 위젯 ──────────────────────────────────────
-interface KpiRow {
-  recruit_count: number;
-  bunyanghoe_revenue: number;
-  linked_revenue: number;
-  special_revenue: number;
-  wanpan_truck_count: number;
-  ad_operation_revenue: number;
-}
-
-function fmtMoney(v: number): string {
-  if (!v || v === 0) return "0";
-  if (v >= 100_000_000) {
-    const uk = v / 100_000_000;
-    return uk % 1 === 0 ? `${uk}억` : `${uk.toFixed(1)}억`;
+function getFilterRange(mode: FilterMode, monthNum: number, year: number, weekNum?: number): { start: Date; end: Date } {
+  if (mode === "daily") {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    const e = new Date(d); e.setHours(23, 59, 59, 999);
+    return { start: d, end: e };
   }
-  if (v >= 10_000) {
-    const man = Math.floor(v / 10_000);
-    return `${man.toLocaleString()}만`;
+  if (mode === "weekly") {
+    const weeks = getMonthWeeks(year, monthNum);
+    const target = weeks.find((w) => w.week === (weekNum || 1)) || weeks[0];
+    return { start: target.start, end: target.end };
   }
-  return v.toLocaleString();
+  const start = new Date(year, monthNum - 1, 1);
+  const end = new Date(year, monthNum, 0, 23, 59, 59, 999);
+  return { start, end };
 }
 
-function KpiItem({ label, target, actual, unit, isMoney, accentColor }: {
-  label: string; target: number; actual: number; unit: string; isMoney?: boolean; accentColor?: string;
-}) {
-  const rate = target > 0 ? Math.min(999, Math.round((actual / target) * 100)) : 0;
-  const color = accentColor || (
-    rate >= 100 ? "#10B981" :
-    rate >= 80  ? "#3B82F6" :
-    rate >= 50  ? "#F59E0B" :
-                  "#94A3B8");
-  const fmt = (v: number) => isMoney ? fmtMoney(v) : v.toLocaleString();
-  return (
-    <div className="px-3 py-2.5 rounded-xl border bg-slate-50 border-slate-200" style={accentColor ? {borderLeftWidth:"3px", borderLeftColor: accentColor} : {}}>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-sm font-bold text-slate-800 truncate">{label}</span>
-        <span className="text-base font-black flex-shrink-0 ml-2" style={{color}}>{rate}%</span>
-      </div>
-      <div className="flex items-baseline gap-1 mb-2">
-        <span className="text-base font-black text-slate-800 font-mono">{fmt(actual)}</span>
-        <span className="text-xs text-slate-400 font-semibold">/ {target > 0 ? fmt(target) : "-"}{unit}</span>
-      </div>
-      <div className="w-full h-2 bg-white rounded-full overflow-hidden border border-slate-100">
-        <div className="h-full rounded-full transition-all" style={{width: `${Math.min(100, rate)}%`, background: color}}/>
-      </div>
-    </div>
-  );
+function isInRange(value: string | null | undefined, start: Date, end: Date) {
+  const date = parseDate(value);
+  if (!date) return false;
+  return date >= start && date <= end;
 }
 
-// ── 당월 KPI 달성치 계산에 사용할 상수 ──
-const SPECIAL_CHANNELS = ["LMS", "호갱노노_채널톡", "호갱노노_단지마커", "호갱노노_기타", "호갱노노"];
-const OPS_MAPPING: Record<string, string[]> = {
-  "김재영": ["이세호", "기여운"],
-  "최은정": ["조계현", "최연전"],
-};
+const FILTER_MODE_LABELS: Record<FilterMode, string> = { daily: "당일", weekly: "주간", monthly: "월간" };
+const MONTH_NUMS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-function effAmtKpi(e: { vat_amount: number | null; execution_amount: number | null; refund_amount?: number | null }): number {
-  const base = (e.vat_amount && e.vat_amount !== (e.execution_amount || 0)) ? (e.vat_amount || 0) : (e.execution_amount || 0);
-  return base - (e.refund_amount || 0);
+function daysBetween(from?: string | null, to = new Date()) {
+  const date = parseDate(from);
+  if (!date) return null;
+  return Math.floor((to.getTime() - date.getTime()) / 86_400_000);
 }
 
-interface Actuals {
-  teamRecruit: number;
-  teamBunyanghoeRev: number;
-  teamLinkedRev: number;
-  teamSpecialRev: number;
-  teamWanpan: number;
-  myRecruit: number;
-  myBunyanghoeRev: number;
-  myLinkedRev: number;
-  myAdOperationRev: number;
+function money(value?: number | null) {
+  const n = Number(value || 0);
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  if (abs >= 100_000_000) return `${sign}${(abs / 100_000_000).toFixed(abs % 100_000_000 === 0 ? 0 : 1)}억`;
+  if (abs >= 10_000) return `${sign}${Math.round(abs / 10_000).toLocaleString()}만원`;
+  return `${sign}${abs.toLocaleString()}원`;
 }
 
-function DashboardKpiSummary({ user }: { user: CRMUser | null }) {
-  const [team, setTeam] = useState<KpiRow | null>(null);
-  const [mine, setMine] = useState<KpiRow | null>(null);
-  const [wTeam, setWTeam] = useState<KpiRow | null>(null);
-  const [wMine, setWMine] = useState<KpiRow | null>(null);
-  const [actuals, setActuals] = useState<Actuals>({
-    teamRecruit:0, teamBunyanghoeRev:0, teamLinkedRev:0,
-    teamSpecialRev:0, teamWanpan:0,
-    myRecruit:0, myBunyanghoeRev:0, myLinkedRev:0, myAdOperationRev:0,
+function moneyFull(value?: number | null) {
+  return `${Number(value || 0).toLocaleString()}원`;
+}
+
+function percent(value: number, total: number) {
+  if (!total) return 0;
+  return Math.round((value / total) * 100);
+}
+
+function formatDate(value?: string | null) {
+  const date = parseDate(value);
+  if (!date) return "-";
+  return new Intl.DateTimeFormat("ko-KR", { month: "2-digit", day: "2-digit" }).format(date);
+}
+
+function formatDateTime(value?: string | null) {
+  const date = parseDate(value);
+  if (!date) return "-";
+  return new Intl.DateTimeFormat("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function timeAgo(value?: string | null) {
+  const date = parseDate(value);
+  if (!date) return "-";
+  const diff = Date.now() - date.getTime();
+  const min = Math.floor(diff / 60_000);
+  const hour = Math.floor(min / 60);
+  const day = Math.floor(hour / 24);
+  if (min < 1) return "방금 전";
+  if (min < 60) return `${min}분 전`;
+  if (hour < 24) return `${hour}시간 전`;
+  if (day < 30) return `${day}일 전`;
+  return formatDate(value);
+}
+
+function effectiveSales(row: SalesRow) {
+  // 통합매출관리 기준과 동일하게 집행금액에서 환불금액을 그대로 차감합니다.
+  // 환불 행은 execution_amount=0, refund_amount=금액 형태로 들어올 수 있으므로 Math.max(..., 0)을 사용하지 않습니다.
+  const execution = Number(row.execution_amount || 0);
+  const refund = Number(row.refund_amount || 0);
+  return execution - refund;
+}
+
+function refundSales(row: SalesRow) {
+  return Number(row.refund_amount || 0);
+}
+
+function salesCategory(row: SalesRow): "membership" | "lms" | "hogang" | "linked" | "other" {
+  const channel = normalizeText(row.channel);
+  const route = normalizeText(row.contract_route);
+  const item = normalizeText(row.payment_item || row.payment_type || row.item_name || row.memo);
+
+  if (route.includes("연계매출") || route.includes("하이타겟")) return "linked";
+  if (route.includes("LMS") || channel.includes("LMS") || item.includes("LMS")) return "lms";
+  if (route.includes("호갱노노") || channel.includes("호갱노노") || item.includes("호갱노노")) return "hogang";
+  if (
+    route.includes("분양회") ||
+    channel.includes("효성CMS") ||
+    channel.includes("사이다페이") ||
+    item.includes("분양회") ||
+    item.includes("월회비") ||
+    item.includes("회비")
+  ) {
+    return "membership";
+  }
+  return "other";
+}
+
+function normalizePaymentItem(value?: string | null) {
+  const raw = String(value || "").trim();
+  if (!raw || normalizeText(raw) === normalizeText("분양회")) return "분양회 회비";
+  return raw;
+}
+
+function isMembershipFeeSales(row: SalesRow) {
+  const route = normalizeText(normalizePaymentItem(row.contract_route));
+  const item = normalizeText(normalizePaymentItem(row.payment_item || row.payment_type || row.item_name || row.memo));
+  const target = normalizeText("분양회 회비");
+
+  // 통합매출관리의 결제항목이 '분양회 회비'인 데이터만 담당자별 파이프라인 매출에 반영합니다.
+  // 기존 데이터가 '분양회'로 저장된 경우도 통합매출관리 화면과 동일하게 '분양회 회비'로 간주합니다.
+  return route === target || item === target;
+}
+
+function pipelineMembershipSalesAmount(row: SalesRow) {
+  // 당월 담당자별 파이프라인 현황의 매출은 통합매출관리 기준:
+  // 담당자 + 결제일 + 결제항목(분양회 회비) + 집행금액 합산입니다.
+  return Number(row.execution_amount || 0);
+}
+
+const VIP_DB_SOURCE = "vip_activity";
+const CUSTOMER_DB_SOURCE = "customer_db";
+
+function isVipContact(contact: ContactRow) {
+  return normalizeText(contact.crm_db_source) === "vip_activity";
+}
+
+function isHighValueContact(contact: ContactRow) {
+  const grade = normalizeText(contact.customer_grade);
+  return HIGH_VALUE_GRADES.some((token) => grade.includes(normalizeText(token)));
+}
+
+function isCoreVipGrade(contact: ContactRow) {
+  const grade = normalizeText(contact.customer_grade);
+  return CORE_VIP_GRADES.some((token) => grade.includes(normalizeText(token)));
+}
+
+function isGradeContact(contact: ContactRow, gradeName: string) {
+  return normalizeText(contact.customer_grade).includes(normalizeText(gradeName));
+}
+
+function isContractedInMonth(contact: ContactRow, start: Date, end: Date) {
+  // 대시보드 계약 건수는 파이프라인 리텐션 구간 + 고객 상세패널의 계약완료일 기준으로만 집계합니다.
+  // vip_transferred_at, updated_at, created_at 기준으로 대체 집계하지 않습니다.
+  return normalizeText(contact.management_stage) === normalizeText("리텐션") && isInRange(contact.contract_date, start, end);
+}
+
+function touchedInMonth(contact: ContactRow, start: Date, end: Date) {
+  return isInRange(contact.vip_transferred_at, start, end) || isInRange(contact.updated_at, start, end) || isInRange(contact.created_at, start, end);
+}
+
+function isContracted(contact: ContactRow) {
+  return normalizeText(contact.meeting_result) === normalizeText("계약완료") || normalizeText(contact.management_stage) === normalizeText("리텐션");
+}
+
+function isChurned(contact: ContactRow) {
+  const stage = normalizeText(contact.management_stage);
+  const result = normalizeText(contact.meeting_result);
+  return stage.includes("이탈") || stage.includes("탈퇴") || result === normalizeText("계약거부") || result === normalizeText("미팅불발");
+}
+
+function latestActivityDate(contact: ContactRow, notesByContact: Map<string, NoteRow[]>) {
+  const notes = notesByContact.get(String(contact.id)) || [];
+  const latestNote = notes
+    .map((note) => note.created_at || note.note_date)
+    .filter(Boolean)
+    .sort((a, b) => new Date(String(b)).getTime() - new Date(String(a)).getTime())[0];
+  // 활동노트가 있으면 노트 기준, 없으면 VIP 이관일 → 등록일 순으로 fallback
+  // (updated_at은 DB 수정 시 갱신되므로 제외)
+  return latestNote || contact.vip_transferred_at || contact.created_at || null;
+}
+
+function hasFirstTouch(contact: ContactRow, notesByContact: Map<string, NoteRow[]>, start: Date, end: Date) {
+  const activity = normalizeText(contact.activity_type);
+  const notes = notesByContact.get(String(contact.id)) || [];
+  const hasTypedNote = notes.some((note) => {
+    const content = normalizeText(note.content);
+    const inMonth = isInRange(note.created_at || note.note_date, start, end);
+    return inMonth && (content.includes("TM") || content.includes("콜드톡") || content.includes("활동완료") || content.includes("녹취"));
   });
-  const [wActuals, setWActuals] = useState<Actuals>({
-    teamRecruit:0, teamBunyanghoeRev:0, teamLinkedRev:0,
-    teamSpecialRev:0, teamWanpan:0,
-    myRecruit:0, myBunyanghoeRev:0, myLinkedRev:0, myAdOperationRev:0,
+  return (
+    activity.includes("TM") ||
+    activity.includes("콜드톡") ||
+    Boolean(contact.has_tm) ||
+    isInRange(contact.tm_date, start, end) ||
+    hasTypedNote
+  );
+}
+
+function parsePaymentDay(value?: string | null) {
+  if (!value) return null;
+  const match = String(value).match(/\d+/);
+  if (!match) return null;
+  const day = Number(match[0]);
+  if (!Number.isFinite(day) || day < 1 || day > 31) return null;
+  return day;
+}
+
+function getNextPaymentInfo(day: number, now = TODAY) {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const lastDayThisMonth = new Date(year, month + 1, 0).getDate();
+  let due = new Date(year, month, Math.min(day, lastDayThisMonth), 0, 0, 0, 0);
+
+  const todayOnly = new Date(year, month, now.getDate(), 0, 0, 0, 0);
+  if (due < todayOnly) {
+    const nextLast = new Date(year, month + 2, 0).getDate();
+    due = new Date(year, month + 1, Math.min(day, nextLast), 0, 0, 0, 0);
+  }
+
+  const diff = Math.round((due.getTime() - todayOnly.getTime()) / 86_400_000);
+  return { due, diff };
+}
+
+function ddayLabel(diff: number) {
+  if (diff === 0) return "D-DAY";
+  if (diff > 0) return `D-${diff}`;
+  return `D+${Math.abs(diff)}`;
+}
+
+function paymentLabel(contact: ContactRow) {
+  const channel = contact.payment_channel || "결제채널 미입력";
+  const day = parsePaymentDay(contact.regular_payment_date);
+  return `${channel} · ${day ? `매월 ${day}일` : "결제일 미입력"}`;
+}
+
+function monthOptions() {
+  const base = new Date();
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(base.getFullYear(), base.getMonth() - 4 + index, 1);
+    return { key: monthKey(date), label: MONTH_LABEL_FORMAT.format(date) };
+  }).reverse();
+}
+
+function toneStyle(tone: ToneName) {
+  const map: Record<ToneName, { bg: string; text: string; border: string; dot: string; bar: string }> = {
+    info: { bg: "var(--info-bg)", text: "var(--info-text)", border: "var(--info-border)", dot: "var(--info)", bar: "linear-gradient(90deg,#60A5FA,#22D3EE)" },
+    success: { bg: "var(--success-bg)", text: "var(--success-text)", border: "var(--success-border)", dot: "var(--success)", bar: "linear-gradient(90deg,#34D399,#22D3EE)" },
+    warning: { bg: "var(--warning-bg)", text: "var(--warning-text)", border: "var(--warning-border)", dot: "var(--warning)", bar: "linear-gradient(90deg,#FBBF24,#FB7185)" },
+    danger: { bg: "var(--danger-bg)", text: "var(--danger-text)", border: "var(--danger-border)", dot: "var(--danger)", bar: "linear-gradient(90deg,#FB7185,#F43F5E)" },
+    purple: { bg: "var(--purple-bg)", text: "var(--purple-text)", border: "var(--purple-border)", dot: "var(--purple)", bar: "linear-gradient(90deg,#8B7CF6,#60A5FA)" },
+    cyan: { bg: "var(--cyan-bg)", text: "var(--cyan-text)", border: "var(--cyan-border)", dot: "var(--cyan)", bar: "linear-gradient(90deg,#22D3EE,#34D399)" },
+    muted: { bg: "var(--surface-3)", text: "var(--text-subtle)", border: "var(--border)", dot: "var(--text-faint)", bar: "linear-gradient(90deg,var(--text-faint),var(--border))" },
+  };
+  return map[tone];
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * 통일 디자인 시스템 (전 카드 공통 규격)
+ *  - 카드 헤더: px-4 py-3 / 타이틀 14px tracking-[-0.01em] / 설명 12px
+ *  - 메인 숫자: 20~22px tracking-[-0.02em] / 라벨 11px · 서브 12px
+ *  - 서브카드: rounded-[12px] p-3 surface-2 / 그리드 갭: 외부 gap-4 · 내부 gap-2.5
+ * ───────────────────────────────────────────────────────────── */
+
+type DashboardActionItem = ActionItem & { contactId: number };
+
+function Badge({ children, tone = "muted", icon: Icon }: { children: ReactNode; tone?: ToneName; icon?: ElementType }) {
+  const c = toneStyle(tone);
+  return (
+    <span
+      className="inline-flex min-h-[22px] items-center gap-1 rounded-[7px] px-2 text-[12px] font-normal tracking-[-0.01em]"
+      style={{ background: c.bg, color: c.text, border: `1px solid ${c.border}` }}
+    >
+      {Icon ? <Icon size={11} /> : <span className="h-1.5 w-1.5 rounded-full" style={{ background: c.dot }} />}
+      {children}
+    </span>
+  );
+}
+
+function IconBox({ icon: Icon, tone = "info", size = "md" }: { icon: ElementType; tone?: ToneName; size?: "sm" | "md" }) {
+  const c = toneStyle(tone);
+  const cls = size === "sm" ? "h-7 w-7 rounded-[9px]" : "h-9 w-9 rounded-[11px]";
+  return (
+    <div className={`inline-flex shrink-0 items-center justify-center ${cls}`} style={{ background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>
+      <Icon size={size === "sm" ? 13 : 16} />
+    </div>
+  );
+}
+
+function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <section className={`premium-card overflow-hidden ${className}`}>{children}</section>;
+}
+
+function PanelTitle({ icon, tone, title, desc, right }: { icon: ElementType; tone: ToneName; title: string; desc?: string; right?: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b px-4 py-3" style={{ borderColor: "var(--border-subtle)" }}>
+      <div className="flex min-w-0 items-center gap-2.5">
+        <IconBox icon={icon} tone={tone} size="sm" />
+        <div className="min-w-0">
+          <p className="text-[14px] font-semibold leading-tight tracking-[-0.01em]" style={{ color: "var(--text-strong)" }}>{title}</p>
+          {desc && <p className="mt-0.5 truncate text-[13px] font-medium tracking-[-0.01em]" style={{ color: "var(--text-subtle)" }}>{desc}</p>}
+        </div>
+      </div>
+      {right}
+    </div>
+  );
+}
+
+function StatBox({ label, value, sub, tone = "muted" }: { label: string; value: number | string; sub?: string; tone?: ToneName }) {
+  const c = toneStyle(tone);
+  return (
+    <div className="rounded-[12px] border p-3" style={{ background: "var(--surface-2)", borderColor: "var(--border-subtle)" }}>
+      <p className="truncate text-[12px] font-normal tracking-[-0.01em]" style={{ color: c.text }}>{label}</p>
+      <p className="mt-1.5 truncate text-[22px] font-semibold leading-none tracking-[-0.02em]" style={{ color: "var(--text-strong)" }}>
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </p>
+      {sub && <p className="mt-1 truncate text-[13px] font-medium tracking-[-0.01em]" style={{ color: "var(--text-muted)" }}>{sub}</p>}
+    </div>
+  );
+}
+
+function ProgressBar({ value, total, tone = "info" }: { value: number; total: number; tone?: ToneName }) {
+  const c = toneStyle(tone);
+  const width = Math.min(100, percent(value, total || value || 1));
+  return (
+    <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "var(--surface-3)" }}>
+      <div className="h-full rounded-full transition-all" style={{ width: `${width}%`, background: c.bar }} />
+    </div>
+  );
+}
+
+function EmptyBlock({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="flex min-h-[120px] flex-col items-center justify-center p-5 text-center">
+      <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full" style={{ background: "var(--surface-3)", color: "var(--text-faint)" }}>
+        <FileText size={15} />
+      </div>
+      <p className="text-[13px] font-semibold tracking-[-0.01em]" style={{ color: "var(--text-strong)" }}>{title}</p>
+      <p className="mt-1 text-[13px] font-medium leading-relaxed whitespace-nowrap" style={{ color: "var(--text-subtle)" }}>{desc}</p>
+    </div>
+  );
+}
+
+/** 퍼널 박스 (전체 폭 균등 분배 · 세로 확장 · 텍스트 확대) */
+function FunnelBox({ label, value, sub, tone }: { label: string; value: number; sub: string; tone: ToneName }) {
+  const c = toneStyle(tone);
+  return (
+    <div className="min-w-0 flex-1 rounded-[12px] border px-4 py-4" style={{ background: "var(--surface-2)", borderColor: "var(--border-subtle)" }}>
+      <div className="flex items-center gap-1.5">
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.dot }} />
+        <p className="truncate text-[13px] font-normal tracking-[-0.01em]" style={{ color: c.text }}>{label}</p>
+      </div>
+      <p className="mt-2.5 text-[26px] font-semibold leading-none tracking-[-0.02em]" style={{ color: "var(--text-strong)" }}>
+        {value.toLocaleString()}<span className="ml-0.5 text-[14px] font-semibold" style={{ color: "var(--text-subtle)" }}>건</span>
+      </p>
+      <p className="mt-2 truncate text-[13px] font-medium tracking-[-0.01em]" style={{ color: "var(--text-muted)" }}>{sub}</p>
+    </div>
+  );
+}
+
+/** 퍼널 커넥터 (고정 폭 + 양쪽 마진으로 박스와 간격 확보) */
+function FunnelConnector({ rate }: { rate: number | null | undefined }) {
+  return (
+    <div className="mx-3 flex w-[66px] shrink-0 items-center justify-center">
+      {rate !== null && rate !== undefined ? (
+        <span
+          className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-bold tabular-nums tracking-[-0.01em]"
+          style={{ background: "var(--accent-subtle)", color: "var(--accent-text)", border: "1px solid var(--accent-border)" }}
+        >
+          {rate}%<ArrowRight size={12} />
+        </span>
+      ) : (
+        <ArrowRight size={14} style={{ color: "var(--text-faint)" }} />
+      )}
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const [contacts, setContacts] = useState<ContactRow[]>([]);
+  const [notes, setNotes] = useState<NoteRow[]>([]);
+  const [sales, setSales] = useState<SalesRow[]>([]);
+  const [kpis, setKpis] = useState<KpiRow[]>([]);
+  const [me, setMe] = useState<CRMUserLite | null>(() => {
+    // 초기 렌더 시점에 localStorage에서 바로 읽어 fixedOwner/activeOwner가 즉시 올바르게 계산됨
+    try { return readUserFromStorage(); } catch { return null; }
+  });
+  const [selectedMonth, setSelectedMonth] = useState(monthKey(new Date()));
+  const [filterMode, setFilterMode] = useState<FilterMode>("monthly");
+  const [filterMonthNum, setFilterMonthNum] = useState(new Date().getMonth() + 1);
+  const [filterWeekNum, setFilterWeekNum] = useState(() => getCurrentWeekNum(new Date().getFullYear(), new Date().getMonth() + 1));
+  const [filterYear] = useState(new Date().getFullYear());
+  const [ownerFilter, setOwnerFilter] = useState<string>(() => {
+    // 실행파트/운영파트 담당자면 초기 렌더부터 본인 이름으로 고정
+    try {
+      const u = readUserFromStorage();
+      if (isExecutionUser(u) || isOperationUser(u)) return u?.name || "전체";
+    } catch {}
+    return "전체";
   });
   const [loading, setLoading] = useState(true);
-  const [kpiMode, setKpiMode] = useState<"monthly"|"weekly">("monthly");
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // 현재 주차 계산
-  const getCurrentWeek = () => { const d = new Date().getDate(); return Math.min(Math.ceil(d / 7), 5); };
-  const curWeek = getCurrentWeek();
+  /* 일별활동기록 (당일 목표/달성 + 특발성활동목표) */
+  type DailyGoalRow = {
+    id: number;
+    owner_name: string;
+    goal_new_tm: number; result_new_tm: number;
+    goal_coldtalk: number; result_coldtalk: number;
+    goal_consultant_db: number; result_consultant_db: number;
+    goal_second_touch: number; result_second_touch: number;
+    goal_work_items: { id: string; text: string; done: boolean }[] | null;
+  };
+  const [dailyGoal, setDailyGoal] = useState<DailyGoalRow | null>(null);
+  const [allDailyGoals, setAllDailyGoals] = useState<(DailyGoalRow & { owner_name: string })[]>([]);
+  const [expandedDailyMember, setExpandedDailyMember] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      setLoading(true);
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth() + 1;
-      const monthStr = String(month).padStart(2,"0");
-      const lastDay = new Date(year, month, 0).getDate();
-      const monthStart = `${year}-${monthStr}-01`;
-      const monthEnd = `${year}-${monthStr}-${String(lastDay).padStart(2,"0")}`;
-      const todayEnd = `${year}-${monthStr}-${String(now.getDate()).padStart(2,"0")}`; // KPI 집계는 오늘까지만
+  /* 고객 즉시수정 팝업 상태 (파이프라인3 contacts 테이블과 동일 소스 → 자동 연동) */
+  const [editTarget, setEditTarget] = useState<ContactRow | null>(null);
+  const [editIssue, setEditIssue] = useState("");
+  const [editForm, setEditForm] = useState({ name: "", title: "", phone: "", management_stage: "", payment_channel: "", regular_payment_date: "", memo: "", sensitivity: "" });
+  const [quickNote, setQuickNote] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [popupMode, setPopupMode] = useState<"payment_missing" | "inactive" | "closing" | "db_inactive" | "view_only">("view_only");
+  const [showVipTransfer, setShowVipTransfer] = useState(false); // 고객DB 팝업 VIP이관 섹션 토글
 
-      // 주간 날짜 범위
-      const wStart = (curWeek - 1) * 7 + 1;
-      const wEnd = Math.min(curWeek * 7, lastDay);
-      const weekStart = `${year}-${monthStr}-${String(wStart).padStart(2,"0")}`;
-      const weekEnd = `${year}-${monthStr}-${String(wEnd).padStart(2,"0")}`;
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage("");
 
-      // 월간 KPI 목표 로드
-      const { data: t } = await supabase.from("kpi_settings").select("*")
-        .eq("year",year).eq("month",month).eq("week",0).eq("scope","team").maybeSingle();
-      setTeam(t as KpiRow | null);
+    const currentUser = readUserFromStorage();
+    setMe(currentUser);
 
-      // 주간 KPI 목표 로드
-      const { data: wt } = await supabase.from("kpi_settings").select("*")
-        .eq("year",year).eq("month",month).eq("week",curWeek).eq("scope","team").maybeSingle();
-      setWTeam(wt as KpiRow | null);
+    if (isExecutionUser(currentUser)) {
+      setOwnerFilter(currentUser?.name || "전체");
+    }
 
-      if (user.role === "exec" || user.role === "ops") {
-        const scope = user.role === "exec" ? "execution" : "operation";
-        const { data: m } = await supabase.from("kpi_settings").select("*")
-          .eq("year",year).eq("month",month).eq("week",0).eq("scope",scope).eq("target_name",user.name).maybeSingle();
-        setMine(m as KpiRow | null);
-        const { data: wm } = await supabase.from("kpi_settings").select("*")
-          .eq("year",year).eq("month",month).eq("week",curWeek).eq("scope",scope).eq("target_name",user.name).maybeSingle();
-        setWMine(wm as KpiRow | null);
+    const { year, month } = getMonthWindow(selectedMonth);
+
+    // 실행파트/운영파트 담당자면 Supabase 쿼리 자체에 본인 필터 적용
+    const isPersonalUser = (isExecutionUser(currentUser) || isOperationUser(currentUser)) && !isAdminUser(currentUser);
+    const personalName = isPersonalUser ? (currentUser?.name || "") : null;
+
+    try {
+      let customerDbQuery = supabase.from("contacts").select("*").eq("crm_db_source", "customer_db").order("created_at", { ascending: false });
+      let vipQuery = supabase.from("contacts").select("*").eq("crm_db_source", "vip_activity").order("created_at", { ascending: false });
+      let salesQuery = supabase.from("ad_executions").select("*").order("created_at", { ascending: false }).limit(5000);
+
+      if (personalName) {
+        customerDbQuery = customerDbQuery.or(`assigned_to.eq.${personalName},consultant.eq.${personalName}`);
+        vipQuery = vipQuery.or(`assigned_to.eq.${personalName},consultant.eq.${personalName}`);
+        // 매출은 통합매출관리의 담당자 표시 로직과 동일하게 고객명/회원번호 매칭이 필요하므로
+        // Supabase 쿼리에서 담당자로 선필터하지 않고 전체 로드 후 클라이언트에서 결제일+담당자 기준으로 필터합니다.
       }
 
-      // 전체 매출 데이터 로드 (당월, 오늘까지)
-      const { data: execRows = [] } = await supabase.from("ad_executions")
-        .select("id,execution_amount,vat_amount,refund_amount,channel,contract_route,payment_date,team_member")
-        .gte("payment_date", monthStart).lte("payment_date", todayEnd);
-      const allExecs = (execRows || []) as any[];
+      const [customerDbRes, vipRes, noteRes, salesRes, kpiRes] = await Promise.all([
+        customerDbQuery,
+        vipQuery,
+        supabase.from("contact_notes").select("*").order("created_at", { ascending: false }).limit(5000),
+        salesQuery,
+        supabase.from("kpi_settings").select("*").eq("year", year).eq("month", month).eq("week", 0),
+      ]);
 
-      const { data: contactRows = [] } = await supabase.from("contacts")
-        .select("id,assigned_to,meeting_result,contract_date,reservation_date")
-        .in("meeting_result", ["계약완료","예약완료"]);
-      const contacts = (contactRows || []) as any[];
+      if (customerDbRes.error) throw customerDbRes.error;
+      if (vipRes.error) throw vipRes.error;
+      if (noteRes.error) console.warn("contact_notes:", noteRes.error.message);
+      if (salesRes.error) console.warn("ad_executions:", salesRes.error.message);
+      if (kpiRes.error) console.warn("kpi_settings:", kpiRes.error.message);
 
-      const tn = new Date();
-      const todayStr = `${tn.getFullYear()}-${String(tn.getMonth()+1).padStart(2,"0")}-${String(tn.getDate()).padStart(2,"0")}`;
-      const { data: wanpanRows = [] } = await supabase.from("wanpan_trucks")
-        .select("id,dispatch_date").gte("dispatch_date", monthStart).lte("dispatch_date", todayStr);
+      const allContacts = [...((customerDbRes.data || []) as unknown as ContactRow[]), ...((vipRes.data || []) as unknown as ContactRow[])];
+      setContacts(allContacts);
 
-      // 계산 함수
-      const calcActuals = (execs: any[], dateStart: string, dateEnd: string) => {
-        const inRange = (c: any): boolean => {
-          const date = c.meeting_result === "계약완료" ? c.contract_date : c.reservation_date;
-          return date && date >= dateStart && date <= dateEnd;
-        };
-        const teamRecruit = contacts.filter(inRange).length;
-        const teamBunyanghoeRev = execs.filter(e=>e.contract_route==="분양회").filter(e=>e.channel==="분양회 입회비"||e.channel==="분양회 월회비").reduce((s,e)=>s+effAmtKpi(e),0);
-        const teamLinkedRev = execs.filter(e=>e.channel==="하이타겟").reduce((s,e)=>s+effAmtKpi(e),0);
-        const teamSpecialRev = execs.filter(e=>e.contract_route==="분양회").filter(e=>SPECIAL_CHANNELS.includes(e.channel)).reduce((s,e)=>s+effAmtKpi(e),0);
-        const teamWanpan = (wanpanRows||[]).filter((w:any)=>w.dispatch_date>=dateStart&&w.dispatch_date<=dateEnd).length;
-        let myRecruit=0, myBunyanghoeRev=0, myLinkedRev=0, myAdOperationRev=0;
-        if (user!.role === "exec") {
-          myRecruit = contacts.filter(c=>c.assigned_to===user!.name).filter(inRange).length;
-          myBunyanghoeRev = execs.filter(e=>e.team_member===user!.name).filter(e=>e.contract_route==="분양회").filter(e=>e.channel==="분양회 입회비"||e.channel==="분양회 월회비").reduce((s,e)=>s+effAmtKpi(e),0);
-          myLinkedRev = execs.filter(e=>e.team_member===user!.name).filter(e=>e.channel==="하이타겟").reduce((s,e)=>s+effAmtKpi(e),0);
+      /* 당일 일별활동 목표/달성 */
+      const _now = new Date();
+      const todayKey = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_now.getDate()).padStart(2, "0")}`;
+      const dagUserName = currentUser?.name || "";
+      try {
+        const { data: dagRows, error: dagError } = await supabase
+          .from("daily_activity_goals")
+          .select("*")
+          .eq("work_date", todayKey);
+        if (dagError) {
+          console.warn("daily_activity_goals 조회 실패:", dagError.message);
+        } else {
+          const myRow = (dagRows || []).find((r: any) => r.owner_name === dagUserName);
+          setDailyGoal((myRow as DailyGoalRow) || null);
+          if (!myRow && dagUserName) {
+            console.info(`[대시보드] ${todayKey} / ${dagUserName} 일별활동 데이터 없음. 전체 ${(dagRows || []).length}건 조회됨.`);
+          }
+          if (isAdminUser(currentUser)) {
+            const execRows = (dagRows || []).filter((r: any) =>
+              EXECUTION_PART_NAMES.some((name) => normalizePersonName(name) === normalizePersonName(r.owner_name))
+            );
+            setAllDailyGoals(execRows);
+          }
         }
-        if (user!.role === "ops") {
-          const targetMembers = OPS_MAPPING[user!.name] || [];
-          myAdOperationRev = execs.filter(e=>targetMembers.includes(e.team_member)).filter(e=>e.contract_route==="분양회").filter(e=>SPECIAL_CHANNELS.includes(e.channel)).reduce((s,e)=>s+effAmtKpi(e),0);
-        }
-        return { teamRecruit, teamBunyanghoeRev, teamLinkedRev, teamSpecialRev, teamWanpan, myRecruit, myBunyanghoeRev, myLinkedRev, myAdOperationRev };
+      } catch (dagErr) {
+        console.warn("daily_activity_goals 예외:", dagErr);
+      }
+      setNotes(((noteRes.data || []) as unknown) as NoteRow[]);
+      setSales(((salesRes.data || []) as unknown) as SalesRow[]);
+      setKpis(((kpiRes.data || []) as unknown) as KpiRow[]);
+    } catch (error: any) {
+      console.error(error);
+      setErrorMessage(error?.message || "대시보드 데이터를 불러오지 못했습니다.");
+      setContacts([]);
+      setNotes([]);
+      setSales([]);
+      setKpis([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedMonth]);
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  /* 필터 범위 계산 */
+  const filterRange = useMemo(() => getFilterRange(filterMode, filterMonthNum, filterYear, filterWeekNum), [filterMode, filterMonthNum, filterYear, filterWeekNum]);
+  const monthWeeks = useMemo(() => getMonthWeeks(filterYear, filterMonthNum), [filterYear, filterMonthNum]);
+  const rangeStart = filterRange.start;
+  const rangeEnd = filterRange.end;
+
+  useEffect(() => {
+    if (filterMode === "monthly") {
+      setSelectedMonth(`${filterYear}-${String(filterMonthNum).padStart(2, "0")}`);
+    } else {
+      setSelectedMonth(monthKey(new Date()));
+    }
+  }, [filterMode, filterMonthNum, filterYear]);
+
+  const openCustomerEdit = useCallback((contactId: number, issue: string) => {
+    const target = contacts.find((row) => Number(row.id) === Number(contactId));
+    if (!target) return;
+    setEditTarget(target);
+    setEditIssue(issue);
+    setQuickNote("");
+    setEditForm({
+      name: target.name || "",
+      title: target.title || "",
+      phone: target.phone || "",
+      management_stage: target.management_stage || "",
+      payment_channel: target.payment_channel || "",
+      regular_payment_date: target.regular_payment_date || "",
+      memo: target.memo || "",
+      sensitivity: "",
+    });
+    // 팝업 모드 결정
+    if (issue.includes("결제") && issue.includes("D")) {
+      setPopupMode("view_only"); // 결제임박: 알림만
+    } else if (issue.includes("결제정보 누락") || issue.includes("결제누락")) {
+      setPopupMode("payment_missing"); // 결제정보 입력 팝업
+    } else if (issue.includes("재TM") || issue.includes("고객DB")) {
+      setPopupMode("db_inactive"); // 고객DB 장기미활동 → 활동노트 + 감도
+    } else if (issue.includes("클로징")) {
+      setPopupMode("closing"); // 클로징지연 → 활동노트 + 단계전환
+    } else {
+      setPopupMode("inactive"); // 장기미활동(VIP) → 활동노트 + 단계전환 + 계약전환
+    }
+  }, [contacts]);
+
+  const saveCustomerEdit = useCallback(async () => {
+    if (!editTarget) return;
+    setSavingEdit(true);
+    try {
+      const now = new Date().toISOString();
+      const payload: Record<string, any> = {
+        updated_at: now,
       };
 
-      // 월간 실적
-      setActuals(calcActuals(allExecs, monthStart, todayEnd));
-      // 주간 실적
-      const weekExecs = allExecs.filter(e => e.payment_date >= weekStart && e.payment_date <= weekEnd);
-      setWActuals(calcActuals(weekExecs, weekStart, weekEnd));
+      // 결제정보 누락 팝업: 결제정보만 저장
+      if (popupMode === "payment_missing") {
+        payload.payment_channel = editForm.payment_channel.trim() || null;
+        payload.regular_payment_date = editForm.regular_payment_date.trim() || null;
+      }
+      // VIP이관 처리 (고객DB → VIP활동DB)
+      if (popupMode === "db_inactive" && showVipTransfer) {
+        const now2 = new Date().toISOString();
+        payload.crm_db_source = "vip_activity";
+        payload.vip_transferred_at = now2;
+        payload.management_stage = "리드";
+        payload.customer_grade = "심사미진행";
+        // 활동노트도 함께 저장 (아래 공통 처리에서)
+      }
+      // 활동노트 팝업 (장기미활동/클로징지연): 관리구간 + 결제정보 저장
+      else if (popupMode === "inactive" || popupMode === "closing" || popupMode === "db_inactive") {
+        if (editForm.management_stage) payload.management_stage = editForm.management_stage;
+        if (editForm.payment_channel) payload.payment_channel = editForm.payment_channel.trim();
+        if (editForm.regular_payment_date) payload.regular_payment_date = editForm.regular_payment_date.trim();
+        // 고객DB 감도: memo에 태그 형태로 저장
+        if (popupMode === "db_inactive" && editForm.sensitivity) {
+          const baseMemo = (editForm.memo || "")
+            .replace(/\[고객감도:.*?\]/g, "")
+            .replace(/\[재TM일:.*?\]/g, "")
+            .trim();
+          const today = toDateKey(new Date());
+          let newMemo = baseMemo;
+          newMemo += `
+[고객감도: ${editForm.sensitivity}]`;
+          if (editForm.sensitivity === "재TM진행") newMemo += `
+[재TM일: ${today}]`;
+          payload.memo = newMemo.trim();
+        }
+      }
 
-      setLoading(false);
+      const { error } = await supabase.from("contacts").update(payload).eq("id", editTarget.id);
+      if (error) throw error;
+
+      // 계약전환 시 결제정보 함께 저장
+      if (editForm.management_stage === "리텐션") {
+        const contractPayload: Record<string, any> = {
+          meeting_result: "계약완료",
+          contract_date: toDateKey(new Date()),
+          updated_at: now,
+        };
+        if (editForm.payment_channel) contractPayload.payment_channel = editForm.payment_channel;
+        if (editForm.regular_payment_date) contractPayload.regular_payment_date = editForm.regular_payment_date;
+        await supabase.from("contacts").update(contractPayload).eq("id", editTarget.id);
+      }
+
+      // 활동노트 저장
+      if (quickNote.trim()) {
+        const { error: noteError } = await supabase.from("contact_notes").insert({
+          contact_id: editTarget.id,
+          content: quickNote.trim(),
+          note_date: toDateKey(new Date()),
+          author: me?.name || null,
+        });
+        if (noteError) console.warn("contact_notes insert:", noteError.message);
+      }
+
+      setEditTarget(null);
+      setQuickNote("");
+      setShowVipTransfer(false);
+      await fetchDashboard();
+    } catch (error: any) {
+      console.error(error);
+      setErrorMessage(error?.message || "고객 정보를 저장하지 못했습니다.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [editForm, editTarget, fetchDashboard, me?.name, popupMode, quickNote]);
+
+  const fixedOwner = isExecutionUser(me) || isOperationUser(me);
+  const activeOwner = fixedOwner ? me?.name || "전체" : ownerFilter;
+
+  const notesByContact = useMemo(() => {
+    const map = new Map<string, NoteRow[]>();
+    // visibleContacts id 기준으로만 노트 매핑 (다른 담당자 노트 배제)
+    const visibleIds = new Set(contacts.map((c) => String(c.id)));
+    notes.forEach((note) => {
+      const key = String(note.contact_id);
+      if (!visibleIds.has(key)) return; // 본인 담당 contacts에 속하지 않는 노트 제외
+      const list = map.get(key) || [];
+      list.push(note);
+      map.set(key, list);
+    });
+    map.forEach((list) => {
+      list.sort((a, b) => new Date(String(b.created_at || b.note_date || 0)).getTime() - new Date(String(a.created_at || a.note_date || 0)).getTime());
+    });
+    return map;
+  }, [notes, contacts]);
+
+  const visibleContacts = useMemo(() => {
+    return contacts.filter((contact) => rowMatchesOwner(contact, activeOwner));
+  }, [contacts, activeOwner]);
+
+  const salesOwnerLookup = useMemo(() => buildSalesOwnerLookup(contacts), [contacts]);
+
+  const customerDbContacts = useMemo(() => {
+    return visibleContacts.filter((contact) => normalizeText(contact.crm_db_source) === "customer_db");
+  }, [visibleContacts]);
+
+  const monthCustomerDb = useMemo(() => {
+    return customerDbContacts.filter((contact) => isInRange(contact.created_at, rangeStart, rangeEnd));
+  }, [customerDbContacts, rangeStart, rangeEnd]);
+
+  const visibleSales = useMemo(() => {
+    return sales.filter((row) => salesMatchesOwner(row, activeOwner, salesOwnerLookup));
+  }, [sales, activeOwner, salesOwnerLookup]);
+
+  const monthContacts = useMemo(() => {
+    return visibleContacts.filter((contact) => isInRange(contact.created_at, rangeStart, rangeEnd));
+  }, [visibleContacts, rangeStart, rangeEnd]);
+
+  const monthSales = useMemo(() => {
+    // 통합매출관리 기준과 동일하게 결제일(payment_date)만으로 기간 매칭합니다.
+    return visibleSales.filter((row) => isInRange(row.payment_date, rangeStart, rangeEnd));
+  }, [visibleSales, rangeStart, rangeEnd]);
+
+  const monthNotes = useMemo(() => {
+    const visibleIds = new Set(visibleContacts.map((contact) => String(contact.id)));
+    return notes.filter((note) => visibleIds.has(String(note.contact_id)) && isInRange(note.created_at || note.note_date, rangeStart, rangeEnd));
+  }, [notes, visibleContacts, rangeStart, rangeEnd]);
+
+  // 누적 전체 VIP (오늘 챙겨야 할 고객, 정기결제 D-DAY, 담당자별 파이프라인용)
+  const vipContacts = useMemo(() => visibleContacts.filter(isVipContact), [visibleContacts]);
+
+  // 기간 내 이관된 VIP (vip_transferred_at 기준 — 퍼널 통계용)
+  const periodVipContacts = useMemo(() => {
+    return vipContacts.filter((contact) => isInRange(contact.vip_transferred_at, rangeStart, rangeEnd));
+  }, [vipContacts, rangeStart, rangeEnd]);
+
+  const stats = useMemo(() => {
+    /* 고객DB 기반 (기간 내 신규 업로드) */
+    const firstTouch = monthCustomerDb.filter((contact) => hasFirstTouch(contact, notesByContact, rangeStart, rangeEnd)).length;
+    const tmCount = monthCustomerDb.filter((contact) => {
+      const activity = normalizeText(contact.activity_type);
+      return activity.includes("TM") || Boolean(contact.has_tm) || isInRange(contact.tm_date, rangeStart, rangeEnd);
+    }).length;
+    const coldTalkCount = monthCustomerDb.filter((contact) => normalizeText(contact.activity_type).includes("콜드톡")).length;
+
+    /* VIP 기반 — 기간 내 이관 기준 (vip_transferred_at) */
+    const vipTransferred = periodVipContacts.length;
+    const master = periodVipContacts.filter((contact) => isGradeContact(contact, "마스터")).length;
+    const challenger = periodVipContacts.filter((contact) => isGradeContact(contact, "챌린저")).length;
+    const bronze = periodVipContacts.filter((contact) => isGradeContact(contact, "브론즈")).length;
+    const graded = master + challenger + bronze;
+    const masterThisMonth = master;
+    const challengerThisMonth = challenger;
+    const bronzeThisMonth = bronze;
+    const contracts = periodVipContacts.filter((contact) => isContractedInMonth(contact, rangeStart, rangeEnd)).length;
+
+    /* 매출 (기간 내) */
+    const membershipSales = monthSales.filter((row) => salesCategory(row) === "membership").reduce((sum, row) => sum + effectiveSales(row), 0);
+    const lmsSales = monthSales.filter((row) => salesCategory(row) === "lms").reduce((sum, row) => sum + effectiveSales(row), 0);
+    const hogangSales = monthSales.filter((row) => salesCategory(row) === "hogang").reduce((sum, row) => sum + effectiveSales(row), 0);
+    const refund = monthSales.reduce((sum, row) => sum + refundSales(row), 0);
+    const totalSales = monthSales.reduce((sum, row) => sum + effectiveSales(row), 0);
+
+    /* 파이프라인 단계별 — 누적 기준 (전체 vipContacts) */
+    const stageCounts = PIPELINE_STAGES.reduce((acc, stage) => {
+      acc[stage] = vipContacts.filter((contact) => normalizeText(contact.management_stage) === normalizeText(stage)).length;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // 계약·리텐션 — 기간 내 계약전환 기준 (contract_date 또는 updated_at)
+    const retention = periodVipContacts.filter((contact) => isContracted(contact)).length;
+    const churnCount = periodVipContacts.filter((contact) =>
+      normalizeText(contact.management_stage).includes("이탈") ||
+      normalizeText(contact.management_stage).includes("탈퇴")
+    ).length;
+    const churnRate = percent(churnCount, Math.max(periodVipContacts.length, 1));
+    const activePipeline = (stageCounts["리드"] || 0) + (stageCounts["프로스펙팅"] || 0) + (stageCounts["딜클로징"] || 0);
+    const contractRate = percent(retention, Math.max(periodVipContacts.length, 1));
+
+    return {
+      firstTouch, tmCount, coldTalkCount, vipTransferred, graded,
+      master, challenger, bronze,
+      masterThisMonth, challengerThisMonth, bronzeThisMonth,
+      contracts, churnCount, churnRate,
+      membershipSales, lmsSales, hogangSales, refund, totalSales,
+      stageCounts, retention, activePipeline, contractRate,
+      vipTotal: periodVipContacts.length,
     };
-    load();
-  }, [user]);
+  }, [monthCustomerDb, monthSales, notesByContact, periodVipContacts, rangeStart, rangeEnd, vipContacts]);
 
-  const isWeekly = kpiMode === "weekly";
-  const tgt = isWeekly ? wTeam : team;
-  const myTgt = isWeekly ? wMine : mine;
-  const act = isWeekly ? wActuals : actuals;
+  /* 당월 영업 퍼널: 4단계 */
+  const funnelStages = useMemo(() => {
+    return [
+      { label: "고객DB 신규", value: monthCustomerDb.length, sub: "기간 내 업로드 DB", tone: "info" as ToneName, rate: percent(stats.firstTouch, monthCustomerDb.length) },
+      { label: "첫접촉 완료", value: stats.firstTouch, sub: `TM ${stats.tmCount} · 콜드톡 ${stats.coldTalkCount}`, tone: "cyan" as ToneName, rate: percent(stats.vipTransferred, Math.max(stats.firstTouch, 1)) },
+      { label: "VIP 전체", value: stats.vipTotal, sub: `마스터 ${stats.master} · 챌린저 ${stats.challenger} · 브론즈 ${stats.bronze}`, tone: "purple" as ToneName, rate: percent(stats.graded, Math.max(stats.vipTotal, 1)) },
+      { label: "계약 · 리텐션", value: stats.retention, sub: `기간 내 신규계약 ${stats.contracts}건`, tone: "success" as ToneName, rate: null, isLast: true },
+    ];
+  }, [monthCustomerDb.length, stats]);
 
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-bold text-slate-700">KPI</h3>
-        <div className="flex items-center gap-1">
-          <button onClick={()=>setKpiMode("monthly")}
-            className={`text-xs px-2.5 py-1 rounded-lg font-bold border transition-colors ${!isWeekly?"bg-blue-600 text-white border-blue-600":"bg-slate-50 text-slate-400 border-slate-200"}`}>월간</button>
-          <button onClick={()=>setKpiMode("weekly")}
-            className={`text-xs px-2.5 py-1 rounded-lg font-bold border transition-colors ${isWeekly?"bg-blue-600 text-white border-blue-600":"bg-slate-50 text-slate-400 border-slate-200"}`}>{curWeek}주차</button>
-        </div>
-      </div>
+  /* 오늘 챙겨야 할 고객 (크리티컬 통합 리스트) */
+  const { actionItems, criticalCounts } = useMemo(() => {
+    const items: DashboardActionItem[] = [];
+    const counts = { payment: 0, missing: 0, inactive: 0, closing: 0 };
 
-      {loading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-y-auto">
-          <div>
-            <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-amber-200">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500"/>
-              <span className="text-base font-black text-amber-700 tracking-tight">대협팀 전체</span>
-              <span className="text-xs text-slate-400 ml-auto">{isWeekly?`${curWeek}주차 목표`:"월간 목표"}</span>
-            </div>
-            <div className="text-xs font-bold text-slate-500 mb-2">주요 KPI</div>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <KpiItem label="분양회 모집"       target={tgt?.recruit_count       ?? 0} actual={act.teamRecruit}       unit="명" accentColor="#EC4899"/>
-              <KpiItem label="분양회 매출(회비)"  target={tgt?.bunyanghoe_revenue  ?? 0} actual={act.teamBunyanghoeRev} unit="원" isMoney accentColor="#10B981"/>
-              <KpiItem label="연계매출(하이타겟)" target={tgt?.linked_revenue      ?? 0} actual={act.teamLinkedRev}     unit="원" isMoney accentColor="#6366F1"/>
-              <KpiItem label="특전매출"           target={tgt?.special_revenue     ?? 0} actual={act.teamSpecialRev}    unit="원" isMoney accentColor="#F59E0B"/>
-            </div>
-            <div className="text-xs font-bold text-slate-500 mb-2">부가 KPI</div>
-            <div className="grid grid-cols-2 gap-2">
-              <KpiItem label="완판트럭"           target={tgt?.wanpan_truck_count  ?? 0} actual={act.teamWanpan}        unit="건" accentColor="#8B5CF6"/>
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-slate-100">
-            <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-blue-200">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500"/>
-              <span className="text-base font-black text-blue-700 tracking-tight">내 목표</span>
-              {user?.name && <span className="text-xs text-slate-400 font-semibold">({user.name})</span>}
-              <span className="text-xs text-slate-400 ml-auto">{isWeekly?`${curWeek}주차`:"월간"}</span>
-            </div>
-            <div className="text-xs font-bold text-slate-500 mb-2">주요 KPI</div>
-
-            {user?.role === "exec" ? (
-              <div className="grid grid-cols-2 gap-2">
-                <KpiItem label="분양회 모집"       target={myTgt?.recruit_count      ?? 0} actual={act.myRecruit}         unit="명" accentColor="#EC4899"/>
-                <KpiItem label="분양회 매출(회비)"  target={myTgt?.bunyanghoe_revenue ?? 0} actual={act.myBunyanghoeRev}   unit="원" isMoney accentColor="#10B981"/>
-                <KpiItem label="연계매출"          target={myTgt?.linked_revenue     ?? 0} actual={act.myLinkedRev}       unit="원" isMoney accentColor="#6366F1"/>
-              </div>
-            ) : user?.role === "ops" ? (
-              <div className="grid grid-cols-2 gap-2">
-                <KpiItem label="광고특전운영매출" target={myTgt?.ad_operation_revenue ?? 0} actual={act.myAdOperationRev} unit="원" isMoney accentColor="#F59E0B"/>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-3 border-2 border-amber-200">
-                  <span className="text-xl">👑</span>
-                </div>
-                <p className="text-sm text-slate-700 font-bold">관리자 계정</p>
-                <p className="text-xs text-slate-400 mt-1">개인 KPI 없음</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// 매출실적 추이 카드 (색상: 특전=#F59E0B, 하이타겟=#6366F1, 분양회=#10B981)
-function RevenueTrendCard({ monthlyRev }: { monthlyRev: MonthlyRevenue[] }) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{minHeight:"200px"}}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-baseline gap-2">
-          <h3 className="text-base font-bold text-slate-700">매출실적 추이</h3>
-          <span className="text-[10px] text-slate-400 font-semibold">최근 3개월</span>
-        </div>
-        <div className="flex items-center gap-2 text-[10px] text-slate-400">
-          <div style={{ display:"flex", alignItems:"center", gap:"4px" }}><div style={{ width:"8px", height:"8px", borderRadius:"2px", background:"#F59E0B" }}/><span>특전</span></div>
-          <div style={{ display:"flex", alignItems:"center", gap:"4px" }}><div style={{ width:"8px", height:"8px", borderRadius:"2px", background:"#6366F1" }}/><span>하이타겟</span></div>
-          <div style={{ display:"flex", alignItems:"center", gap:"4px" }}><div style={{ width:"8px", height:"8px", borderRadius:"2px", background:"#10B981" }}/><span>분양회</span></div>
-        </div>
-      </div>
-      <div className="flex-1 flex items-end min-h-0">
-        {monthlyRev.length > 0 ? <BarChart data={monthlyRev}/> : (
-          <div className="w-full h-full flex items-center justify-center text-slate-300 text-sm">데이터 없음</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── 이벤트 타입 ──
-const EV_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  연차:   { bg: "bg-red-50",    text: "text-red-600",    dot: "bg-red-400" },
-  반차:   { bg: "bg-orange-50", text: "text-orange-600", dot: "bg-orange-400" },
-  미팅:   { bg: "bg-blue-50",   text: "text-blue-600",   dot: "bg-blue-400" },
-  기타:   { bg: "bg-slate-50",  text: "text-slate-500",  dot: "bg-slate-400" },
-  미팅일정:   { bg: "bg-violet-50", text: "text-violet-600", dot: "bg-violet-400" },
-};
-
-interface CalEventItem {
-  id: number;
-  date: string;
-  title: string;
-  content: string | null;
-  author: string;
-  event_type: string;
-}
-
-// ── 고객여정 대시보드 ────────────────────────────────────────────
-function CustomerJourneyBoard({ user }: { user: CRMUser | null }) {
-  const [stages, setStages] = useState<{ key: string; label: string; color: string; count: number }[]>([]);
-  const [alerts, setAlerts] = useState<{ id: number; name: string; stage: string; assigned_to: string; lastNote: string; days: number }[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => { if (user) fetchData(); }, [user]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    const isExec = user?.role === "exec";
-
-    // 고객 데이터
-    let q = supabase.from("contacts").select("id,name,management_stage,meeting_result,assigned_to");
-    if (isExec) q = q.eq("assigned_to", user?.name || "");
-    const { data: contacts } = await q;
-    const all = contacts || [];
-
-    // 구간별 카운트 (계약완료→리텐션, 예약완료→딜클로징)
-    const stageMap: Record<string, number> = { "리드": 0, "프로스펙팅": 0, "딜클로징": 0, "리텐션": 0 };
-    all.forEach((c: any) => {
-      if (c.meeting_result === "계약완료") { stageMap["리텐션"]++; return; }
-      if (c.meeting_result === "예약완료") { stageMap["딜클로징"]++; return; }
-      const isCompleted = c.meeting_result === "계약완료" || c.meeting_result === "예약완료";
-      if (isCompleted) return;
-      const stage = c.management_stage === "딜크로징" ? "딜클로징" : c.management_stage;
-      if (stage && stageMap[stage] !== undefined) stageMap[stage]++;
-    });
-
-    const colors: Record<string,string> = { "리드": "#3b82f6", "프로스펙팅": "#f59e0b", "딜클로징": "#ef4444", "리텐션": "#10b981" };
-    setStages(Object.entries(stageMap).map(([key, count]) => ({ key, label: key, color: colors[key], count })));
-
-    // 활동노트 경고 (7일 초과)
-    const { data: notes } = await supabase.from("contact_notes")
-      .select("contact_id,note_date")
-      .order("note_date", { ascending: false });
-
-    const latestNote: Record<number, string> = {};
-    (notes || []).forEach((n: any) => {
-      if (!latestNote[n.contact_id]) latestNote[n.contact_id] = n.note_date;
-    });
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const alertList: typeof alerts = [];
-
-    // 리드/프로스펙팅/딜클로징 구간만 경고 대상
-    all.forEach((c: any) => {
-      const isCompleted = c.meeting_result === "계약완료" || c.meeting_result === "예약완료";
-      if (isCompleted) return;
-      const stage = c.management_stage;
-      if (!stage || stage === "리텐션") return;
-      const displayStage = stage === "딜크로징" ? "딜클로징" : stage;
-
-      const lastDate = latestNote[c.id];
-      if (!lastDate) {
-        alertList.push({ id: c.id, name: c.name, stage: displayStage, assigned_to: c.assigned_to || "-", lastNote: "없음", days: 999 });
-      } else {
-        const diff = Math.floor((today.getTime() - new Date(lastDate + "T00:00:00").getTime()) / (1000 * 60 * 60 * 24));
-        if (diff > 7) {
-          alertList.push({ id: c.id, name: c.name, stage: displayStage, assigned_to: c.assigned_to || "-", lastNote: lastDate, days: diff });
+    // ── 1. 결제임박: 파이프라인(vipContacts) 중 결제일 등록 + D-4 이내 ──
+    vipContacts.forEach((contact) => {
+      const contactId = Number(contact.id);
+      const day = parsePaymentDay(contact.regular_payment_date);
+      if (isContracted(contact) && day) {
+        const { diff } = getNextPaymentInfo(day);
+        if (diff >= 0 && diff <= 4) {
+          counts.payment += 1;
+          items.push({
+            key: `pay-${contact.id}`,
+            type: `결제 ${ddayLabel(diff)}`,
+            tone: diff === 0 ? "danger" : "warning",
+            title: contact.name || "고객명 없음",
+            desc: paymentLabel(contact),
+            href: "/pipeline3",
+            priority: diff,
+            contactId,
+          });
         }
       }
     });
 
-    alertList.sort((a, b) => b.days - a.days);
-    setAlerts(alertList);
-    setLoading(false);
-  };
-
-  const stageColor: Record<string,string> = { "리드": "#3b82f6", "프로스펙팅": "#f59e0b", "딜클로징": "#ef4444" };
-
-  return (
-    <div className="rounded-2xl border p-5 flex flex-col h-full" style={{ background: "var(--surface)", borderColor: "var(--border)", minHeight: "200px" }}>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-bold" style={{ color: "var(--text)" }}>🗺️ 고객여정</h3>
-        <a href="/customer-journey" className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: "var(--bg)", color: "#3b82f6", border: "1px solid var(--border)" }}>
-          전체보기 →
-        </a>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-6"><div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
-      ) : (
-        <>
-          {/* 구간별 카운트 */}
-          <div className="grid grid-cols-4 gap-2 mb-4">
-            {stages.map(s => (
-              <div key={s.key} className="rounded-xl px-3 py-2.5 text-center" style={{ background: `${s.color}10`, border: `1px solid ${s.color}20` }}>
-                <p className="text-2xl font-black" style={{ color: s.color }}>{s.count}</p>
-                <p className="text-[10px] font-bold mt-0.5" style={{ color: s.color }}>{s.label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* 7일 경과 경고 */}
-          {alerts.length > 0 && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <span className="text-sm">🚨</span>
-                <p className="text-xs font-bold" style={{ color: "#f59e0b" }}>7일 이상 활동 없음 ({alerts.length}명)</p>
-              </div>
-              <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                {alerts.slice(0, 10).map(a => (
-                  <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${stageColor[a.stage] || "#64748b"}15`, color: stageColor[a.stage] || "#64748b" }}>{a.stage}</span>
-                    <span className="text-xs font-bold flex-1 truncate" style={{ color: "var(--text)" }}>{a.name}</span>
-                    <span className="text-[10px] font-semibold" style={{ color: "#8b5cf6" }}>{a.assigned_to}</span>
-                    <span className="text-[10px] font-bold" style={{ color: a.days > 14 ? "#ef4444" : "#f59e0b" }}>
-                      {a.lastNote === "없음" ? "노트없음" : `${a.days}일 전`}
-                    </span>
-                  </div>
-                ))}
-                {alerts.length > 10 && (
-                  <p className="text-[10px] text-center py-1" style={{ color: "var(--text-subtle)" }}>+{alerts.length - 10}명 더</p>
-                )}
-              </div>
-            </div>
-          )}
-          {alerts.length === 0 && (
-            <div className="text-center py-4">
-              <p className="text-xs" style={{ color: "var(--text-subtle)" }}>✅ 7일 이상 미활동 고객이 없습니다</p>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── 활동량체크 보드 ────────────────────────────────────────────
-function ActivityCheckBoard({ user }: { user: CRMUser | null }) {
-  const today = new Date().toISOString().split("T")[0];
-  const [form, setForm] = useState({ sales_tm: 0, customer_tm: 0, cold_talk: 0 });
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [monthData, setMonthData] = useState<Record<string, { sales_tm: number; customer_tm: number; cold_talk: number }>>({});
-  const [calMonth, setCalMonth] = useState(new Date().getMonth());
-  const [calYear, setCalYear] = useState(new Date().getFullYear());
-
-  useEffect(() => { if (user?.name) { loadToday(); loadMonth(); } }, [user, calMonth, calYear]);
-
-  const loadToday = async () => {
-    const { data } = await supabase.from("daily_activities")
-      .select("*").eq("user_name", user!.name).eq("activity_date", today).single();
-    if (data) { setForm({ sales_tm: data.sales_tm || 0, customer_tm: data.customer_tm || 0, cold_talk: data.cold_talk || 0 }); setSaved(true); }
-  };
-
-  const loadMonth = async () => {
-    const startDate = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-01`;
-    const lastDay = new Date(calYear, calMonth + 1, 0).getDate();
-    const endDate = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-    const { data } = await supabase.from("daily_activities")
-      .select("activity_date,sales_tm,customer_tm,cold_talk")
-      .eq("user_name", user!.name)
-      .gte("activity_date", startDate).lte("activity_date", endDate);
-    const map: Record<string, any> = {};
-    (data || []).forEach(d => { map[d.activity_date] = { sales_tm: d.sales_tm, customer_tm: d.customer_tm, cold_talk: d.cold_talk }; });
-    setMonthData(map);
-  };
-
-  const handleSave = async () => {
-    if (!user?.name) return;
-    setSaving(true);
-    const payload = { user_name: user.name, activity_date: today, ...form };
-    const { data: existing } = await supabase.from("daily_activities")
-      .select("id").eq("user_name", user.name).eq("activity_date", today).single();
-    if (existing) { await supabase.from("daily_activities").update(form).eq("id", existing.id); }
-    else { await supabase.from("daily_activities").insert(payload); }
-    setSaving(false); setSaved(true); loadMonth();
-  };
-
-  const getActivity = (day: number) => {
-    const key = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return monthData[key] || null;
-  };
-
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{ minHeight: "200px" }}>
-      <div className="mb-1">
-        <h3 className="text-base font-bold text-slate-700">📊 활동량체크</h3>
-        <p className="text-[10px] text-slate-400 mt-0.5">영업일 기준 매일 16:00 이후에 기록해주세요</p>
-      </div>
-
-      <div className="flex gap-4 flex-1 mt-2">
-        {/* 좌: 입력 */}
-        <div className="space-y-2 flex-shrink-0" style={{ width: 260 }}>
-          {[
-            { key: "sales_tm", label: "당일 영업TM수", color: "#3b82f6" },
-            { key: "customer_tm", label: "당일 고객관리TM수", color: "#8b5cf6" },
-            { key: "cold_talk", label: "당일 콜드톡 발송건수", color: "#10b981" },
-          ].map(item => (
-            <div key={item.key} className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />
-              <span className="text-xs text-slate-600" style={{ width: 130 }}>{item.label}</span>
-              <input type="number" min={0} value={(form as any)[item.key]}
-                onChange={e => setForm(p => ({ ...p, [item.key]: parseInt(e.target.value) || 0 }))}
-                className="w-14 px-2 py-1.5 text-sm text-right font-bold bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400" />
-              <span className="text-[10px] text-slate-400">건</span>
-            </div>
-          ))}
-          <button onClick={handleSave} disabled={saving}
-            className="w-full py-2 text-xs font-bold text-white rounded-lg disabled:opacity-50 mt-1"
-            style={{ background: saved ? "#10b981" : "#3b82f6" }}>
-            {saving ? "저장 중..." : saved ? "✓ 수정 완료" : "기록하기"}
-          </button>
-        </div>
-
-        {/* 우: 미니 캘린더 */}
-        <div className="flex-1 min-w-0">
-          {/* 당월 누적 요약 */}
-          {(() => {
-            const vals = Object.values(monthData);
-            const totalSales = vals.reduce((s, a) => s + (a.sales_tm || 0), 0);
-            const totalCustomer = vals.reduce((s, a) => s + (a.customer_tm || 0), 0);
-            const totalCold = vals.reduce((s, a) => s + (a.cold_talk || 0), 0);
-            const days = vals.length;
-            return (
-              <div className="flex items-center gap-3 mb-2">
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.06)" }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#3b82f6" }} />
-                  <span className="text-[10px] text-slate-500">TM</span>
-                  <span className="text-xs font-black text-blue-600">{totalSales}</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ background: "rgba(139,92,246,0.06)" }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#8b5cf6" }} />
-                  <span className="text-[10px] text-slate-500">관리</span>
-                  <span className="text-xs font-black text-purple-600">{totalCustomer}</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ background: "rgba(16,185,129,0.06)" }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#10b981" }} />
-                  <span className="text-[10px] text-slate-500">콜드톡</span>
-                  <span className="text-xs font-black text-emerald-600">{totalCold}</span>
-                </div>
-                <span className="text-[10px] text-slate-400 ml-auto">{days}일 기록</span>
-              </div>
-            );
-          })()}
-          {/* 일별 막대그래프 */}
-          <div className="flex items-end gap-px" style={{ height: 100 }}>
-            {(() => {
-              const m = calMonth, y = calYear;
-              const dim = new Date(y, m + 1, 0).getDate();
-              const maxVal = Math.max(1, ...Object.values(monthData).map(a => (a.sales_tm || 0) + (a.customer_tm || 0) + (a.cold_talk || 0)));
-              const bars = [];
-              for (let d = 1; d <= dim; d++) {
-                const key = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-                const a = monthData[key];
-                const isToday = key === today;
-                const s = a?.sales_tm || 0, c = a?.customer_tm || 0, ct = a?.cold_talk || 0;
-                const total = s + c + ct;
-                const h = total > 0 ? Math.max(4, Math.round(total / maxVal * 90)) : 0;
-                const dow = new Date(y, m, d).getDay();
-                bars.push(
-                  <div key={d} className="flex-1 flex flex-col items-center justify-end relative group" style={{ minWidth: 0 }}>
-                    {total > 0 ? (
-                      <div className="w-full rounded-t-sm flex flex-col justify-end overflow-hidden" style={{ height: h }}>
-                        {ct > 0 && <div style={{ height: `${ct / total * 100}%`, background: "#10b981", minHeight: 1 }} />}
-                        {c > 0 && <div style={{ height: `${c / total * 100}%`, background: "#8b5cf6", minHeight: 1 }} />}
-                        {s > 0 && <div style={{ height: `${s / total * 100}%`, background: "#3b82f6", minHeight: 1 }} />}
-                      </div>
-                    ) : (
-                      <div className="w-full rounded-t-sm" style={{ height: 2, background: dow === 0 || dow === 6 ? "#fecaca" : "#e2e8f0" }} />
-                    )}
-                    {(d === 1 || d % 5 === 0 || d === dim) && (
-                      <span className="text-[8px] mt-0.5" style={{ color: isToday ? "#3b82f6" : "#94a3b8", fontWeight: isToday ? 700 : 400 }}>{d}</span>
-                    )}
-                    {a && (
-                      <div className="hidden group-hover:block absolute bottom-full mb-1 z-20 whitespace-nowrap px-2 py-1 rounded-lg text-[9px] bg-slate-800 text-white shadow-lg">
-                        {d}일: TM {s} · 관리 {c} · 콜드톡 {ct}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-              return bars;
-            })()}
-          </div>
-          <div className="flex items-center justify-between mt-1">
-            <div className="flex items-center gap-1">
-              <button onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); } else setCalMonth(m => m - 1); }}
-                className="text-[10px] text-slate-400 hover:text-slate-600">◀</button>
-              <span className="text-[10px] font-bold text-slate-500">{calYear}.{String(calMonth + 1).padStart(2, "0")}</span>
-              <button onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); } else setCalMonth(m => m + 1); }}
-                className="text-[10px] text-slate-400 hover:text-slate-600">▶</button>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-0.5 text-[8px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "#3b82f6" }} />TM</span>
-              <span className="flex items-center gap-0.5 text-[8px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "#8b5cf6" }} />관리</span>
-              <span className="flex items-center gap-0.5 text-[8px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "#10b981" }} />콜드톡</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── 팀 활동량 보드 (관리자/운영파트용) ────────────────────────
-function TeamActivityBoard() {
-  const EXEC_MEMBERS = ["조계현","이세호","최연전","기여운"];
-  const [activities, setActivities] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      const now = new Date();
-      const ms = String(now.getMonth() + 1).padStart(2, "0");
-      const mS = `${now.getFullYear()}-${ms}-01`;
-      const ld = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const mE = `${now.getFullYear()}-${ms}-${String(ld).padStart(2, "0")}`;
-      const { data } = await supabase.from("daily_activities")
-        .select("*").gte("activity_date", mS).lte("activity_date", mE);
-      setActivities(data || []);
-      setLoading(false);
-    })();
-  }, []);
-
-  const memberStats = EXEC_MEMBERS.map(name => {
-    const acts = activities.filter(a => a.user_name === name);
-    const salesTm = acts.reduce((s, a) => s + (a.sales_tm || 0), 0);
-    const customerTm = acts.reduce((s, a) => s + (a.customer_tm || 0), 0);
-    const coldTalk = acts.reduce((s, a) => s + (a.cold_talk || 0), 0);
-    const total = salesTm + customerTm + coldTalk;
-    const days = acts.length;
-    return { name, salesTm, customerTm, coldTalk, total, days };
-  });
-  const maxTotal = Math.max(1, ...memberStats.map(m => m.total));
-
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col h-full" style={{ minHeight: "200px" }}>
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h3 className="text-base font-bold text-slate-700">📊 실행파트 활동량</h3>
-          <p className="text-[10px] text-slate-400 mt-0.5">당월 누적 · 영업TM / 고객관리TM / 콜드톡</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "#3b82f6" }} />TM</span>
-          <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "#8b5cf6" }} />관리</span>
-          <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2 h-2 rounded-sm" style={{ background: "#10b981" }} />콜드톡</span>
-        </div>
-      </div>
-      {loading ? (
-        <div className="flex-1 flex items-center justify-center"><div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
-      ) : (
-        <div className="flex-1 space-y-2.5">
-          {memberStats.map(m => (
-            <div key={m.name} className="flex items-center gap-3">
-              <span className="text-xs font-bold text-slate-700 w-14 flex-shrink-0">{m.name}</span>
-              <div className="flex-1 h-6 bg-slate-50 rounded-full overflow-hidden flex">
-                {m.salesTm > 0 && <div className="h-full flex items-center justify-center text-[9px] font-bold text-white" style={{ width: `${Math.max(m.salesTm / maxTotal * 100, 8)}%`, background: "#3b82f6" }}>{m.salesTm}</div>}
-                {m.customerTm > 0 && <div className="h-full flex items-center justify-center text-[9px] font-bold text-white" style={{ width: `${Math.max(m.customerTm / maxTotal * 100, 8)}%`, background: "#8b5cf6" }}>{m.customerTm}</div>}
-                {m.coldTalk > 0 && <div className="h-full flex items-center justify-center text-[9px] font-bold text-white" style={{ width: `${Math.max(m.coldTalk / maxTotal * 100, 8)}%`, background: "#10b981" }}>{m.coldTalk}</div>}
-                {m.total === 0 && <div className="h-full flex items-center pl-3 text-[10px] text-slate-300">기록 없음</div>}
-              </div>
-              <div className="flex-shrink-0 text-right" style={{ width: 52 }}>
-                <span className="text-xs font-black text-slate-700">{m.total}</span>
-                <span className="text-[9px] text-slate-400 ml-0.5">건</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── 캘린더 컴포넌트 ──
-function DashCalendar({ user: userProp }: { user: CRMUser | null }) {
-  const [calYear, setCalYear] = useState(new Date().getFullYear());
-  const [calMonth, setCalMonth] = useState(new Date().getMonth() + 1);
-  const [events, setEvents] = useState<CalEventItem[]>([]);
-  const [meetings, setMeetings] = useState<any[]>([]);
-  const [wanpans, setWanpans] = useState<any[]>([]);
-  const [showAdd, setShowAdd] = useState(false);
-  const [showDayPopup, setShowDayPopup] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [selDate, setSelDate] = useState<string | null>(null);
-  const [form, setForm] = useState({ event_type: "미팅", content: "" });
-  const [saving, setSaving] = useState(false);
-
-  const getAuthorName = (): string => {
-    try {
-      const raw = localStorage.getItem("crm_user");
-      if (raw) return JSON.parse(raw).name || "";
-    } catch {}
-    return userProp?.name || "";
-  };
-
-  const fetchCalData = useCallback(async () => {
-    const authorName = getAuthorName();
-    if (!authorName) return;
-    const start = `${calYear}-${String(calMonth).padStart(2,"0")}-01`;
-    const end = `${calYear}-${String(calMonth).padStart(2,"0")}-${new Date(calYear, calMonth, 0).getDate()}`;
-
-    const { data: ev, error: evErr } = await supabase.from("calendar_events")
-      .select("*").gte("date", start).lte("date", end).eq("author", authorName);
-    if (evErr) console.error("calendar_events 오류:", evErr.message);
-    setEvents((ev || []) as CalEventItem[]);
-
-    const { data: mt } = await supabase.from("contacts")
-      .select("id,name,meeting_date,assigned_to")
-      .not("meeting_date","is",null).gte("meeting_date",start).lte("meeting_date",end)
-      .eq("assigned_to", authorName);
-    setMeetings(mt || []);
-
-    const { data: wp } = await supabase.from("wanpan_trucks")
-      .select("id,dispatch_date,location,staff_members")
-      .not("dispatch_date","is",null).gte("dispatch_date",start).lte("dispatch_date",end);
-    const wpFiltered = (wp || []).filter((w: any) => {
-      try { return JSON.parse(w.staff_members || "[]").includes(authorName); } catch { return false; }
+    // ── 2. 결제누락: 파이프라인(vipContacts) 중 계약완료인데 결제정보 없는 고객 ──
+    vipContacts.forEach((contact) => {
+      const contactId = Number(contact.id);
+      if (isContracted(contact) && (!contact.payment_channel || !parsePaymentDay(contact.regular_payment_date))) {
+        counts.missing += 1;
+        items.push({
+          key: `missing-payment-${contact.id}`,
+          type: "결제정보 누락",
+          tone: "danger",
+          title: contact.name || "고객명 없음",
+          desc: "결제채널 또는 결제일이 비어 있습니다. 클릭해 바로 입력하세요.",
+          href: "/pipeline3",
+          priority: 100,
+          contactId,
+        });
+      }
     });
-    setWanpans(wpFiltered);
-  }, [calYear, calMonth, userProp, refreshKey]);
 
-  useEffect(() => { fetchCalData(); }, [fetchCalData]);
-
-  const handleAdd = async () => {
-    if (!selDate) { alert("날짜를 선택해주세요."); return; }
-    const authorName = getAuthorName();
-    if (!authorName) { alert("로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요."); return; }
-    setSaving(true);
-    const { error } = await supabase.from("calendar_events").insert({
-      date: selDate, title: form.event_type, content: form.content || null,
-      author: authorName, event_type: form.event_type,
-    });
-    setSaving(false);
-    if (error) { alert("저장 실패: " + error.message); return; }
-    setShowAdd(false);
-    setForm({ event_type: "미팅", content: "" });
-    setRefreshKey(k => k + 1);
-  };
-
-  const handleDelete = async (id: number) => {
-    await supabase.from("calendar_events").delete().eq("id", id);
-    setRefreshKey(k => k + 1);
-  };
-
-  const firstDay = new Date(calYear, calMonth - 1, 1).getDay();
-  const daysInMonth = new Date(calYear, calMonth, 0).getDate();
-  const today = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
-  const getDs = (d: number) => `${calYear}-${String(calMonth).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-  const days = ["일","월","화","수","목","금","토"];
-
-  const getItems = (d: number) => {
-    const ds = getDs(d);
-    return {
-      ev: events.filter(e => e.date === ds),
-      mt: meetings.filter(m => m.meeting_date?.startsWith(ds)),
-      wp: wanpans.filter(w => w.dispatch_date?.startsWith(ds)),
+    // ── 3. 장기미활동 (고객DB): 재TM 예정일(등록일+영업일3일)이 오늘 이하인 고객 ──
+    // [재TM일: YYYY-MM-DD] = 재TM 등록일 → 여기에 영업일 3일을 더한 날이 오늘 이상이면 표시
+    const addBizDays = (startStr: string, days: number): Date => {
+      const d = new Date(startStr + "T00:00:00");
+      let count = 0;
+      while (count < days) {
+        d.setDate(d.getDate() + 1);
+        const dow = d.getDay();
+        if (dow !== 0 && dow !== 6) count++; // 주말 제외 (공휴일은 단순화)
+      }
+      return d;
     };
-  };
 
-  const selItems = selDate ? {
-    ev: events.filter(e => e.date === selDate),
-    mt: meetings.filter(m => m.meeting_date?.startsWith(selDate || "")),
-    wp: wanpans.filter(w => w.dispatch_date?.startsWith(selDate || "")),
-  } : { ev: [], mt: [], wp: [] };
-
-  return (
-    <>
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button onClick={()=>{ if(calMonth===1){setCalMonth(12);setCalYear(y=>y-1);}else setCalMonth(m=>m-1);}}
-            className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronLeft size={13}/></button>
-          <span className="text-base font-bold text-slate-700">{calYear}년 {calMonth}월</span>
-          <button onClick={()=>{ if(calMonth===12){setCalMonth(1);setCalYear(y=>y+1);}else setCalMonth(m=>m+1);}}
-            className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400"><ChevronRight size={13}/></button>
-        </div>
-        <button onClick={()=>{ setSelDate(today); setShowAdd(true); }}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          <Plus size={11}/> 일정 추가
-        </button>
-      </div>
-
-      <div className="grid grid-cols-7 border border-slate-200 divide-x divide-slate-200" style={{borderColor:"rgba(255,255,255,0.15)"}}>
-        {days.map((d,i)=>(
-          <div key={d} className={`text-center py-3 text-sm font-bold ${i===0?"text-red-400":i===6?"text-blue-400":"text-slate-400"}`}>{d}</div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 border border-slate-200 divide-x divide-y divide-slate-200" style={{borderColor:"rgba(255,255,255,0.15)","--tw-divide-opacity":"1"} as any}>
-        {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`} className="min-h-[140px] bg-slate-50/30"/>)}
-        {Array.from({length:daysInMonth}).map((_,i)=>{
-          const d = i+1; const ds = getDs(d);
-          const {ev,mt,wp} = getItems(d);
-          const isToday = ds===today; const dow=(firstDay+i)%7;
-          const isSelected = selDate===ds && !showAdd;
-          const total = ev.length+mt.length+wp.length;
-          return (
-            <div key={d}
-              onClick={()=>{ setSelDate(ds); setShowDayPopup(true); setShowAdd(false); }}
-              onDoubleClick={()=>{ setSelDate(ds); setShowAdd(true); setShowDayPopup(false); }}
-              className={`min-h-[140px] p-1.5 cursor-pointer transition-colors ${isSelected?"bg-blue-50/60":"hover:bg-slate-50"}`}
-              title="더블클릭: 일정 추가">
-              <div className={`w-8 h-8 flex items-center justify-center rounded-full text-base font-bold mb-1 ${isToday?"bg-blue-600 text-white":dow===0?"text-red-400":dow===6?"text-blue-400":"text-slate-600"}`}>{d}</div>
-              <div className="space-y-1">
-                {wp.map(w=>(<div key={`w${w.id}`} className="text-xs px-2 py-1.5 rounded-lg truncate font-bold bg-amber-100 text-amber-700 border border-amber-200">🚚 완판트럭</div>))}
-                {mt.slice(0,1).map(m=>(<div key={`m${m.id}`} className="text-xs px-2 py-1.5 rounded-lg truncate font-bold bg-violet-100 text-violet-700 border border-violet-200">미팅 - {m.assigned_to}</div>))}
-                {ev.slice(0,2).map(e=>{
-                  const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
-                  return <div key={e.id} className={`text-xs px-2 py-1.5 rounded-lg truncate font-bold border ${c.bg} ${c.text} `}>{e.event_type}</div>;
-                })}
-                {total>3&&<p className="text-xs text-slate-400 pl-1 font-semibold">+{total-3}</p>}
-              </div>
-            </div>
-          );
-        })}
-        {Array.from({length: (7 - (firstDay + daysInMonth) % 7) % 7}).map((_,i)=>(
-          <div key={`t${i}`} className="min-h-[140px] bg-slate-50/30"/>
-        ))}
-      </div>
-    </div>
-
-    {showDayPopup && selDate && !showAdd && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:"rgba(0,0,0,0.35)"}} onClick={()=>setShowDayPopup(false)}>
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[70vh] flex flex-col" onClick={e=>e.stopPropagation()}>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <h3 className="font-bold text-slate-800 text-sm">
-              {new Date(selDate+"T00:00:00").toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"})}
-            </h3>
-            <div className="flex items-center gap-2">
-              <button onClick={()=>{setShowDayPopup(false);setShowAdd(true);}}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                <Plus size={12}/> 추가
-              </button>
-              <button onClick={()=>setShowDayPopup(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {selItems.wp.length===0 && selItems.mt.length===0 && selItems.ev.length===0 && (
-              <p className="text-center py-6 text-slate-300 text-sm">일정이 없습니다</p>
-            )}
-            {selItems.wp.map(w=>(<div key={`w${w.id}`} className="rounded-xl p-3 bg-amber-50 border border-amber-100"><p className="text-xs font-bold text-amber-700 mb-1">🚚 완판트럭</p><p className="text-sm font-bold text-slate-800">{w.location||"-"}</p></div>))}
-            {selItems.mt.map(m=>(<div key={`m${m.id}`} className="rounded-xl p-3 bg-violet-50 border border-violet-100"><p className="text-xs font-bold text-violet-700 mb-1">미팅일정</p><p className="text-sm font-bold text-slate-800">{m.name}</p></div>))}
-            {selItems.ev.map(e=>{
-              const c = EV_COLORS[e.event_type]||EV_COLORS["기타"];
-              return (
-                <div key={e.id} className={`rounded-xl p-3 border ${c.bg} border-slate-100`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-xs font-bold ${c.text}`}>{e.event_type}</span>
-                    <button onClick={()=>{handleDelete(e.id);}} className="text-slate-300 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-50"><Trash2 size={13}/></button>
-                  </div>
-                  {e.content&&<p className="text-sm text-slate-600 leading-relaxed">{e.content}</p>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    )}
-
-    {showAdd && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }} onClick={()=>setShowAdd(false)}>
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e=>e.stopPropagation()}>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <h3 className="font-bold text-slate-800 text-sm">일정 추가</h3>
-            <button onClick={()=>setShowAdd(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
-          </div>
-          <div className="p-5 space-y-4">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1.5">날짜</p>
-              <input type="date" value={selDate||today} onChange={e=>setSelDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-400"/>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1.5">유형 선택</p>
-              <div className="grid grid-cols-4 gap-2">
-                {["연차","반차","미팅","기타"].map(t=>{
-                  const c = EV_COLORS[t];
-                  return (
-                    <button key={t} onClick={()=>setForm((f: any)=>({...f,event_type:t}))}
-                      className={`py-2 text-xs font-bold rounded-xl border transition-colors ${form.event_type===t?`${c.bg} ${c.text} border-current`:"bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}>
-                      {t}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1.5">상세내용 <span className="text-slate-300">(선택)</span></p>
-              <textarea value={form.content} onChange={e=>setForm((f: any)=>({...f,content:e.target.value}))}
-                rows={3} placeholder="내용을 입력하세요"
-                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-400 resize-none"/>
-            </div>
-          </div>
-          <div className="flex gap-2 px-5 pb-5">
-            <button onClick={()=>setShowAdd(false)} className="flex-1 py-2.5 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">취소</button>
-            <button onClick={handleAdd} disabled={saving}
-              className="flex-1 py-2.5 text-sm font-bold bg-[#1E3A8A] text-white rounded-xl hover:bg-blue-800 disabled:opacity-50 flex items-center justify-center gap-1.5">
-              <Save size={13}/>{saving?"저장 중...":"저장"}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-    </>
-  );
-}
-
-
-// ── 메인 ──
-export default function DashboardPage() {
-  const [user, setUser] = useState<CRMUser|null>(null);
-  const [current, setCurrent] = useState<Stats>(EMPTY);
-  const [cumulative, setCumulative] = useState<Stats>(EMPTY);
-  const [monthlyRev, setMonthlyRev] = useState<MonthlyRevenue[]>([]);
-  const [todayEvents, setTodayEvents] = useState<TodayEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [now, setNow] = useState(new Date());
-  const [eventDate, setEventDate] = useState((()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})());
-
-  const initStart = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`;
-  };
-  const initEnd = () => (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
-  const [startDate, setStartDate] = useState(initStart);
-  const [endDate, setEndDate] = useState(initEnd);
-  const [selMonth, setSelMonth] = useState(new Date().getMonth()+1);
-  const [prevMonth, setPrevMonth] = useState<Stats>(EMPTY);
-
-  useEffect(()=>{const t=setInterval(()=>setNow(new Date()),1000);return()=>clearInterval(t);},[]);
-  useEffect(()=>{setUser(getCurrentUser());},[]);
-
-  useEffect(()=>{
-    if (!user) return;
-    setLoading(true);
-    // 전월 날짜 계산 (로컬 타임존 기준)
-    const sd = new Date(startDate);
-    const prevStart = new Date(sd.getFullYear(), sd.getMonth()-1, 1);
-    const prevEnd = new Date(sd.getFullYear(), sd.getMonth(), 0);
-    const fmtLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-    const prevS = fmtLocal(prevStart);
-    const prevE = fmtLocal(prevEnd);
-    Promise.all([
-      fetchStats(user, startDate, endDate, false),
-      fetchStats(user, startDate, endDate, true),
-      fetchStats(user, prevS, prevE, false),
-      fetchMonthlyRevenue(user, new Date().getFullYear(), new Date().getMonth()+1),
-      fetchTodayEvents(user, eventDate),
-    ]).then(([c,cum,prev,rev,ev])=>{
-      setCurrent(c); setCumulative(cum); setPrevMonth(prev); setMonthlyRev(rev); setTodayEvents(ev); setLoading(false);
+    customerDbContacts.forEach((contact) => {
+      const contactId = Number(contact.id);
+      const memo = String(contact.memo || "");
+      // [재TM일: YYYY-MM-DD] = 재TM 감도를 설정한 날짜
+      const reTmMatch = memo.match(/\[재TM일:\s*(\d{4}-\d{2}-\d{2})\]/);
+      if (reTmMatch) {
+        // 등록일 + 영업일 3일 = 실제 재TM 예정일
+        const retmScheduled = addBizDays(reTmMatch[1], 3);
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        if (retmScheduled <= today) {
+          const overdueDays = Math.floor((today.getTime() - retmScheduled.getTime()) / 86400000);
+          const scheduledStr = retmScheduled.toISOString().slice(0, 10);
+          counts.inactive += 1;
+          items.push({
+            key: `db-retm-${contact.id}`,
+            type: "재TM 예정",
+            tone: overdueDays === 0 ? "info" : "warning",
+            title: contact.name || "고객명 없음",
+            desc: `고객DB · 재TM 예정일 ${scheduledStr}${overdueDays > 0 ? ` (${overdueDays}일 초과)` : " (오늘)"}`,
+            href: "/customer-db",
+            priority: 200 - overdueDays,
+            contactId,
+          });
+        }
+      }
     });
-  },[user, startDate, endDate, eventDate]);
 
-  const applyMonth = (m: number) => {
-    setSelMonth(m);
-    const y = new Date().getFullYear();
-    const s = `${y}-${String(m).padStart(2,"0")}-01`;
-    const lastDay = new Date(y, m, 0).getDate();
-    const e = `${y}-${String(m).padStart(2,"0")}-${String(lastDay).padStart(2,"0")}`;
-    setStartDate(s); setEndDate(e);
-  };
+    // ── 4. 장기미활동 (VIP활동DB): 리드/프로스펙팅 중 활동노트 3일 이상 없는 고객 ──
+    vipContacts.forEach((contact) => {
+      const contactId = Number(contact.id);
+      const stage = normalizeText(contact.management_stage);
+      if (!["리드", "프로스펙팅"].some((s) => stage === normalizeText(s))) return;
+      const latest = latestActivityDate(contact, notesByContact);
+      const inactiveDays = daysBetween(latest);
+      if (inactiveDays !== null && inactiveDays >= 3) {
+        counts.inactive += 1;
+        items.push({
+          key: `vip-inactive-${contact.id}`,
+          type: "장기 미활동",
+          tone: "warning",
+          title: contact.name || "고객명 없음",
+          desc: `VIP·${contact.management_stage || "관리구간"} · 최근 활동 ${inactiveDays}일 전`,
+          href: "/pipeline3",
+          priority: 300 + inactiveDays,
+          contactId,
+        });
+      }
+    });
 
-  const timeStr = now.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
-  const dateStr = now.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"});
-  const isExec = user?.role === "exec";
+    // ── 5. 클로징지연: 파이프라인 딜클로징 중 활동노트 3일 이상 없는 고객 ──
+    vipContacts.forEach((contact) => {
+      const contactId = Number(contact.id);
+      const stage = normalizeText(contact.management_stage);
+      if (stage !== normalizeText("딜클로징")) return;
+      const latest = latestActivityDate(contact, notesByContact);
+      const inactiveDays = daysBetween(latest);
+      if (inactiveDays !== null && inactiveDays >= 3) {
+        counts.closing += 1;
+        items.push({
+          key: `closing-${contact.id}`,
+          type: "클로징 지연",
+          tone: "danger",
+          title: contact.name || "고객명 없음",
+          desc: `딜클로징 · 활동노트 ${inactiveDays}일 전`,
+          href: "/pipeline3",
+          priority: 400 + inactiveDays,
+          contactId,
+        });
+      }
+    });
 
-  const CARDS = [
-    { icon:"💰", label:"총매출(광고특전)", main: current.totalRevenue.toLocaleString()+"원", subs: undefined, cumLabel: cumulative.totalRevenue.toLocaleString()+"원", currentValue: current.totalRevenue, prevValue: prevMonth.totalRevenue },
-    { icon:"⚡", label:"연계매출(하이타겟)", main: current.linkedRevenue.toLocaleString()+"원", subs: undefined, cumLabel: cumulative.linkedRevenue.toLocaleString()+"원", currentValue: current.linkedRevenue, prevValue: prevMonth.linkedRevenue },
-    { icon:"💳", label:"분양회 입회비", main: current.membershipFeeAmt.toLocaleString()+"원", subs:[{label:"당월", value:`${current.membershipCount}건`, color:"text-slate-600"}], cumLabel: cumulative.membershipFeeAmt.toLocaleString()+"원", currentValue: current.membershipFeeAmt, prevValue: prevMonth.membershipFeeAmt },
-    { icon:"🔄", label:"분양회 월회비", main: current.monthlyFeeAmt.toLocaleString()+"원", subs:[{label:"당월", value:`${current.monthlyFeeCount}건`, color:"text-slate-600"}], cumLabel: cumulative.monthlyFeeAmt.toLocaleString()+"원", currentValue: current.monthlyFeeAmt, prevValue: prevMonth.monthlyFeeAmt },
-    { icon:"🎯", label:"가망고객", main:`${current.leadCount+current.prospectingCount+current.dealClosingCount}명`, subs:[{label:"리드", value:`${current.leadCount}명`, color:"text-blue-500"},{label:"프로스펙팅", value:`${current.prospectingCount}명`, color:"text-amber-500"},{label:"딜클로징", value:`${current.dealClosingCount}명`, color:"text-red-500"}], cumLabel:`${cumulative.leadCount+cumulative.prospectingCount+cumulative.dealClosingCount}명`, currentValue: current.leadCount+current.prospectingCount+current.dealClosingCount, prevValue: prevMonth.leadCount+prevMonth.prospectingCount+prevMonth.dealClosingCount },
-    { icon:"📅", label:"미팅", main:`${current.upcomingMeetings}건`, subs:[{label:"미팅예정", value:`${current.upcomingMeetings}건`, color:"text-blue-500"},{label:"미팅완료", value:`${current.meetingDone}건`, color:"text-emerald-500"}], cumLabel:`${cumulative.upcomingMeetings + cumulative.meetingDone}건`, currentValue: current.upcomingMeetings+current.meetingDone, prevValue: prevMonth.upcomingMeetings+prevMonth.meetingDone },
+    const unique = new Map<string, DashboardActionItem>();
+    items
+      .sort((a, b) => a.priority - b.priority)
+      .forEach((item) => {
+        if (!unique.has(item.key)) unique.set(item.key, item);
+      });
+    return { actionItems: Array.from(unique.values()).slice(0, 20), criticalCounts: counts };
+  }, [customerDbContacts, notesByContact, vipContacts]);
+
+  const paymentDdays = useMemo(() => {
+    return vipContacts
+      .filter((contact) => isContracted(contact) && parsePaymentDay(contact.regular_payment_date))
+      .map((contact) => {
+        const day = parsePaymentDay(contact.regular_payment_date) || 1;
+        const info = getNextPaymentInfo(day);
+        return { contact, day, ...info };
+      })
+      .sort((a, b) => a.diff - b.diff)
+      .slice(0, 12);
+  }, [vipContacts]);
+
+  const paymentDueSoonCount = useMemo(() => paymentDdays.filter((row) => row.diff >= 0 && row.diff <= 4).length, [paymentDdays]);
+
+  const teamRows = useMemo(() => {
+    return EXECUTION_PART_NAMES.map((owner) => {
+      const ownerAll = contacts.filter((contact) => rowMatchesOwner(contact, owner));
+      const ownerCustomerDb = ownerAll.filter((contact) => normalizeText(contact.crm_db_source) === "customer_db");
+      const ownerVip = ownerAll.filter(isVipContact);
+      // 기간 내 이관된 VIP (vip_transferred_at 기준)
+      const ownerPeriodVip = ownerVip.filter((contact) => isInRange(contact.vip_transferred_at, rangeStart, rangeEnd));
+      const ownerMonthDb = ownerCustomerDb.filter((contact) => isInRange(contact.created_at, rangeStart, rangeEnd));
+      const ownerMembershipSales = sales.filter((row) =>
+        salesMatchesOwner(row, owner, salesOwnerLookup) &&
+        isInRange(row.payment_date, rangeStart, rangeEnd) &&
+        isMembershipFeeSales(row)
+      );
+      const ownerContracts = ownerVip.filter((contact) => isContractedInMonth(contact, rangeStart, rangeEnd));
+      // 파이프라인 단계별: 기간 내 이관 VIP 기준
+      const ownerStage = (stage: string) => ownerPeriodVip.filter((contact) => normalizeText(contact.management_stage) === normalizeText(stage)).length;
+      return {
+        owner,
+        db: ownerMonthDb.length,
+        masterChallenger: ownerPeriodVip.filter((contact) => isGradeContact(contact, "마스터") || isGradeContact(contact, "챌린저")).length,
+        bronze: ownerPeriodVip.filter((contact) => isGradeContact(contact, "브론즈")).length,
+        lead: ownerStage("리드"),
+        prospect: ownerStage("프로스펙팅"),
+        closing: ownerStage("딜클로징"),
+        contracts: ownerContracts.length,
+        churn: ownerStage("이탈/탈퇴"),
+        sales: ownerMembershipSales.reduce((sum, row) => sum + pipelineMembershipSalesAmount(row), 0),
+      };
+    });
+  }, [contacts, sales, salesOwnerLookup, rangeStart, rangeEnd]);
+
+  /* 유입경로별 성과: DB → 접촉 → VIP 확보 흐름이 핵심 */
+  const intakeRows = useMemo(() => {
+    // 기간 내 고객DB 신규등록 contacts 기준으로 집계
+    const periodContacts = visibleContacts.filter((contact) =>
+      isInRange(contact.created_at, rangeStart, rangeEnd)
+    );
+    const groups = new Map<string, ContactRow[]>();
+    periodContacts.forEach((contact) => {
+      const key = contact.intake_route || "유입경로 미지정";
+      const list = groups.get(key) || [];
+      list.push(contact);
+      groups.set(key, list);
+    });
+    return Array.from(groups.entries())
+      .map(([route, rows]) => {
+        // 기간 내 VIP 이관된 건 (vip_transferred_at 기준)
+        const vip = rows.filter((contact) =>
+          isVipContact(contact) && isInRange(contact.vip_transferred_at, rangeStart, rangeEnd)
+        ).length;
+        // 기간 내 계약 전환된 건 (contract_date 기준)
+        const contract = rows.filter((contact) =>
+          isContractedInMonth(contact, rangeStart, rangeEnd)
+        ).length;
+        const firstTouch = rows.filter((row) =>
+          hasFirstTouch(row, notesByContact, rangeStart, rangeEnd)
+        ).length;
+        return {
+          route,
+          total: rows.length,
+          firstTouch,
+          vip,
+          contract,
+          touchRate: percent(firstTouch, rows.length),
+          vipRate: percent(vip, Math.max(rows.length, 1)),
+        };
+      })
+      .sort((a, b) => b.vip - a.vip || b.vipRate - a.vipRate || b.total - a.total)
+      .slice(0, 7);
+  }, [notesByContact, rangeStart, rangeEnd, visibleContacts]);
+
+  /* 등급별 계약전환율: 마스터·챌린저·브론즈 계약건수 + 계약 유입경로 */
+  const gradeContractRows = useMemo(() => {
+    return CORE_VIP_GRADES.map((grade) => {
+      // 기간 내 VIP 이관된 해당 등급 고객 (vip_transferred_at 기준)
+      const rows = vipContacts.filter((contact) =>
+        isGradeContact(contact, grade) &&
+        isInRange(contact.vip_transferred_at, rangeStart, rangeEnd)
+      );
+      // 기간 내 계약 전환된 건 (contract_date 기준)
+      const contracted = rows.filter((contact) =>
+        isContractedInMonth(contact, rangeStart, rangeEnd)
+      );
+      const routeCounts = new Map<string, number>();
+      contracted.forEach((contact) => {
+        const key = contact.intake_route || "경로 미지정";
+        routeCounts.set(key, (routeCounts.get(key) || 0) + 1);
+      });
+      const routes = Array.from(routeCounts.entries()).sort((a, b) => b[1] - a[1]);
+      return {
+        grade,
+        count: rows.length,
+        contracts: contracted.length,
+        rate: percent(contracted.length, Math.max(rows.length, 1)),
+        routes,
+        tone: (grade === "마스터" ? "warning" : grade === "챌린저" ? "purple" : "success") as ToneName,
+      };
+    });
+  }, [vipContacts, rangeStart, rangeEnd]);
+
+  const kpiPanelDesc = useMemo(() => {
+    if (isAdminUser(me)) return "실행파트 전체목표 · 운영파트 전체목표";
+    if (isOperationUser(me)) return "광고특전운영매출";
+    if (isExecutionUser(me)) return "등급별 분양회 모집 · 분양회 회비";
+    return "분양회 모집 · 분양회 회비 · 광고특전운영매출";
+  }, [me]);
+
+  const kpiRows = useMemo(() => {
+    const isOwnerIn = (row: Pick<ContactRow, "assigned_to" | "consultant">, owners: string[]) =>
+      owners.some((owner) => rowMatchesOwner(row, owner));
+    const salesOwnerIn = (row: SalesRow, owners: string[]) =>
+      owners.some((owner) => salesMatchesOwner(row, owner, salesOwnerLookup));
+
+    const contractedMembers = (sourceContacts: ContactRow[]) =>
+      sourceContacts.filter((contact) =>
+        isVipContact(contact) &&
+        isContracted(contact) &&
+        isInRange(contact.contract_date, rangeStart, rangeEnd)
+      );
+
+    const salesAmount = (sourceSales: SalesRow[], category: "membership" | "lms" | "hogang") =>
+      sourceSales
+        .filter((row) => salesCategory(row) === category && isInRange(row.payment_date, rangeStart, rangeEnd))
+        .reduce((sum, row) => sum + effectiveSales(row), 0);
+
+    const teamTarget = kpis.find((row) => row.scope === "team" && row.target_name === "team") || null;
+    const execTargets = kpis.filter((row) => row.scope === "execution");
+    const opsTargets = kpis.filter((row) => row.scope === "operation");
+    const execRecruitTarget = execTargets.reduce(
+      (sum, row) => sum + Number(row.master_count || 0) + Number(row.challenger_count || 0) + Number(row.bronze_count || 0),
+      0
+    );
+    const execMembershipRevenueTarget = execTargets.reduce((sum, row) => sum + Number(row.bunyanghoe_revenue || 0), 0);
+    const opsAdOperationRevenueTarget = opsTargets.reduce((sum, row) => sum + Number(row.ad_operation_revenue || 0), 0);
+
+    // 관리자 화면은 대협팀 전체 목표를 우선 사용하되,
+    // 전체 목표 금액이 비어 있으면 개인별 목표 합계를 자동으로 대체합니다.
+    // KPI 설정에서 전체 목표와 개인별 목표 중 어느 쪽에 입력해도 대시보드 목표가 비어 보이지 않게 하기 위한 보정입니다.
+    const adminRecruitGoal = Number(teamTarget?.recruit_count || 0) || execRecruitTarget;
+    const adminMembershipGoal = Number(teamTarget?.bunyanghoe_revenue || 0) || execMembershipRevenueTarget;
+    const adminAdOperationGoal = Number(teamTarget?.ad_operation_revenue || 0) || opsAdOperationRevenueTarget;
+
+    if (isAdminUser(me)) {
+      const execContacts = contacts.filter((contact) => isOwnerIn(contact, EXECUTION_PART_NAMES));
+      const execSales = sales.filter((row) => salesOwnerIn(row, EXECUTION_PART_NAMES));
+      const opsSales = sales.filter((row) => salesOwnerIn(row, OPERATION_PART_NAMES));
+      const execContracts = contractedMembers(execContacts);
+      const execMembershipSales = salesAmount(execSales, "membership");
+      const opsAdOperationSales = salesAmount(opsSales, "lms") + salesAmount(opsSales, "hogang");
+
+      return [
+        { label: "실행파트 분양회 모집", value: execContracts.length, goal: adminRecruitGoal, unit: "명", tone: "success" as ToneName, money: false },
+        { label: "실행파트 분양회 매출(회비)", value: execMembershipSales, goal: adminMembershipGoal, unit: "원", tone: "warning" as ToneName, money: true },
+        { label: "운영파트 광고특전운영매출", value: opsAdOperationSales, goal: adminAdOperationGoal, unit: "원", tone: "purple" as ToneName, money: true },
+      ];
+    }
+
+    if (isOperationUser(me)) {
+      const target = kpis.find((row) =>
+        row.scope === "operation" && normalizePersonName(row.target_name) === normalizePersonName(me?.name)
+      ) || null;
+      const adOperationSales = stats.lmsSales + stats.hogangSales;
+      return [
+        { label: "광고특전운영매출", value: adOperationSales, goal: Number(target?.ad_operation_revenue || 0), unit: "원", tone: "purple" as ToneName, money: true },
+      ];
+    }
+
+    const target = kpis.find((row) =>
+      row.scope === "execution" && normalizePersonName(row.target_name) === normalizePersonName(activeOwner)
+    ) || null;
+    const periodContracts = contractedMembers(visibleContacts);
+    const masterContracts = periodContracts.filter((contact) => isGradeContact(contact, "마스터")).length;
+    const challengerContracts = periodContracts.filter((contact) => isGradeContact(contact, "챌린저")).length;
+    const bronzeContracts = periodContracts.filter((contact) => isGradeContact(contact, "브론즈")).length;
+
+    return [
+      { label: "마스터 모집", value: masterContracts, goal: Number(target?.master_count || 0), unit: "명", tone: "warning" as ToneName, money: false },
+      { label: "챌린저 모집", value: challengerContracts, goal: Number(target?.challenger_count || 0), unit: "명", tone: "purple" as ToneName, money: false },
+      { label: "브론즈 모집", value: bronzeContracts, goal: Number(target?.bronze_count || 0), unit: "명", tone: "success" as ToneName, money: false },
+      { label: "분양회 매출(회비)", value: stats.membershipSales, goal: Number(target?.bunyanghoe_revenue || 0), unit: "원", tone: "info" as ToneName, money: true },
+    ];
+  }, [activeOwner, contacts, kpis, me, rangeEnd, rangeStart, sales, salesOwnerLookup, stats.hogangSales, stats.lmsSales, stats.membershipSales, visibleContacts]);
+
+  /* 매출 구성: 분양회 월회비 · LMS · 호갱노노 3종만 */
+  const salesBreakdown = useMemo(() => ([
+    { label: "분양회 월회비", value: stats.membershipSales, tone: "warning" as ToneName },
+    { label: "LMS", value: stats.lmsSales, tone: "info" as ToneName },
+    { label: "호갱노노", value: stats.hogangSales, tone: "purple" as ToneName },
+  ]), [stats.hogangSales, stats.lmsSales, stats.membershipSales]);
+
+  const coreSalesTotal = stats.membershipSales + stats.lmsSales + stats.hogangSales;
+
+  const periodPrefix = filterMode === "daily" ? "당일" : filterMode === "weekly" ? "주간" : "당월";
+  const filterLabel = filterMode === "daily"
+    ? `${filterYear}.${String(rangeStart.getMonth() + 1).padStart(2, "0")}.${String(rangeStart.getDate()).padStart(2, "0")} (당일)`
+    : filterMode === "weekly"
+      ? `${filterYear}.${String(filterMonthNum).padStart(2, "0")} ${filterWeekNum}주차 (${String(rangeStart.getDate()).padStart(2, "0")}~${String(rangeEnd.getDate()).padStart(2, "0")}일)`
+      : `${filterYear}.${String(filterMonthNum).padStart(2, "0")} (월간)`;
+  const dashboardScopeLabel = activeOwner === "전체" ? "팀 전체" : `${activeOwner} 담당자`;
+  const totalCritical = criticalCounts.payment + criticalCounts.missing + criticalCounts.inactive + criticalCounts.closing;
+
+  const gradeJoinRows = [
+    { label: "마스터", value: stats.masterThisMonth, tone: "warning" as ToneName },
+    { label: "챌린저", value: stats.challengerThisMonth, tone: "purple" as ToneName },
+    { label: "브론즈", value: stats.bronzeThisMonth, tone: "success" as ToneName },
   ];
 
-  return (
-    <div className="flex flex-col h-full bg-[#F1F5F9]">
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-8 py-3 sm:py-4 sticky top-0 z-10">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
-            <h1 className="text-base sm:text-xl font-black text-slate-800">
-              📊 대외협력팀 {isExec ? <span className="text-blue-600">{user?.name} {user?.title}</span> : <span className="text-slate-500">종합</span>} 대시보드
-            </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <Clock size={13} className="text-blue-400"/>
-              <span className="text-xs sm:text-sm font-semibold text-slate-500">{dateStr}</span>
-              <b style={{ fontSize:"clamp(13px,2vw,16px)", fontFamily:"'Montserrat', 'Arial Black', sans-serif", fontWeight:900, color: isExec ? "#1D4ED8" : "#334155", fontVariantNumeric:"tabular-nums", letterSpacing:"0.04em", WebkitTextStroke:"0.3px currentColor" }}>{timeStr}</b>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <select value={selMonth} onChange={e=>applyMonth(Number(e.target.value))}
-              className="text-xs px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold outline-none cursor-pointer">
-              {Array.from({length:12},(_,i)=>(<option key={i+1} value={i+1}>{i+1}월</option>))}
-            </select>
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2 sm:px-3 py-2">
-              <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}
-                className="text-xs text-slate-600 bg-transparent outline-none w-[100px]"/>
-              <span className="text-slate-300 text-xs">—</span>
-              <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)}
-                className="text-xs text-slate-600 bg-transparent outline-none w-[100px]"/>
-            </div>
-          </div>
-        </div>
+  const toggleWorkItem = useCallback(async (itemId: string) => {
+    if (!dailyGoal) return;
+    const items = (dailyGoal.goal_work_items || []).map((item) =>
+      item.id === itemId ? { ...item, done: !item.done } : item
+    );
+    setDailyGoal((prev) => prev ? { ...prev, goal_work_items: items } : prev);
+    try {
+      await supabase.from("daily_activity_goals").update({ goal_work_items: items }).eq("id", dailyGoal.id);
+    } catch (e) { console.warn("work item toggle 실패", e); }
+  }, [dailyGoal]);
+
+  const toggleMemberWorkItem = useCallback(async (memberName: string, itemId: string) => {
+    const memberGoal = allDailyGoals.find((r) => normalizePersonName(r.owner_name) === normalizePersonName(memberName));
+    if (!memberGoal) return;
+    const items = (memberGoal.goal_work_items || []).map((item: { id: string; text: string; done: boolean }) =>
+      item.id === itemId ? { ...item, done: !item.done } : item
+    );
+    setAllDailyGoals((prev) => prev.map((r) =>
+      normalizePersonName(r.owner_name) === normalizePersonName(memberName)
+        ? { ...r, goal_work_items: items }
+        : r
+    ));
+    try {
+      await supabase.from("daily_activity_goals").update({ goal_work_items: items }).eq("id", memberGoal.id);
+    } catch (e) { console.warn("멤버 work item toggle 실패", e); }
+  }, [allDailyGoals]);
+
+  const dailyActivityFields = useMemo(() => {
+    if (!dailyGoal) return [];
+    return [
+      { label: "당일 TM", goal: dailyGoal.goal_new_tm, result: dailyGoal.result_new_tm, unit: "건" },
+      { label: "당일 콜드톡", goal: dailyGoal.goal_coldtalk, result: dailyGoal.result_coldtalk, unit: "건" },
+      { label: "브론즈 DB 확보", goal: dailyGoal.goal_consultant_db, result: dailyGoal.result_consultant_db, unit: "개" },
+      { label: "1% DB 확보", goal: dailyGoal.goal_second_touch, result: dailyGoal.result_second_touch, unit: "개" },
+    ];
+  }, [dailyGoal]);
+
+  const dailyWorkItems = useMemo(() => {
+    return (dailyGoal?.goal_work_items || []).filter((item) => item.text.trim().length > 0);
+  }, [dailyGoal]);
+
+  const handlePdfSave = useCallback(() => {
+    const d = (n: number) => String(n).padStart(2, "0");
+    const now = new Date();
+    const printDate = `${now.getFullYear()}.${d(now.getMonth() + 1)}.${d(now.getDate())} ${d(now.getHours())}:${d(now.getMinutes())}`;
+
+    const funnelHtml = funnelStages.map((s, i) => {
+      const arrow = !s.isLast && s.rate !== null && s.rate !== undefined ? `<td style="text-align:center;color:#6b21a8;font-weight:600;font-size:13px;width:60px;">${s.rate}% →</td>` : (!s.isLast ? `<td style="text-align:center;color:#94a3b8;width:40px;">→</td>` : "");
+      return `<td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;vertical-align:top;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:6px;">${s.label}</div>
+        <div style="font-size:24px;font-weight:600;color:#0f172a;">${s.value.toLocaleString()}<span style="font-size:13px;color:#64748b;margin-left:2px;">건</span></div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">${s.sub}</div>
+      </td>${arrow}`;
+    }).join("");
+
+    const gradeJoinHtml = gradeJoinRows.map((g) => `<span style="display:inline-block;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 14px;margin-right:8px;font-size:13px;"><strong>${g.label}</strong> ${g.value}건</span>`).join("");
+
+    const teamHeader = ["담당자","DB입력","마스터·챌린저DB","브론즈DB","리드","프로스펙팅","클로징","계약","이탈","매출"];
+    const teamTh = teamHeader.map((h, i) => {
+      const borderR = i === 3 ? "border-right:2px solid #cbd5e1;" : "";
+      const color = h === "계약" ? "#047857" : h === "이탈" ? "#be123c" : h === "매출" ? "#0e7490" : "#64748b";
+      return `<th style="padding:8px 6px;font-size:11px;font-weight:400;color:${color};text-align:center;border-bottom:1px solid #e2e8f0;${borderR}">${h}</th>`;
+    }).join("");
+    const teamTr = teamRows.map((r) => {
+      const vals = [r.db, r.masterChallenger, r.bronze, r.lead, r.prospect, r.closing, r.contracts, r.churn, money(r.sales)];
+      const tds = vals.map((v, i) => {
+        const borderR = i === 2 ? "border-right:2px solid #e2e8f0;" : "";
+        const color = i === 6 ? "#047857" : i === 7 && Number(v) > 0 ? "#be123c" : i === 8 ? "#0e7490" : "#1e293b";
+        return `<td style="padding:10px 6px;text-align:center;font-size:13px;color:${color};${borderR}">${v}</td>`;
+      }).join("");
+      return `<tr><td style="padding:10px 6px;font-size:12px;font-weight:500;color:#0f172a;">${r.owner}</td>${tds}</tr>`;
+    }).join("");
+
+    const intakeHtml = intakeRows.map((r) => `<tr>
+      <td style="padding:8px 6px;font-size:13px;color:#0f172a;">${r.route}</td>
+      <td style="padding:8px 6px;text-align:center;font-size:13px;">${r.total}건</td>
+      <td style="padding:8px 6px;text-align:center;font-size:13px;color:#6b21a8;">${r.vip}건</td>
+      <td style="padding:8px 6px;text-align:center;font-size:13px;font-weight:600;color:#047857;">${r.vipRate}%</td>
+    </tr>`).join("");
+
+    const gradeHtml = gradeContractRows.map((r) => {
+      const routes = r.routes.length ? r.routes.map(([route, count]) => `${route} ${count}건`).join(", ") : "—";
+      return `<tr>
+        <td style="padding:8px 6px;font-size:13px;font-weight:500;color:#0f172a;">${r.grade}</td>
+        <td style="padding:8px 6px;text-align:center;font-size:13px;">${r.count}건</td>
+        <td style="padding:8px 6px;text-align:center;font-size:13px;font-weight:600;color:#047857;">${r.contracts}건</td>
+        <td style="padding:8px 6px;text-align:center;font-size:13px;font-weight:600;">${r.rate}%</td>
+        <td style="padding:8px 6px;font-size:11px;color:#64748b;">${routes}</td>
+      </tr>`;
+    }).join("");
+
+    const criticalHtml = actionItems.length === 0
+      ? `<p style="text-align:center;color:#94a3b8;padding:16px 0;">긴급 관리 대상 고객 없음</p>`
+      : actionItems.slice(0, 12).map((item) => {
+          const target = contacts.find((c) => Number(c.id) === item.contactId);
+          return `<tr>
+            <td style="padding:6px;font-size:12px;color:#be123c;font-weight:500;">${item.type}</td>
+            <td style="padding:6px;font-size:12px;color:#0f172a;">${item.title}${target?.title ? ` · ${target.title}` : ""}</td>
+            <td style="padding:6px;font-size:11px;color:#64748b;">${item.desc}</td>
+          </tr>`;
+        }).join("");
+
+    const kpiHtml = kpiRows.map((r) => {
+      const hasGoal = r.goal > 0;
+      return `<tr>
+        <td style="padding:8px 6px;font-size:13px;">${r.label}</td>
+        <td style="padding:8px 6px;text-align:right;font-size:13px;font-weight:600;">${r.money ? moneyFull(r.value) : `${r.value.toLocaleString()}${r.unit}`}</td>
+        <td style="padding:8px 6px;text-align:right;font-size:13px;color:#64748b;">${hasGoal ? (r.money ? moneyFull(r.goal) : `${r.goal.toLocaleString()}${r.unit}`) : "—"}</td>
+        <td style="padding:8px 6px;text-align:right;font-size:13px;font-weight:600;color:#047857;">${hasGoal ? `${percent(r.value, r.goal)}%` : "—"}</td>
+      </tr>`;
+    }).join("");
+
+    const salesHtml = salesBreakdown.map((s) => `<tr>
+      <td style="padding:8px 6px;font-size:13px;">${s.label}</td>
+      <td style="padding:8px 6px;text-align:right;font-size:13px;font-weight:600;">${moneyFull(s.value)}</td>
+      <td style="padding:8px 6px;text-align:right;font-size:13px;color:#64748b;">${percent(s.value, Math.max(coreSalesTotal, 1))}%</td>
+    </tr>`).join("");
+
+    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"/>
+    <title>분양회 CRM 대시보드 리포트</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"/>
+    <style>
+      @page { size: A4; margin: 12mm 10mm; }
+      * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+      body { padding: 0; color: #1e293b; font-size: 13px; line-height: 1.5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.04em; color: #0f172a; }
+      h2 { font-size: 14px; font-weight: 600; color: #0f172a; margin: 20px 0 8px; padding-bottom: 6px; border-bottom: 2px solid #0f172a; letter-spacing: -0.02em; }
+      table { width: 100%; border-collapse: collapse; }
+      .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
+      .header-right { text-align: right; font-size: 12px; color: #64748b; }
+      .section { margin-bottom: 14px; page-break-inside: avoid; }
+      .footer { margin-top: 20px; padding-top: 8px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 10px; color: #94a3b8; }
+    </style></head><body>
+
+    <div class="header">
+      <div>
+        <h1>분양회 CRM 대시보드 리포트</h1>
+        <p style="margin-top:4px;font-size:12px;color:#64748b;">광고인㈜ 대외협력팀 · ${dashboardScopeLabel}</p>
       </div>
+      <div class="header-right">
+        <p><strong>조회 기간:</strong> ${filterLabel}</p>
+        <p><strong>출력 일시:</strong> ${printDate}</p>
+      </div>
+    </div>
 
-      <div className="flex-1 overflow-auto p-6 space-y-5">
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div class="section">
+      <h2>영업 퍼널</h2>
+      <table style="table-layout:auto;"><tr>${funnelHtml}</tr></table>
+      <div style="margin-top:8px;">${gradeJoinHtml}</div>
+    </div>
+
+    <div class="section">
+      <h2>담당자별 파이프라인 현황</h2>
+      <table><thead><tr>${teamTh}</tr></thead><tbody>${teamTr}</tbody></table>
+    </div>
+
+    <div class="section" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <h2>유입경로별 성과</h2>
+        <table>
+          <thead><tr><th style="text-align:left;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">유입경로</th><th style="text-align:center;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">DB입력</th><th style="text-align:center;padding:6px;font-size:11px;color:#6b21a8;border-bottom:1px solid #e2e8f0;">VIP전환</th><th style="text-align:center;padding:6px;font-size:11px;color:#047857;border-bottom:1px solid #e2e8f0;">전환율</th></tr></thead>
+          <tbody>${intakeHtml}</tbody>
+        </table>
+      </div>
+      <div>
+        <h2>등급별 계약전환율</h2>
+        <table>
+          <thead><tr><th style="text-align:left;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">등급</th><th style="text-align:center;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">보유</th><th style="text-align:center;padding:6px;font-size:11px;color:#047857;border-bottom:1px solid #e2e8f0;">계약</th><th style="text-align:center;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">전환율</th><th style="text-align:left;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">계약 유입경로</th></tr></thead>
+          <tbody>${gradeHtml}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <h2>KPI 달성률</h2>
+        <table>
+          <thead><tr><th style="text-align:left;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">항목</th><th style="text-align:right;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">실적</th><th style="text-align:right;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">목표</th><th style="text-align:right;padding:6px;font-size:11px;color:#047857;border-bottom:1px solid #e2e8f0;">달성률</th></tr></thead>
+          <tbody>${kpiHtml}</tbody>
+        </table>
+      </div>
+      <div>
+        <h2>매출 구성</h2>
+        <table>
+          <thead><tr><th style="text-align:left;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">항목</th><th style="text-align:right;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">금액</th><th style="text-align:right;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">비중</th></tr></thead>
+          <tbody>${salesHtml}</tbody>
+          <tfoot><tr style="border-top:1px solid #e2e8f0;"><td style="padding:8px 6px;font-size:13px;font-weight:600;">합계</td><td style="padding:8px 6px;text-align:right;font-size:13px;font-weight:600;">${moneyFull(coreSalesTotal)}</td><td></td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+
+    ${actionItems.length > 0 ? `<div class="section">
+      <h2>긴급 관리 대상 (${actionItems.length}건)</h2>
+      <table>
+        <thead><tr><th style="text-align:left;padding:6px;font-size:11px;color:#be123c;border-bottom:1px solid #e2e8f0;width:90px;">유형</th><th style="text-align:left;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;width:140px;">고객</th><th style="text-align:left;padding:6px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;">상세</th></tr></thead>
+        <tbody>${criticalHtml}</tbody>
+      </table>
+    </div>` : ""}
+
+    <div class="footer">분양회 CRM · 광고인㈜ 대외협력팀 · ${printDate} 출력</div>
+
+    <script>window.onload = function() { setTimeout(function() { window.print(); }, 400); }<\/script>
+    </body></html>`;
+
+    const win = window.open("", "_blank");
+    if (win) { win.document.write(html); win.document.close(); }
+  }, [actionItems, contacts, coreSalesTotal, dashboardScopeLabel, filterLabel, funnelStages, gradeContractRows, gradeJoinRows, intakeRows, kpiRows, salesBreakdown, teamRows]);
+
+  return (
+    <div className="premium-page h-full overflow-y-auto">
+      <div className="premium-shell px-5 py-5 md:px-7 md:py-6">
+
+        {/* ── 헤더 ── */}
+        <header className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between print:mb-6">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <div style={{ width:"7px", height:"7px", borderRadius:"50%", background:"#E2A83A", boxShadow:"0 0 8px rgba(226,168,58,0.6)" }}/>
-              <h2 className="text-base font-bold text-slate-700">당월 현황</h2>
-              <span className="text-sm text-slate-400">{startDate.replace(/-/g,".")} ~ {endDate.replace(/-/g,".")}</span>
+              <h1 className="crm-title">대시보드</h1>
+              <Badge tone={fixedOwner ? "success" : "info"} icon={UserCheck}>{dashboardScopeLabel}</Badge>
+              <Badge tone="muted" icon={CalendarDays}>{filterLabel}</Badge>
             </div>
-            {loading && <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>}
+            <p className="crm-subtitle mt-1">고객DB → 첫접촉 → VIP 이관·등급심사 → 계약·리텐션 → 매출까지 영업 흐름을 한 화면에서 봅니다.</p>
           </div>
-          <div className="p-5 flex gap-4 overflow-x-auto">
-            {CARDS.map(card=>(<DashCard key={card.label} icon={card.icon} label={card.label} main={card.main} subs={card.subs} cumLabel={card.cumLabel} currentValue={card.currentValue} prevValue={card.prevValue}/>))}
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="grid grid-rows-3 gap-4">
-            <RevenueTrendCard monthlyRev={monthlyRev}/>
-            <CustomerJourneyBoard user={user}/>
-            {["조계현","이세호","최연전","기여운"].includes(user?.name || "") 
-              ? <ActivityCheckBoard user={user}/>
-              : (user?.role === "admin" || user?.role === "ops") 
-                ? <TeamActivityBoard />
-                : null
-            }
-          </div>
-          <DashboardKpiSummary user={user}/>
-        </div>
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
+            {/* 당일 · 주간 · 월간 토글 */}
+            <div className="inline-flex overflow-hidden rounded-[10px] border" style={{ borderColor: "var(--border)" }}>
+              {(["daily", "weekly", "monthly"] as FilterMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setFilterMode(mode)}
+                  className="px-3 py-2 text-[13px] transition-colors"
+                  style={{
+                    background: filterMode === mode ? "var(--accent-subtle)" : "var(--surface-2)",
+                    color: filterMode === mode ? "var(--accent-text)" : "var(--text-subtle)",
+                    fontWeight: filterMode === mode ? 600 : 400,
+                  }}
+                >
+                  {FILTER_MODE_LABELS[mode]}
+                </button>
+              ))}
+            </div>
 
-        <DashCalendar user={user} />
+            {/* 월 드롭다운 (월간·주간 모드에서 표시) */}
+            {(filterMode === "monthly" || filterMode === "weekly") && (
+              <select
+                value={filterMonthNum}
+                onChange={(event) => { setFilterMonthNum(Number(event.target.value)); setFilterWeekNum(1); }}
+                className="crm-search w-[100px] px-3"
+              >
+                {MONTH_NUMS.map((m) => (
+                  <option key={m} value={m}>{m}월</option>
+                ))}
+              </select>
+            )}
+
+            {/* 주차 드롭다운 (주간 모드에서만 표시) */}
+            {filterMode === "weekly" && (
+              <select
+                value={filterWeekNum}
+                onChange={(event) => setFilterWeekNum(Number(event.target.value))}
+                className="crm-search w-[160px] px-3"
+              >
+                {monthWeeks.map((w) => (
+                  <option key={w.week} value={w.week}>{w.label}</option>
+                ))}
+              </select>
+            )}
+
+            <select
+              value={activeOwner}
+              disabled={fixedOwner}
+              onChange={(event) => setOwnerFilter(event.target.value)}
+              className="crm-search w-[130px] px-3 disabled:opacity-70"
+            >
+              <option value="전체">전체 담당자</option>
+              {EXECUTION_PART_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}
+              {OPERATION_PART_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+
+            <button type="button" onClick={handlePdfSave} className="btn-premium btn-primary">
+              <FileDown size={14} /> PDF 저장
+            </button>
+          </div>
+        </header>
+
+        {errorMessage && (
+          <div className="mb-4 rounded-[12px] border px-4 py-3 text-[13px] font-normal" style={{ background: "var(--danger-bg)", borderColor: "var(--danger-border)", color: "var(--danger-text)" }}>
+            {errorMessage}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex min-h-[520px] items-center justify-center">
+            <Loader2 className="animate-spin" size={32} style={{ color: "var(--accent)" }} />
+          </div>
+        ) : (
+          <div className="space-y-4">
+
+            {/* ── ① 최상단: 당월 영업 퍼널(좌) + 당월 등급 가입 현황(우) ── */}
+            <div className="grid items-stretch gap-4 2xl:grid-cols-[1fr_300px]">
+              <Panel className="h-full">
+                <PanelTitle
+                  icon={LineChart}
+                  tone="info"
+                  title={`${periodPrefix} 영업 퍼널`}
+                  desc="고객DB → 첫접촉 → VIP 이관·등급심사 → 계약·리텐션"
+                  right={<Badge tone="danger" icon={TrendingDown}>이탈 {stats.churnCount}건 · {stats.churnRate}%</Badge>}
+                />
+                <div className="p-4">
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-stretch lg:gap-0">
+                    {funnelStages.map((stage) => (
+                      <Fragment key={stage.label}>
+                        <FunnelBox label={stage.label} value={stage.value} sub={stage.sub} tone={stage.tone} />
+                        {!stage.isLast && <FunnelConnector rate={stage.rate} />}
+                      </Fragment>
+                    ))}
+                  </div>
+                </div>
+              </Panel>
+
+              <Panel className="flex h-full flex-col">
+                <PanelTitle icon={BadgeCheck} tone="warning" title={`${periodPrefix} 등급별 가입현황`} desc="등급별 가입현황 실시간 집계" right={<Badge tone="muted">{filterLabel}</Badge>} />
+                <div className="flex flex-1 flex-col justify-center gap-2 p-4">
+                  {gradeJoinRows.map((row) => {
+                    const c = toneStyle(row.tone);
+                    return (
+                      <div key={row.label} className="flex items-center justify-between gap-3 rounded-[12px] border px-3 py-2.5" style={{ background: "var(--surface-2)", borderColor: "var(--border-subtle)" }}>
+                        <Badge tone={row.tone}>{row.label}</Badge>
+                        <div className="flex items-baseline gap-1.5">
+                          <p className="text-[20px] font-semibold leading-none tracking-[-0.02em]" style={{ color: "var(--text-strong)" }}>{row.value.toLocaleString()}<span className="ml-0.5 text-[13px]" style={{ color: "var(--text-subtle)" }}>건</span></p>
+
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Panel>
+            </div>
+
+            {/* ── ② 본문 그리드 ── */}
+            <div className="grid gap-4 2xl:grid-cols-[1.25fr_.75fr]">
+              {/* 좌측 */}
+              <div className="space-y-4">
+
+                {/* 담당자별 파이프라인 현황 */}
+                <Panel>
+                  <PanelTitle icon={Users} tone="purple" title={`${periodPrefix} 담당자별 파이프라인 현황`} desc="DB입력 · 등급DB → 파이프라인 → 계약 · 이탈 · 매출" right={<Badge tone="info" icon={Filter}>관리자 뷰</Badge>} />
+                  <div className="overflow-x-auto p-2">
+                    <table className="w-full border-separate" style={{ borderSpacing: "0 4px", tableLayout: "fixed" }}>
+                      <colgroup>
+                        <col style={{ width: "7%" }} />{/* 담당자 */}
+                        <col style={{ width: "5.5%" }} />{/* DB입력 */}
+                        <col style={{ width: "10%" }} />{/* 마스터·챌린저DB */}
+                        <col style={{ width: "6.5%" }} />{/* 브론즈DB */}
+                        <col style={{ width: "11%" }} />{/* 리드 */}
+                        <col style={{ width: "13%" }} />{/* 프로스펙팅 */}
+                        <col style={{ width: "11%" }} />{/* 클로징 */}
+                        <col style={{ width: "11%" }} />{/* 계약 */}
+                        <col style={{ width: "11%" }} />{/* 이탈 */}
+                        <col style={{ width: "14%" }} />{/* 매출 */}
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th className="px-1.5 pb-1 text-center text-[12px] font-normal tracking-[-0.01em]" style={{ color: "var(--text-subtle)" }}>담당자</th>
+                          <th className="px-1.5 pb-1 text-center text-[12px] font-normal tracking-[-0.01em]" style={{ color: "var(--text-subtle)" }}>DB입력</th>
+                          <th className="px-1.5 pb-1 text-center text-[12px] font-normal tracking-[-0.01em]" style={{ color: "var(--text-subtle)" }}>마스터·챌린저DB</th>
+                          <th className="border-r px-1.5 pb-1 text-center text-[12px] font-normal tracking-[-0.01em]" style={{ color: "var(--text-subtle)", borderColor: "var(--border)" }}>브론즈DB</th>
+                          <th className="px-1.5 pb-1 text-center text-[12px] font-normal tracking-[-0.01em]" style={{ color: "var(--text-subtle)" }}>리드</th>
+                          <th className="px-1.5 pb-1 text-center text-[12px] font-normal tracking-[-0.01em]" style={{ color: "var(--text-subtle)" }}>프로스펙팅</th>
+                          <th className="px-1.5 pb-1 text-center text-[12px] font-normal tracking-[-0.01em]" style={{ color: "var(--text-subtle)" }}>클로징</th>
+                          <th className="px-1.5 pb-1 text-center text-[12px] font-normal tracking-[-0.01em]" style={{ color: "var(--success-text)" }}>계약</th>
+                          <th className="px-1.5 pb-1 text-center text-[12px] font-normal tracking-[-0.01em]" style={{ color: "var(--danger-text)" }}>이탈</th>
+                          <th className="px-1.5 pb-1 text-center text-[12px] font-normal tracking-[-0.01em]" style={{ color: "var(--cyan-text)" }}>매출</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamRows.map((row) => {
+                          const isMine = normalizePersonName(row.owner) === normalizePersonName(activeOwner);
+                          const cellCls = "px-1.5 py-2.5 text-center text-[13px] font-semibold tabular-nums tracking-[-0.01em]";
+                          return (
+                            <tr key={row.owner} style={{ background: isMine ? "var(--surface-selected)" : "var(--surface-2)" }}>
+                              <td className="rounded-l-[10px] px-1.5 py-2.5 text-center text-[13px] font-semibold tracking-[-0.01em]" style={{ color: isMine ? "var(--accent-text)" : "var(--text-strong)" }}>{row.owner}</td>
+                              <td className={cellCls} style={{ color: "var(--text)" }}>{row.db}</td>
+                              <td className={cellCls} style={{ color: "var(--text)" }}>{row.masterChallenger}</td>
+                              <td className={`${cellCls} border-r`} style={{ color: "var(--text)", borderColor: "var(--border)" }}>{row.bronze}</td>
+                              <td className={cellCls} style={{ color: "var(--text)" }}>{row.lead}</td>
+                              <td className={cellCls} style={{ color: "var(--text)" }}>{row.prospect}</td>
+                              <td className={cellCls} style={{ color: "var(--text)" }}>{row.closing}</td>
+                              <td className={cellCls} style={{ color: "var(--success-text)" }}>{row.contracts}</td>
+                              <td className={cellCls} style={{ color: row.churn > 0 ? "var(--danger-text)" : "var(--text-faint)" }}>{row.churn}</td>
+                              <td className={`${cellCls} rounded-r-[10px]`} style={{ color: "var(--cyan-text)" }}>{money(row.sales)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </Panel>
+
+
+                {/* 유입경로별 성과 + 등급별 계약전환율 */}
+                <div className="grid items-stretch gap-4 xl:grid-cols-2">
+                  <Panel className="h-full">
+                    <PanelTitle icon={TrendingUp} tone="success" title={`${periodPrefix} 유입경로별 성과`} desc="DB 입력 대비 VIP 전환 현황" />
+                    <div className="p-4">
+                      {intakeRows.length === 0 ? <EmptyBlock title="유입경로 데이터가 없습니다" desc="고객DB에 유입경로가 입력되면 자동 집계됩니다." /> : (
+                        <div className="space-y-2">
+                          {intakeRows.map((row) => (
+                            <div key={row.route} className="rounded-[12px] border px-3 py-2.5" style={{ background: "var(--surface-2)", borderColor: "var(--border-subtle)" }}>
+                              <div className="flex items-center gap-3">
+                                <p className="min-w-0 flex-1 truncate text-[13px] font-semibold tracking-[-0.01em]" style={{ color: "var(--text-strong)" }}>{row.route}</p>
+                                <p className="shrink-0 text-[13px] tabular-nums tracking-[-0.01em]" style={{ color: "var(--text-subtle)" }}>
+                                  DB입력 <strong style={{ color: "var(--text-strong)" }}>{row.total}건</strong>
+                                </p>
+                                <ArrowRight size={13} style={{ color: "var(--text-faint)" }} />
+                                <p className="shrink-0 text-[13px] tabular-nums tracking-[-0.01em]" style={{ color: "var(--text-subtle)" }}>
+                                  VIP전환 <strong style={{ color: "var(--purple-text)" }}>{row.vip}건</strong>
+                                </p>
+                                <Badge tone={row.vipRate >= 60 ? "success" : row.vipRate >= 30 ? "warning" : "muted"}>{row.vipRate}%</Badge>
+                              </div>
+                              <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "var(--surface-3)" }}>
+                                <div className="h-full rounded-full" style={{ width: `${Math.min(100, row.vipRate)}%`, background: toneStyle("purple").bar }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </Panel>
+
+                  <Panel className="h-full">
+                    <PanelTitle icon={Activity} tone="purple" title={`${periodPrefix} 등급별 계약전환율`} desc="마스터 · 챌린저 · 브론즈 계약건수와 계약 유입경로" />
+                    <div className="space-y-2.5 p-4">
+                      {gradeContractRows.map((row) => (
+                        <div key={row.grade} className="rounded-[12px] border p-3" style={{ background: "var(--surface-2)", borderColor: "var(--border-subtle)" }}>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <Badge tone={row.tone}>{row.grade}</Badge>
+                              <p className="text-[13px] font-semibold tabular-nums tracking-[-0.01em]" style={{ color: "var(--text-strong)" }}>
+                                계약 {row.contracts}건 <span className="text-[12px] font-medium" style={{ color: "var(--text-faint)" }}>/ 보유 {row.count}건</span>
+                              </p>
+                            </div>
+                            <p className="shrink-0 text-[18px] font-semibold leading-none tracking-[-0.02em]" style={{ color: "var(--text-strong)" }}>{row.rate}<span className="text-[13px]">%</span></p>
+                          </div>
+                          <div className="mt-2.5"><ProgressBar value={row.contracts} total={Math.max(row.count, 1)} tone={row.tone} /></div>
+                          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                            <span className="text-[12px] font-normal" style={{ color: "var(--text-faint)" }}>계약 유입경로</span>
+                            {row.routes.length === 0 ? (
+                              <span className="text-[12px] font-medium" style={{ color: "var(--text-faint)" }}>아직 계약이 없습니다</span>
+                            ) : row.routes.map(([route, count]) => (
+                              <span key={route} className="rounded-[7px] px-1.5 py-0.5 text-[12px] font-normal" style={{ background: "var(--surface-1)", color: "var(--text)", border: "1px solid var(--border-subtle)" }}>
+                                {route} {count}건
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Panel>
+                </div>
+
+                {/* KPI 2종 + 매출 구성 3종 (높이 통일) */}
+                <div className="grid items-stretch gap-4 xl:grid-cols-2">
+                  <Panel className="flex h-full flex-col">
+                    <PanelTitle icon={Target} tone="warning" title="당월 KPI 목표 대비 달성률" desc={kpiPanelDesc} right={<a href="/kpi-settings" className="btn-premium btn-secondary">KPI 설정</a>} />
+                    <div className="flex flex-1 flex-col justify-center gap-2.5 p-4">
+                      {kpiRows.map((row) => {
+                        const hasGoal = row.goal > 0;
+                        return (
+                          <div key={row.label} className="rounded-[12px] border p-3.5" style={{ background: "var(--surface-2)", borderColor: "var(--border-subtle)" }}>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[13px] font-normal tracking-[-0.01em]" style={{ color: "var(--text-subtle)" }}>{row.label}</p>
+                              <Badge tone={row.tone}>{hasGoal ? `달성 ${percent(row.value, row.goal)}%` : "목표 미설정"}</Badge>
+                            </div>
+                            <div className="mt-2 flex items-baseline justify-between gap-3">
+                              <p className="truncate text-[22px] font-semibold leading-none tracking-[-0.02em]" style={{ color: "var(--text-strong)" }}>{row.money ? moneyFull(row.value) : `${row.value.toLocaleString()}${row.unit}`}</p>
+                              <p className="shrink-0 text-[13px] font-medium" style={{ color: "var(--text-muted)" }}>목표 {hasGoal ? (row.money ? moneyFull(row.goal) : `${row.goal.toLocaleString()}${row.unit}`) : "—"}</p>
+                            </div>
+                            <div className="mt-3"><ProgressBar value={row.value} total={hasGoal ? row.goal : Math.max(row.value, 1)} tone={row.tone} /></div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Panel>
+
+                  <Panel className="flex h-full flex-col">
+                    <PanelTitle icon={BarChart3} tone="cyan" title={`${periodPrefix} 매출 구성`} desc={`분양회 월회비 · LMS · 호갱노노 합계 ${money(coreSalesTotal)}`} right={<a href="/sales" className="btn-premium btn-secondary">매출관리</a>} />
+                    <div className="flex flex-1 flex-col justify-center gap-3 p-4">
+                      <div className="flex h-2.5 w-full overflow-hidden rounded-full" style={{ background: "var(--surface-3)" }}>
+                        {salesBreakdown.filter((item) => item.value > 0).map((item) => (
+                          <div key={item.label} style={{ width: `${percent(item.value, Math.max(coreSalesTotal, 1))}%`, background: toneStyle(item.tone).bar }} />
+                        ))}
+                      </div>
+                      {salesBreakdown.map((item) => (
+                        <div key={item.label} className="flex items-center justify-between gap-3 rounded-[12px] border px-3 py-2.5" style={{ background: "var(--surface-2)", borderColor: "var(--border-subtle)" }}>
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: toneStyle(item.tone).dot }} />
+                            <span className="truncate text-[13px] font-normal tracking-[-0.01em]" style={{ color: "var(--text)" }}>{item.label}</span>
+                          </div>
+                          <div className="flex shrink-0 items-baseline gap-2.5">
+                            <span className="text-[14px] font-semibold tabular-nums tracking-[-0.01em]" style={{ color: "var(--text-strong)" }}>{moneyFull(item.value)}</span>
+                            <span className="w-9 text-right text-[12px] font-semibold tabular-nums" style={{ color: "var(--text-subtle)" }}>{percent(item.value, Math.max(coreSalesTotal, 1))}%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Panel>
+                </div>
+
+                {/* 당일 활동목표 달성현황 (KPI + 매출 전체 폭) */}
+                <Panel>
+                  <PanelTitle icon={Target} tone="info" title="당일 활동목표 달성현황" desc="일별활동기록 목표 대비 실시간 자동집계 결과" right={<a href="/daily-activity" className="btn-premium btn-secondary">일별활동기록</a>} />
+                  {isAdminUser(me) ? (
+                    allDailyGoals.length === 0 ? (
+                      <EmptyBlock title="오늘 등록된 활동목표가 없습니다" desc="실행파트 담당자들이 일별활동기록을 입력하면 여기에 표시됩니다." />
+                    ) : (
+                      <div className="p-4 space-y-2">
+                        <div className="grid gap-2 grid-cols-2 xl:grid-cols-4">
+                          {EXECUTION_PART_NAMES.map((memberName) => {
+                            const memberGoal = allDailyGoals.find((r) => normalizePersonName(r.owner_name) === normalizePersonName(memberName));
+                            const isExpanded = expandedDailyMember === memberName;
+                            const totalGoal = memberGoal ? (memberGoal.goal_new_tm + memberGoal.goal_coldtalk + memberGoal.goal_consultant_db + memberGoal.goal_second_touch) : 0;
+                            const totalResult = memberGoal ? (memberGoal.result_new_tm + memberGoal.result_coldtalk + memberGoal.result_consultant_db + memberGoal.result_second_touch) : 0;
+                            const totalRate = totalGoal > 0 ? percent(totalResult, totalGoal) : 0;
+                            return (
+                              <button
+                                key={memberName}
+                                type="button"
+                                onClick={() => setExpandedDailyMember(isExpanded ? null : memberName)}
+                                className="rounded-[12px] border p-3 text-left transition-all"
+                                style={{
+                                  borderColor: isExpanded ? "var(--accent-border)" : "var(--border-subtle)",
+                                  background: isExpanded ? "var(--accent-subtle)" : "var(--surface-2)",
+                                  outline: "none",
+                                }}
+                              >
+                                <div className="flex items-center justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-bold" style={{ background: "linear-gradient(135deg,#8b7cf6,#60a5fa)", color: "#fff" }}>
+                                      {memberName.slice(0, 1)}
+                                    </div>
+                                    <p className="text-[13px] font-semibold" style={{ color: "var(--text-strong)" }}>{memberName}</p>
+                                  </div>
+                                  <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>{isExpanded ? "▲" : "▼"}</span>
+                                </div>
+                                {!memberGoal ? (
+                                  <p className="text-[12px]" style={{ color: "var(--text-faint)" }}>목표 미입력</p>
+                                ) : (
+                                  <>
+                                    <div className="flex items-center justify-between gap-1 mb-1">
+                                      <p className="text-[12px]" style={{ color: "var(--text-subtle)" }}>전체 달성률</p>
+                                      <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: totalRate >= 100 ? "var(--success-bg)" : totalRate >= 50 ? "var(--warning-bg)" : "var(--surface-3)", color: totalRate >= 100 ? "var(--success-text)" : totalRate >= 50 ? "var(--warning-text)" : "var(--text-subtle)" }}>
+                                        {totalRate}%
+                                      </span>
+                                    </div>
+                                    <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "var(--surface-3)" }}>
+                                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, totalRate)}%`, background: totalRate >= 100 ? "var(--success-border)" : "var(--accent-border)" }} />
+                                    </div>
+                                  </>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {expandedDailyMember && (() => {
+                          const memberGoal = allDailyGoals.find((r) => normalizePersonName(r.owner_name) === normalizePersonName(expandedDailyMember));
+                          const fields = memberGoal ? [
+                            { label: "당일 TM", goal: memberGoal.goal_new_tm, result: memberGoal.result_new_tm, unit: "건" },
+                            { label: "당일 콜드톡", goal: memberGoal.goal_coldtalk, result: memberGoal.result_coldtalk, unit: "건" },
+                            { label: "브론즈 DB 확보", goal: memberGoal.goal_consultant_db, result: memberGoal.result_consultant_db, unit: "개" },
+                            { label: "1% DB 확보", goal: memberGoal.goal_second_touch, result: memberGoal.result_second_touch, unit: "개" },
+                          ] : [];
+                          const memberWorkItems = memberGoal ? (memberGoal.goal_work_items || []).filter((item: { id: string; text: string; done: boolean }) => item.text.trim().length > 0) : [];
+                          return (
+                            <div className="rounded-[12px] border p-3" style={{ borderColor: "var(--accent-border)", background: "var(--surface-2)" }}>
+                              <p className="text-[13px] font-semibold mb-3" style={{ color: "var(--accent-text)" }}>{expandedDailyMember} 세부내역</p>
+                              {!memberGoal ? (
+                                <p className="text-[13px]" style={{ color: "var(--text-faint)" }}>오늘 활동목표 미입력</p>
+                              ) : (
+                                <>
+                                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                                    {fields.map((f) => {
+                                      const rate = f.goal > 0 ? percent(f.result, f.goal) : 0;
+                                      return (
+                                        <div key={f.label} className="rounded-[12px] border p-3" style={{ background: "var(--surface-3)", borderColor: "var(--border-subtle)" }}>
+                                          <div className="flex items-center justify-between gap-2">
+                                            <p className="text-[12px]" style={{ color: "var(--text-subtle)" }}>{f.label}</p>
+                                            <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: rate >= 100 ? "var(--success-bg)" : rate >= 50 ? "var(--warning-bg)" : "var(--surface-3)", color: rate >= 100 ? "var(--success-text)" : rate >= 50 ? "var(--warning-text)" : "var(--text-subtle)" }}>
+                                              {f.goal > 0 ? `${rate}%` : "미설정"}
+                                            </span>
+                                          </div>
+                                          <p className="mt-1.5 text-[15px] font-semibold tracking-[-0.02em]" style={{ color: "var(--text-strong)" }}>
+                                            목표 {f.goal}{f.unit} <span className="text-[12px]" style={{ color: "var(--text-faint)" }}>/ 달성 {f.result}{f.unit}</span>
+                                          </p>
+                                          <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "var(--surface-3)" }}>
+                                            <div className="h-full rounded-full" style={{ width: `${Math.min(100, rate)}%`, background: rate >= 100 ? "var(--success-border)" : "var(--accent-border)" }} />
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                  {memberWorkItems.length > 0 && (
+                                    <div className="mt-3 rounded-[12px] border p-3" style={{ background: "var(--surface-3)", borderColor: "var(--border-subtle)" }}>
+                                      <p className="mb-2 text-[13px]" style={{ color: "var(--text-subtle)", fontWeight: 600 }}>특발성 활동목표</p>
+                                      <div className="space-y-1">
+                                        {memberWorkItems.map((item: { id: string; text: string; done: boolean }) => (
+                                          <button
+                                            key={item.id}
+                                            type="button"
+                                            onClick={() => toggleMemberWorkItem(expandedDailyMember!, item.id)}
+                                            className="flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left transition-colors hover:bg-white/[.04]"
+                                            style={{ background: "var(--surface-2)" }}
+                                          >
+                                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border" style={{ background: item.done ? "var(--success-bg)" : "var(--surface)", borderColor: item.done ? "var(--success-border)" : "var(--border)", color: "var(--success-text)" }}>
+                                              {item.done && <CheckCircle2 size={13} />}
+                                            </div>
+                                            <span className="text-[13px]" style={{ color: item.done ? "var(--text-faint)" : "var(--text-strong)", textDecoration: item.done ? "line-through" : "none" }}>
+                                              {item.text}
+                                            </span>
+                                            {item.done && <span className="ml-auto text-[12px]" style={{ color: "var(--success-text)" }}>달성</span>}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )
+                  ) : (
+                    !dailyGoal ? (
+                      <EmptyBlock title="오늘 등록된 활동목표가 없습니다" desc="일별활동기록에서 당일 목표를 입력하면 여기에 실시간 반영됩니다." />
+                    ) : (
+                      <div className="p-4">
+                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                          {dailyActivityFields.map((f) => {
+                            const rate = f.goal > 0 ? percent(f.result, f.goal) : 0;
+                            return (
+                              <div key={f.label} className="rounded-[12px] border p-3" style={{ background: "var(--surface-2)", borderColor: "var(--border-subtle)" }}>
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-[12px]" style={{ color: "var(--text-subtle)" }}>{f.label}</p>
+                                  <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: rate >= 100 ? "var(--success-bg)" : rate >= 50 ? "var(--warning-bg)" : "var(--surface-3)", color: rate >= 100 ? "var(--success-text)" : rate >= 50 ? "var(--warning-text)" : "var(--text-subtle)" }}>
+                                    {f.goal > 0 ? `${rate}%` : "미설정"}
+                                  </span>
+                                </div>
+                                <p className="mt-1.5 text-[15px] font-semibold tracking-[-0.02em]" style={{ color: "var(--text-strong)" }}>
+                                  {f.result}{f.unit} <span className="text-[12px]" style={{ color: "var(--text-faint)" }}>/ 목표 {f.goal}{f.unit}</span>
+                                </p>
+                                <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "var(--surface-3)" }}>
+                                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, rate)}%`, background: rate >= 100 ? "var(--success-border)" : "var(--accent-border)" }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {dailyWorkItems.length > 0 && (
+                          <div className="mt-3 rounded-[12px] border p-3" style={{ background: "var(--surface-2)", borderColor: "var(--border-subtle)" }}>
+                            <p className="mb-2 text-[13px]" style={{ color: "var(--text-subtle)", fontWeight: 600 }}>특발성 활동목표</p>
+                            <div className="space-y-1">
+                              {dailyWorkItems.map((item) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => toggleWorkItem(item.id)}
+                                  className="flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left transition-colors hover:bg-white/[.04]"
+                                >
+                                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border" style={{ background: item.done ? "var(--success-bg)" : "var(--surface)", borderColor: item.done ? "var(--success-border)" : "var(--border)", color: "var(--success-text)" }}>
+                                    {item.done && <CheckCircle2 size={13} />}
+                                  </div>
+                                  <span className="text-[13px]" style={{ color: item.done ? "var(--text-faint)" : "var(--text-strong)", textDecoration: item.done ? "line-through" : "none" }}>
+                                    {item.text}
+                                  </span>
+                                  {item.done && <span className="ml-auto text-[12px]" style={{ color: "var(--success-text)" }}>달성</span>}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  )}
+                </Panel>
+              </div>
+
+              {/* 우측 */}
+              <div className="space-y-4">
+
+                {/* 오늘 챙겨야 할 고객: 크리티컬 4종 통합 + 클릭 시 즉시수정 팝업 */}
+                <Panel>
+                  <PanelTitle icon={AlertTriangle} tone="danger" title="오늘 챙겨야 할 고객" desc="클릭하면 팝업에서 바로 수정 · 파이프라인3 자동 연동" right={<Badge tone={totalCritical > 0 ? "danger" : "muted"}>{totalCritical}건</Badge>} />
+                  <div className="flex flex-wrap gap-1.5 border-b px-4 py-2.5" style={{ borderColor: "var(--border-subtle)" }}>
+                    <Badge tone={criticalCounts.payment > 0 ? "warning" : "muted"}>결제임박 {criticalCounts.payment}</Badge>
+                    <Badge tone={criticalCounts.missing > 0 ? "danger" : "muted"}>결제누락 {criticalCounts.missing}</Badge>
+                    <Badge tone={criticalCounts.inactive > 0 ? "warning" : "muted"}>장기미활동 {criticalCounts.inactive}</Badge>
+                    <Badge tone={criticalCounts.closing > 0 ? "danger" : "muted"}>클로징지연 {criticalCounts.closing}</Badge>
+                  </div>
+                  <div className="max-h-[440px] overflow-y-auto p-2">
+                    {actionItems.length === 0 ? <EmptyBlock title="오늘 긴급 관리 고객이 없습니다" desc="결제 D-DAY 또는 장기미활동 고객이 생기면 이곳에 표시됩니다." /> : actionItems.map((item) => {
+                      const target = contacts.find((row) => Number(row.id) === item.contactId);
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => openCustomerEdit(item.contactId, item.type)}
+                          className="flex w-full items-start gap-2.5 rounded-[12px] p-2.5 text-left transition-colors hover:bg-white/[.04]"
+                        >
+                          <IconBox icon={item.tone === "danger" ? AlertTriangle : CalendarClock} tone={item.tone} size="sm" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <Badge tone={item.tone}>{item.type}</Badge>
+                              <p className="truncate text-[13px] font-semibold tracking-[-0.01em]" style={{ color: "var(--text-strong)" }}>
+                                {item.title}
+                                {target?.title ? <span className="ml-1 text-[13px] font-medium" style={{ color: "var(--text-muted)" }}>· {target.title}</span> : null}
+                              </p>
+                            </div>
+                            <p className="mt-1 line-clamp-1 text-[13px] font-medium" style={{ color: "var(--text-subtle)" }}>{item.desc}</p>
+                          </div>
+                          <ChevronRight size={13} className="mt-1.5 shrink-0" style={{ color: "var(--text-faint)" }} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Panel>
+
+                {/* 정기결제 D-DAY */}
+                <Panel>
+                  <PanelTitle icon={CreditCard} tone="warning" title="정기결제 D-DAY" desc={`D-4 이내 ${paymentDueSoonCount}건 · 계약/리텐션 고객 기준`} right={<a href="/pipeline3" className="btn-premium btn-secondary">파이프라인</a>} />
+                  <div className="max-h-[360px] overflow-y-auto p-2">
+                    {paymentDdays.length === 0 ? <EmptyBlock title="결제일 등록 고객이 없습니다" desc="계약전환 시 결제채널과 결제일을 입력하면 자동으로 계산됩니다." /> : paymentDdays.map(({ contact, day, diff, due }) => (
+                      <button key={contact.id} type="button" onClick={() => openCustomerEdit(Number(contact.id), `결제 ${ddayLabel(diff)}`)} className="flex w-full items-center gap-2.5 rounded-[12px] p-2.5 text-left transition-colors hover:bg-white/[.04]">
+                        <div className="flex h-10 w-[52px] shrink-0 flex-col items-center justify-center rounded-[10px]" style={{ background: diff === 0 ? "var(--danger-bg)" : diff <= 4 ? "var(--warning-bg)" : "var(--surface-3)", color: diff === 0 ? "var(--danger-text)" : diff <= 4 ? "var(--warning-text)" : "var(--text-subtle)", border: `1px solid ${diff === 0 ? "var(--danger-border)" : diff <= 4 ? "var(--warning-border)" : "var(--border)"}` }}>
+                          <span className="text-[12px] font-semibold leading-none">{ddayLabel(diff)}</span>
+                          <span className="mt-0.5 text-[11px] font-medium leading-none">{formatDate(toDateKey(due))}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] font-semibold tracking-[-0.01em]" style={{ color: "var(--text-strong)" }}>
+                            {contact.name || "고객명 없음"}
+                            {contact.title ? <span className="ml-1 text-[13px] font-medium" style={{ color: "var(--text-muted)" }}>· {contact.title}</span> : null}
+                          </p>
+                          <p className="mt-0.5 truncate text-[13px] font-medium" style={{ color: "var(--text-subtle)" }}>{contact.payment_channel || "결제채널 미입력"} · 매월 {day}일</p>
+                        </div>
+                        <Badge tone={diff <= 4 ? "warning" : "muted"}>{contactOwner(contact)}</Badge>
+                      </button>
+                    ))}
+                  </div>
+                </Panel>
+
+                {/* 활동량 요약 */}
+                <Panel>
+                  <PanelTitle icon={PhoneCall} tone="info" title={`${periodPrefix} 활동량 요약`} desc="당월 첫 접촉과 활동노트 기준" />
+                  <div className="space-y-2.5 p-4">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <StatBox label="첫 접촉 완료" value={`${stats.firstTouch}건`} sub={`TM ${stats.tmCount} · 콜드톡 ${stats.coldTalkCount}`} tone="info" />
+                      <StatBox label="활동노트" value={`${monthNotes.length}건`} sub="녹취 요약 · 수동 기록" tone="purple" />
+                    </div>
+                    <div className="rounded-[12px] border p-3" style={{ background: "var(--surface-2)", borderColor: "var(--border-subtle)" }}>
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <p className="text-[13px] font-normal tracking-[-0.01em]" style={{ color: "var(--text)" }}>첫 접촉률</p>
+                        <p className="text-[13px] font-semibold tabular-nums" style={{ color: "var(--text-strong)" }}>{percent(stats.firstTouch, monthCustomerDb.length)}%</p>
+                      </div>
+                      <ProgressBar value={stats.firstTouch} total={monthCustomerDb.length} tone="cyan" />
+                    </div>
+                  </div>
+                </Panel>
+
+                {/* 최근 활동노트 */}
+                <Panel>
+                  <PanelTitle icon={Clock3} tone="muted" title={`${periodPrefix} 활동노트`} desc="녹취 요약 및 수동 기록" />
+                  <div className="max-h-[360px] overflow-y-auto p-2">
+                    {monthNotes.length === 0 ? <EmptyBlock title="당월 활동노트가 없습니다" desc="고객 상세 또는 녹취 요약을 통해 활동노트가 쌓이면 표시됩니다." /> : monthNotes.slice(0, 8).map((note) => {
+                      const contact = visibleContacts.find((row) => String(row.id) === String(note.contact_id));
+                      return (
+                        <a key={note.id} href="/contacts" className="flex gap-2.5 rounded-[12px] p-2.5 transition-colors hover:bg-white/[.04]">
+                          <IconBox icon={Activity} tone="purple" size="sm" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-[13px] font-semibold tracking-[-0.01em]" style={{ color: "var(--text-strong)" }}>{contact?.name || `고객 #${note.contact_id}`}</p>
+                              <span className="shrink-0 text-[12px] font-normal" style={{ color: "var(--text-subtle)" }}>{timeAgo(note.created_at || note.note_date)}</span>
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-[13px] font-medium leading-relaxed" style={{ color: "var(--text-subtle)" }}>{note.content || "활동노트 내용 없음"}</p>
+                          </div>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </Panel>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── 고객 즉시수정 팝업 (파이프라인3 contacts 테이블 직접 갱신 → 상호 연동) ── */}
+        {editTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <button
+              type="button"
+              aria-label="팝업 닫기"
+              onClick={() => !savingEdit && setEditTarget(null)}
+              className="absolute inset-0 cursor-default backdrop-blur-[2px]"
+              style={{ background: "var(--overlay)", animation: "overlayIn 160ms ease-out" }}
+            />
+            <div
+              className="relative flex max-h-[90vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[18px] border"
+              style={{ background: "var(--surface)", borderColor: "var(--border)", boxShadow: "var(--shadow-lg)", animation: "modalIn 200ms ease-out" }}
+            >
+              {/* 팝업 헤더 */}
+              <div className="flex items-start justify-between gap-3 border-b px-5 py-4" style={{ borderColor: "var(--border-subtle)" }}>
+                <div className="min-w-0">
+                  <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                    <Badge tone="danger">{editIssue}</Badge>
+                    {editTarget.customer_grade ? <Badge tone={isHighValueContact(editTarget) ? "warning" : "success"}>{editTarget.customer_grade}</Badge> : null}
+                    {editTarget.intake_route ? <Badge tone="muted">{editTarget.intake_route}</Badge> : null}
+                  </div>
+                  <h2 className="truncate text-[19px] font-semibold tracking-[-0.02em]" style={{ color: "var(--text-strong)" }}>
+                    {editTarget.name || "고객명 없음"}
+                    {editTarget.title ? <span className="ml-1.5 text-[14px] font-medium" style={{ color: "var(--text-muted)" }}>{editTarget.title}</span> : null}
+                  </h2>
+                  <p className="mt-1 text-[13px] font-medium" style={{ color: "var(--text-subtle)" }}>ID {editTarget.id} · {editTarget.phone || "연락처 미입력"} · 담당 {contactOwner(editTarget)}</p>
+                </div>
+                <button type="button" onClick={() => !savingEdit && setEditTarget(null)} className="btn-premium btn-secondary h-9 w-9 shrink-0 p-0">
+                  <X size={15} />
+                </button>
+              </div>
+
+              {/* 팝업 본문: 모드별 분기 */}
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
+
+                {/* ── 결제임박: 알림 뷰만 ── */}
+                {popupMode === "view_only" && (
+                  <div className="rounded-[12px] border p-4" style={{ background: "var(--warning-bg)", borderColor: "var(--warning-border)" }}>
+                    <p className="text-[13px] font-semibold" style={{ color: "var(--warning-text)" }}>결제 예정 알림</p>
+                    <p className="mt-1 text-[13px]" style={{ color: "var(--text-muted)" }}>{paymentLabel(editTarget)}</p>
+                    <p className="mt-2 text-[12px]" style={{ color: "var(--text-subtle)" }}>결제채널 또는 결제일 수정이 필요하다면 파이프라인에서 직접 수정하세요.</p>
+                  </div>
+                )}
+
+                {/* ── 결제누락: 결제정보 입력 팝업 ── */}
+                {popupMode === "payment_missing" && (
+                  <>
+                    <div className="rounded-[12px] border p-3" style={{ background: "var(--danger-bg)", borderColor: "var(--danger-border)" }}>
+                      <p className="text-[13px] font-semibold" style={{ color: "var(--danger-text)" }}>결제채널과 정기결제일을 입력하면 알림이 해제됩니다.</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <label className="block">
+                        <span className="mb-1 block text-[12px] font-normal" style={{ color: "var(--text-subtle)" }}>결제채널</span>
+                        <select value={editForm.payment_channel} onChange={(e) => setEditForm((prev) => ({ ...prev, payment_channel: e.target.value }))} className="crm-search w-full px-3">
+                          <option value="">선택해주세요</option>
+                          {PAYMENT_CHANNEL_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-[12px] font-normal" style={{ color: "var(--text-subtle)" }}>정기결제일</span>
+                        <select value={editForm.regular_payment_date} onChange={(e) => setEditForm((prev) => ({ ...prev, regular_payment_date: e.target.value }))} className="crm-search w-full px-3">
+                          <option value="">선택해주세요</option>
+                          {PAYMENT_DAY_OPTIONS.map((d) => <option key={d} value={String(d)}>매월 {d}일</option>)}
+                        </select>
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {/* ── 고객DB 재TM: 활동노트 + 고객감도 + VIP이관 ── */}
+                {popupMode === "db_inactive" && (
+                  <>
+                    {/* 활동노트 */}
+                    <label className="block">
+                      <span className="mb-1 block text-[13px] font-semibold" style={{ color: "var(--text-subtle)" }}>활동노트 작성</span>
+                      <textarea value={quickNote} onChange={(e) => setQuickNote(e.target.value)} rows={3} placeholder="TM 내용, 고객 반응 등을 기록하세요..." className="crm-search w-full resize-none px-3 py-2" />
+                    </label>
+
+                    {/* 고객감도 */}
+                    <div>
+                      <span className="mb-2 block text-[13px] font-semibold" style={{ color: "var(--text-subtle)" }}>고객감도</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {["재TM진행", "미팅진행", "감도없음"].map((s) => (
+                          <button key={s} type="button"
+                            onClick={() => setEditForm((prev) => ({ ...prev, sensitivity: prev.sensitivity === s ? "" : s }))}
+                            className="rounded-[10px] border py-2 text-[13px] font-semibold transition-all"
+                            style={{
+                              background: editForm.sensitivity === s ? "var(--accent-subtle)" : "var(--surface-2)",
+                              borderColor: editForm.sensitivity === s ? "var(--accent-border)" : "var(--border-subtle)",
+                              color: editForm.sensitivity === s ? "var(--accent-text)" : "var(--text-muted)",
+                            }}>
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* VIP활동DB 이관 섹션 */}
+                    <div className="rounded-[14px] border p-3.5" style={{ background: "var(--accent-subtle)", borderColor: "var(--accent-border)" }}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-bold" style={{ color: "var(--accent-text)" }}>VIP활동DB 이관</p>
+                          <p className="mt-0.5 text-[12px]" style={{ color: "var(--text-subtle)" }}>고객DB → VIP활동DB로 이관 후 심사를 진행합니다</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowVipTransfer((prev) => !prev)}
+                          className="shrink-0 rounded-[10px] border px-3 py-1.5 text-[13px] font-bold transition-all"
+                          style={{
+                            background: showVipTransfer ? "var(--accent)" : "var(--surface-2)",
+                            borderColor: showVipTransfer ? "var(--accent)" : "var(--border-subtle)",
+                            color: showVipTransfer ? "#fff" : "var(--text-muted)",
+                          }}>
+                          {showVipTransfer ? "이관 취소" : "이관 활성화"}
+                        </button>
+                      </div>
+
+                      {showVipTransfer && (
+                        <div className="mt-3 space-y-2 rounded-[10px] border p-3" style={{ background: "var(--surface)", borderColor: "var(--accent-border)" }}>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: "var(--accent)", color: "#fff" }}>1</span>
+                            <p className="text-[13px] font-semibold" style={{ color: "var(--text)" }}>저장 시 VIP활동DB로 이관</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: "var(--accent)", color: "#fff" }}>2</span>
+                            <p className="text-[13px] font-semibold" style={{ color: "var(--text)" }}>
+                              심사는&nbsp;
+                              <a href="/customer-db" className="underline" style={{ color: "var(--accent-text)" }}>고객DB 메뉴</a>
+                              &nbsp;→ VIP이관 버튼에서 진행
+                            </p>
+                          </div>
+                          <div className="mt-2 rounded-[8px] p-2.5 text-[12px] font-semibold leading-relaxed" style={{ background: "var(--warning-bg)", color: "var(--warning-text)", border: "1px solid var(--warning-border)" }}>
+                            이관 후 관리구간: 리드 / 자동등급: 심사미진행
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* ── 장기미활동(VIP) / 클로징지연: 활동노트 + 단계전환 + 계약전환 ── */}
+                {(popupMode === "inactive" || popupMode === "closing") && (
+                  <>
+                    <label className="block">
+                      <span className="mb-1 block text-[13px] font-semibold" style={{ color: "var(--text-subtle)" }}>활동노트 작성</span>
+                      <textarea value={quickNote} onChange={(e) => setQuickNote(e.target.value)} rows={4} placeholder="활동 내용, 다음 단계 계획을 기록하세요..." className="crm-search w-full resize-none px-3 py-2" />
+                    </label>
+
+                    <div>
+                      <span className="mb-2 block text-[13px] font-semibold" style={{ color: "var(--text-subtle)" }}>관리구간 전환</span>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {["리드", "프로스펙팅", "딜클로징", "리텐션"].map((stage) => (
+                          <button key={stage} type="button"
+                            onClick={() => setEditForm((prev) => ({ ...prev, management_stage: prev.management_stage === stage ? "" : stage }))}
+                            className="rounded-[10px] border py-2 text-[13px] font-semibold transition-all"
+                            style={{
+                              background: editForm.management_stage === stage ? "var(--accent-subtle)" : "var(--surface-2)",
+                              borderColor: editForm.management_stage === stage
+                                ? "var(--accent-border)"
+                                : stage === "리텐션" ? "var(--success-border)" : "var(--border-subtle)",
+                              color: editForm.management_stage === stage
+                                ? "var(--accent-text)"
+                                : stage === "리텐션" ? "var(--success-text)" : "var(--text-muted)",
+                            }}>
+                            {stage === "리텐션" ? "계약전환" : stage}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 계약전환 시 결제정보 입력 */}
+                    {editForm.management_stage === "리텐션" && (
+                      <div className="rounded-[12px] border p-3 space-y-2.5" style={{ background: "var(--success-bg)", borderColor: "var(--success-border)" }}>
+                        <p className="text-[13px] font-semibold" style={{ color: "var(--success-text)" }}>계약전환 — 결제정보 입력</p>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <label className="block">
+                            <span className="mb-1 block text-[12px] font-normal" style={{ color: "var(--text-subtle)" }}>결제채널</span>
+                            <select value={editForm.payment_channel} onChange={(e) => setEditForm((prev) => ({ ...prev, payment_channel: e.target.value }))} className="crm-search w-full px-3">
+                              <option value="">선택해주세요</option>
+                              {PAYMENT_CHANNEL_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                            </select>
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-[12px] font-normal" style={{ color: "var(--text-subtle)" }}>정기결제일</span>
+                            <select value={editForm.regular_payment_date} onChange={(e) => setEditForm((prev) => ({ ...prev, regular_payment_date: e.target.value }))} className="crm-search w-full px-3">
+                              <option value="">선택해주세요</option>
+                              {PAYMENT_DAY_OPTIONS.map((d) => <option key={d} value={String(d)}>매월 {d}일</option>)}
+                            </select>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* 팝업 푸터 */}
+              <div className="flex items-center justify-between gap-3 border-t px-5 py-3.5" style={{ borderColor: "var(--border-subtle)" }}>
+                <a href={popupMode === "db_inactive" ? "/customer-db" : "/pipeline3"} className="text-[13px] font-normal" style={{ color: "var(--accent-text)" }}>
+                  {popupMode === "db_inactive" ? "고객DB에서 전체보기 →" : "파이프라인에서 전체 상세보기 →"}
+                </a>
+                <div className="flex items-center gap-2">
+                  <button type="button" disabled={savingEdit} onClick={() => setEditTarget(null)} className="btn-premium btn-secondary">닫기</button>
+                  {popupMode !== "view_only" && (
+                    <button type="button" disabled={savingEdit || (!quickNote.trim() && popupMode === "db_inactive" && !editForm.sensitivity)} onClick={saveCustomerEdit} className="btn-premium btn-primary">
+                      {savingEdit ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} 저장
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
