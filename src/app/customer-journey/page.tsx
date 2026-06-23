@@ -407,6 +407,25 @@ export default function CustomerJourneyPage() {
 
   return (
     <div className="flex flex-col h-full" style={{ background: "var(--bg)" }}>
+      {/* 엑셀 다운로드 고정 버튼: 헤더/필터 레이아웃에 가려지지 않도록 화면 우측 상단에 강제 표시 */}
+      <button
+        type="button"
+        onClick={handleExcelDownload}
+        className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-xl whitespace-nowrap transition-colors hover:opacity-90"
+        style={{
+          position: "fixed",
+          top: 14,
+          right: 28,
+          zIndex: 99999,
+          background: "#10b981",
+          color: "#ffffff",
+          border: "1px solid #059669",
+          boxShadow: "0 8px 18px rgba(16, 185, 129, 0.28)",
+        }}
+      >
+        <Download size={14} /> 엑셀 다운로드
+      </button>
+
       {/* 헤더 */}
       <div className="px-6 py-4 flex-shrink-0" style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
         <div className="flex items-center justify-between mb-3">
