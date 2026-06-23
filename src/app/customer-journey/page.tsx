@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
-import { Search, X, ChevronDown, ChevronUp, ArrowRight, CalendarPlus } from "lucide-react";
+import { Search, X, ChevronDown, ChevronUp, ArrowRight, CalendarPlus, Download } from "lucide-react";
 import ContactNotes from "@/components/ContactNotes";
 
 interface Contact {
@@ -339,6 +340,82 @@ export default function CustomerJourneyPage() {
 
   const totalDisplayed = COLUMNS.reduce((sum, col) => sum + getColumnContacts(col.key).length, 0);
 
+  // 엑셀 다운로드용 컬럼 배치: 화면 필터와 무관하게 현재 권한으로 불러온 전체 고객을 단계별 시트로 분배
+  const getExportContactsByStage = (stageKey: string) => {
+    return contacts.filter(c => {
+      if (stageKey === "리텐션") {
+        return c.management_stage === "리텐션" || c.meeting_result === "계약완료";
+      }
+      if (stageKey === "딜클로징") {
+        const isContract = c.meeting_result === "계약완료";
+        if (isContract) return false;
+        return c.management_stage === "딜클로징" || c.management_stage === "딜크로징" || c.meeting_result === "예약완료";
+      }
+      const isCompleted = c.meeting_result === "계약완료" || c.meeting_result === "예약완료";
+      if (isCompleted) return false;
+      return c.management_stage === stageKey;
+    });
+  };
+
+  const handleExcelDownload = () => {
+    if (contacts.length === 0) {
+      showToast("다운로드할 고객 데이터가 없습니다.");
+      return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+    const exportColumns = [
+      "고객명",
+      "직급",
+      "연락처",
+      "유입경로",
+      "고객유형",
+      "가망유형",
+      "담당자",
+      "컨설턴트",
+      "넘버링",
+    ];
+
+    COLUMNS.forEach(col => {
+      const rows = getExportContactsByStage(col.key).map(c => ({
+        고객명: c.name || "",
+        직급: c.title || "",
+        연락처: c.phone || "",
+        유입경로: c.intake_route || "",
+        고객유형: c.customer_type || "",
+        가망유형: c.prospect_type || "",
+        담당자: c.assigned_to || "",
+        컨설턴트: c.consultant || "",
+        넘버링: c.bunyanghoe_number || "",
+      }));
+
+      const worksheet = XLSX.utils.aoa_to_sheet([exportColumns]);
+      if (rows.length > 0) {
+        XLSX.utils.sheet_add_json(worksheet, rows, {
+          header: exportColumns,
+          skipHeader: true,
+          origin: "A2",
+        });
+      }
+      worksheet["!cols"] = [
+        { wch: 16 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 12 },
+        { wch: 14 },
+        { wch: 12 },
+        { wch: 14 },
+        { wch: 14 },
+      ];
+      XLSX.utils.book_append_sheet(workbook, worksheet, col.label);
+    });
+
+    const today = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(workbook, `고객여정_전체리스트_${today}.xlsx`);
+    showToast("고객여정 전체 리스트 엑셀 다운로드 완료");
+  };
+
   // 뱃지 표시
   const getBadge = (c: Contact) => {
     if (c.meeting_result === "계약완료") return { text: "계약완료", color: "#8b5cf6" };
@@ -359,8 +436,15 @@ export default function CustomerJourneyPage() {
               {search || activeFilters > 0 ? ` (전체 ${contacts.length}명)` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />실시간
+          <div className="flex items-center gap-2">
+            <button onClick={handleExcelDownload}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-colors"
+              style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }}>
+              <Download size={13} />엑셀 다운로드
+            </button>
+            <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />실시간
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
