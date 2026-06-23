@@ -340,15 +340,14 @@ export default function CustomerJourneyPage() {
 
   const totalDisplayed = COLUMNS.reduce((sum, col) => sum + getColumnContacts(col.key).length, 0);
 
-  // 엑셀 다운로드용 컬럼 배치: 화면 필터와 무관하게 현재 권한으로 불러온 전체 고객을 단계별 시트로 분배
+  // 엑셀 다운로드: 화면 필터와 상관없이 현재 권한으로 불러온 전체 고객을 4개 시트로 분배
   const getExportContactsByStage = (stageKey: string) => {
     return contacts.filter(c => {
       if (stageKey === "리텐션") {
         return c.management_stage === "리텐션" || c.meeting_result === "계약완료";
       }
       if (stageKey === "딜클로징") {
-        const isContract = c.meeting_result === "계약완료";
-        if (isContract) return false;
+        if (c.meeting_result === "계약완료") return false;
         return c.management_stage === "딜클로징" || c.management_stage === "딜크로징" || c.meeting_result === "예약완료";
       }
       const isCompleted = c.meeting_result === "계약완료" || c.meeting_result === "예약완료";
@@ -358,23 +357,13 @@ export default function CustomerJourneyPage() {
   };
 
   const handleExcelDownload = () => {
-    if (contacts.length === 0) {
+    if (!contacts || contacts.length === 0) {
       showToast("다운로드할 고객 데이터가 없습니다.");
       return;
     }
 
+    const headers = ["고객명", "직급", "연락처", "유입경로", "고객유형", "가망유형", "담당자", "컨설턴트", "넘버링"];
     const workbook = XLSX.utils.book_new();
-    const exportColumns = [
-      "고객명",
-      "직급",
-      "연락처",
-      "유입경로",
-      "고객유형",
-      "가망유형",
-      "담당자",
-      "컨설턴트",
-      "넘버링",
-    ];
 
     COLUMNS.forEach(col => {
       const rows = getExportContactsByStage(col.key).map(c => ({
@@ -389,24 +378,17 @@ export default function CustomerJourneyPage() {
         넘버링: c.bunyanghoe_number || "",
       }));
 
-      const worksheet = XLSX.utils.aoa_to_sheet([exportColumns]);
+      const worksheet = XLSX.utils.aoa_to_sheet([headers]);
       if (rows.length > 0) {
         XLSX.utils.sheet_add_json(worksheet, rows, {
-          header: exportColumns,
+          header: headers,
           skipHeader: true,
           origin: "A2",
         });
       }
       worksheet["!cols"] = [
-        { wch: 16 },
-        { wch: 14 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 12 },
-        { wch: 14 },
-        { wch: 12 },
-        { wch: 14 },
-        { wch: 14 },
+        { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 12 },
+        { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 },
       ];
       XLSX.utils.book_append_sheet(workbook, worksheet, col.label);
     });
@@ -436,15 +418,8 @@ export default function CustomerJourneyPage() {
               {search || activeFilters > 0 ? ` (전체 ${contacts.length}명)` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={handleExcelDownload}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-colors"
-              style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }}>
-              <Download size={13} />엑셀 다운로드
-            </button>
-            <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />실시간
-            </div>
+          <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />실시간
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -482,6 +457,11 @@ export default function CustomerJourneyPage() {
           <button onClick={() => { setSearch(""); setFCustomerType(""); setFStage(""); setFAssigned(""); setFConsultant(""); setFIntake(""); }}
             className={`px-2.5 py-2 text-xs font-semibold rounded-xl whitespace-nowrap transition-colors ${activeFilters > 0 || search ? "bg-red-500 text-white border border-red-500" : "text-red-400 border border-red-200"}`}>
             ↺ 초기화
+          </button>
+          <button onClick={handleExcelDownload}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-colors hover:opacity-90"
+            style={{ background: "#10b981", color: "#ffffff", border: "1px solid #059669" }}>
+            <Download size={13} /> 엑셀 다운로드
           </button>
         </div>
       </div>
