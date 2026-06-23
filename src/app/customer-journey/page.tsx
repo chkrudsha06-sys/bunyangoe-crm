@@ -418,8 +418,24 @@ export default function CustomerJourneyPage() {
               {search || activeFilters > 0 ? ` (전체 ${contacts.length}명)` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />실시간
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExcelDownload}
+              className="px-3 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-colors hover:opacity-90"
+              style={{
+                background: "#10b981",
+                color: "#ffffff",
+                border: "1px solid #059669",
+                boxShadow: "0 4px 10px rgba(16, 185, 129, 0.18)",
+              }}
+            >
+              📥 엑셀 다운로드
+            </button>
+            <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              실시간
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
